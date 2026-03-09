@@ -8,6 +8,9 @@ healthcheckTimeout = 100
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
 
+[[deploy.domains]]
+domain = "llmtxt.my"
+
 [environments.production]
 startCommand = "npm run db:migrate && npm start"
 
