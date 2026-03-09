@@ -18,6 +18,40 @@
       flex-direction: column;
     }
     
+    .header {
+      padding: 1rem 2rem;
+      border-bottom: 1px solid rgba(128,128,128,0.2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #58a6ff;
+    }
+    
+    .share-btn {
+      padding: 0.5rem 1.5rem;
+      background: #58a6ff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    .share-btn:hover {
+      background: #4a90e0;
+    }
+    
+    .share-btn:disabled {
+      background: rgba(128,128,128,0.3);
+      cursor: not-allowed;
+    }
+    
     textarea {
       flex: 1;
       width: 100%;
@@ -35,60 +69,74 @@
       padding: 1rem 2rem;
       border-top: 1px solid rgba(128,128,128,0.2);
       display: flex;
-      gap: 1rem;
+      gap: 2rem;
       align-items: center;
       flex-wrap: wrap;
+      background: rgba(128,128,128,0.05);
     }
     
-    .toolbar label {
-      font-size: 14px;
-      opacity: 0.7;
+    .stat {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
     }
     
-    .toolbar select, .toolbar button {
-      padding: 0.5rem 1rem;
+    .stat-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      opacity: 0.6;
+      letter-spacing: 0.5px;
+    }
+    
+    .stat-value {
       font-size: 14px;
+      font-weight: 600;
+      font-family: monospace;
+    }
+    
+    .url-display {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      min-width: 300px;
+    }
+    
+    .url-input {
+      flex: 1;
+      padding: 0.5rem;
       border: 1px solid rgba(128,128,128,0.3);
       border-radius: 4px;
-      background: transparent;
-      color: inherit;
-      cursor: pointer;
-    }
-    
-    /* Fix dropdown options in dark mode */
-    .toolbar select option {
-      background: light-dark(#fff, #1a1a1a);
-      color: light-dark(#000, #fff);
-    }
-    
-    .toolbar button {
       background: rgba(128,128,128,0.1);
+      color: inherit;
+      font-family: monospace;
+      font-size: 13px;
     }
     
-    .toolbar button:hover {
+    .copy-btn {
+      padding: 0.5rem 1rem;
       background: rgba(128,128,128,0.2);
+      border: 1px solid rgba(128,128,128,0.3);
+      border-radius: 4px;
+      cursor: pointer;
+      color: inherit;
+      font-size: 13px;
     }
     
-    .info {
-      margin-left: auto;
-      font-size: 12px;
-      opacity: 0.6;
+    .copy-btn:hover {
+      background: rgba(128,128,128,0.3);
     }
     
     .notification {
       position: fixed;
       top: 1rem;
       right: 1rem;
-      padding: 1rem;
-      background: rgba(0,128,0,0.9);
+      padding: 1rem 1.5rem;
+      background: #28a745;
       color: white;
       border-radius: 4px;
       display: none;
-      max-width: 400px;
-    }
-    
-    .notification.error {
-      background: rgba(200,0,0,0.9);
+      font-size: 14px;
     }
     
     .notification.show {
@@ -97,136 +145,150 @@
   </style>
 </head>
 <body>
+  <div class="header">
+    <div class="logo">LLMtxt</div>
+    <button class="share-btn" id="shareBtn" onclick="shareDocument()">Share</button>
+  </div>
+  
   <textarea id="editor" placeholder="Type or paste content here..." spellcheck="false"></textarea>
   
   <div class="toolbar">
-    <label>Format:</label>
-    <select id="format">
-      <option value="auto">Auto-detect</option>
-      <option value="text">Text/Markdown</option>
-      <option value="json">JSON</option>
-    </select>
+    <div class="stat">
+      <div class="stat-label">Characters</div>
+      <div class="stat-value" id="chars">0</div>
+    </div>
     
-    <label>Schema:</label>
-    <select id="schema">
-      <option value="">None</option>
-      <option value="prompt-v1">prompt-v1 (LLM)</option>
-    </select>
+    <div class="stat">
+      <div class="stat-label">Tokens</div>
+      <div class="stat-value" id="tokens">0</div>
+    </div>
     
-    <button id="save-btn">Save & Get URL</button>
+    <div class="stat">
+      <div class="stat-label">Size</div>
+      <div class="stat-value" id="size">0 B</div>
+    </div>
     
-    <span class="info" id="info">0 chars | 0 bytes</span>
+    <div class="stat">
+      <div class="stat-label">Format</div>
+      <div class="stat-value" id="format">text</div>
+    </div>
+    
+    <div class="url-display" id="urlDisplay" style="display: none;">
+      <input type="text" class="url-input" id="urlInput" readonly>
+      <button class="copy-btn" onclick="copyUrl()">Copy</button>
+    </div>
   </div>
   
   <div id="notification" class="notification"></div>
 
   <script>
     const editor = document.getElementById('editor');
-    const formatSelect = document.getElementById('format');
-    const schemaSelect = document.getElementById('schema');
-    const saveBtn = document.getElementById('save-btn');
-    const info = document.getElementById('info');
+    const charsEl = document.getElementById('chars');
+    const tokensEl = document.getElementById('tokens');
+    const sizeEl = document.getElementById('size');
+    const formatEl = document.getElementById('format');
+    const urlDisplay = document.getElementById('urlDisplay');
+    const urlInput = document.getElementById('urlInput');
+    const shareBtn = document.getElementById('shareBtn');
     const notification = document.getElementById('notification');
     
-    const URL_SIZE_LIMIT = 1500; // Safe limit for URL hash storage
-    const API_URL = '/api';
+    let currentSlug = null;
+    let currentUrl = null;
     
-    // Load from URL hash if present
+    // Load from URL hash or slug on page load
     if (location.hash.length > 1) {
       loadFromHash();
+    } else if (location.pathname.length > 1 && !location.pathname.startsWith('/api/')) {
+      loadFromSlug();
     }
     
-    // Update info on input
-    editor.addEventListener('input', updateInfo);
+    // Update stats on every keystroke
+    editor.addEventListener('input', updateStats);
     
-    // Auto-detect format
-    editor.addEventListener('input', () => {
-      if (formatSelect.value === 'auto') {
-        detectAndSetFormat();
-      }
-    });
-    
-    // Save button
-    saveBtn.addEventListener('click', saveDocument);
-    
-    function updateInfo() {
+    function updateStats() {
       const content = editor.value;
       const chars = content.length;
       const bytes = new Blob([content]).size;
-      info.textContent = `${chars.toLocaleString()} chars | ${bytes.toLocaleString()} bytes`;
+      const tokens = Math.ceil(chars / 4); // Simple token estimation
+      
+      charsEl.textContent = chars.toLocaleString();
+      tokensEl.textContent = tokens.toLocaleString();
+      sizeEl.textContent = formatBytes(bytes);
+      
+      // Auto-detect format
+      const format = detectFormat(content);
+      formatEl.textContent = format;
     }
     
-    function detectAndSetFormat() {
-      const content = editor.value.trim();
-      if (!content) return;
-      
+    function detectFormat(content) {
+      if (!content.trim()) return 'text';
       try {
         JSON.parse(content);
-        formatSelect.value = 'json';
+        return 'json';
       } catch {
-        formatSelect.value = 'text';
+        return 'text';
       }
     }
     
-    async function saveDocument() {
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+    
+    async function shareDocument() {
       const content = editor.value;
-      const format = formatSelect.value === 'auto' ? undefined : formatSelect.value;
-      const schema = schemaSelect.value || undefined;
       
       if (!content.trim()) {
-        showNotification('Please enter some content', true);
+        showNotification('Please enter some content first');
         return;
       }
       
-      // Check if we can use URL hash (small content)
-      const hashPayload = JSON.stringify({ c: content, t: Date.now() });
-      const estimatedHashSize = btoa(hashPayload).length;
+      shareBtn.disabled = true;
+      shareBtn.textContent = 'Saving...';
       
-      if (estimatedHashSize < URL_SIZE_LIMIT) {
-        // Use URL hash for small content
-        const hash = btoa(hashPayload);
-        history.replaceState(null, '', '#' + hash);
-        const url = window.location.href;
-        showNotification(`Saved to URL! Share: ${url.substring(0, 60)}...`);
-        updateInfo();
-      } else {
-        // Use API for large content
-        try {
-          saveBtn.textContent = 'Saving...';
-          saveBtn.disabled = true;
-          
-          const response = await fetch(`${API_URL}/compress`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content, format, schema })
-          });
-          
-          if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message || 'Failed to save');
-          }
-          
-          const data = await response.json();
-          
-          // Update URL to short slug
-          history.replaceState(null, '', '/' + data.slug);
-          
-          showNotification(
-            `Saved! URL: ${data.url}\nTokens: ${data.tokenCount} | ` +
-            `Compression: ${(data.compressionRatio * 100).toFixed(1)}%`
-          );
-          
-          // Update schema dropdown if validation succeeded
-          if (data.schema && !schemaSelect.value) {
-            schemaSelect.value = data.schema;
-          }
-          
-        } catch (err) {
-          showNotification('Error: ' + err.message, true);
-        } finally {
-          saveBtn.textContent = 'Save & Get URL';
-          saveBtn.disabled = false;
+      try {
+        const response = await fetch('/api/compress', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content: content,
+            format: detectFormat(content)
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to save');
         }
+        
+        const data = await response.json();
+        currentSlug = data.slug;
+        currentUrl = data.url.replace('http://', 'https://').replace('/api/documents/', '/');
+        
+        // Update URL bar without reloading
+        history.replaceState(null, '', '/' + currentSlug);
+        
+        // Show URL in toolbar
+        urlInput.value = currentUrl;
+        urlDisplay.style.display = 'flex';
+        
+        showNotification('Document saved! URL ready to copy');
+        
+      } catch (err) {
+        showNotification('Error: ' + err.message);
+      } finally {
+        shareBtn.disabled = false;
+        shareBtn.textContent = 'Share';
+      }
+    }
+    
+    function copyUrl() {
+      if (currentUrl) {
+        urlInput.select();
+        document.execCommand('copy');
+        showNotification('URL copied to clipboard!');
       }
     }
     
@@ -235,23 +297,56 @@
         const hash = location.hash.slice(1);
         const data = JSON.parse(atob(hash));
         editor.value = data.c || '';
-        updateInfo();
-        detectAndSetFormat();
+        updateStats();
       } catch (e) {
         console.error('Failed to load from hash:', e);
       }
     }
     
-    function showNotification(message, isError = false) {
-      notification.textContent = message;
-      notification.className = 'notification ' + (isError ? 'error' : '') + ' show';
-      setTimeout(() => {
-        notification.classList.remove('show');
-      }, 5000);
+    async function loadFromSlug() {
+      const slug = location.pathname.slice(1);
+      if (!slug || slug.includes('.')) return;
+      
+      try {
+        const response = await fetch('/api/documents/' + slug);
+        if (!response.ok) throw new Error('Not found');
+        
+        const data = await response.json();
+        
+        // Fetch actual content
+        const contentResponse = await fetch('/api/decompress', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug: slug })
+        });
+        
+        if (!contentResponse.ok) throw new Error('Content not found');
+        
+        const contentData = await contentResponse.json();
+        editor.value = contentData.content;
+        updateStats();
+        
+        // Setup share state
+        currentSlug = slug;
+        currentUrl = window.location.origin + '/' + slug;
+        urlInput.value = currentUrl;
+        urlDisplay.style.display = 'flex';
+        
+      } catch (e) {
+        console.error('Failed to load document:', e);
+      }
     }
     
-    // Initial update
-    updateInfo();
+    function showNotification(message) {
+      notification.textContent = message;
+      notification.classList.add('show');
+      setTimeout(() => {
+        notification.classList.remove('show');
+      }, 3000);
+    }
+    
+    // Initial stats update
+    updateStats();
   </script>
 </body>
 </html>

@@ -24,22 +24,28 @@ async function main() {
       credentials: true,
     });
 
-    // Register compression plugin for response compression
+    // Register compression plugin
     await app.register(compress);
 
-    // Register static file serving for public/ directory
+    // Register static file serving FIRST (before API routes)
     await app.register(fastifyStatic, {
       root: publicDir,
       prefix: '/',
-      wildcard: false,
+      wildcard: true,
       index: ['index.html'],
     });
+
+    // Register web routes (slug redirects)
+    await app.register(webRoutes);
+
+    // Register API routes LAST so they don't catch static files
+    await app.register(apiRoutes, { prefix: '/api' });
+    await app.register(apiRoutes, { prefix: '/' });
 
     // Register error handler
     app.setErrorHandler((error: unknown, request, reply) => {
       app.log.error(error);
       
-      // Don't leak error details in production
       const isDev = process.env.NODE_ENV === 'development';
       
       if (error instanceof Error && 'validation' in error && error.validation) {
@@ -66,15 +72,10 @@ async function main() {
       });
     });
 
-    // Register API routes at both /api (for www subdomain) and root (for api subdomain)
-    await app.register(apiRoutes, { prefix: '/api' });
-    await app.register(apiRoutes, { prefix: '/' });
-    await app.register(webRoutes);
-
     // Start server
     await app.listen({ port: PORT, host: '0.0.0.0' });
     console.log(`Server running on http://localhost:${PORT}`);
-    console.log(`Health check: http://localhost:${PORT}/api/health`);
+    console.log(`API: http://localhost:${PORT}/api/*`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);
