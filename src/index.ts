@@ -6,7 +6,7 @@ import fastifyStatic from '@fastify/static';
 import http from 'http';
 import { apiRoutes } from './routes/api.js';
 import { disclosureRoutes } from './routes/disclosure.js';
-import { publicDir, extractSlug } from './routes/web.js';
+import { publicDir, extractSlug, extractSlugWithExtension, handleContentNegotiation, getDocumentWithContent } from './routes/web.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const API_HOSTS = new Set(['api.llmtxt.my']);
@@ -50,6 +50,70 @@ async function main() {
     await app.register(compress);
 
     // ──────────────────────────────────────────────────────────────────
+    // robots.txt: allow all crawlers
+    // ──────────────────────────────────────────────────────────────────
+    app.get('/robots.txt', async (request, reply) => {
+      reply.type('text/plain');
+      return 'User-agent: *\nDisallow:\n';
+    });
+
+    // ──────────────────────────────────────────────────────────────────
+    // .well-known/llm.json: agent discovery document
+    // ──────────────────────────────────────────────────────────────────
+    app.get('/.well-known/llm.json', async (request, reply) => {
+      reply.type('application/json');
+      return {
+        schema_version: '1.0',
+        name: 'llmtxt API',
+        description: 'API for managing and serving llms.txt documents',
+        base_url: 'https://api.llmtxt.my',
+        endpoints: [
+          {
+            path: '/health',
+            method: 'GET',
+            description: 'Health check endpoint'
+          },
+          {
+            path: '/compress',
+            method: 'POST',
+            description: 'Compress and analyze text content'
+          },
+          {
+            path: '/documents',
+            method: 'GET',
+            description: 'List all documents'
+          },
+          {
+            path: '/documents',
+            method: 'POST',
+            description: 'Create a new document'
+          },
+          {
+            path: '/documents/:slug',
+            method: 'GET',
+            description: 'Get document by slug'
+          },
+          {
+            path: '/documents/:slug/raw',
+            method: 'GET',
+            description: 'Get raw document content'
+          },
+          {
+            path: '/documents/:slug/stats',
+            method: 'GET',
+            description: 'Get document statistics'
+          },
+          {
+            path: '/disclosure',
+            method: 'POST',
+            description: 'Submit AI disclosure information'
+          }
+        ],
+        llms_txt: 'https://api.llmtxt.my/llms.txt'
+      };
+    });
+
+    // ──────────────────────────────────────────────────────────────────
     // Static files: serves public/ directory for www.llmtxt.my
     // Registered BEFORE dynamic routes so index.html, view.html work
     // ──────────────────────────────────────────────────────────────────
@@ -91,7 +155,7 @@ async function main() {
     });
 
     // Register 404 handler - also handles slug redirects
-    app.setNotFoundHandler((request, reply) => {
+    app.setNotFoundHandler(async (request, reply) => {
       // On API host, return JSON 404 with helpful docs pointer
       if (isApiHost(request.hostname)) {
         return reply.status(404).send({
@@ -104,8 +168,48 @@ async function main() {
       // On web host, check if this looks like a document slug
       // e.g., GET /abc123 → redirect to /view.html?slug=abc123
       if (request.method === 'GET') {
+        const slugWithExt = extractSlugWithExtension(request.url);
+        if (slugWithExt) {
+          const { slug, ext } = slugWithExt;
+          const documentData = await getDocumentWithContent(slug, request);
+          
+          if (!documentData) {
+            return reply.status(404).send({ error: 'Document not found' });
+          }
+
+          let contentType = 'text/plain';
+          if (ext === 'json') contentType = 'application/json';
+          else if (ext === 'md') contentType = 'text/markdown';
+          
+          if (documentData.tokenCount != null) {
+            reply.header('X-Token-Count', documentData.tokenCount);
+          }
+          return reply.type(contentType).send(documentData.content);
+        }
+
         const slug = extractSlug(request.url);
         if (slug) {
+          // Check content negotiation
+          const isContentNegotiated = await handleContentNegotiation(request, reply, slug);
+          if (isContentNegotiated) return reply;
+
+          // Perform Server-Side Rendering
+          try {
+            const documentData = await getDocumentWithContent(slug, request);
+            
+            if (documentData) {
+              const { renderViewHtml } = await import('./routes/viewTemplate.js');
+              const html = renderViewHtml(slug, documentData);
+              reply.header('Link', `< /api/documents/${slug}/raw >; rel="alternate"; type="text/plain"`);
+              return reply.type('text/html').send(html);
+            } else {
+              return reply.status(404).type('text/html').send('<h1>404 Not Found</h1><p>Document not found.</p>');
+            }
+          } catch (err) {
+            app.log.error(err);
+          }
+
+          // Fallback in case of SSR error
           return reply.redirect(`/view.html?slug=${encodeURIComponent(slug)}`);
         }
       }

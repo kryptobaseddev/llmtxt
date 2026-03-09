@@ -574,7 +574,7 @@ function parsePathSegments(path: string): string[] {
  * @param content - Full document content
  * @param sectionName - Name of the section to extract
  */
-export function getSection(content: string, sectionName: string): {
+export function getSection(content: string, sectionName: string, depthAll: boolean = false): {
   section: Section;
   content: string;
   tokenCount: number;
@@ -584,15 +584,44 @@ export function getSection(content: string, sectionName: string): {
   const overview = generateOverview(content);
   const lowerName = sectionName.toLowerCase();
 
-  const section = overview.sections.find(
-    s => s.title.toLowerCase() === lowerName ||
-         s.title.toLowerCase().includes(lowerName)
+  let sectionIndex = overview.sections.findIndex(
+    s => s.title.toLowerCase() === lowerName
   );
 
-  if (!section) return null;
+  if (sectionIndex === -1) {
+    sectionIndex = overview.sections.findIndex(
+      s => s.title.toLowerCase().includes(lowerName)
+    );
+  }
+
+  if (sectionIndex === -1) {
+    const cleanLowerName = lowerName.replace(/[^a-z0-9]/g, '');
+    if (cleanLowerName.length > 0) {
+      sectionIndex = overview.sections.findIndex(
+        s => s.title.toLowerCase().replace(/[^a-z0-9]/g, '').includes(cleanLowerName)
+      );
+    }
+  }
+
+  if (sectionIndex === -1) return null;
+
+  const section = overview.sections[sectionIndex];
+  let endLine = section.endLine;
+
+  if (depthAll) {
+    // Find the end line by including all child sections
+    // A child section is any subsequent section with depth > section.depth
+    for (let i = sectionIndex + 1; i < overview.sections.length; i++) {
+      const nextSection = overview.sections[i];
+      if (nextSection.depth <= section.depth) {
+        break; // Found a sibling or higher-level section, stop
+      }
+      endLine = nextSection.endLine;
+    }
+  }
 
   const lines = content.split('\n');
-  const sectionContent = lines.slice(section.startLine - 1, section.endLine).join('\n');
+  const sectionContent = lines.slice(section.startLine - 1, endLine).join('\n');
   const sectionTokens = calculateTokens(sectionContent);
 
   return {

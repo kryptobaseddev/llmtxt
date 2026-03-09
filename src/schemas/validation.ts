@@ -37,6 +37,11 @@ export const jsonFormatSchema = z.union([
  */
 export const textFormatSchema = z.string();
 
+/**
+ * Markdown Format Schema - Accepts any string content
+ */
+export const markdownFormatSchema = z.string();
+
 // ===== PREDEFINED SCHEMAS =====
 
 /**
@@ -94,7 +99,7 @@ export const schemaParamSchema = z
  */
 export const compressRequestSchema = z.object({
   content: z.string().min(1, 'Content is required'),
-  format: z.enum(['json', 'text']).optional().default('text'),
+  format: z.enum(['json', 'text', 'markdown']).optional().default('text'),
   schema: z.string().optional(),
   metadata: z.record(z.unknown()).optional(),
 });
@@ -106,6 +111,14 @@ export const decompressRequestSchema = z.object({
   slug: z.string().min(1, 'Document slug is required'),
 });
 
+/**
+ * Search Request Schema - Validates POST /api/search body
+ */
+export const searchRequestSchema = z.object({
+  query: z.string().min(1, 'Search query is required'),
+  slugs: z.array(z.string().min(1)).min(1, 'At least one slug is required'),
+});
+
 // ===== TYPE EXPORTS =====
 
 export type CreateDocumentInput = z.infer<typeof createDocumentSchema>;
@@ -114,8 +127,10 @@ export type ShortIdParams = z.infer<typeof shortIdSchema>;
 
 export type JsonFormat = z.infer<typeof jsonFormatSchema>;
 export type TextFormat = z.infer<typeof textFormatSchema>;
+export type MarkdownFormat = z.infer<typeof markdownFormatSchema>;
 export type PromptV1 = z.infer<typeof promptV1Schema>;
 export type PromptMessage = z.infer<typeof promptMessageSchema>;
 
 export type CompressRequest = z.infer<typeof compressRequestSchema>;
 export type DecompressRequest = z.infer<typeof decompressRequestSchema>;
+export type SearchRequest = z.infer<typeof searchRequestSchema>;

@@ -18,6 +18,7 @@ import {
 import {
   compressRequestSchema,
   decompressRequestSchema,
+  searchRequestSchema,
   isPredefinedSchema,
   predefinedSchemas,
 } from '../schemas/validation.js';
@@ -104,7 +105,7 @@ export async function apiRoutes(fastify: FastifyInstance) {
    * }
    */
   fastify.post('/compress', async (
-    request: FastifyRequest<{ Body: { content: string; format?: 'json' | 'text'; schema?: string } }>,
+    request: FastifyRequest<{ Body: { content: string; format?: 'json' | 'text' | 'markdown'; schema?: string } }>,
     reply: FastifyReply
   ) => {
     try {
@@ -246,7 +247,7 @@ export async function apiRoutes(fastify: FastifyInstance) {
    * }
    */
   fastify.post('/validate', async (
-    request: FastifyRequest<{ Body: { content: string; format?: 'json' | 'text'; schema?: string } }>,
+    request: FastifyRequest<{ Body: { content: string; format?: 'json' | 'text' | 'markdown'; schema?: string } }>,
     reply: FastifyReply
   ) => {
     try {
@@ -543,6 +544,119 @@ export async function apiRoutes(fastify: FastifyInstance) {
         compressedSize: document.compressedSize,
         createdAt: document.createdAt,
         accessCount: (document.accessCount || 0) + 1,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({
+          error: 'Validation failed',
+          details: error.errors,
+        });
+      }
+
+      fastify.log.error(error);
+      return reply.status(500).send({
+        error: 'Internal server error',
+      });
+    }
+  });
+
+  /**
+   * POST /api/search - Search content across multiple documents
+   *
+   * Request body:
+   * {
+   *   query: string - Search query string
+   *   slugs: string[] - Array of document slugs to search
+   * }
+   *
+   * Response (200):
+   * {
+   *   results: [
+   *     {
+   *       slug: string,
+   *       matches: [
+   *         {
+   *           context: string,
+   *           line: number
+   *         }
+   *       ]
+   *     }
+   *   ],
+   *   totalMatches: number,
+   *   searchedDocuments: number
+   * }
+   */
+  fastify.post('/search', async (
+    request: FastifyRequest<{ Body: { query: string; slugs: string[] } }>,
+    reply: FastifyReply
+  ) => {
+    try {
+      // Validate request body
+      const bodyResult = searchRequestSchema.safeParse(request.body);
+      if (!bodyResult.success) {
+        return reply.status(400).send({
+          error: 'Invalid request body',
+          details: bodyResult.error.errors.map((e) => ({
+            field: e.path.join('.') || 'body',
+            message: e.message,
+            code: e.code,
+          })),
+        });
+      }
+
+      const { query, slugs } = bodyResult.data;
+      const searchResults = [];
+      let totalMatches = 0;
+
+      // Search each document
+      for (const slug of slugs) {
+        try {
+          // Look up document by slug
+          const [document] = await db
+            .select()
+            .from(documents)
+            .where(eq(documents.slug, slug));
+
+          if (!document) {
+            continue; // Skip missing documents
+          }
+
+          // Decompress content
+          const compressedBuffer = document.compressedData instanceof Buffer
+            ? document.compressedData
+            : Buffer.from(document.compressedData as ArrayBuffer);
+          const content = await decompress(compressedBuffer);
+
+          // Search for matches
+          const lines = content.split('\n');
+          const matches = [];
+
+          for (let i = 0; i < lines.length; i++) {
+            if (lines[i].toLowerCase().includes(query.toLowerCase())) {
+              matches.push({
+                context: lines[i].trim(),
+                line: i + 1,
+              });
+            }
+          }
+
+          if (matches.length > 0) {
+            searchResults.push({
+              slug,
+              matches,
+            });
+            totalMatches += matches.length;
+          }
+        } catch (err) {
+          fastify.log.warn(`Failed to search document ${slug}: ${err}`);
+          // Continue with other documents even if one fails
+        }
+      }
+
+      return reply.status(200).send({
+        results: searchResults,
+        totalMatches,
+        searchedDocuments: slugs.length,
       });
     } catch (error) {
       if (error instanceof z.ZodError) {

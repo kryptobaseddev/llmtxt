@@ -1,0 +1,13 @@
+{"taskId":"T016", "status":"completed", "key_findings":"Content negotiation added for /:slug requests. Requests with Accept headers for text/plain or application/json, as well as bot User-Agents (ClaudeBot, GPTBot, curl, etc.), now receive raw content directly instead of the view.html SPA redirect."}
+{"taskId":"T015", "status":"completed", "key_findings":"Server-side rendering implemented for /:slug.", "notes":"Extracted DB fetch logic from content negotiation to getDocumentWithContent(). Rendered initial state with viewTemplate.ts. Replaced client-side loading with server-sent HTML containing document content."}
+{"taskId":"T020", "status":"completed", "key_findings":"Implemented ?depth=all for fetching child sections."}
+{"taskId":"T021", "status":"completed", "key_findings":"Added fuzzy section name matching."}
+{"taskId":"T017", "status":"completed", "key_findings":"Added support for explicit file extensions on slug URLs."}
+{"taskId":"T026", "status":"completed", "key_findings":"Added /toc endpoint."}
+{"taskId":"T018", "status":"completed", "key_findings":"Added Link headers and meta tags for API discovery."}
+{"taskId":"T027", "status":"completed", "key_findings":"Added ?section= support to /raw endpoint."}
+{"taskId":"T029", "status":"completed", "key_findings":"Added robots.txt and well-known paths."}
+{"taskId":"T024", "status":"completed", "key_findings":"Added markdown format support."}
+{"taskId":"T023", "status":"completed", "key_findings":"Added token metadata headers."}
+{"taskId":"T022", "status":"completed", "key_findings":"Added POST /batch endpoint."}
+{"taskId":"T028", "status":"completed", "key_findings":"Added cross-document search."}

@@ -32,7 +32,7 @@ import {
 async function resolveDocument(
   slug: string,
   skipCache: boolean,
-): Promise<{ content: string; format: string; totalTokens: number } | null> {
+): Promise<{ content: string; format: string; totalTokens: number; originalSize: number; compressedSize: number } | null> {
   // Try cache first
   if (!skipCache) {
     const cacheKey = getDocumentCacheKey(slug, 'content');
@@ -42,6 +42,8 @@ async function resolveDocument(
         content: cached as string,
         format: 'unknown', // We'd need metadata from DB
         totalTokens: calculateTokens(cached as string),
+        originalSize: 0, // Not available from cache
+        compressedSize: 0, // Not available from cache
       };
     }
   }
@@ -76,6 +78,8 @@ async function resolveDocument(
     content,
     format: doc.format || 'text',
     totalTokens: doc.tokenCount || calculateTokens(content),
+    originalSize: doc.originalSize,
+    compressedSize: doc.compressedSize,
   };
 }
 
@@ -104,6 +108,11 @@ const jsonPathQuery = z.object({
 
 const sectionQuery = z.object({
   name: z.string().min(1).max(200),
+});
+
+const batchQuerySchema = z.object({
+  sections: z.array(z.string()).optional(),
+  paths: z.array(z.string()).optional(),
 });
 
 // ──────────────────────────────────────────────────────────────────
@@ -362,8 +371,41 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
   });
 
   /**
+   * GET /api/documents/:slug/toc
+   * Lightweight table-of-contents returning just section names/titles.
+   * Helps agents discover available sections with minimal token cost.
+   *
+   * Response:
+   * {
+   *   slug: string,
+   *   toc: string[]
+   * }
+   */
+  fastify.get('/documents/:slug/toc', async (
+    request: FastifyRequest<{ Params: { slug: string } }>,
+    reply: FastifyReply,
+  ) => {
+    const { slug } = slugSchema.parse(request.params);
+    const doc = await resolveDocument(slug, shouldSkipCache(request));
+    if (!doc) {
+      return reply.status(404).send({ error: 'Document not found' });
+    }
+
+    const overview = generateOverview(doc.content);
+    const toc = overview.sections.map(s => s.title);
+
+    return reply.send({
+      slug,
+      toc,
+    });
+  });
+
+  /**
    * GET /api/documents/:slug/sections/:name
    * Get a specific section by name.
+   *
+   * Query params:
+   *   depth: 'all' to include all nested children concatenated
    *
    * Response:
    * {
@@ -376,18 +418,22 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
    * }
    */
   fastify.get('/documents/:slug/sections/:name', async (
-    request: FastifyRequest<{ Params: { slug: string; name: string } }>,
+    request: FastifyRequest<{
+      Params: { slug: string; name: string };
+      Querystring: { depth?: string };
+    }>,
     reply: FastifyReply,
   ) => {
-    const { slug } = slugSchema.parse({ slug: (request.params as { slug: string }).slug });
-    const { name } = sectionQuery.parse({ name: (request.params as { name: string }).name });
+    const { slug } = slugSchema.parse({ slug: request.params.slug });
+    const { name } = sectionQuery.parse({ name: request.params.name });
+    const depthAll = request.query.depth === 'all';
 
     const doc = await resolveDocument(slug, shouldSkipCache(request));
     if (!doc) {
       return reply.status(404).send({ error: 'Document not found' });
     }
 
-    const result = getSection(doc.content, name);
+    const result = getSection(doc.content, name, depthAll);
     if (!result) {
       const overview = generateOverview(doc.content);
       return reply.status(404).send({
@@ -413,11 +459,12 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
    * Query params:
    *   start: optional 1-indexed start line
    *   end: optional 1-indexed end line
+   *   section: optional section name to extract
    */
   fastify.get('/documents/:slug/raw', async (
     request: FastifyRequest<{
       Params: { slug: string };
-      Querystring: { start?: string; end?: string };
+      Querystring: { start?: string; end?: string; section?: string };
     }>,
     reply: FastifyReply,
   ) => {
@@ -427,12 +474,22 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
       return reply.status(404).send({ error: 'Document not found' });
     }
 
-    const start = request.query.start ? parseInt(request.query.start, 10) : undefined;
-    const end = request.query.end ? parseInt(request.query.end, 10) : undefined;
+    const { start: startStr, end: endStr, section } = request.query;
 
     let content = doc.content;
-    if (start !== undefined || end !== undefined) {
-      const result = getLineRange(doc.content, start || 1, end || doc.content.split('\n').length);
+    if (section) {
+      const result = getSection(doc.content, section, false);
+      if (!result) {
+        return reply.status(404).type('text/plain').send(`Error: Section '${section}' not found`);
+      }
+      content = result.content;
+      reply.header('X-Token-Count', result.tokenCount);
+      reply.header('X-Total-Tokens', result.totalTokens);
+      reply.header('X-Tokens-Saved', result.tokensSaved);
+    } else if (startStr !== undefined || endStr !== undefined) {
+      const start = startStr ? parseInt(startStr, 10) : 1;
+      const end = endStr ? parseInt(endStr, 10) : doc.content.split('\n').length;
+      const result = getLineRange(doc.content, start, end);
       content = result.content;
       reply.header('X-Token-Count', result.tokenCount);
       reply.header('X-Total-Tokens', result.totalTokens);
@@ -441,6 +498,83 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
       reply.header('X-Token-Count', doc.totalTokens);
     }
 
+    // Add metadata headers
+    reply.header('X-Original-Size', doc.originalSize);
+    reply.header('X-Compressed-Size', doc.compressedSize);
+
     return reply.type('text/plain').send(content);
+  });
+
+  /**
+   * POST /api/documents/:slug/batch
+   * Batch query for multiple sections in one request.
+   * Accepts JSON body with sections array and returns combined results.
+   *
+   * Body:
+   *   { sections: string[] }
+   *
+   * Response:
+   * {
+   *   slug: string,
+   *   results: [{ section: string, content: string }],
+   *   totalTokenCount: number,
+   *   totalTokensSaved: number,
+   * }
+   */
+  fastify.post('/documents/:slug/batch', async (
+    request: FastifyRequest<{
+      Params: { slug: string };
+      Body: { sections: string[] };
+    }>,
+    reply: FastifyReply,
+  ) => {
+    const { slug } = slugSchema.parse(request.params);
+    const parsed = batchQuerySchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        error: 'Invalid request body',
+        details: parsed.error.errors.map(e => ({
+          field: e.path.join('.'),
+          message: e.message,
+        })),
+      });
+    }
+    const { sections } = parsed.data;
+
+    if (!sections || sections.length === 0) {
+      return reply.status(400).send({
+        error: 'Invalid request body',
+        message: 'sections array is required and must not be empty',
+      });
+    }
+
+    const doc = await resolveDocument(slug, shouldSkipCache(request));
+    if (!doc) {
+      return reply.status(404).send({ error: 'Document not found' });
+    }
+
+    const results = [];
+    let totalTokenCount = 0;
+
+    for (const sectionName of sections) {
+      const result = getSection(doc.content, sectionName, false);
+      if (result) {
+        results.push({
+          section: sectionName,
+          content: result.content,
+        });
+        totalTokenCount += result.tokenCount;
+      }
+    }
+
+    reply.header('X-Token-Count', totalTokenCount);
+    reply.header('X-Total-Tokens', doc.totalTokens);
+    reply.header('X-Tokens-Saved', doc.totalTokens - totalTokenCount);
+    return reply.send({
+      slug,
+      results,
+      totalTokenCount,
+      totalTokensSaved: doc.totalTokens - totalTokenCount,
+    });
   });
 }

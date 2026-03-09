@@ -15,7 +15,7 @@ export interface ValidationResult<T = unknown> {
   success: boolean;
   data?: T;
   errors?: ValidationError[];
-  format?: 'json' | 'text';
+  format?: 'json' | 'text' | 'markdown';
 }
 
 /**
@@ -161,7 +161,7 @@ export function validateText(content: unknown): ValidationResult<string> {
  * detectFormat('Hello world'); // 'text'
  * detectFormat('# Markdown'); // 'text'
  */
-export function detectFormat(content: string): 'json' | 'text' {
+export function detectFormat(content: string): 'json' | 'text' | 'markdown' {
   try {
     JSON.parse(content);
     return 'json';
@@ -184,13 +184,14 @@ export function detectFormat(content: string): 'json' | 'text' {
  */
 export function validateContent(
   content: unknown,
-  format: 'json' | 'text',
+  format: 'json' | 'text' | 'markdown',
   schemaName?: string
 ): ValidationResult {
   switch (format) {
     case 'json':
       return validateJson(content, schemaName);
     case 'text':
+    case 'markdown':
       return validateText(content);
     default:
       return {
@@ -198,7 +199,7 @@ export function validateContent(
         errors: [
           {
             path: 'format',
-            message: `Invalid format '${format}'. Must be 'json' or 'text'`,
+            message: `Invalid format '${format}'. Must be 'json', 'text', or 'markdown'`,
             code: 'invalid_format',
           },
         ],
@@ -231,5 +232,5 @@ export function autoValidate(content: unknown, schemaName?: string): ValidationR
   }
 
   const format = detectFormat(content);
-  return validateContent(content, format, schemaName);
+  return validateContent(content, format as 'json' | 'text', schemaName);
 }
