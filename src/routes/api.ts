@@ -1,6 +1,9 @@
 // API routes for document management with dual format validation
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { db } from '../db/index.js';
 import { documents } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
@@ -55,6 +58,14 @@ function formatValidationErrors(errors: Array<{ path: string; message: string; c
 }
 
 export async function apiRoutes(fastify: FastifyInstance) {
+  // Serve llms.txt at API root for agent auto-discovery
+  fastify.get('/llms.txt', async (_request, reply) => {
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const llmsTxtPath = path.join(__dirname, '..', '..', 'public', 'llms.txt');
+    const content = fs.readFileSync(llmsTxtPath, 'utf-8');
+    return reply.type('text/plain').send(content);
+  });
+
   // Health check endpoint
   fastify.get('/health', async () => ({
     status: 'ok',
@@ -162,9 +173,13 @@ export async function apiRoutes(fastify: FastifyInstance) {
         accessCount: 0,
       });
 
-      // Build URL
+      // Build URL - use /documents/:slug for API host, /api/documents/:slug otherwise
+      const host = request.hostname.split(':')[0];
+      const isApiHost = host === 'api.llmtxt.my';
       const baseUrl = `${request.protocol}://${request.hostname}`;
-      const url = `${baseUrl}/api/documents/${slug}`;
+      const url = isApiHost
+        ? `${baseUrl}/documents/${slug}`
+        : `${baseUrl}/api/documents/${slug}`;
 
       // Build response with format metadata
       const response: Record<string, unknown> = {
