@@ -1,8 +1,10 @@
-// Main entry point with hostname-aware routing
+// Main entry point
 import Fastify from 'fastify';
 import compress from '@fastify/compress';
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { apiRoutes } from './routes/api.js';
 import { webRoutes, publicDir } from './routes/web.js';
 
@@ -25,10 +27,19 @@ async function main() {
     // Register compression plugin for response compression
     await app.register(compress);
 
+    // Register static file serving for public/ directory
+    await app.register(fastifyStatic, {
+      root: publicDir,
+      prefix: '/',
+      wildcard: false,
+      index: ['index.html'],
+    });
+
     // Register error handler
     app.setErrorHandler((error: unknown, request, reply) => {
       app.log.error(error);
       
+      // Don't leak error details in production
       const isDev = process.env.NODE_ENV === 'development';
       
       if (error instanceof Error && 'validation' in error && error.validation) {
@@ -55,27 +66,14 @@ async function main() {
       });
     });
 
-    // Register API routes at root level (works for both api.llmtxt.my and /api/* paths)
-    // The routes themselves check hostname to provide correct URLs
-    await app.register(apiRoutes, { prefix: '/' });
-    
-    // Also register at /api for backward compatibility and www subdomain
+    // Register routes
     await app.register(apiRoutes, { prefix: '/api' });
-
-    // Register static files and web routes (only for non-API requests)
-    await app.register(fastifyStatic, {
-      root: publicDir,
-      prefix: '/',
-      wildcard: false,
-      index: ['index.html'],
-    });
-    
     await app.register(webRoutes);
 
     // Start server
     await app.listen({ port: PORT, host: '0.0.0.0' });
     console.log(`Server running on http://localhost:${PORT}`);
-    console.log(`API: http://localhost:${PORT}/api/* or https://api.llmtxt.my/*`);
+    console.log(`Health check: http://localhost:${PORT}/api/health`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);
