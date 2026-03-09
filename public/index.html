@@ -55,6 +55,12 @@
       cursor: pointer;
     }
     
+    /* Fix dropdown options in dark mode */
+    .toolbar select option {
+      background: light-dark(#fff, #1a1a1a);
+      color: light-dark(#000, #fff);
+    }
+    
     .toolbar button {
       background: rgba(128,128,128,0.1);
     }
