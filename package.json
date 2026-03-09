@@ -23,6 +23,7 @@
   "dependencies": {
     "@fastify/compress": "^8.0.1",
     "@fastify/cors": "^11.2.0",
+    "@fastify/static": "^9.0.0",
     "better-sqlite3": "^12.1.0",
     "drizzle-orm": "1.0.0-beta.9-e89174b",
     "drizzle-zod": "0.7.0",
