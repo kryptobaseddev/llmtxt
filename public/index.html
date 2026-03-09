@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LLMtxt</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  html {
+    color-scheme: light dark;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+  
+  body {
+    min-height: 100dvh;
+  }
+  
+  textarea {
+    width: 100%;
+    min-height: 100dvh;
+    padding: 2rem;
+    border: none;
+    outline: none;
+    font: 16px/1.6 system-ui, monospace;
+    resize: none;
+    background: transparent;
+    color: inherit;
+  }
+  
+  .info {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    font-size: 12px;
+    opacity: 0.5;
+    pointer-events: none;
+  }
+</style>
+<textarea id="t" placeholder="Type or paste content here..." spellcheck="false"></textarea>
+<div class="info" id="i"></div>
+<script>
+  const t = document.getElementById('t');
+  const i = document.getElementById('i');
+  
+  // Load from URL hash
+  if (location.hash) {
+    try {
+      const data = JSON.parse(atob(location.hash.slice(1)));
+      t.value = data.c || '';
+      updateInfo(data);
+    } catch (e) {
+      t.value = 'Error loading document';
+    }
+  }
+  
+  // Save to URL hash on input
+  t.addEventListener('input', () => {
+    const data = { c: t.value, t: Date.now() };
+    const hash = btoa(JSON.stringify(data));
+    history.replaceState(null, '', '#' + hash);
+    updateInfo(data);
+  });
+  
+  function updateInfo(data) {
+    const chars = data.c?.length || 0;
+    const bytes = new Blob([data.c || '']).size;
+    i.textContent = `${chars} chars | ${bytes} bytes | Share via URL`;
+  }
+  
+  // Initial info update
+  updateInfo({ c: t.value });
+</script>

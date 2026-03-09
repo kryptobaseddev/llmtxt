@@ -22,6 +22,16 @@ import {
   validateContent,
   detectFormat,
 } from '../utils/validator.js';
+import {
+  setCachedContent,
+  setCachedMetadata,
+  invalidateDocumentCache,
+  getCacheStats,
+  shouldSkipCache,
+  getDocumentCacheKey,
+  contentCache,
+  metadataCache,
+} from '../middleware/cache.js';
 
 // Legacy validation schemas (kept for backward compatibility)
 const slugParamsSchema = z.object({
@@ -195,100 +205,6 @@ export async function apiRoutes(fastify: FastifyInstance) {
   });
 
   /**
-   * POST /api/decompress - Decompress and retrieve document
-   * 
-   * Request body:
-   * {
-   *   slug: string - Document slug
-   * }
-   * 
-   * Response:
-   * {
-   *   id: string,
-   *   slug: string,
-   *   format: 'json' | 'text',
-   *   content: string,
-   *   tokenCount: number,
-   *   originalSize: number,
-   *   compressedSize: number,
-   *   createdAt: number,
-   *   accessCount: number
-   * }
-   */
-  fastify.post('/decompress', async (
-    request: FastifyRequest<{ Body: { slug: string } }>,
-    reply: FastifyReply
-  ) => {
-    try {
-      // Validate request body
-      const bodyResult = decompressRequestSchema.safeParse(request.body);
-      if (!bodyResult.success) {
-        return reply.status(400).send({
-          error: 'Invalid request body',
-          details: bodyResult.error.errors.map((e) => ({
-            field: e.path.join('.') || 'body',
-            message: e.message,
-            code: e.code,
-          })),
-        });
-      }
-
-      const { slug } = bodyResult.data;
-
-      // Look up document by slug
-      const [document] = await db
-        .select()
-        .from(documents)
-        .where(eq(documents.slug, slug));
-
-      if (!document) {
-        return reply.status(404).send({
-          error: 'Document not found',
-        });
-      }
-
-      // Update access stats
-      await db
-        .update(documents)
-        .set({
-          accessCount: (document.accessCount || 0) + 1,
-          lastAccessedAt: Date.now(),
-        })
-        .where(eq(documents.id, document.id));
-
-      // Decompress content
-      const compressedBuffer = document.compressedData instanceof Buffer
-        ? document.compressedData
-        : Buffer.from(document.compressedData as ArrayBuffer);
-      const content = await decompress(compressedBuffer);
-
-      return reply.send({
-        id: document.id,
-        slug: document.slug,
-        format: document.format,
-        content,
-        tokenCount: document.tokenCount,
-        originalSize: document.originalSize,
-        compressedSize: document.compressedSize,
-        createdAt: document.createdAt,
-        accessCount: (document.accessCount || 0) + 1,
-      });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return reply.status(400).send({
-          error: 'Validation failed',
-          details: error.errors,
-        });
-      }
-
-      fastify.log.error(error);
-      return reply.status(500).send({
-        error: 'Internal server error',
-      });
-    }
-  });
-
-  /**
    * POST /api/validate - Validate content without compressing
    * Useful for checking format/schema before storage
    * 
@@ -416,6 +332,19 @@ export async function apiRoutes(fastify: FastifyInstance) {
       // Validate params
       const { slug } = slugParamsSchema.parse(request.params);
 
+      // Check cache first (skip if nocache=1)
+      if (shouldSkipCache(request)) {
+        reply.header('X-Cache', 'SKIP');
+      } else {
+        const cacheKey = getDocumentCacheKey(slug, 'metadata');
+        const cached = metadataCache.get(cacheKey);
+        if (cached) {
+          reply.header('X-Cache', 'HIT');
+          return reply.send(cached);
+        }
+        reply.header('X-Cache', 'MISS');
+      }
+
       // Look up document
       const [document] = await db
         .select({
@@ -446,9 +375,159 @@ export async function apiRoutes(fastify: FastifyInstance) {
         document.compressedSize
       );
 
-      return reply.send({
+      const response = {
         ...document,
         compressionRatio,
+      };
+
+      // Cache the response
+      setCachedMetadata(slug, response);
+
+      return reply.send(response);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({
+          error: 'Validation failed',
+          details: error.errors,
+        });
+      }
+
+      fastify.log.error(error);
+      return reply.status(500).send({
+        error: 'Internal server error',
+      });
+    }
+  });
+
+  /**
+   * POST /api/decompress - Decompress and retrieve document
+   * 
+   * Request body:
+   * {
+   *   slug: string - Document slug
+   * }
+   * 
+   * Response:
+   * {
+   *   id: string,
+   *   slug: string,
+   *   format: 'json' | 'text',
+   *   content: string,
+   *   tokenCount: number,
+   *   originalSize: number,
+   *   compressedSize: number,
+   *   createdAt: number,
+   *   accessCount: number
+   * }
+   */
+  fastify.post('/decompress', async (
+    request: FastifyRequest<{ Body: { slug: string } }>,
+    reply: FastifyReply
+  ) => {
+    try {
+      // Validate request body
+      const bodyResult = decompressRequestSchema.safeParse(request.body);
+      if (!bodyResult.success) {
+        return reply.status(400).send({
+          error: 'Invalid request body',
+          details: bodyResult.error.errors.map((e) => ({
+            field: e.path.join('.') || 'body',
+            message: e.message,
+            code: e.code,
+          })),
+        });
+      }
+
+      const { slug } = bodyResult.data;
+
+      // Check cache first (skip if nocache query param is set)
+      const skipCache = shouldSkipCache(request);
+      
+      if (!skipCache) {
+        const cacheKey = getDocumentCacheKey(slug, 'content');
+        const cachedContent = contentCache.get(cacheKey);
+        
+        if (cachedContent) {
+          // Still need to get metadata from DB for access stats update
+          const [document] = await db
+            .select()
+            .from(documents)
+            .where(eq(documents.slug, slug));
+
+          if (!document) {
+            // Cache hit but document not in DB (inconsistency), delete cache entry
+            contentCache.delete(cacheKey);
+            return reply.status(404).send({
+              error: 'Document not found',
+            });
+          }
+
+          // Update access stats
+          await db
+            .update(documents)
+            .set({
+              accessCount: (document.accessCount || 0) + 1,
+              lastAccessedAt: Date.now(),
+            })
+            .where(eq(documents.id, document.id));
+
+          reply.header('X-Cache', 'HIT');
+          return reply.send({
+            id: document.id,
+            slug: document.slug,
+            format: document.format,
+            content: cachedContent,
+            tokenCount: document.tokenCount,
+            originalSize: document.originalSize,
+            compressedSize: document.compressedSize,
+            createdAt: document.createdAt,
+            accessCount: (document.accessCount || 0) + 1,
+          });
+        }
+      }
+
+      reply.header('X-Cache', skipCache ? 'SKIP' : 'MISS');
+
+      // Look up document by slug
+      const [document] = await db
+        .select()
+        .from(documents)
+        .where(eq(documents.slug, slug));
+
+      if (!document) {
+        return reply.status(404).send({
+          error: 'Document not found',
+        });
+      }
+
+      // Update access stats
+      await db
+        .update(documents)
+        .set({
+          accessCount: (document.accessCount || 0) + 1,
+          lastAccessedAt: Date.now(),
+        })
+        .where(eq(documents.id, document.id));
+
+      // Decompress content
+      const compressedBuffer = document.compressedData instanceof Buffer
+        ? document.compressedData
+        : Buffer.from(document.compressedData as ArrayBuffer);
+      const content = await decompress(compressedBuffer);
+
+      // Cache the decompressed content
+      setCachedContent(slug, content);
+
+      return reply.send({
+        id: document.id,
+        slug: document.slug,
+        format: document.format,
+        content,
+        tokenCount: document.tokenCount,
+        originalSize: document.originalSize,
+        compressedSize: document.compressedSize,
+        createdAt: document.createdAt,
+        accessCount: (document.accessCount || 0) + 1,
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -463,6 +542,43 @@ export async function apiRoutes(fastify: FastifyInstance) {
         error: 'Internal server error',
       });
     }
+  });
+
+  /**
+   * GET /api/stats/cache - Get cache statistics
+   * 
+   * Response:
+   * {
+   *   content: {
+   *     hits: number,
+   *     misses: number,
+   *     size: number,
+   *     maxSize: number,
+   *     hitRate: number
+   *   },
+   *   metadata: {
+   *     hits: number,
+   *     misses: number,
+   *     size: number,
+   *     maxSize: number,
+   *     hitRate: number
+   *   }
+   * }
+   */
+  fastify.get('/stats/cache', async () => {
+    return getCacheStats();
+  });
+
+  /**
+   * DELETE /api/cache - Clear all cache
+   */
+  fastify.delete('/cache', async (
+    request: FastifyRequest,
+    reply: FastifyReply
+  ) => {
+    contentCache.clear();
+    metadataCache.clear();
+    return reply.send({ message: 'Cache cleared' });
   });
 }
 

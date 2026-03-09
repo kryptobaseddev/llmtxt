@@ -2,8 +2,11 @@
 import Fastify from 'fastify';
 import compress from '@fastify/compress';
 import cors from '@fastify/cors';
+import fastifyStatic from '@fastify/static';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { apiRoutes } from './routes/api.js';
-import { webRoutes } from './routes/web.js';
+import { webRoutes, publicDir } from './routes/web.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
@@ -23,6 +26,14 @@ async function main() {
 
     // Register compression plugin for response compression
     await app.register(compress);
+
+    // Register static file serving for public/ directory
+    await app.register(fastifyStatic, {
+      root: publicDir,
+      prefix: '/',
+      wildcard: false,
+      index: ['index.html'],
+    });
 
     // Register error handler
     app.setErrorHandler((error: unknown, request, reply) => {

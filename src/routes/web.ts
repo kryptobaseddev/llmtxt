@@ -1,11 +1,11 @@
-// Web viewer routes
+// Simple web routes - just serve static files
 import { FastifyInstance } from 'fastify';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+export const publicDir = path.join(__dirname, '..', '..', 'public');
 
 export async function webRoutes(fastify: FastifyInstance) {
-  fastify.get('/', async () => ({
-    message: 'LLMtxt Service',
-    version: '1.0.0',
-  }));
-  
-  // TODO: Implement document viewer endpoints
+  // No additional routes needed - static plugin handles everything
 }
