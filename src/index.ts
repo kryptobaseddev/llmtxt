@@ -66,8 +66,9 @@ async function main() {
       });
     });
 
-    // Register routes
+    // Register API routes at both /api (for www subdomain) and root (for api subdomain)
     await app.register(apiRoutes, { prefix: '/api' });
+    await app.register(apiRoutes, { prefix: '/' });
     await app.register(webRoutes);
 
     // Start server
