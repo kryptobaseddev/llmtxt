@@ -1,6 +1,7 @@
 // Main entry point
 import Fastify from 'fastify';
 import compress from '@fastify/compress';
+import cors from '@fastify/cors';
 import { apiRoutes } from './routes/api.js';
 import { webRoutes } from './routes/web.js';
 
@@ -11,14 +12,57 @@ const app = Fastify({
 });
 
 async function main() {
-  await app.register(compress);
-  
-  await app.register(apiRoutes, { prefix: '/api' });
-  await app.register(webRoutes);
-  
   try {
+    // Register CORS plugin
+    await app.register(cors, {
+      origin: process.env.CORS_ORIGIN || '*',
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+      credentials: true,
+    });
+
+    // Register compression plugin for response compression
+    await app.register(compress);
+
+    // Register error handler
+    app.setErrorHandler((error: unknown, request, reply) => {
+      app.log.error(error);
+      
+      // Don't leak error details in production
+      const isDev = process.env.NODE_ENV === 'development';
+      
+      if (error instanceof Error && 'validation' in error && error.validation) {
+        return reply.status(400).send({
+          error: 'Validation failed',
+          message: isDev ? error.message : 'Invalid request data',
+        });
+      }
+
+      const err = error instanceof Error ? error : new Error(String(error));
+      const statusCode = (err as { statusCode?: number }).statusCode;
+
+      return reply.status(statusCode || 500).send({
+        error: err.name || 'Internal Server Error',
+        message: isDev ? err.message : 'Something went wrong',
+      });
+    });
+
+    // Register 404 handler
+    app.setNotFoundHandler((request, reply) => {
+      reply.status(404).send({
+        error: 'Not Found',
+        message: `Route ${request.method} ${request.url} not found`,
+      });
+    });
+
+    // Register routes
+    await app.register(apiRoutes, { prefix: '/api' });
+    await app.register(webRoutes);
+
+    // Start server
     await app.listen({ port: PORT, host: '0.0.0.0' });
     console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Health check: http://localhost:${PORT}/api/health`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);

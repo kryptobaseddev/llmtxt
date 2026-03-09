@@ -16,10 +16,7 @@ sqlite.pragma('journal_mode = WAL');
 sqlite.pragma('foreign_keys = ON');
 
 // Create Drizzle ORM instance
-export const db = drizzle(sqlite, { schema });
-
-// Export connection for migrations
-export { sqlite };
+export const db = drizzle({ client: sqlite, schema });
 
 // Export schema for convenience
 export { schema };
