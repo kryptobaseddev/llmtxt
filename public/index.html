@@ -1,71 +1,251 @@
 <!DOCTYPE html>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LLMtxt</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  
-  html {
-    color-scheme: light dark;
-    font-family: system-ui, -apple-system, sans-serif;
-  }
-  
-  body {
-    min-height: 100dvh;
-  }
-  
-  textarea {
-    width: 100%;
-    min-height: 100dvh;
-    padding: 2rem;
-    border: none;
-    outline: none;
-    font: 16px/1.6 system-ui, monospace;
-    resize: none;
-    background: transparent;
-    color: inherit;
-  }
-  
-  .info {
-    position: fixed;
-    bottom: 1rem;
-    right: 1rem;
-    font-size: 12px;
-    opacity: 0.5;
-    pointer-events: none;
-  }
-</style>
-<textarea id="t" placeholder="Type or paste content here..." spellcheck="false"></textarea>
-<div class="info" id="i"></div>
-<script>
-  const t = document.getElementById('t');
-  const i = document.getElementById('i');
-  
-  // Load from URL hash
-  if (location.hash) {
-    try {
-      const data = JSON.parse(atob(location.hash.slice(1)));
-      t.value = data.c || '';
-      updateInfo(data);
-    } catch (e) {
-      t.value = 'Error loading document';
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LLMtxt</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    html {
+      color-scheme: light dark;
+      font-family: system-ui, -apple-system, sans-serif;
     }
-  }
+    
+    body {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    textarea {
+      flex: 1;
+      width: 100%;
+      padding: 2rem;
+      border: none;
+      outline: none;
+      font: 16px/1.6 system-ui, monospace;
+      resize: none;
+      background: transparent;
+      color: inherit;
+      min-height: 50vh;
+    }
+    
+    .toolbar {
+      padding: 1rem 2rem;
+      border-top: 1px solid rgba(128,128,128,0.2);
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    
+    .toolbar label {
+      font-size: 14px;
+      opacity: 0.7;
+    }
+    
+    .toolbar select, .toolbar button {
+      padding: 0.5rem 1rem;
+      font-size: 14px;
+      border: 1px solid rgba(128,128,128,0.3);
+      border-radius: 4px;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+    }
+    
+    .toolbar button {
+      background: rgba(128,128,128,0.1);
+    }
+    
+    .toolbar button:hover {
+      background: rgba(128,128,128,0.2);
+    }
+    
+    .info {
+      margin-left: auto;
+      font-size: 12px;
+      opacity: 0.6;
+    }
+    
+    .notification {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      padding: 1rem;
+      background: rgba(0,128,0,0.9);
+      color: white;
+      border-radius: 4px;
+      display: none;
+      max-width: 400px;
+    }
+    
+    .notification.error {
+      background: rgba(200,0,0,0.9);
+    }
+    
+    .notification.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <textarea id="editor" placeholder="Type or paste content here..." spellcheck="false"></textarea>
   
-  // Save to URL hash on input
-  t.addEventListener('input', () => {
-    const data = { c: t.value, t: Date.now() };
-    const hash = btoa(JSON.stringify(data));
-    history.replaceState(null, '', '#' + hash);
-    updateInfo(data);
-  });
+  <div class="toolbar">
+    <label>Format:</label>
+    <select id="format">
+      <option value="auto">Auto-detect</option>
+      <option value="text">Text/Markdown</option>
+      <option value="json">JSON</option>
+    </select>
+    
+    <label>Schema:</label>
+    <select id="schema">
+      <option value="">None</option>
+      <option value="prompt-v1">prompt-v1 (LLM)</option>
+    </select>
+    
+    <button id="save-btn">Save & Get URL</button>
+    
+    <span class="info" id="info">0 chars | 0 bytes</span>
+  </div>
   
-  function updateInfo(data) {
-    const chars = data.c?.length || 0;
-    const bytes = new Blob([data.c || '']).size;
-    i.textContent = `${chars} chars | ${bytes} bytes | Share via URL`;
-  }
-  
-  // Initial info update
-  updateInfo({ c: t.value });
-</script>
+  <div id="notification" class="notification"></div>
+
+  <script>
+    const editor = document.getElementById('editor');
+    const formatSelect = document.getElementById('format');
+    const schemaSelect = document.getElementById('schema');
+    const saveBtn = document.getElementById('save-btn');
+    const info = document.getElementById('info');
+    const notification = document.getElementById('notification');
+    
+    const URL_SIZE_LIMIT = 1500; // Safe limit for URL hash storage
+    const API_URL = '/api';
+    
+    // Load from URL hash if present
+    if (location.hash.length > 1) {
+      loadFromHash();
+    }
+    
+    // Update info on input
+    editor.addEventListener('input', updateInfo);
+    
+    // Auto-detect format
+    editor.addEventListener('input', () => {
+      if (formatSelect.value === 'auto') {
+        detectAndSetFormat();
+      }
+    });
+    
+    // Save button
+    saveBtn.addEventListener('click', saveDocument);
+    
+    function updateInfo() {
+      const content = editor.value;
+      const chars = content.length;
+      const bytes = new Blob([content]).size;
+      info.textContent = `${chars.toLocaleString()} chars | ${bytes.toLocaleString()} bytes`;
+    }
+    
+    function detectAndSetFormat() {
+      const content = editor.value.trim();
+      if (!content) return;
+      
+      try {
+        JSON.parse(content);
+        formatSelect.value = 'json';
+      } catch {
+        formatSelect.value = 'text';
+      }
+    }
+    
+    async function saveDocument() {
+      const content = editor.value;
+      const format = formatSelect.value === 'auto' ? undefined : formatSelect.value;
+      const schema = schemaSelect.value || undefined;
+      
+      if (!content.trim()) {
+        showNotification('Please enter some content', true);
+        return;
+      }
+      
+      // Check if we can use URL hash (small content)
+      const hashPayload = JSON.stringify({ c: content, t: Date.now() });
+      const estimatedHashSize = btoa(hashPayload).length;
+      
+      if (estimatedHashSize < URL_SIZE_LIMIT) {
+        // Use URL hash for small content
+        const hash = btoa(hashPayload);
+        history.replaceState(null, '', '#' + hash);
+        const url = window.location.href;
+        showNotification(`Saved to URL! Share: ${url.substring(0, 60)}...`);
+        updateInfo();
+      } else {
+        // Use API for large content
+        try {
+          saveBtn.textContent = 'Saving...';
+          saveBtn.disabled = true;
+          
+          const response = await fetch(`${API_URL}/compress`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content, format, schema })
+          });
+          
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to save');
+          }
+          
+          const data = await response.json();
+          
+          // Update URL to short slug
+          history.replaceState(null, '', '/' + data.slug);
+          
+          showNotification(
+            `Saved! URL: ${data.url}\nTokens: ${data.tokenCount} | ` +
+            `Compression: ${(data.compressionRatio * 100).toFixed(1)}%`
+          );
+          
+          // Update schema dropdown if validation succeeded
+          if (data.schema && !schemaSelect.value) {
+            schemaSelect.value = data.schema;
+          }
+          
+        } catch (err) {
+          showNotification('Error: ' + err.message, true);
+        } finally {
+          saveBtn.textContent = 'Save & Get URL';
+          saveBtn.disabled = false;
+        }
+      }
+    }
+    
+    function loadFromHash() {
+      try {
+        const hash = location.hash.slice(1);
+        const data = JSON.parse(atob(hash));
+        editor.value = data.c || '';
+        updateInfo();
+        detectAndSetFormat();
+      } catch (e) {
+        console.error('Failed to load from hash:', e);
+      }
+    }
+    
+    function showNotification(message, isError = false) {
+      notification.textContent = message;
+      notification.className = 'notification ' + (isError ? 'error' : '') + ' show';
+      setTimeout(() => {
+        notification.classList.remove('show');
+      }, 5000);
+    }
+    
+    // Initial update
+    updateInfo();
+  </script>
+</body>
+</html>

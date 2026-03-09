@@ -1,0 +1,173 @@
+# LLMtxt API Specification
+
+## Overview
+LLMtxt is a text document sharing service optimized for LLM agents.
+Create, share, and retrieve text documents with compression and metadata.
+
+## Base URL
+https://api.llmtxt.my
+
+## Authentication
+No authentication required for basic usage.
+Rate limits: 100 requests/minute per IP.
+
+## Endpoints
+
+### Create Document
+POST /compress
+Content-Type: application/json
+
+Request:
+{
+  "content": "string (required) - Document content",
+  "format": "string (optional) - 'json' or 'text', auto-detected if omitted",
+  "schema": "string (optional) - 'prompt-v1' for OpenAI/Anthropic validation"
+}
+
+Response (201):
+{
+  "slug": "string - 8-character document ID",
+  "url": "string - Full URL to document",
+  "format": "string - 'json' or 'text'",
+  "tokenCount": "number - Estimated token count",
+  "compressionRatio": "number - Compression efficiency (0-1)",
+  "originalSize": "number - Size in bytes before compression",
+  "compressedSize": "number - Size in bytes after compression",
+  "schema": "string - Schema used (if any)",
+  "validated": "boolean - True if schema validation passed"
+}
+
+### Retrieve Document
+POST /decompress
+Content-Type: application/json
+
+Request:
+{
+  "slug": "string (required) - Document slug from create response"
+}
+
+Response (200):
+{
+  "slug": "string",
+  "content": "string - Original content",
+  "format": "string",
+  "tokenCount": "number",
+  "createdAt": "number - Unix timestamp"
+}
+
+### Get Metadata
+GET /documents/:slug
+
+Response (200):
+{
+  "slug": "string",
+  "format": "string",
+  "tokenCount": "number",
+  "compressionRatio": "number",
+  "originalSize": "number",
+  "compressedSize": "number",
+  "createdAt": "number",
+  "accessCount": "number"
+}
+
+### List Schemas
+GET /schemas
+
+Response (200):
+{
+  "schemas": [
+    {
+      "name": "string - Schema identifier",
+      "description": "string - Human-readable description"
+    }
+  ]
+}
+
+## Schemas
+
+### prompt-v1
+Standard LLM prompt format (OpenAI/Anthropic compatible)
+
+Structure:
+{
+  "system": "string (optional) - System prompt",
+  "messages": [
+    {
+      "role": "string - 'system', 'user', or 'assistant'",
+      "content": "string - Message content"
+    }
+  ],
+  "temperature": "number (optional) - 0-2",
+  "max_tokens": "number (optional) - Positive integer"
+}
+
+Validation rules:
+- messages array is required
+- Each message must have role and content
+- role must be 'system', 'user', or 'assistant'
+- temperature must be between 0 and 2
+- max_tokens must be positive integer
+
+## Error Handling
+
+All errors return JSON with:
+{
+  "error": "string - Error type",
+  "message": "string - Human-readable description",
+  "details": "array - Detailed validation errors (if applicable)"
+}
+
+Common status codes:
+- 200: Success
+- 201: Created
+- 400: Bad Request (validation failed)
+- 404: Not Found (invalid slug)
+- 429: Rate Limited
+- 500: Server Error
+
+## Example Usage
+
+### Create and Share
+```bash
+curl -X POST https://api.llmtxt.my/compress \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "Important context for LLM processing...",
+    "format": "text"
+  }'
+# Returns: {"slug": "EDaCET4W", "url": "https://www.llmtxt.my/EDaCET4W"}
+```
+
+### Retrieve
+```bash
+curl -X POST https://api.llmtxt.my/decompress \
+  -H "Content-Type: application/json" \
+  -d '{"slug": "EDaCET4W"}'
+# Returns: {"content": "Important context..."}
+```
+
+### Create Validated LLM Prompt
+```bash
+curl -X POST https://api.llmtxt.my/compress \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "{\"system\":\"You are helpful\",\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"}]}",
+    "format": "json",
+    "schema": "prompt-v1"
+  }'
+```
+
+## Best Practices
+
+1. **Always specify format** - Helps with processing
+2. **Use schemas for LLM content** - Ensures compatibility
+3. **Check tokenCount** - Manage context window size
+4. **Handle 404 errors** - Documents may expire
+5. **Cache results** - Use metadata endpoint for cache validation
+
+## Web Interface
+For human users: https://www.llmtxt.my
+
+## Version
+API Version: 1.0.0
+Last Updated: 2026-03-09
