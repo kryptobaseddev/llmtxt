@@ -11,9 +11,9 @@ export async function webRoutes(fastify: FastifyInstance) {
   fastify.get('/:slug', async (request, reply) => {
     const { slug } = request.params as { slug: string };
     
-    // Skip API routes and static files
-    if (slug.startsWith('api') || slug.includes('.') || slug === 'llms.txt') {
-      return reply.callNotFound();
+    // Skip root path, API routes, and static files
+    if (!slug || slug === '' || slug.startsWith('api') || slug.includes('.') || slug === 'llms.txt') {
+      return;
     }
     
     return reply.redirect(`/view.html?slug=${encodeURIComponent(slug)}`);
