@@ -7,6 +7,9 @@ Create, share, and retrieve text documents with compression and metadata.
 ## Base URL
 https://api.llmtxt.my
 
+## Web Interface
+https://www.llmtxt.my
+
 ## Authentication
 No authentication required for basic usage.
 Rate limits: 100 requests/minute per IP.
