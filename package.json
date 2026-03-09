@@ -1,0 +1,33 @@
+{
+  "name": "llmtxt",
+  "version": "1.0.0",
+  "description": "Lightweight text document service optimized for LLM agents",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
+  "keywords": ["llm", "text", "document", "api"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "drizzle-orm": "1.0.0-beta.9-e89174b",
+    "drizzle-zod": "0.7.0",
+    "fastify": "^5.2.2",
+    "@fastify/compress": "^8.0.1",
+    "better-sqlite3": "^12.1.0",
+    "zod": "^3.25.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.13.10",
+    "drizzle-kit": "1.0.0-beta.9-e89174b",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}

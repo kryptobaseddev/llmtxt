@@ -1,0 +1,15 @@
+[build]
+builder = "railpack"
+
+[deploy]
+startCommand = "npm run db:migrate && npm start"
+healthcheckPath = "/health"
+healthcheckTimeout = 100
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[environments.production]
+startCommand = "npm run db:migrate && npm start"
+
+[environments.staging]
+startCommand = "npm run db:migrate && npm start"
