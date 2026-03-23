@@ -68,6 +68,17 @@ export function computeSignature(
   return wasmModule.compute_signature(slug, agentId, conversationId, expiresAt, secret);
 }
 
+export function computeSignatureWithLength(
+  slug: string,
+  agentId: string,
+  conversationId: string,
+  expiresAt: number,
+  secret: string,
+  sigLength: number,
+): string {
+  return wasmModule.compute_signature_with_length(slug, agentId, conversationId, expiresAt, secret, sigLength);
+}
+
 export function deriveSigningKey(apiKey: string): string {
   return wasmModule.derive_signing_key(apiKey);
 }

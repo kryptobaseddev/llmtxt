@@ -143,7 +143,8 @@ pub fn calculate_compression_ratio(original_size: u32, compressed_size: u32) -> 
 // ── HMAC Signing ────────────────────────────────────────────────
 
 /// Compute the HMAC-SHA256 signature for signed URL parameters.
-/// Returns the first 16 hex characters of the digest.
+/// Returns the first 16 hex characters of the digest (64 bits).
+/// For longer signatures, use [`compute_signature_with_length`].
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn compute_signature(
     slug: &str,
@@ -152,19 +153,34 @@ pub fn compute_signature(
     expires_at: f64,
     secret: &str,
 ) -> String {
+    compute_signature_with_length(slug, agent_id, conversation_id, expires_at, secret, 16)
+}
+
+/// Compute the HMAC-SHA256 signature with configurable output length.
+///
+/// `sig_length` controls how many hex characters to return (max 64).
+/// Use 16 for short-lived URLs (backward compat), 32 for long-lived URLs (128 bits).
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn compute_signature_with_length(
+    slug: &str,
+    agent_id: &str,
+    conversation_id: &str,
+    expires_at: f64,
+    secret: &str,
+    sig_length: usize,
+) -> String {
     let payload = format!(
         "{}:{}:{}:{}",
         slug, agent_id, conversation_id, expires_at as u64
     );
-    // HMAC-SHA256 accepts any key length — new_from_slice never fails
-    // HMAC-SHA256 accepts any key length — new_from_slice cannot fail
     let Ok(mut mac) = HmacSha256::new_from_slice(secret.as_bytes()) else {
         return String::new();
     };
     mac.update(payload.as_bytes());
     let result = mac.finalize();
     let hex_full = hex::encode(result.into_bytes());
-    hex_full[..16].to_string()
+    let len = sig_length.min(64);
+    hex_full[..len].to_string()
 }
 
 /// Derive a per-agent signing key from their API key.
@@ -370,6 +386,30 @@ mod tests {
             "test-secret",
         );
         assert_eq!(sig, "650eb9dd6c396a45");
+    }
+
+    #[test]
+    fn test_compute_signature_with_length() {
+        let sig16 = compute_signature_with_length(
+            "xK9mP2nQ",
+            "test-agent",
+            "conv_123",
+            1_700_000_000_000.0,
+            "test-secret",
+            16,
+        );
+        let sig32 = compute_signature_with_length(
+            "xK9mP2nQ",
+            "test-agent",
+            "conv_123",
+            1_700_000_000_000.0,
+            "test-secret",
+            32,
+        );
+        assert_eq!(sig16, "650eb9dd6c396a45");
+        assert_eq!(sig16.len(), 16);
+        assert_eq!(sig32.len(), 32);
+        assert!(sig32.starts_with(&sig16)); // longer sig is a prefix extension
     }
 
     #[test]

@@ -52,7 +52,8 @@ exports.compress = compress;
 
 /**
  * Compute the HMAC-SHA256 signature for signed URL parameters.
- * Returns the first 16 hex characters of the digest.
+ * Returns the first 16 hex characters of the digest (64 bits).
+ * For longer signatures, use [`compute_signature_with_length`].
  * @param {string} slug
  * @param {string} agent_id
  * @param {string} conversation_id
@@ -81,6 +82,41 @@ function compute_signature(slug, agent_id, conversation_id, expires_at, secret) 
     }
 }
 exports.compute_signature = compute_signature;
+
+/**
+ * Compute the HMAC-SHA256 signature with configurable output length.
+ *
+ * `sig_length` controls how many hex characters to return (max 64).
+ * Use 16 for short-lived URLs (backward compat), 32 for long-lived URLs (128 bits).
+ * @param {string} slug
+ * @param {string} agent_id
+ * @param {string} conversation_id
+ * @param {number} expires_at
+ * @param {string} secret
+ * @param {number} sig_length
+ * @returns {string}
+ */
+function compute_signature_with_length(slug, agent_id, conversation_id, expires_at, secret, sig_length) {
+    let deferred5_0;
+    let deferred5_1;
+    try {
+        const ptr0 = passStringToWasm0(slug, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(agent_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(conversation_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(secret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len3 = WASM_VECTOR_LEN;
+        const ret = wasm.compute_signature_with_length(ptr0, len0, ptr1, len1, ptr2, len2, expires_at, ptr3, len3, sig_length);
+        deferred5_0 = ret[0];
+        deferred5_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred5_0, deferred5_1, 1);
+    }
+}
+exports.compute_signature_with_length = compute_signature_with_length;
 
 /**
  * Decode a base62-encoded string back into an integer.

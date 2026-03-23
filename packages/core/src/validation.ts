@@ -194,12 +194,47 @@ export function detectFormat(content: string): 'json' | 'text' | 'markdown' {
 /** Default maximum content size in bytes (5 MB). */
 export const DEFAULT_MAX_CONTENT_BYTES = 5 * 1024 * 1024;
 
+/** Default maximum line length in bytes (64 KB). */
+export const DEFAULT_MAX_LINE_BYTES = 64 * 1024;
+
 /** Options for content validation. */
 export interface ValidateContentOptions {
   /** Optional predefined schema name for JSON validation. */
   schemaName?: string;
   /** Maximum content size in bytes. Set to 0 to disable. Default: 5 MB. */
   maxBytes?: number;
+  /** Maximum line length in bytes. Set to 0 to disable. Default: 64 KB. */
+  maxLineBytes?: number;
+  /** Reject content with binary control characters (0x00-0x08). Default: true. */
+  rejectBinary?: boolean;
+}
+
+/**
+ * Check for binary content by scanning for control characters (0x00-0x08)
+ * in the first 8KB.
+ */
+function containsBinaryContent(content: string): boolean {
+  const scanLength = Math.min(content.length, 8192);
+  for (let i = 0; i < scanLength; i++) {
+    const code = content.charCodeAt(i);
+    if (code >= 0 && code <= 8) return true;
+  }
+  return false;
+}
+
+/**
+ * Check if any line exceeds the maximum line length.
+ */
+function findOverlongLine(content: string, maxBytes: number): number | null {
+  let lineStart = 0;
+  for (let i = 0; i <= content.length; i++) {
+    if (i === content.length || content[i] === '\n') {
+      const lineLength = i - lineStart;
+      if (lineLength > maxBytes) return lineStart + 1; // 1-indexed
+      lineStart = i + 1;
+    }
+  }
+  return null;
 }
 
 /**
@@ -247,6 +282,36 @@ export function validateContent(
           path: '',
           message: `Content size ${actualMB} MB exceeds maximum ${maxMB} MB`,
           code: 'content_too_large',
+        }],
+      };
+    }
+  }
+
+  // Reject binary content (control chars 0x00-0x08 in first 8KB)
+  const rejectBinary = opts.rejectBinary ?? true;
+  if (rejectBinary && typeof content === 'string' && containsBinaryContent(content)) {
+    return {
+      success: false,
+      errors: [{
+        path: '',
+        message: 'Content contains binary control characters (0x00-0x08). Only text content is accepted.',
+        code: 'binary_content',
+      }],
+    };
+  }
+
+  // Enforce max line length
+  const maxLineBytes = opts.maxLineBytes ?? DEFAULT_MAX_LINE_BYTES;
+  if (maxLineBytes > 0 && typeof content === 'string') {
+    const overlongLine = findOverlongLine(content, maxLineBytes);
+    if (overlongLine !== null) {
+      const maxKB = (maxLineBytes / 1024).toFixed(0);
+      return {
+        success: false,
+        errors: [{
+          path: '',
+          message: `Line near position ${overlongLine} exceeds maximum line length of ${maxKB} KB`,
+          code: 'line_too_long',
         }],
       };
     }

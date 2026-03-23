@@ -25,9 +25,18 @@ export function compress(data: string): Uint8Array;
 
 /**
  * Compute the HMAC-SHA256 signature for signed URL parameters.
- * Returns the first 16 hex characters of the digest.
+ * Returns the first 16 hex characters of the digest (64 bits).
+ * For longer signatures, use [`compute_signature_with_length`].
  */
 export function compute_signature(slug: string, agent_id: string, conversation_id: string, expires_at: number, secret: string): string;
+
+/**
+ * Compute the HMAC-SHA256 signature with configurable output length.
+ *
+ * `sig_length` controls how many hex characters to return (max 64).
+ * Use 16 for short-lived URLs (backward compat), 32 for long-lived URLs (128 bits).
+ */
+export function compute_signature_with_length(slug: string, agent_id: string, conversation_id: string, expires_at: number, secret: string, sig_length: number): string;
 
 /**
  * Decode a base62-encoded string back into an integer.

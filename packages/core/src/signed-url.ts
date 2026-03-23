@@ -8,6 +8,7 @@
  */
 import {
   computeSignature as wasmComputeSignature,
+  computeSignatureWithLength as wasmComputeSignatureWithLength,
   deriveSigningKey as wasmDeriveSigningKey,
   isExpired as wasmIsExpired,
 } from './wasm.js';
@@ -54,6 +55,25 @@ export function computeSignature(params: SignedUrlParams, secret: string): strin
     params.conversationId,
     params.expiresAt,
     secret,
+  );
+}
+
+/**
+ * Compute signature with configurable length.
+ * Use 16 for short-lived URLs (default), 32 for long-lived URLs (128 bits).
+ */
+export function computeSignatureWithLength(
+  params: SignedUrlParams,
+  secret: string,
+  sigLength: number,
+): string {
+  return wasmComputeSignatureWithLength(
+    params.slug,
+    params.agentId,
+    params.conversationId,
+    params.expiresAt,
+    secret,
+    sigLength,
   );
 }
 

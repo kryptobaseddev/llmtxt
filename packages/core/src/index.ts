@@ -25,6 +25,7 @@ export {
   validateContent,
   autoValidate,
   DEFAULT_MAX_CONTENT_BYTES,
+  DEFAULT_MAX_LINE_BYTES,
 } from './validation.js';
 
 export type {
@@ -88,6 +89,7 @@ export type {
 // ── Signed URLs & Security ──────────────────────────────────────
 export {
   computeSignature,
+  computeSignatureWithLength,
   generateSignedUrl,
   verifySignedUrl,
   generateTimedUrl,
