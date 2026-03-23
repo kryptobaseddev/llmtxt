@@ -1,0 +1,373 @@
+//! llmtxt-core: Portable primitives for the llmtxt content platform.
+//!
+//! This crate is the single source of truth for compression, hashing,
+//! signing, and encoding functions used by both the Rust (SignalDock)
+//! and TypeScript (npm `@codluv/llmtxt` via WASM) consumers.
+//!
+//! # WASM
+//! Functions annotated with `#[wasm_bindgen]` are exported for JavaScript
+//! consumption via `wasm-pack build`.
+//!
+//! # Native
+//! All functions are also available as regular Rust APIs for Cargo consumers.
+
+use flate2::Compression;
+use flate2::read::{DeflateDecoder, DeflateEncoder};
+use hmac::{Hmac, Mac};
+use sha2::{Digest, Sha256};
+use std::io::Read;
+use uuid::Uuid;
+use wasm_bindgen::prelude::*;
+
+type HmacSha256 = Hmac<Sha256>;
+
+const BASE62: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+// ── Base62 ──────────────────────────────────────────────────────
+
+/// Encode a non-negative integer into a base62 string.
+///
+/// Uses the alphabet `0-9A-Za-z`. Zero encodes to `"0"`.
+#[wasm_bindgen]
+pub fn encode_base62(mut num: u64) -> String {
+    if num == 0 {
+        return "0".to_string();
+    }
+    let mut result = Vec::new();
+    while num > 0 {
+        result.push(BASE62[(num % 62) as usize]);
+        num /= 62;
+    }
+    result.reverse();
+    String::from_utf8(result).unwrap_or_default()
+}
+
+/// Decode a base62-encoded string back into an integer.
+#[wasm_bindgen]
+pub fn decode_base62(s: &str) -> u64 {
+    let mut result: u64 = 0;
+    for byte in s.bytes() {
+        let val = match byte {
+            b'0'..=b'9' => byte - b'0',
+            b'A'..=b'Z' => byte - b'A' + 10,
+            b'a'..=b'z' => byte - b'a' + 36,
+            _ => 0,
+        } as u64;
+        result = result * 62 + val;
+    }
+    result
+}
+
+// ── Compression ─────────────────────────────────────────────────
+
+/// Compress a UTF-8 string using raw deflate (RFC 1951).
+///
+/// # Errors
+/// Returns `JsValue` error if compression fails.
+#[wasm_bindgen]
+pub fn compress(data: &str) -> Result<Vec<u8>, JsValue> {
+    let mut encoder = DeflateEncoder::new(data.as_bytes(), Compression::default());
+    let mut compressed = Vec::new();
+    encoder
+        .read_to_end(&mut compressed)
+        .map_err(|e| JsValue::from_str(&format!("compression failed: {e}")))?;
+    Ok(compressed)
+}
+
+/// Decompress raw deflate bytes back to a UTF-8 string.
+///
+/// # Errors
+/// Returns `JsValue` error if decompression or UTF-8 conversion fails.
+#[wasm_bindgen]
+pub fn decompress(data: &[u8]) -> Result<String, JsValue> {
+    let mut decoder = DeflateDecoder::new(data);
+    let mut decompressed = Vec::new();
+    decoder
+        .read_to_end(&mut decompressed)
+        .map_err(|e| JsValue::from_str(&format!("decompression failed: {e}")))?;
+    String::from_utf8(decompressed).map_err(|e| JsValue::from_str(&format!("invalid UTF-8: {e}")))
+}
+
+// ── ID Generation ───────────────────────────────────────────────
+
+/// Generate an 8-character base62 ID from a UUID v4.
+#[wasm_bindgen]
+pub fn generate_id() -> String {
+    let uuid = Uuid::new_v4();
+    let hex = uuid.simple().to_string();
+    let hex_prefix = &hex[..16];
+    let num = u64::from_str_radix(hex_prefix, 16).unwrap_or(0);
+    let base62 = encode_base62(num);
+    format!("{:0>8}", &base62[..base62.len().min(8)])
+}
+
+// ── Hashing ─────────────────────────────────────────────────────
+
+/// Compute the SHA-256 hash of a UTF-8 string, returned as lowercase hex.
+#[wasm_bindgen]
+pub fn hash_content(data: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(data.as_bytes());
+    hex::encode(hasher.finalize())
+}
+
+// ── Token Estimation ────────────────────────────────────────────
+
+/// Estimate token count using the ~4 chars/token heuristic.
+#[wasm_bindgen]
+pub fn calculate_tokens(text: &str) -> u32 {
+    let len = text.len() as f64;
+    (len / 4.0).ceil() as u32
+}
+
+// ── Compression Ratio ───────────────────────────────────────────
+
+/// Calculate the compression ratio (original / compressed), rounded to 2 decimals.
+/// Returns 1.0 when `compressed_size` is 0.
+#[wasm_bindgen]
+pub fn calculate_compression_ratio(original_size: u32, compressed_size: u32) -> f64 {
+    if compressed_size == 0 {
+        return 1.0;
+    }
+    let ratio = original_size as f64 / compressed_size as f64;
+    (ratio * 100.0).round() / 100.0
+}
+
+// ── HMAC Signing ────────────────────────────────────────────────
+
+/// Compute the HMAC-SHA256 signature for signed URL parameters.
+/// Returns the first 16 hex characters of the digest.
+#[wasm_bindgen]
+pub fn compute_signature(
+    slug: &str,
+    agent_id: &str,
+    conversation_id: &str,
+    expires_at: f64,
+    secret: &str,
+) -> String {
+    let payload = format!(
+        "{}:{}:{}:{}",
+        slug, agent_id, conversation_id, expires_at as u64
+    );
+    let Ok(mut mac) = HmacSha256::new_from_slice(secret.as_bytes()) else {
+        return String::new();
+    };
+    mac.update(payload.as_bytes());
+    let result = mac.finalize();
+    let hex_full = hex::encode(result.into_bytes());
+    hex_full[..16].to_string()
+}
+
+/// Derive a per-agent signing key from their API key.
+/// Uses `HMAC-SHA256(api_key, "llmtxt-signing")`.
+#[wasm_bindgen]
+pub fn derive_signing_key(api_key: &str) -> String {
+    let Ok(mut mac) = HmacSha256::new_from_slice(api_key.as_bytes()) else {
+        return String::new();
+    };
+    mac.update(b"llmtxt-signing");
+    hex::encode(mac.finalize().into_bytes())
+}
+
+// ── Expiration ──────────────────────────────────────────────────
+
+/// Check whether a timestamp (milliseconds) has expired.
+/// Returns false for 0 (no expiration).
+#[wasm_bindgen]
+pub fn is_expired(expires_at_ms: f64) -> bool {
+    if expires_at_ms == 0.0 {
+        return false;
+    }
+    let now = js_sys::Date::now();
+    now > expires_at_ms
+}
+
+// ── Native-only (not WASM) ──────────────────────────────────────
+
+/// Parameters extracted from a verified signed URL.
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug)]
+pub struct SignedUrlParams {
+    /// Document slug.
+    pub slug: String,
+    /// Agent that was granted access.
+    pub agent_id: String,
+    /// Conversation scope.
+    pub conversation_id: String,
+    /// Expiration timestamp in milliseconds.
+    pub expires_at: u64,
+}
+
+/// Errors that can occur during signed URL verification.
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug)]
+pub enum VerifyError {
+    /// Required query parameters are missing or malformed.
+    MissingParams,
+    /// The URL has expired.
+    Expired,
+    /// The HMAC signature does not match.
+    InvalidSignature,
+}
+
+/// Verify a signed URL. Native Rust API only.
+///
+/// The TypeScript wrapper handles URL parsing and calls `compute_signature` directly.
+///
+/// # Errors
+/// Returns `VerifyError` if the URL is invalid, expired, or has a bad signature.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn verify_signed_url(input: &str, secret: &str) -> Result<SignedUrlParams, VerifyError> {
+    let parsed = url::Url::parse(input).map_err(|_| VerifyError::MissingParams)?;
+
+    let slug = parsed.path().trim_start_matches('/').to_string();
+
+    let get_param = |name: &str| -> Result<String, VerifyError> {
+        parsed
+            .query_pairs()
+            .find(|(k, _)| k == name)
+            .map(|(_, v)| v.to_string())
+            .ok_or(VerifyError::MissingParams)
+    };
+
+    let agent = get_param("agent")?;
+    let conv = get_param("conv")?;
+    let exp_str = get_param("exp")?;
+    let sig = get_param("sig")?;
+
+    let expires_at: u64 = exp_str.parse().map_err(|_| VerifyError::MissingParams)?;
+
+    // Check expiration
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|_| VerifyError::MissingParams)?
+        .as_millis() as u64;
+    if now > expires_at {
+        return Err(VerifyError::Expired);
+    }
+
+    // Verify signature
+    let expected = compute_signature(&slug, &agent, &conv, expires_at as f64, secret);
+    if sig != expected {
+        return Err(VerifyError::InvalidSignature);
+    }
+
+    Ok(SignedUrlParams {
+        slug,
+        agent_id: agent,
+        conversation_id: conv,
+        expires_at,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_base62_encode() {
+        assert_eq!(encode_base62(0), "0");
+        assert_eq!(encode_base62(1), "1");
+        assert_eq!(encode_base62(61), "z");
+        assert_eq!(encode_base62(62), "10");
+        assert_eq!(encode_base62(3844), "100");
+    }
+
+    #[test]
+    fn test_base62_decode() {
+        assert_eq!(decode_base62("0"), 0);
+        assert_eq!(decode_base62("z"), 61);
+        assert_eq!(decode_base62("10"), 62);
+        assert_eq!(decode_base62("100"), 3844);
+    }
+
+    #[test]
+    fn test_base62_roundtrip() {
+        for n in [0, 1, 42, 61, 62, 100, 3844, 999_999, u64::MAX / 2] {
+            assert_eq!(
+                decode_base62(&encode_base62(n)),
+                n,
+                "roundtrip failed for {n}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_hash_content() {
+        assert_eq!(
+            hash_content("hello"),
+            "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+        );
+        assert_eq!(
+            hash_content(""),
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+    }
+
+    #[test]
+    fn test_calculate_tokens() {
+        assert_eq!(calculate_tokens("Hello, world!"), 4);
+        assert_eq!(calculate_tokens(""), 0);
+        assert_eq!(calculate_tokens("a"), 1);
+        assert_eq!(calculate_tokens("1234"), 1);
+        assert_eq!(calculate_tokens("12345"), 2);
+    }
+
+    #[test]
+    fn test_compression_ratio() {
+        assert_eq!(calculate_compression_ratio(1000, 400), 2.5);
+        assert_eq!(calculate_compression_ratio(100, 100), 1.0);
+        assert_eq!(calculate_compression_ratio(100, 0), 1.0);
+        assert_eq!(calculate_compression_ratio(500, 200), 2.5);
+    }
+
+    #[test]
+    fn test_compress_decompress_roundtrip() {
+        let input = "Hello, world! This is a test of the llmtxt compression.";
+        let compressed = compress(input).expect("compress should succeed");
+        let decompressed = decompress(&compressed).expect("decompress should succeed");
+        assert_eq!(decompressed, input);
+    }
+
+    #[test]
+    fn test_compress_empty() {
+        let compressed = compress("").expect("compress empty should succeed");
+        let decompressed = decompress(&compressed).expect("decompress should succeed");
+        assert_eq!(decompressed, "");
+    }
+
+    #[test]
+    fn test_compute_signature() {
+        let sig = compute_signature(
+            "xK9mP2nQ",
+            "test-agent",
+            "conv_123",
+            1_700_000_000_000.0,
+            "test-secret",
+        );
+        assert_eq!(sig, "650eb9dd6c396a45");
+    }
+
+    #[test]
+    fn test_derive_signing_key() {
+        let key = derive_signing_key("sk_live_abc123");
+        assert_eq!(
+            key,
+            "fb5f79640e9ed141d4949ccb36110c7aaf829c56d9870942dd77219a57575372"
+        );
+    }
+
+    #[test]
+    fn test_generate_id_format() {
+        let id = generate_id();
+        assert_eq!(id.len(), 8);
+        assert!(id.chars().all(|c| c.is_ascii_alphanumeric()));
+    }
+
+    #[test]
+    fn test_generate_id_uniqueness() {
+        let ids: Vec<String> = (0..100).map(|_| generate_id()).collect();
+        let unique: std::collections::HashSet<&String> = ids.iter().collect();
+        assert_eq!(unique.len(), 100, "generated IDs should be unique");
+    }
+}
