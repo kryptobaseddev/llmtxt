@@ -33,6 +33,7 @@
     "zod": "^3.25.3"
   },
   "devDependencies": {
+    "@forge-ts/cli": "^0.19.5",
     "typescript": "^5.8.2"
   },
   "engines": {

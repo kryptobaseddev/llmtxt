@@ -1,50 +1,96 @@
-# LLMtxt API Documentation
+# LLMtxt API Reference
 
-**Production URL:** https://llmtxt-production.up.railway.app  
-**Custom Domain:** https://llmtxt.my (configure via Railway dashboard)
+**Base URL:** `https://api.llmtxt.my`
+**Web URL:** `https://llmtxt.my`
 
-## API Endpoints
+On the API host, all endpoints are at the root (`/health`, `/compress`, etc.).
+On the web host, all API endpoints are prefixed with `/api`.
+
+## Endpoints
 
 ### Health Check
-```bash
-GET /api/health
+
+```
+GET /health
 ```
 
-### Compress Content
-```bash
-POST /api/compress
+Returns server status, uptime, and version.
+
+### Create Document
+
+```
+POST /compress
 Content-Type: application/json
 
 {
-  "content": "Your text or JSON content here",
-  "format": "text" | "json",
-  "schema": "prompt-v1"  // optional for JSON format
+  "content": "Your text or JSON content",
+  "format": "text" | "json" | "markdown",
+  "schema": "prompt-v1"
 }
 ```
 
-### Decompress Content
-```bash
-POST /api/decompress
+| Field | Required | Description |
+|-------|----------|-------------|
+| `content` | Yes | Content string (min 1 char) |
+| `format` | No | Explicit format. Auto-detected if omitted (default: `"text"`) |
+| `schema` | No | Predefined schema name for JSON validation |
+
+**Response (201):**
+
+```json
+{
+  "id": "abc123xy",
+  "slug": "xK9mP2nQ",
+  "url": "https://api.llmtxt.my/documents/xK9mP2nQ",
+  "format": "json",
+  "tokenCount": 42,
+  "compressionRatio": 2.5,
+  "originalSize": 1024,
+  "compressedSize": 410,
+  "schema": "prompt-v1",
+  "validated": true
+}
+```
+
+### Retrieve Document Content
+
+```
+POST /decompress
 Content-Type: application/json
 
 {
-  "slug": "EDaCET4W"
+  "slug": "xK9mP2nQ"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "id": "abc123xy",
+  "slug": "xK9mP2nQ",
+  "format": "text",
+  "content": "# Document content here...",
+  "tokenCount": 42,
+  "originalSize": 1024,
+  "compressedSize": 410,
+  "createdAt": 1711234567890,
+  "accessCount": 5
 }
 ```
 
 ### Get Document Metadata
-```bash
-GET /api/documents/:slug
+
+```
+GET /documents/:slug
 ```
 
-### List Available Schemas
-```bash
-GET /api/schemas
-```
+Returns metadata without content. Includes `compressionRatio`, `accessCount`, timestamps.
 
-### Validate Content (without storing)
-```bash
-POST /api/validate
+### Validate Content
+
+```
+POST /validate
 Content-Type: application/json
 
 {
@@ -54,70 +100,152 @@ Content-Type: application/json
 }
 ```
 
-### Cache Stats
-```bash
-GET /api/stats/cache
+Validates content against format and optional schema without storing it.
+
+### List Schemas
+
+```
+GET /schemas
+GET /schemas/:name
 ```
 
-## Web Interface
+Available predefined schemas: `prompt-v1` (OpenAI/Anthropic chat format).
 
-- **Home:** https://llmtxt-production.up.railway.app/
-- **View Document:** https://llmtxt-production.up.railway.app/view.html?slug=EDaCET4W
-- **Direct Slug:** https://llmtxt-production.up.railway.app/EDaCET4W (redirects to viewer)
+### Search
 
-## Example Usage
+```
+POST /search
+Content-Type: application/json
 
-### Create a Text Document
-```bash
-curl -X POST https://llmtxt-production.up.railway.app/api/compress \
-  -H "Content-Type: application/json" \
-  -d '{
-    "content": "# My Notes\n\nImportant information here...",
-    "format": "text"
-  }'
+{
+  "query": "search term",
+  "slugs": ["slug1", "slug2"]
+}
 ```
 
-### Create a JSON Document with Validation
-```bash
-curl -X POST https://llmtxt-production.up.railway.app/api/compress \
-  -H "Content-Type: application/json" \
-  -d '{
-    "content": "{\"system\":\"You are helpful\",\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"}]}",
-    "format": "json",
-    "schema": "prompt-v1"
-  }'
+Searches content across multiple documents by slug. Returns matching lines with line numbers.
+
+### Cache
+
+```
+GET /stats/cache
+DELETE /cache
 ```
 
-### Retrieve Document
-```bash
-curl https://llmtxt-production.up.railway.app/api/decompress \
-  -H "Content-Type: application/json" \
-  -d '{"slug": "YOUR_SLUG_HERE"}'
+Cache statistics (hit rate, size) and cache clearing.
+
+## Progressive Disclosure Endpoints
+
+These endpoints let agents inspect document structure before fetching full content, reducing token costs.
+
+### Document Overview
+
+```
+GET /documents/:slug/overview
 ```
 
-## Features
+Returns format, line count, token count, sections list, and (for JSON) top-level keys or (for markdown) table of contents. No content body.
 
-- **Dual Format Support:** JSON (with validation) and Text/Markdown
-- **Compression:** Automatic deflate compression for efficient storage
-- **Short URLs:** Base62 encoded 8-character slugs
-- **Caching:** LRU cache for frequently accessed documents
-- **Validation:** JSON Schema validation (prompt-v1, custom schemas)
-- **Token Counting:** Automatic token estimation
-- **Version History:** Track document changes (coming soon)
+### Table of Contents
 
-## Deployment
+```
+GET /documents/:slug/toc
+```
 
-**Railway:** Auto-deploys on push to main branch
-**Build:** Railpack with npm ci
-**Start:** npm run db:migrate && npm start
-**Health Check:** /api/health
+Minimal — returns only section title strings.
+
+### Section List
+
+```
+GET /documents/:slug/sections
+GET /documents/:slug/sections/:name?depth=all
+```
+
+List all sections, or extract a specific section by name. The `depth=all` query param includes nested child sections.
+
+### Line Range
+
+```
+GET /documents/:slug/lines?start=1&end=50
+```
+
+Returns specific line range. Response includes `tokenCount`, `totalTokens`, and `tokensSaved`.
+
+### Search Within Document
+
+```
+GET /documents/:slug/search?q=auth&context=2&max=20
+```
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| `q` | required | Search string or `/regex/flags` |
+| `context` | 2 | Lines of context before/after match |
+| `max` | 20 | Maximum results |
+
+### JSONPath Query
+
+```
+GET /documents/:slug/query?path=$.users[0].name
+```
+
+Extracts specific values from JSON documents using JSONPath syntax.
+
+### Batch Sections
+
+```
+POST /documents/:slug/batch
+Content-Type: application/json
+
+{
+  "sections": ["Introduction", "API Design"]
+}
+```
+
+Fetch multiple sections in one request.
+
+### Raw Content
+
+```
+GET /documents/:slug/raw
+GET /documents/:slug/raw?start=1&end=50
+GET /documents/:slug/raw?section=API+Design
+```
+
+Returns plain text (`text/plain`) with metadata in response headers (`X-Token-Count`, `X-Total-Tokens`, `X-Tokens-Saved`).
+
+## Content Negotiation
+
+`GET /{slug}` on the web host serves different responses:
+
+| Client | Response |
+|--------|----------|
+| Browser (`Accept: text/html`) | SSR HTML document view |
+| Agent/Bot/curl (`Accept: text/plain`) | Raw text content |
+| `Accept: application/json` | JSON envelope with metadata |
+| `/{slug}.json` | Forced JSON response |
+| `/{slug}.md` | Forced markdown response |
+| `/{slug}.txt` | Forced plain text response |
+
+## Discovery
+
+```
+GET /.well-known/llm.json
+GET /llms.txt
+```
+
+Agent discovery documents listing available endpoints.
+
+## Caching
+
+All document endpoints support `?nocache=1` to bypass the LRU cache. Cache status is returned in the `X-Cache` response header (`HIT`, `MISS`, or `SKIP`).
 
 ## Environment Variables
 
-```env
-PORT=3000
-DATABASE_URL=./data.db
-CACHE_MAX_SIZE=1000
-CACHE_TTL=86400000
-NODE_ENV=production
-```
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3000` | Server port |
+| `CORS_ORIGIN` | `*` | Allowed CORS origins |
+| `CACHE_MAX_SIZE` | `1000` | Max cache entries |
+| `CACHE_TTL` | `86400000` | Cache TTL in ms (24h) |
+| `NODE_ENV` | — | `production` or `development` |
