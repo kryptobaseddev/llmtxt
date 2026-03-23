@@ -1,6 +1,6 @@
 {
   "name": "@codluv/llmtxt",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Core primitives for llmtxt: compression, validation, progressive disclosure, signed URLs, and caching for LLM agent content workflows",
   "type": "module",
   "main": "dist/index.js",
