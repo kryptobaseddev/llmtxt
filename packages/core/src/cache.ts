@@ -196,6 +196,10 @@ export class LRUCache<T> {
   /**
    * Check whether a non-expired entry exists for the given key.
    *
+   * @remarks
+   * Expired entries are lazily evicted during this check. This method does
+   * not promote the entry to most-recently-used position.
+   *
    * @param key - The cache key to check.
    * @returns `true` if a live entry exists, `false` otherwise.
    */
@@ -212,6 +216,10 @@ export class LRUCache<T> {
   /**
    * Retrieve a snapshot of cache performance statistics.
    *
+   * @remarks
+   * Triggers a lazy sweep of expired entries (via {@link LRUCache.size})
+   * so that the reported `size` reflects only live entries.
+   *
    * @returns A {@link CacheStats} object with hits, misses, size, and hit rate.
    */
   getStats(): CacheStats {
@@ -227,6 +235,10 @@ export class LRUCache<T> {
 
   /**
    * Reset the hit/miss counters to zero without clearing cached entries.
+   *
+   * @remarks
+   * Useful for measuring hit rate over a specific time window without
+   * evicting any cached data.
    */
   resetStats(): void {
     this.stats.hits = 0;
