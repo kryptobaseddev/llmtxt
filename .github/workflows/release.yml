@@ -37,7 +37,7 @@ jobs:
 
       - name: Install npm dependencies
         working-directory: packages/core
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Build TypeScript
         working-directory: packages/core
