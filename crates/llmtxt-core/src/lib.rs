@@ -4,12 +4,12 @@
 //! signing, and encoding functions used by both the Rust (SignalDock)
 //! and TypeScript (npm `@codluv/llmtxt` via WASM) consumers.
 //!
-//! # WASM
-//! Functions annotated with `#[wasm_bindgen]` are exported for JavaScript
-//! consumption via `wasm-pack build`.
+//! # Features
+//! - `wasm` (default): Enables `wasm-bindgen` exports for JavaScript consumption.
+//!   Disable with `default-features = false` for native-only usage.
 //!
 //! # Native
-//! All functions are also available as regular Rust APIs for Cargo consumers.
+//! All functions are available as regular Rust APIs regardless of features.
 
 use flate2::Compression;
 use flate2::read::{ZlibDecoder, ZlibEncoder};
@@ -17,6 +17,8 @@ use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
 use std::io::Read;
 use uuid::Uuid;
+
+#[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
 type HmacSha256 = Hmac<Sha256>;
@@ -28,7 +30,7 @@ const BASE62: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrst
 /// Encode a non-negative integer into a base62 string.
 ///
 /// Uses the alphabet `0-9A-Za-z`. Zero encodes to `"0"`.
-#[wasm_bindgen]
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn encode_base62(mut num: u64) -> String {
     if num == 0 {
         return "0".to_string();
@@ -43,7 +45,7 @@ pub fn encode_base62(mut num: u64) -> String {
 }
 
 /// Decode a base62-encoded string back into an integer.
-#[wasm_bindgen]
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn decode_base62(s: &str) -> u64 {
     let mut result: u64 = 0;
     for byte in s.bytes() {
@@ -66,14 +68,14 @@ pub fn decode_base62(s: &str) -> u64 {
 /// with existing stored data.
 ///
 /// # Errors
-/// Returns `JsValue` error if compression fails.
-#[wasm_bindgen]
-pub fn compress(data: &str) -> Result<Vec<u8>, JsValue> {
+/// Returns an error string if compression fails.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn compress(data: &str) -> Result<Vec<u8>, String> {
     let mut encoder = ZlibEncoder::new(data.as_bytes(), Compression::default());
     let mut compressed = Vec::new();
     encoder
         .read_to_end(&mut compressed)
-        .map_err(|e| JsValue::from_str(&format!("compression failed: {e}")))?;
+        .map_err(|e| format!("compression failed: {e}"))?;
     Ok(compressed)
 }
 
@@ -82,21 +84,21 @@ pub fn compress(data: &str) -> Result<Vec<u8>, JsValue> {
 /// Matches Node.js `zlib.inflate` for backward compatibility.
 ///
 /// # Errors
-/// Returns `JsValue` error if decompression or UTF-8 conversion fails.
-#[wasm_bindgen]
-pub fn decompress(data: &[u8]) -> Result<String, JsValue> {
+/// Returns an error string if decompression or UTF-8 conversion fails.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn decompress(data: &[u8]) -> Result<String, String> {
     let mut decoder = ZlibDecoder::new(data);
     let mut decompressed = Vec::new();
     decoder
         .read_to_end(&mut decompressed)
-        .map_err(|e| JsValue::from_str(&format!("decompression failed: {e}")))?;
-    String::from_utf8(decompressed).map_err(|e| JsValue::from_str(&format!("invalid UTF-8: {e}")))
+        .map_err(|e| format!("decompression failed: {e}"))?;
+    String::from_utf8(decompressed).map_err(|e| format!("invalid UTF-8: {e}"))
 }
 
 // ── ID Generation ───────────────────────────────────────────────
 
 /// Generate an 8-character base62 ID from a UUID v4.
-#[wasm_bindgen]
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn generate_id() -> String {
     let uuid = Uuid::new_v4();
     let hex = uuid.simple().to_string();
@@ -109,7 +111,7 @@ pub fn generate_id() -> String {
 // ── Hashing ─────────────────────────────────────────────────────
 
 /// Compute the SHA-256 hash of a UTF-8 string, returned as lowercase hex.
-#[wasm_bindgen]
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn hash_content(data: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(data.as_bytes());
@@ -119,7 +121,7 @@ pub fn hash_content(data: &str) -> String {
 // ── Token Estimation ────────────────────────────────────────────
 
 /// Estimate token count using the ~4 chars/token heuristic.
-#[wasm_bindgen]
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn calculate_tokens(text: &str) -> u32 {
     let len = text.len() as f64;
     (len / 4.0).ceil() as u32
@@ -129,7 +131,7 @@ pub fn calculate_tokens(text: &str) -> u32 {
 
 /// Calculate the compression ratio (original / compressed), rounded to 2 decimals.
 /// Returns 1.0 when `compressed_size` is 0.
-#[wasm_bindgen]
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn calculate_compression_ratio(original_size: u32, compressed_size: u32) -> f64 {
     if compressed_size == 0 {
         return 1.0;
@@ -142,7 +144,7 @@ pub fn calculate_compression_ratio(original_size: u32, compressed_size: u32) -> 
 
 /// Compute the HMAC-SHA256 signature for signed URL parameters.
 /// Returns the first 16 hex characters of the digest.
-#[wasm_bindgen]
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn compute_signature(
     slug: &str,
     agent_id: &str,
@@ -154,6 +156,8 @@ pub fn compute_signature(
         "{}:{}:{}:{}",
         slug, agent_id, conversation_id, expires_at as u64
     );
+    // HMAC-SHA256 accepts any key length — new_from_slice never fails
+    // HMAC-SHA256 accepts any key length — new_from_slice cannot fail
     let Ok(mut mac) = HmacSha256::new_from_slice(secret.as_bytes()) else {
         return String::new();
     };
@@ -165,7 +169,7 @@ pub fn compute_signature(
 
 /// Derive a per-agent signing key from their API key.
 /// Uses `HMAC-SHA256(api_key, "llmtxt-signing")`.
-#[wasm_bindgen]
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn derive_signing_key(api_key: &str) -> String {
     let Ok(mut mac) = HmacSha256::new_from_slice(api_key.as_bytes()) else {
         return String::new();
@@ -178,13 +182,31 @@ pub fn derive_signing_key(api_key: &str) -> String {
 
 /// Check whether a timestamp (milliseconds) has expired.
 /// Returns false for 0 (no expiration).
-#[wasm_bindgen]
+///
+/// Uses `js_sys::Date::now()` in WASM, `std::time::SystemTime` natively.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn is_expired(expires_at_ms: f64) -> bool {
     if expires_at_ms == 0.0 {
         return false;
     }
-    let now = js_sys::Date::now();
+    let now = current_time_ms();
     now > expires_at_ms
+}
+
+/// Get current time in milliseconds since epoch.
+/// Uses `js_sys::Date::now()` when compiled to WASM, `SystemTime` natively.
+#[cfg(target_arch = "wasm32")]
+fn current_time_ms() -> f64 {
+    js_sys::Date::now()
+}
+
+/// Get current time in milliseconds since epoch.
+#[cfg(not(target_arch = "wasm32"))]
+fn current_time_ms() -> f64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as f64)
+        .unwrap_or(0.0)
 }
 
 // ── Native-only (not WASM) ──────────────────────────────────────
@@ -243,10 +265,7 @@ pub fn verify_signed_url(input: &str, secret: &str) -> Result<SignedUrlParams, V
     let expires_at: u64 = exp_str.parse().map_err(|_| VerifyError::MissingParams)?;
 
     // Check expiration
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_err(|_| VerifyError::MissingParams)?
-        .as_millis() as u64;
+    let now = current_time_ms() as u64;
     if now > expires_at {
         return Err(VerifyError::Expired);
     }
@@ -374,5 +393,12 @@ mod tests {
         let ids: Vec<String> = (0..100).map(|_| generate_id()).collect();
         let unique: std::collections::HashSet<&String> = ids.iter().collect();
         assert_eq!(unique.len(), 100, "generated IDs should be unique");
+    }
+
+    #[test]
+    fn test_is_expired() {
+        assert!(!is_expired(0.0));
+        assert!(is_expired(1.0)); // 1ms after epoch = definitely expired
+        assert!(!is_expired(f64::MAX)); // far future
     }
 }

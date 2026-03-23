@@ -33,7 +33,7 @@ exports.calculate_tokens = calculate_tokens;
  * with existing stored data.
  *
  * # Errors
- * Returns `JsValue` error if compression fails.
+ * Returns an error string if compression fails.
  * @param {string} data
  * @returns {Uint8Array}
  */
@@ -101,7 +101,7 @@ exports.decode_base62 = decode_base62;
  * Matches Node.js `zlib.inflate` for backward compatibility.
  *
  * # Errors
- * Returns `JsValue` error if decompression or UTF-8 conversion fails.
+ * Returns an error string if decompression or UTF-8 conversion fails.
  * @param {Uint8Array} data
  * @returns {string}
  */
@@ -212,6 +212,8 @@ exports.hash_content = hash_content;
 /**
  * Check whether a timestamp (milliseconds) has expired.
  * Returns false for 0 (no expiration).
+ *
+ * Uses `js_sys::Date::now()` in WASM, `std::time::SystemTime` natively.
  * @param {number} expires_at_ms
  * @returns {boolean}
  */
