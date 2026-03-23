@@ -24,6 +24,11 @@ url = "2"
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
 
+[lints.rustdoc]
+broken_intra_doc_links = "warn"
+bare_urls = "warn"
+missing_crate_level_docs = "warn"
+
 [profile.release]
 opt-level = "s"
 lto = true

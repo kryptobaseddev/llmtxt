@@ -12,7 +12,7 @@
 //! All functions are also available as regular Rust APIs for Cargo consumers.
 
 use flate2::Compression;
-use flate2::read::{DeflateDecoder, DeflateEncoder};
+use flate2::read::{ZlibDecoder, ZlibEncoder};
 use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
 use std::io::Read;
@@ -60,13 +60,16 @@ pub fn decode_base62(s: &str) -> u64 {
 
 // ── Compression ─────────────────────────────────────────────────
 
-/// Compress a UTF-8 string using raw deflate (RFC 1951).
+/// Compress a UTF-8 string using zlib-wrapped deflate (RFC 1950).
+///
+/// Matches Node.js `zlib.deflate` output for backward compatibility
+/// with existing stored data.
 ///
 /// # Errors
 /// Returns `JsValue` error if compression fails.
 #[wasm_bindgen]
 pub fn compress(data: &str) -> Result<Vec<u8>, JsValue> {
-    let mut encoder = DeflateEncoder::new(data.as_bytes(), Compression::default());
+    let mut encoder = ZlibEncoder::new(data.as_bytes(), Compression::default());
     let mut compressed = Vec::new();
     encoder
         .read_to_end(&mut compressed)
@@ -74,13 +77,15 @@ pub fn compress(data: &str) -> Result<Vec<u8>, JsValue> {
     Ok(compressed)
 }
 
-/// Decompress raw deflate bytes back to a UTF-8 string.
+/// Decompress zlib-wrapped deflate bytes back to a UTF-8 string.
+///
+/// Matches Node.js `zlib.inflate` for backward compatibility.
 ///
 /// # Errors
 /// Returns `JsValue` error if decompression or UTF-8 conversion fails.
 #[wasm_bindgen]
 pub fn decompress(data: &[u8]) -> Result<String, JsValue> {
-    let mut decoder = DeflateDecoder::new(data);
+    let mut decoder = ZlibDecoder::new(data);
     let mut decompressed = Vec::new();
     decoder
         .read_to_end(&mut decompressed)
