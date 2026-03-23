@@ -1,41 +1,23 @@
 {
-  "name": "llmtxt",
-  "version": "1.0.0",
-  "description": "Lightweight text document service optimized for LLM agents",
-  "type": "module",
+  "name": "llmtxt-monorepo",
+  "private": true,
+  "packageManager": "pnpm@10.30.0",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "build": "pnpm -r build",
+    "dev": "pnpm --filter @llmtxt/web dev",
+    "start": "pnpm --filter @llmtxt/web start",
+    "db:generate": "pnpm --filter @llmtxt/web db:generate",
+    "db:migrate": "pnpm --filter @llmtxt/web db:migrate",
+    "db:push": "pnpm --filter @llmtxt/web db:push",
+    "db:studio": "pnpm --filter @llmtxt/web db:studio"
   },
-  "keywords": [
-    "llm",
-    "text",
-    "document",
-    "api"
-  ],
-  "author": "",
-  "license": "MIT",
-  "dependencies": {
-    "@codluv/llmtxt": "file:packages/core",
-    "@fastify/compress": "^8.0.1",
-    "@fastify/cors": "^11.2.0",
-    "@fastify/static": "^9.0.0",
-    "better-sqlite3": "^12.1.0",
-    "drizzle-orm": "1.0.0-beta.9-e89174b",
-    "drizzle-zod": "0.7.0",
-    "fastify": "^5.2.2",
-    "zod": "^3.25.3"
+  "engines": {
+    "node": ">=24"
   },
-  "devDependencies": {
-    "@types/better-sqlite3": "^7.6.12",
-    "@types/node": "^22.13.10",
-    "drizzle-kit": "1.0.0-beta.9-e89174b",
-    "tsx": "^4.19.3",
-    "typescript": "^5.8.2"
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild"
+    ]
   }
 }

@@ -90,8 +90,12 @@ export type {
 export {
   computeSignature,
   computeSignatureWithLength,
+  computeOrgSignature,
+  computeOrgSignatureWithLength,
   generateSignedUrl,
+  generateOrgSignedUrl,
   verifySignedUrl,
+  verifyOrgSignedUrl,
   generateTimedUrl,
   deriveSigningKey,
   isExpired,
@@ -99,9 +103,22 @@ export {
 
 export type {
   SignedUrlParams,
+  OrgSignedUrlParams,
   SignedUrlConfig,
   VerifyResult,
 } from './signed-url.js';
+
+// ── Similarity ─────────────────────────────────────────────────
+export {
+  extractNgrams,
+  extractWordShingles,
+  jaccardSimilarity,
+  textSimilarity,
+  contentSimilarity,
+  minHashFingerprint,
+  fingerprintSimilarity,
+  rankBySimilarity,
+} from './similarity.js';
 
 // ── Types ───────────────────────────────────────────────────────
 export type {

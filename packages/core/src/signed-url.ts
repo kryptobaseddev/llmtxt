@@ -9,6 +9,8 @@
 import {
   computeSignature as wasmComputeSignature,
   computeSignatureWithLength as wasmComputeSignatureWithLength,
+  computeOrgSignature as wasmComputeOrgSignature,
+  computeOrgSignatureWithLength as wasmComputeOrgSignatureWithLength,
   deriveSigningKey as wasmDeriveSigningKey,
   isExpired as wasmIsExpired,
 } from './wasm.js';
@@ -132,6 +134,101 @@ export function verifySignedUrl(url: string | URL, secret: string): VerifyResult
 
 // Keep timing-safe from Node.js crypto for the URL verification step
 import { timingSafeEqual } from 'node:crypto';
+
+// ── Org-Scoped Signatures (Phase 5) ─────────────────────────────
+
+/**
+ * Parameters for org-scoped signed URLs (Phase 5 enterprise).
+ * Extends conversation-scoped params with an organization ID.
+ */
+export interface OrgSignedUrlParams extends SignedUrlParams {
+  orgId: string;
+}
+
+/**
+ * Compute the HMAC-SHA256 signature for org-scoped signed URL parameters.
+ * Includes orgId in the HMAC payload for organization-level access control.
+ * Returns 32 hex characters (128 bits) by default.
+ */
+export function computeOrgSignature(params: OrgSignedUrlParams, secret: string): string {
+  return wasmComputeOrgSignature(
+    params.slug,
+    params.agentId,
+    params.conversationId,
+    params.orgId,
+    params.expiresAt,
+    secret,
+  );
+}
+
+/**
+ * Compute org-scoped signature with configurable length.
+ */
+export function computeOrgSignatureWithLength(
+  params: OrgSignedUrlParams,
+  secret: string,
+  sigLength: number,
+): string {
+  return wasmComputeOrgSignatureWithLength(
+    params.slug,
+    params.agentId,
+    params.conversationId,
+    params.orgId,
+    params.expiresAt,
+    secret,
+    sigLength,
+  );
+}
+
+/**
+ * Generate an org-scoped signed URL for accessing a document.
+ * The URL includes the org parameter for organization-level access verification.
+ */
+export function generateOrgSignedUrl(params: OrgSignedUrlParams, config: SignedUrlConfig): string {
+  const signature = computeOrgSignature(params, config.secret);
+  const url = new URL(`/${params.slug}`, config.baseUrl);
+  url.searchParams.set('agent', params.agentId);
+  url.searchParams.set('conv', params.conversationId);
+  url.searchParams.set('org', params.orgId);
+  url.searchParams.set('exp', String(params.expiresAt));
+  url.searchParams.set('sig', signature);
+  return url.toString();
+}
+
+/**
+ * Verify an org-scoped signed URL's signature and expiration.
+ */
+export function verifyOrgSignedUrl(url: string | URL, secret: string): VerifyResult & { orgId?: string } {
+  const parsed = typeof url === 'string' ? new URL(url) : url;
+
+  const slug = parsed.pathname.replace(/^\//, '');
+  const agent = parsed.searchParams.get('agent');
+  const conv = parsed.searchParams.get('conv');
+  const org = parsed.searchParams.get('org');
+  const exp = parsed.searchParams.get('exp');
+  const sig = parsed.searchParams.get('sig');
+
+  if (!slug || !agent || !conv || !org || !exp || !sig) {
+    return { valid: false, reason: 'missing_params' };
+  }
+
+  const expiresAt = parseInt(exp, 10);
+  if (isNaN(expiresAt) || Date.now() > expiresAt) {
+    return { valid: false, reason: 'expired' };
+  }
+
+  const params: OrgSignedUrlParams = { slug, agentId: agent, conversationId: conv, orgId: org, expiresAt };
+  const expected = computeOrgSignature(params, secret);
+
+  const sigBuf = Buffer.from(sig, 'utf-8');
+  const expBuf = Buffer.from(expected, 'utf-8');
+
+  if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) {
+    return { valid: false, reason: 'invalid_signature' };
+  }
+
+  return { valid: true, params, orgId: org };
+}
 
 // ── Convenience ─────────────────────────────────────────────────
 

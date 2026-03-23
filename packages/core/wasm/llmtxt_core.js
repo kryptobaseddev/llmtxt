@@ -51,6 +51,77 @@ function compress(data) {
 exports.compress = compress;
 
 /**
+ * Compute the HMAC-SHA256 signature for org-scoped signed URL parameters.
+ * Includes `org_id` in the HMAC payload for organization-level access control.
+ * Returns the first 32 hex characters (128 bits) by default.
+ * @param {string} slug
+ * @param {string} agent_id
+ * @param {string} conversation_id
+ * @param {string} org_id
+ * @param {number} expires_at
+ * @param {string} secret
+ * @returns {string}
+ */
+function compute_org_signature(slug, agent_id, conversation_id, org_id, expires_at, secret) {
+    let deferred6_0;
+    let deferred6_1;
+    try {
+        const ptr0 = passStringToWasm0(slug, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(agent_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(conversation_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(org_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len3 = WASM_VECTOR_LEN;
+        const ptr4 = passStringToWasm0(secret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len4 = WASM_VECTOR_LEN;
+        const ret = wasm.compute_org_signature(ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, expires_at, ptr4, len4);
+        deferred6_0 = ret[0];
+        deferred6_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred6_0, deferred6_1, 1);
+    }
+}
+exports.compute_org_signature = compute_org_signature;
+
+/**
+ * Compute org-scoped HMAC-SHA256 signature with configurable output length.
+ * @param {string} slug
+ * @param {string} agent_id
+ * @param {string} conversation_id
+ * @param {string} org_id
+ * @param {number} expires_at
+ * @param {string} secret
+ * @param {number} sig_length
+ * @returns {string}
+ */
+function compute_org_signature_with_length(slug, agent_id, conversation_id, org_id, expires_at, secret, sig_length) {
+    let deferred6_0;
+    let deferred6_1;
+    try {
+        const ptr0 = passStringToWasm0(slug, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(agent_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(conversation_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(org_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len3 = WASM_VECTOR_LEN;
+        const ptr4 = passStringToWasm0(secret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len4 = WASM_VECTOR_LEN;
+        const ret = wasm.compute_org_signature_with_length(ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, expires_at, ptr4, len4, sig_length);
+        deferred6_0 = ret[0];
+        deferred6_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred6_0, deferred6_1, 1);
+    }
+}
+exports.compute_org_signature_with_length = compute_org_signature_with_length;
+
+/**
  * Compute the HMAC-SHA256 signature for signed URL parameters.
  * Returns the first 16 hex characters of the digest (64 bits).
  * For longer signatures, use [`compute_signature_with_length`].

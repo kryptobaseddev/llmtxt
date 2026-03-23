@@ -183,6 +183,46 @@ pub fn compute_signature_with_length(
     hex_full[..len].to_string()
 }
 
+/// Compute the HMAC-SHA256 signature for org-scoped signed URL parameters.
+/// Includes `org_id` in the HMAC payload for organization-level access control.
+/// Returns the first 32 hex characters (128 bits) by default.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn compute_org_signature(
+    slug: &str,
+    agent_id: &str,
+    conversation_id: &str,
+    org_id: &str,
+    expires_at: f64,
+    secret: &str,
+) -> String {
+    compute_org_signature_with_length(slug, agent_id, conversation_id, org_id, expires_at, secret, 32)
+}
+
+/// Compute org-scoped HMAC-SHA256 signature with configurable output length.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn compute_org_signature_with_length(
+    slug: &str,
+    agent_id: &str,
+    conversation_id: &str,
+    org_id: &str,
+    expires_at: f64,
+    secret: &str,
+    sig_length: usize,
+) -> String {
+    let payload = format!(
+        "{}:{}:{}:{}:{}",
+        slug, agent_id, conversation_id, org_id, expires_at as u64
+    );
+    let Ok(mut mac) = HmacSha256::new_from_slice(secret.as_bytes()) else {
+        return String::new();
+    };
+    mac.update(payload.as_bytes());
+    let result = mac.finalize();
+    let hex_full = hex::encode(result.into_bytes());
+    let len = sig_length.min(64);
+    hex_full[..len].to_string()
+}
+
 /// Derive a per-agent signing key from their API key.
 /// Uses `HMAC-SHA256(api_key, "llmtxt-signing")`.
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
@@ -433,6 +473,44 @@ mod tests {
         let ids: Vec<String> = (0..100).map(|_| generate_id()).collect();
         let unique: std::collections::HashSet<&String> = ids.iter().collect();
         assert_eq!(unique.len(), 100, "generated IDs should be unique");
+    }
+
+    #[test]
+    fn test_compute_org_signature() {
+        let sig = compute_org_signature(
+            "xK9mP2nQ",
+            "test-agent",
+            "conv_123",
+            "org_456",
+            1_700_000_000_000.0,
+            "test-secret",
+        );
+        assert_eq!(sig.len(), 32); // default 32 chars for org sigs
+        // Org sig must differ from non-org sig (different payload)
+        let non_org_sig = compute_signature_with_length(
+            "xK9mP2nQ",
+            "test-agent",
+            "conv_123",
+            1_700_000_000_000.0,
+            "test-secret",
+            32,
+        );
+        assert_ne!(sig, non_org_sig);
+    }
+
+    #[test]
+    fn test_compute_org_signature_with_length() {
+        let sig16 = compute_org_signature_with_length(
+            "xK9mP2nQ", "test-agent", "conv_123", "org_456",
+            1_700_000_000_000.0, "test-secret", 16,
+        );
+        let sig32 = compute_org_signature_with_length(
+            "xK9mP2nQ", "test-agent", "conv_123", "org_456",
+            1_700_000_000_000.0, "test-secret", 32,
+        );
+        assert_eq!(sig16.len(), 16);
+        assert_eq!(sig32.len(), 32);
+        assert!(sig32.starts_with(&sig16));
     }
 
     #[test]

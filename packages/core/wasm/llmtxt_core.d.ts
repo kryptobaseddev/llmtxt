@@ -24,6 +24,18 @@ export function calculate_tokens(text: string): number;
 export function compress(data: string): Uint8Array;
 
 /**
+ * Compute the HMAC-SHA256 signature for org-scoped signed URL parameters.
+ * Includes `org_id` in the HMAC payload for organization-level access control.
+ * Returns the first 32 hex characters (128 bits) by default.
+ */
+export function compute_org_signature(slug: string, agent_id: string, conversation_id: string, org_id: string, expires_at: number, secret: string): string;
+
+/**
+ * Compute org-scoped HMAC-SHA256 signature with configurable output length.
+ */
+export function compute_org_signature_with_length(slug: string, agent_id: string, conversation_id: string, org_id: string, expires_at: number, secret: string, sig_length: number): string;
+
+/**
  * Compute the HMAC-SHA256 signature for signed URL parameters.
  * Returns the first 16 hex characters of the digest (64 bits).
  * For longer signatures, use [`compute_signature_with_length`].

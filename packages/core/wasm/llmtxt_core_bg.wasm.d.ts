@@ -3,6 +3,8 @@
 export const memory: WebAssembly.Memory;
 export const calculate_tokens: (a: number, b: number) => number;
 export const compress: (a: number, b: number) => [number, number, number, number];
+export const compute_org_signature: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => [number, number];
+export const compute_org_signature_with_length: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => [number, number];
 export const compute_signature: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number];
 export const compute_signature_with_length: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number];
 export const decode_base62: (a: number, b: number) => bigint;

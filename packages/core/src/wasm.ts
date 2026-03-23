@@ -79,6 +79,29 @@ export function computeSignatureWithLength(
   return wasmModule.compute_signature_with_length(slug, agentId, conversationId, expiresAt, secret, sigLength);
 }
 
+export function computeOrgSignature(
+  slug: string,
+  agentId: string,
+  conversationId: string,
+  orgId: string,
+  expiresAt: number,
+  secret: string,
+): string {
+  return wasmModule.compute_org_signature(slug, agentId, conversationId, orgId, expiresAt, secret);
+}
+
+export function computeOrgSignatureWithLength(
+  slug: string,
+  agentId: string,
+  conversationId: string,
+  orgId: string,
+  expiresAt: number,
+  secret: string,
+  sigLength: number,
+): string {
+  return wasmModule.compute_org_signature_with_length(slug, agentId, conversationId, orgId, expiresAt, secret, sigLength);
+}
+
 export function deriveSigningKey(apiKey: string): string {
   return wasmModule.derive_signing_key(apiKey);
 }
