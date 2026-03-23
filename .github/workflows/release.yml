@@ -6,7 +6,7 @@ on:
       - 'core-v*'
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 jobs:
@@ -29,7 +29,36 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Publish to npm
+      - name: Publish to npm with provenance
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#core-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Extract changelog for this version
+        id: changelog
+        working-directory: .
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # Extract the section for this version from CHANGELOG.md
+          NOTES=$(sed -n "/^## \[${VERSION}\]/,/^## \[/p" packages/core/CHANGELOG.md | sed '$ d')
+          if [ -z "$NOTES" ]; then
+            NOTES="Release @codluv/llmtxt v${VERSION}"
+          fi
+          echo "notes<<CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
+          echo "$NOTES" >> "$GITHUB_OUTPUT"
+          echo "CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          NOTES: ${{ steps.changelog.outputs.notes }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "@codluv/llmtxt v${VERSION}" \
+            --notes "${NOTES}"
