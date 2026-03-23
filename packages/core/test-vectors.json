@@ -1,0 +1,54 @@
+{
+  "version": "1.0.0",
+  "description": "Cross-platform test vectors for @codluv/llmtxt portable core contract. Both TypeScript and Rust implementations must pass all vectors.",
+  "hashContent": [
+    { "input": "hello", "expected": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824" },
+    { "input": "", "expected": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" }
+  ],
+  "base62": {
+    "encode": [
+      { "input": 0, "expected": "0" },
+      { "input": 1, "expected": "1" },
+      { "input": 61, "expected": "z" },
+      { "input": 62, "expected": "10" },
+      { "input": 3844, "expected": "100" }
+    ],
+    "decode": [
+      { "input": "0", "expected": 0 },
+      { "input": "z", "expected": 61 },
+      { "input": "10", "expected": 62 },
+      { "input": "100", "expected": 3844 }
+    ]
+  },
+  "calculateTokens": [
+    { "input": "Hello, world!", "expected": 4 },
+    { "input": "", "expected": 0 },
+    { "input": "a", "expected": 1 },
+    { "input": "1234", "expected": 1 },
+    { "input": "12345", "expected": 2 }
+  ],
+  "calculateCompressionRatio": [
+    { "originalSize": 1000, "compressedSize": 400, "expected": 2.5 },
+    { "originalSize": 100, "compressedSize": 100, "expected": 1 },
+    { "originalSize": 100, "compressedSize": 0, "expected": 1 },
+    { "originalSize": 500, "compressedSize": 200, "expected": 2.5 }
+  ],
+  "computeSignature": [
+    {
+      "params": {
+        "slug": "xK9mP2nQ",
+        "agentId": "test-agent",
+        "conversationId": "conv_123",
+        "expiresAt": 1700000000000
+      },
+      "secret": "test-secret",
+      "expected": "650eb9dd6c396a45"
+    }
+  ],
+  "deriveSigningKey": [
+    {
+      "apiKey": "sk_live_abc123",
+      "expected": "fb5f79640e9ed141d4949ccb36110c7aaf829c56d9870942dd77219a57575372"
+    }
+  ]
+}

@@ -209,3 +209,53 @@ export function generateTimedUrl(
     config,
   );
 }
+
+// ── Key Derivation ──────────────────────────────────────────────
+
+/**
+ * Derive a per-agent signing key from their API key.
+ *
+ * @remarks
+ * Uses `HMAC-SHA256(apiKey, "llmtxt-signing")` to derive a signing key
+ * without requiring a shared secret. Each agent implicitly gets their own
+ * signing key from their API key. This is a portable core function — the
+ * Rust crate must produce identical output.
+ *
+ * @param apiKey - The agent's API key (e.g. `"sk_live_abc123"`).
+ * @returns A 64-character hex-encoded derived signing key.
+ *
+ * @example
+ * ```ts
+ * const signingKey = deriveSigningKey('sk_live_abc123');
+ * const url = generateSignedUrl(params, { secret: signingKey, baseUrl });
+ * ```
+ */
+export function deriveSigningKey(apiKey: string): string {
+  return createHmac('sha256', apiKey)
+    .update('llmtxt-signing')
+    .digest('hex');
+}
+
+// ── Expiration ──────────────────────────────────────────────────
+
+/**
+ * Check whether a timestamp has expired.
+ *
+ * @remarks
+ * Returns `false` for `null`/`undefined` (no expiration set).
+ * Compares against the current time.
+ *
+ * @param expiresAt - Unix timestamp in milliseconds, or null/undefined.
+ * @returns `true` if the timestamp is in the past.
+ *
+ * @example
+ * ```ts
+ * isExpired(Date.now() - 1000);  // true
+ * isExpired(Date.now() + 60000); // false
+ * isExpired(null);               // false
+ * ```
+ */
+export function isExpired(expiresAt: number | null | undefined): boolean {
+  if (expiresAt == null) return false;
+  return Date.now() > expiresAt;
+}

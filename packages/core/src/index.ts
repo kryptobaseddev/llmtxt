@@ -24,11 +24,13 @@ export {
   detectFormat,
   validateContent,
   autoValidate,
+  DEFAULT_MAX_CONTENT_BYTES,
 } from './validation.js';
 
 export type {
   ValidationResult,
   ValidationError,
+  ValidateContentOptions,
 } from './validation.js';
 
 // ── Schemas ─────────────────────────────────────────────────────
@@ -83,12 +85,14 @@ export type {
   LRUCacheOptions,
 } from './cache.js';
 
-// ── Signed URLs ─────────────────────────────────────────────────
+// ── Signed URLs & Security ──────────────────────────────────────
 export {
   computeSignature,
   generateSignedUrl,
   verifySignedUrl,
   generateTimedUrl,
+  deriveSigningKey,
+  isExpired,
 } from './signed-url.js';
 
 export type {
@@ -96,3 +100,14 @@ export type {
   SignedUrlConfig,
   VerifyResult,
 } from './signed-url.js';
+
+// ── Types ───────────────────────────────────────────────────────
+export type {
+  ContentFormat,
+  DocumentMeta,
+  VersionMeta,
+  VersionSummary,
+  VersionDiff,
+  LlmtxtRef,
+  AttachmentOptions,
+} from './types.js';

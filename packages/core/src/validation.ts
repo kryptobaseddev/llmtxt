@@ -153,21 +153,32 @@ export function validateText(content: unknown): ValidationResult<string> {
   return { success: true, data: result.data, format: 'text' };
 }
 
+// Markdown signals used by detectFormat — must match disclosure.ts heuristics
+const MARKDOWN_SIGNALS = [
+  /^#{1,6}\s/m,         // Headers
+  /^\s*[-*]\s/m,        // Unordered lists
+  /^\s*\d+\.\s/m,       // Ordered lists
+  /```/,                // Code blocks
+  /\[.+\]\(.+\)/,      // Links
+];
+
 /**
- * Auto-detect whether a string is JSON or text.
+ * Auto-detect whether a string is JSON, markdown, or plain text.
  *
  * @remarks
- * Attempts to parse the content as JSON. If parsing succeeds the format
- * is `"json"`; otherwise it falls back to `"text"`. Markdown is not
- * distinguished from plain text by this function.
+ * Attempts JSON parsing first. For non-JSON content, applies markdown
+ * heuristics (headings, lists, code blocks, links) — 2+ signals returns
+ * `"markdown"`, otherwise `"text"`. This is now consistent with the
+ * disclosure module's `detectDocumentFormat`.
  *
  * @param content - The string to inspect.
- * @returns The detected format: `"json"` or `"text"`.
+ * @returns The detected format: `"json"`, `"markdown"`, or `"text"`.
  *
  * @example
  * ```ts
- * detectFormat('{"a":1}'); // "json"
- * detectFormat('Hello');   // "text"
+ * detectFormat('{"a":1}');                    // "json"
+ * detectFormat('# Title\n- item');            // "markdown"
+ * detectFormat('Hello');                      // "text"
  * ```
  */
 export function detectFormat(content: string): 'json' | 'text' | 'markdown' {
@@ -175,36 +186,75 @@ export function detectFormat(content: string): 'json' | 'text' | 'markdown' {
     JSON.parse(content);
     return 'json';
   } catch {
-    return 'text';
+    const markdownScore = MARKDOWN_SIGNALS.filter(r => r.test(content)).length;
+    return markdownScore >= 2 ? 'markdown' : 'text';
   }
 }
 
+/** Default maximum content size in bytes (5 MB). */
+export const DEFAULT_MAX_CONTENT_BYTES = 5 * 1024 * 1024;
+
+/** Options for content validation. */
+export interface ValidateContentOptions {
+  /** Optional predefined schema name for JSON validation. */
+  schemaName?: string;
+  /** Maximum content size in bytes. Set to 0 to disable. Default: 5 MB. */
+  maxBytes?: number;
+}
+
 /**
- * Validate content for a given format, with optional schema enforcement.
+ * Validate content for a given format, with optional schema enforcement
+ * and content size limits.
  *
  * @remarks
  * Dispatches to {@link validateJson} for JSON content or
- * {@link validateText} for text/markdown. Returns an error result when
- * an unsupported format string is supplied.
+ * {@link validateText} for text/markdown. Enforces a byte-size limit
+ * (default 5 MB) before format validation. Returns an error result when
+ * an unsupported format string is supplied or content exceeds the limit.
  *
  * @param content - The raw content to validate.
  * @param format - The expected content format.
- * @param schemaName - Optional predefined schema name for JSON validation.
+ * @param schemaNameOrOptions - A schema name string (backward compat) or options object.
  * @returns A {@link ValidationResult} indicating success or listing errors.
  *
  * @example
  * ```ts
- * const result = validateContent(payload, 'json', 'prompt-v1');
+ * validateContent(payload, 'json', 'prompt-v1');
+ * validateContent(payload, 'text', { maxBytes: 10 * 1024 * 1024 });
  * ```
  */
 export function validateContent(
   content: unknown,
   format: 'json' | 'text' | 'markdown',
-  schemaName?: string,
+  schemaNameOrOptions?: string | ValidateContentOptions,
 ): ValidationResult {
+  // Normalize options — backward compat with string schemaName
+  const opts: ValidateContentOptions = typeof schemaNameOrOptions === 'string'
+    ? { schemaName: schemaNameOrOptions }
+    : schemaNameOrOptions ?? {};
+
+  const maxBytes = opts.maxBytes ?? DEFAULT_MAX_CONTENT_BYTES;
+
+  // Enforce content size limit
+  if (maxBytes > 0 && typeof content === 'string') {
+    const byteLength = Buffer.byteLength(content, 'utf-8');
+    if (byteLength > maxBytes) {
+      const maxMB = (maxBytes / (1024 * 1024)).toFixed(1);
+      const actualMB = (byteLength / (1024 * 1024)).toFixed(2);
+      return {
+        success: false,
+        errors: [{
+          path: '',
+          message: `Content size ${actualMB} MB exceeds maximum ${maxMB} MB`,
+          code: 'content_too_large',
+        }],
+      };
+    }
+  }
+
   switch (format) {
     case 'json':
-      return validateJson(content, schemaName);
+      return validateJson(content, opts.schemaName);
     case 'text':
     case 'markdown':
       return validateText(content);
