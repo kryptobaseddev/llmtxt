@@ -1,0 +1,44 @@
+---
+title: ''
+---
+
+This page explains the core concepts behind **core**.
+
+> This is a stub page. Edit this file to add your project's conceptual documentation.
+>
+> Auto-generated sections below (inside FORGE:AUTO markers) update on every build.
+
+{/* FORGE:AUTO-START how-it-works */}
+
+## How It Works
+
+core processes your TypeScript source with a single AST traversal, extracting TSDoc comments and type information to generate documentation.
+
+{/* FORGE:AUTO-END how-it-works */}
+
+{/* FORGE:AUTO-START key-abstractions */}
+
+## Key Abstractions
+
+- **`CacheStats`** — Snapshot of cache performance statistics.
+- **`LRUCacheOptions`** — Configuration options for constructing an `LRUCache` instance.
+- **`Section`** — A logical section identified within a document.
+- **`DocumentOverview`** — High-level structural overview of a document.
+- **`SearchResult`** — A single match returned by `searchContent`.
+- **`LineRangeResult`** — Result of extracting a line range from a document via `getLineRange`.
+- **`PredefinedSchemaName`** — Union of all registered predefined schema name strings.
+- **`JsonFormat`** — Inferred TypeScript type for any valid JSON value (object, array, primitive).
+- **`TextFormat`** — Inferred TypeScript type for plain text content.
+- **`MarkdownFormat`** — Inferred TypeScript type for markdown content (string alias).
+- **`PromptV1`** — Inferred TypeScript type for the standard LLM prompt format.
+- **`PromptMessage`** — Inferred TypeScript type for a single prompt message with role and content.
+- **`CompressRequest`** — Inferred TypeScript type for content compression request payloads.
+- **`DecompressRequest`** — Inferred TypeScript type for content decompression request payloads.
+- **`SearchRequest`** — Inferred TypeScript type for content search request payloads.
+- **`ValidationResult`** — Outcome of a content validation operation.
+- **`ValidationError`** — A single validation error with location, message, and error code.
+- **`SignedUrlParams`** — Parameters that uniquely identify a signed URL access grant.
+- **`SignedUrlConfig`** — Configuration for generating and verifying signed URLs.
+- **`VerifyResult`** — Outcome of verifying a signed URL via `verifySignedUrl`.
+
+{/* FORGE:AUTO-END key-abstractions */}

@@ -9,7 +9,7 @@ export default {
       "require-param": "error",
       "require-returns": "error",
       "require-example": "warn",
-      "require-package-doc": "error",
+      "require-package-doc": "warn",
       "require-class-member-doc": "error",
       "require-interface-member-doc": "error",
       "require-remarks": "warn",

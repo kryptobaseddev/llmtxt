@@ -1,0 +1,72 @@
+# .
+> Auto-generated API documentation
+
+## Sections
+
+- [API Reference](./api-reference.md): Full API documentation
+- [Full Context](./llms-full.txt): Dense context for LLM consumption
+
+## Quick Reference
+
+CacheStats - Snapshot of cache performance statistics.
+LRUCacheOptions - Configuration options for constructing an `LRUCache` instance.
+typeof LRUCache - Generic least-recently-used (LRU) cache with time-to-live support.
+file cache.ts
+(num: number) => string - Encode a non-negative integer into a base62 string.
+(str: string) => number - Decode a base62-encoded string back into a non-negative integer.
+(data: string) => Promise<Buffer> - Compress a UTF-8 string using deflate.
+(data: Buffer) => Promise<string> - Decompress a deflate-compressed buffer back to a UTF-8 string.
+() => string - Generate a base62-encoded 8-character ID from a UUID.
+(data: string) => string - Compute the SHA-256 hash of a string, returned as a hex digest.
+(text: string) => number - Estimate the token count of a string using the ~4 chars/token heuristic.
+(originalSize: number, compressedSize: number) => number - Calculate the compression ratio between original and compressed sizes.
+file compression.ts
+Section - A logical section identified within a document.
+DocumentOverview - High-level structural overview of a document.
+SearchResult - A single match returned by `searchContent`.
+LineRangeResult - Result of extracting a line range from a document via `getLineRange`.
+(content: string, start: number, end: number) => LineRangeResult - Extract a range of lines from a document, returning content and token statistics.
+(content: string, query: string, contextLines?: number, maxResults?: number) => SearchResult[] - Search document content for lines matching a query string or regex.
+(content: string) => "json" | "markdown" | "code" | "text" - Detect the structural format of a document using content heuristics.
+(content: string) => DocumentOverview - Generate a structural overview of a document for progressive disclosure.
+(content: string, path: string) => { result: unknown; tokenCount: number; path: string; } - Execute a JSONPath-style query against JSON content.
+(content: string, sectionName: string, depthAll?: boolean) => { section: Section; content: string; tokenCount: number; totalTokens: number; tokensSaved: number; } | null - Extract a named section from a document by title.
+file disclosure.ts
+z.ZodUnion<[z.ZodRecord<z.ZodString, z.ZodUnknown>, z.ZodArray<z.ZodUnknown, "many">, z.ZodString, z.ZodNumber, z.ZodBoolean, z.ZodNull]> - Schema that accepts any valid JSON value.
+z.ZodString - Schema that accepts any string value (plain text or markdown).
+z.ZodString - Schema for markdown content, stored as a plain string.
+z.ZodObject<{ role: z.ZodEnum<["system", "user", "assistant"]>; content: z.ZodString; }, "strip", z.ZodTypeAny, { role: "system" | "user" | "assistant"; content: string; }, { role: "system" | "user" | "assistant"; content: string; }> - Schema for a single message within an LLM prompt conversation.
+z.ZodObject<{ system: z.ZodOptional<z.ZodString>; messages: z.ZodArray<z.ZodObject<{ role: z.ZodEnum<["system", "user", "assistant"]>; content: z.ZodString; }, "strip", z.ZodTypeAny, { role: "system" | "user" | "assistant"; content: string; }, { role: "system" | "user" | "assistant"; content: string; }>, "many">; temperature: z.ZodOptional<z.ZodNumber>; max_tokens: z.ZodOptional<z.ZodNumber>; }, "strip", z.ZodTypeAny, { messages: { role: "system" | "user" | "assistant"; content: string; }[]; system?: string | undefined; temperature?: number | undefined; max_tokens?: number | undefined; }, { messages: { role: "system" | "user" | "assistant"; content: string; }[]; system?: string | undefined; temperature?: number | undefined; max_tokens?: number | undefined; }> - Schema for the standard LLM prompt format (OpenAI / Anthropic style).
+{ readonly 'prompt-v1': z.ZodObject<{ system: z.ZodOptional<z.ZodString>; messages: z.ZodArray<z.ZodObject<{ role: z.ZodEnum<["system", "user", "assistant"]>; content: z.ZodString; }, "strip", z.ZodTypeAny, { role: "system" | "user" | "assistant"; content: string; }, { role: "system" | "user" | "assistant"; content: string; }>, "many">; temperature: z.ZodOptional<z.ZodNumber>; max_tokens: z.ZodOptional<z.ZodNumber>; }, "strip", z.ZodTypeAny, { messages: { role: "system" | "user" | "assistant"; content: string; }[]; system?: string | undefined; temperature?: number | undefined; max_tokens?: number | undefined; }, { messages: { role: "system" | "user" | "assistant"; content: string; }[]; system?: string | undefined; temperature?: number | undefined; max_tokens?: number | undefined; }>; } - Registry of predefined content schemas keyed by name.
+"prompt-v1" - Union of all registered predefined schema name strings.
+(name: string) => name is PredefinedSchemaName - Type-guard that checks whether a string is a registered predefined schema name.
+(name: string) => z.ZodSchema | undefined - Retrieve a predefined Zod schema by name.
+z.ZodObject<{ content: z.ZodString; format: z.ZodDefault<z.ZodOptional<z.ZodEnum<["json", "text", "markdown"]>>>; schema: z.ZodOptional<z.ZodString>; metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>; }, "strip", z.ZodTypeAny, { content: string; format: "json" | "markdown" | "text"; schema?: string | undefined; metadata?: Record<string, unknown> | undefined; }, { content: string; format?: "json" | "markdown" | "text" | undefined; schema?: string | undefined; metadata?: Record<string, unknown> | undefined; }> - Schema for incoming content compression requests.
+z.ZodObject<{ slug: z.ZodString; }, "strip", z.ZodTypeAny, { slug: string; }, { slug: string; }> - Schema for incoming content decompression requests.
+z.ZodObject<{ query: z.ZodString; slugs: z.ZodArray<z.ZodString, "many">; }, "strip", z.ZodTypeAny, { query: string; slugs: string[]; }, { query: string; slugs: string[]; }> - Schema for incoming content search requests.
+string | number | boolean | unknown[] | Record<string, unknown> | null - Inferred TypeScript type for any valid JSON value (object, array, primitive).
+string - Inferred TypeScript type for plain text content.
+string - Inferred TypeScript type for markdown content (string alias).
+{ messages: { role: "system" | "user" | "assistant"; content: string; }[]; system?: string | undefined; temperature?: number | undefined; max_tokens?: number | undefined; } - Inferred TypeScript type for the standard LLM prompt format.
+{ role: "system" | "user" | "assistant"; content: string; } - Inferred TypeScript type for a single prompt message with role and content.
+{ content: string; format: "json" | "markdown" | "text"; schema?: string | undefined; metadata?: Record<string, unknown> | undefined; } - Inferred TypeScript type for content compression request payloads.
+{ slug: string; } - Inferred TypeScript type for content decompression request payloads.
+{ query: string; slugs: string[]; } - Inferred TypeScript type for content search request payloads.
+file schemas.ts
+ValidationResult<T> - Outcome of a content validation operation.
+ValidationError - A single validation error with location, message, and error code.
+(content: unknown, schemaName?: string) => ValidationResult - Validate content as JSON, optionally against a predefined schema.
+(content: unknown) => ValidationResult<string> - Validate content as plain text or markdown.
+(content: string) => "json" | "text" | "markdown" - Auto-detect whether a string is JSON or text.
+(content: unknown, format: "json" | "text" | "markdown", schemaName?: string) => ValidationResult - Validate content for a given format, with optional schema enforcement.
+(content: unknown, schemaName?: string) => ValidationResult - Auto-detect the content format and then validate accordingly.
+file validation.ts
+SignedUrlParams - Parameters that uniquely identify a signed URL access grant.
+SignedUrlConfig - Configuration for generating and verifying signed URLs.
+VerifyResult - Outcome of verifying a signed URL via `verifySignedUrl`.
+(params: SignedUrlParams, secret: string) => string - Compute the HMAC-SHA256 signature for a set of signed URL parameters.
+(params: SignedUrlParams, config: SignedUrlConfig) => string - Generate a signed URL for accessing a document.
+(url: string | URL, secret: string) => VerifyResult - Verify a signed URL's signature and expiration.
+(params: Omit<SignedUrlParams, "expiresAt">, config: SignedUrlConfig, ttlMs?: number) => string - Generate a signed URL that expires after the given duration.
+file signed-url.ts
+file index.ts

@@ -1,0 +1,31 @@
+---
+title: ''
+---
+
+How to configure the project using its exported configuration interfaces.
+
+> TODO: Add your own content to this guide. The sections below are auto-generated from code.
+
+{/* FORGE:AUTO-START guide-configuration */}
+
+## Configuration Interfaces
+
+### `LRUCacheOptions`
+
+Configuration options for constructing an `LRUCache` instance.
+
+| Property  | Type                  | Description                                                                                |
+| --------- | --------------------- | ------------------------------------------------------------------------------------------ |
+| `maxSize` | `number \| undefined` | Maximum number of entries before the least-recently-used entry is evicted (default: 1000). |
+| `ttl`     | `number \| undefined` | Default time-to-live in milliseconds for new entries (default: 24 hours).                  |
+
+### `SignedUrlConfig`
+
+Configuration for generating and verifying signed URLs.
+
+| Property  | Type     | Description                                                |
+| --------- | -------- | ---------------------------------------------------------- |
+| `secret`  | `string` | Shared HMAC-SHA256 secret used to sign and verify URLs.    |
+| `baseUrl` | `string` | Base URL for document access (e.g. `"https://llmtxt.my"`). |
+
+{/* FORGE:AUTO-END guide-configuration */}

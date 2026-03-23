@@ -9,43 +9,106 @@ import { calculateTokens } from './compression.js';
 
 // ── Types ───────────────────────────────────────────────────────
 
+/**
+ * A logical section identified within a document.
+ *
+ * @remarks
+ * Sections are detected by format-specific heuristics (headings in
+ * markdown, top-level keys in JSON, function/class declarations in code).
+ */
 export interface Section {
+  /** Display title of the section (heading text, JSON key, or symbol name). */
   title: string;
+  /** Nesting depth (0-based). Headings use depth = level - 1. */
   depth: number;
+  /** 1-based line number where the section begins. */
   startLine: number;
+  /** 1-based line number where the section ends (inclusive). */
   endLine: number;
+  /** Estimated token count for the section content. */
   tokenCount: number;
+  /** The structural type of the section. */
   type: 'heading' | 'json-key' | 'code-block' | 'function' | 'class';
 }
 
+/**
+ * High-level structural overview of a document.
+ *
+ * @remarks
+ * Produced by {@link generateOverview}. Provides format detection,
+ * token counts, section listings, and format-specific extras (JSON keys
+ * or a markdown table of contents).
+ */
 export interface DocumentOverview {
+  /** The detected document format. */
   format: 'json' | 'markdown' | 'code' | 'text';
+  /** Total number of lines in the document. */
   lineCount: number;
+  /** Estimated total token count for the entire document. */
   tokenCount: number;
+  /** Ordered list of sections found in the document. */
   sections: Section[];
+  /** Top-level JSON keys with type info and preview (JSON documents only). */
   keys?: Array<{ key: string; type: string; preview: string }>;
+  /** Markdown table of contents entries (markdown documents only). */
   toc?: Array<{ title: string; depth: number; line: number }>;
 }
 
+/**
+ * A single match returned by {@link searchContent}.
+ */
 export interface SearchResult {
+  /** 1-based line number of the matching line. */
   line: number;
+  /** The full text of the matching line. */
   content: string;
+  /** Lines immediately preceding the match (up to `contextLines`). */
   contextBefore: string[];
+  /** Lines immediately following the match (up to `contextLines`). */
   contextAfter: string[];
 }
 
+/**
+ * Result of extracting a line range from a document via {@link getLineRange}.
+ */
 export interface LineRangeResult {
+  /** 1-based line number where the extracted range begins. */
   startLine: number;
+  /** 1-based line number where the extracted range ends (inclusive). */
   endLine: number;
+  /** The extracted text content for the requested line range. */
   content: string;
+  /** Estimated token count for the extracted content. */
   tokenCount: number;
+  /** Total number of lines in the full document. */
   totalLines: number;
+  /** Estimated total token count for the full document. */
   totalTokens: number;
+  /** Number of tokens saved by extracting only this range. */
   tokensSaved: number;
 }
 
 // ── Line Range Access ───────────────────────────────────────────
 
+/**
+ * Extract a range of lines from a document, returning content and token statistics.
+ *
+ * @remarks
+ * Line numbers are 1-based and clamped to the document boundaries. This
+ * enables agents to request only the portion of a document they need,
+ * reducing token consumption.
+ *
+ * @param content - The full document content.
+ * @param start - The 1-based starting line number.
+ * @param end - The 1-based ending line number (inclusive).
+ * @returns A {@link LineRangeResult} with the extracted content and token savings.
+ *
+ * @example
+ * ```ts
+ * const range = getLineRange(doc, 10, 25);
+ * console.log(`Saved ${range.tokensSaved} tokens`);
+ * ```
+ */
 export function getLineRange(content: string, start: number, end: number): LineRangeResult {
   const lines = content.split('\n');
   const totalLines = lines.length;
@@ -71,6 +134,26 @@ export function getLineRange(content: string, start: number, end: number): LineR
 
 // ── Content Search ──────────────────────────────────────────────
 
+/**
+ * Search document content for lines matching a query string or regex.
+ *
+ * @remarks
+ * Supports plain-text substring matching (case-insensitive) and regex
+ * patterns delimited with slashes (e.g. `/pattern/i`). Results include
+ * configurable surrounding context lines to help agents understand each
+ * match in context.
+ *
+ * @param content - The full document content to search.
+ * @param query - A plain-text substring or `/regex/flags` pattern.
+ * @param contextLines - Number of context lines before and after each match (default: 2).
+ * @param maxResults - Maximum number of matches to return (default: 20).
+ * @returns An array of {@link SearchResult} objects for each matching line.
+ *
+ * @example
+ * ```ts
+ * const hits = searchContent(doc, 'TODO', 3, 10);
+ * ```
+ */
 export function searchContent(
   content: string,
   query: string,
@@ -116,6 +199,23 @@ export function searchContent(
 
 // ── Format Detection ────────────────────────────────────────────
 
+/**
+ * Detect the structural format of a document using content heuristics.
+ *
+ * @remarks
+ * Applies the following precedence: JSON (valid `JSON.parse`), then
+ * markdown (2+ markdown signals such as headings, lists, or links), then
+ * code (2+ code signals such as `import`, `function`, or arrow syntax),
+ * and finally falls back to plain text.
+ *
+ * @param content - The document content to classify.
+ * @returns The detected format: `"json"`, `"markdown"`, `"code"`, or `"text"`.
+ *
+ * @example
+ * ```ts
+ * detectDocumentFormat('# Title\n- item'); // "markdown"
+ * ```
+ */
 export function detectDocumentFormat(content: string): 'json' | 'markdown' | 'code' | 'text' {
   const trimmed = content.trim();
 
@@ -149,6 +249,24 @@ export function detectDocumentFormat(content: string): 'json' | 'markdown' | 'co
 
 // ── Document Overview ───────────────────────────────────────────
 
+/**
+ * Generate a structural overview of a document for progressive disclosure.
+ *
+ * @remarks
+ * Detects the document format, splits it into logical sections, computes
+ * token counts, and extracts format-specific metadata (JSON keys or
+ * markdown table of contents). The overview allows agents to decide
+ * which sections to request in full, minimizing total token usage.
+ *
+ * @param content - The full document content to analyze.
+ * @returns A {@link DocumentOverview} with format, sections, and token counts.
+ *
+ * @example
+ * ```ts
+ * const overview = generateOverview(markdownDoc);
+ * console.log(`${overview.sections.length} sections, ${overview.tokenCount} tokens`);
+ * ```
+ */
 export function generateOverview(content: string): DocumentOverview {
   const format = detectDocumentFormat(content);
   const lines = content.split('\n');
@@ -179,6 +297,26 @@ export function generateOverview(content: string): DocumentOverview {
 
 // ── JSONPath Queries ────────────────────────────────────────────
 
+/**
+ * Execute a JSONPath-style query against JSON content.
+ *
+ * @remarks
+ * Parses the content as JSON and resolves the dot/bracket path (e.g.
+ * `$.messages[0].content` or `data.items`). Supports wildcard (`*`) for
+ * arrays and objects. Throws on invalid JSON or missing keys to provide
+ * clear error messages to calling agents.
+ *
+ * @param content - A valid JSON string to query.
+ * @param path - A JSONPath expression (e.g. `"$.key"`, `"items[0].name"`).
+ * @returns An object containing the resolved `result`, its `tokenCount`, and the original `path`.
+ * @throws Error if the JSON is invalid or the path cannot be resolved.
+ *
+ * @example
+ * ```ts
+ * const { result } = queryJsonPath('{"a":{"b":42}}', '$.a.b');
+ * // result === 42
+ * ```
+ */
 export function queryJsonPath(content: string, path: string): {
   result: unknown;
   tokenCount: number;
@@ -196,6 +334,27 @@ export function queryJsonPath(content: string, path: string): {
 
 // ── Section Extraction ──────────────────────────────────────────
 
+/**
+ * Extract a named section from a document by title.
+ *
+ * @remarks
+ * Searches the document's sections (from {@link generateOverview}) for a
+ * matching title using progressively looser comparisons: exact match,
+ * substring match, and alphanumeric-only substring match. When
+ * `depthAll` is `true`, child sections at deeper nesting levels are
+ * included in the extracted content.
+ *
+ * @param content - The full document content.
+ * @param sectionName - The section title (or substring) to search for.
+ * @param depthAll - When `true`, include all child sections nested under the match (default: `false`).
+ * @returns An object with the matched section, extracted content, and token savings, or `null` if not found.
+ *
+ * @example
+ * ```ts
+ * const section = getSection(doc, 'Installation', true);
+ * if (section) console.log(section.content);
+ * ```
+ */
 export function getSection(content: string, sectionName: string, depthAll = false): {
   section: Section;
   content: string;

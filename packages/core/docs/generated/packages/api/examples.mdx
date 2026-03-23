@@ -1,0 +1,293 @@
+---
+title: ''
+---
+
+All usage examples from the package, aggregated for quick reference.
+
+## `LRUCache`
+
+*Generic least-recently-used (LRU) cache with time-to-live support.*
+
+[View in API reference](/packages/./api/functions#lrucache)
+
+```ts
+const cache = new LRUCache<string>({ maxSize: 100, ttl: 60_000 });
+cache.set('key', 'value');
+cache.get('key'); // "value"
+```
+
+## `encodeBase62()`
+
+*Encode a non-negative integer into a base62 string.*
+
+[View in API reference](/packages/./api/functions#encodebase62)
+
+```ts
+encodeBase62(0);   // "0"
+encodeBase62(61);  // "z"
+encodeBase62(62);  // "10"
+```
+
+## `decodeBase62()`
+
+*Decode a base62-encoded string back into a non-negative integer.*
+
+[View in API reference](/packages/./api/functions#decodebase62)
+
+```ts
+decodeBase62("0");  // 0
+decodeBase62("z");  // 61
+decodeBase62("10"); // 62
+```
+
+## `compress()`
+
+*Compress a UTF-8 string using deflate.*
+
+[View in API reference](/packages/./api/functions#compress)
+
+```ts
+const compressed = await compress('Hello, world!');
+```
+
+## `decompress()`
+
+*Decompress a deflate-compressed buffer back to a UTF-8 string.*
+
+[View in API reference](/packages/./api/functions#decompress)
+
+```ts
+const original = await decompress(compressedBuffer);
+```
+
+## `generateId()`
+
+*Generate a base62-encoded 8-character ID from a UUID.*
+
+[View in API reference](/packages/./api/functions#generateid)
+
+```ts
+const id = generateId(); // e.g. "xK9mP2nQ"
+```
+
+## `hashContent()`
+
+*Compute the SHA-256 hash of a string, returned as a hex digest.*
+
+[View in API reference](/packages/./api/functions#hashcontent)
+
+```ts
+hashContent('hello'); // "2cf24dba5fb0a30e..."
+```
+
+## `calculateTokens()`
+
+*Estimate the token count of a string using the \~4 chars/token heuristic.*
+
+[View in API reference](/packages/./api/functions#calculatetokens)
+
+```ts
+calculateTokens('Hello, world!'); // 4
+```
+
+## `calculateCompressionRatio()`
+
+*Calculate the compression ratio between original and compressed sizes.*
+
+[View in API reference](/packages/./api/functions#calculatecompressionratio)
+
+```ts
+calculateCompressionRatio(1000, 400); // 2.5
+```
+
+## `getLineRange()`
+
+*Extract a range of lines from a document, returning content and token statistics.*
+
+[View in API reference](/packages/./api/functions#getlinerange)
+
+```ts
+const range = getLineRange(doc, 10, 25);
+console.log(`Saved ${range.tokensSaved} tokens`);
+```
+
+## `searchContent()`
+
+*Search document content for lines matching a query string or regex.*
+
+[View in API reference](/packages/./api/functions#searchcontent)
+
+```ts
+const hits = searchContent(doc, 'TODO', 3, 10);
+```
+
+## `detectDocumentFormat()`
+
+*Detect the structural format of a document using content heuristics.*
+
+[View in API reference](/packages/./api/functions#detectdocumentformat)
+
+```ts
+detectDocumentFormat('# Title\n- item'); // "markdown"
+```
+
+## `generateOverview()`
+
+*Generate a structural overview of a document for progressive disclosure.*
+
+[View in API reference](/packages/./api/functions#generateoverview)
+
+```ts
+const overview = generateOverview(markdownDoc);
+console.log(`${overview.sections.length} sections, ${overview.tokenCount} tokens`);
+```
+
+## `queryJsonPath()`
+
+*Execute a JSONPath-style query against JSON content.*
+
+[View in API reference](/packages/./api/functions#queryjsonpath)
+
+```ts
+const { result } = queryJsonPath('{"a":{"b":42}}', '$.a.b');
+// result === 42
+```
+
+## `getSection()`
+
+*Extract a named section from a document by title.*
+
+[View in API reference](/packages/./api/functions#getsection)
+
+```ts
+const section = getSection(doc, 'Installation', true);
+if (section) console.log(section.content);
+```
+
+## `isPredefinedSchema()`
+
+*Type-guard that checks whether a string is a registered predefined schema name.*
+
+[View in API reference](/packages/./api/functions#ispredefinedschema)
+
+```ts
+if (isPredefinedSchema('prompt-v1')) {
+  const schema = predefinedSchemas['prompt-v1'];
+}
+```
+
+## `getPredefinedSchema()`
+
+*Retrieve a predefined Zod schema by name.*
+
+[View in API reference](/packages/./api/functions#getpredefinedschema)
+
+```ts
+const schema = getPredefinedSchema('prompt-v1');
+if (schema) schema.parse(data);
+```
+
+## `validateJson()`
+
+*Validate content as JSON, optionally against a predefined schema.*
+
+[View in API reference](/packages/./api/functions#validatejson)
+
+```ts
+const result = validateJson('{"key": "value"}');
+if (result.success) console.log(result.data);
+```
+
+## `validateText()`
+
+*Validate content as plain text or markdown.*
+
+[View in API reference](/packages/./api/functions#validatetext)
+
+```ts
+const result = validateText('# Hello');
+```
+
+## `detectFormat()`
+
+*Auto-detect whether a string is JSON or text.*
+
+[View in API reference](/packages/./api/functions#detectformat)
+
+```ts
+detectFormat('{"a":1}'); // "json"
+detectFormat('Hello');   // "text"
+```
+
+## `validateContent()`
+
+*Validate content for a given format, with optional schema enforcement.*
+
+[View in API reference](/packages/./api/functions#validatecontent)
+
+```ts
+const result = validateContent(payload, 'json', 'prompt-v1');
+```
+
+## `autoValidate()`
+
+*Auto-detect the content format and then validate accordingly.*
+
+[View in API reference](/packages/./api/functions#autovalidate)
+
+```ts
+const result = autoValidate('{"messages":[{"role":"user","content":"hi"}]}', 'prompt-v1');
+```
+
+## `computeSignature()`
+
+*Compute the HMAC-SHA256 signature for a set of signed URL parameters.*
+
+[View in API reference](/packages/./api/functions#computesignature)
+
+```ts
+const sig = computeSignature(
+  { slug: 'xK9mP2nQ', agentId: 'agent-1', conversationId: 'conv_1', expiresAt: 1711234567890 },
+  'my-secret',
+);
+// sig.length === 16
+```
+
+## `generateSignedUrl()`
+
+*Generate a signed URL for accessing a document.*
+
+[View in API reference](/packages/./api/functions#generatesignedurl)
+
+```ts
+const url = generateSignedUrl(
+  { slug: 'xK9mP2nQ', agentId: 'my-agent', conversationId: 'conv_123', expiresAt: Date.now() + 3600000 },
+  { secret: 'shared-secret', baseUrl: 'https://llmtxt.my' },
+);
+// => "https://llmtxt.my/xK9mP2nQ?agent=my-agent&conv=conv_123&exp=1711234567890&sig=a1b2c3d4e5f6a7b8"
+```
+
+## `verifySignedUrl()`
+
+*Verify a signed URL's signature and expiration.*
+
+[View in API reference](/packages/./api/functions#verifysignedurl)
+
+```ts
+const result = verifySignedUrl('https://llmtxt.my/xK9mP2nQ?agent=a&conv=c&exp=9999999999999&sig=abc123', 'secret');
+if (result.valid) console.log(result.params);
+```
+
+## `generateTimedUrl()`
+
+*Generate a signed URL that expires after the given duration.*
+
+[View in API reference](/packages/./api/functions#generatetimedurl)
+
+```ts
+const url = generateTimedUrl(
+  { slug: 'xK9mP2nQ', agentId: 'agent-1', conversationId: 'conv_1' },
+  { secret: 'secret', baseUrl: 'https://llmtxt.my' },
+  300_000, // 5 minutes
+);
+```

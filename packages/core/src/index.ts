@@ -1,6 +1,6 @@
 /**
- * @codluv/llmtxt — Core primitives for LLM agent content workflows.
- *
+ * @packageDocumentation
+ * Core primitives for LLM agent content workflows.
  * Compression, validation, progressive disclosure, signed URLs, and caching.
  * Provider-agnostic. Only external dependency: zod.
  */
