@@ -12,9 +12,6 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: packages/core
     steps:
       - uses: actions/checkout@v4
 
@@ -23,13 +20,31 @@ jobs:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Install dependencies
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        run: cargo install wasm-pack
+
+      - name: Build WASM from Rust crate
+        working-directory: crates/llmtxt-core
+        run: wasm-pack build --target nodejs --out-dir ../../packages/core/wasm
+
+      - name: Remove wasm-pack gitignore
+        run: rm -f packages/core/wasm/.gitignore
+
+      - name: Install npm dependencies
+        working-directory: packages/core
         run: npm ci
 
-      - name: Build
+      - name: Build TypeScript
+        working-directory: packages/core
         run: npm run build
 
       - name: Publish to npm with provenance
+        working-directory: packages/core
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -40,10 +55,8 @@ jobs:
 
       - name: Extract changelog for this version
         id: changelog
-        working-directory: .
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          # Extract the section for this version from CHANGELOG.md
           NOTES=$(sed -n "/^## \[${VERSION}\]/,/^## \[/p" packages/core/CHANGELOG.md | sed '$ d')
           if [ -z "$NOTES" ]; then
             NOTES="Release @codluv/llmtxt v${VERSION}"
@@ -53,7 +66,6 @@ jobs:
           echo "CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
-        working-directory: .
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
