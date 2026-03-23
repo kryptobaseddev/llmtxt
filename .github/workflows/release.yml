@@ -43,9 +43,11 @@ jobs:
         working-directory: packages/core
         run: npm run build
 
-      - name: Publish to npm with provenance (OIDC trusted publisher)
+      - name: Publish to npm with provenance
         working-directory: packages/core
         run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Extract version from tag
         id: version
