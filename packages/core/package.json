@@ -1,0 +1,54 @@
+{
+  "name": "@codluv/llmtxt",
+  "version": "0.1.0",
+  "description": "Core primitives for llmtxt: compression, validation, progressive disclosure, signed URLs, and caching for LLM agent content workflows",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "llm",
+    "agent",
+    "compression",
+    "content",
+    "progressive-disclosure",
+    "signed-urls"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "zod": "^3.25.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kryptobaseddev/llmtxt.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/kryptobaseddev/llmtxt/tree/main/packages/core",
+  "bugs": {
+    "url": "https://github.com/kryptobaseddev/llmtxt/issues"
+  }
+}
