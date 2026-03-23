@@ -13,6 +13,7 @@
   },
   "files": [
     "dist",
+    "wasm",
     "README.md"
   ],
   "scripts": {

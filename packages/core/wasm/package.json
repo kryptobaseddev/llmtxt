@@ -1,0 +1,17 @@
+{
+  "name": "llmtxt-core",
+  "description": "Core primitives for llmtxt: compression, hashing, signing, encoding",
+  "version": "0.2.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kryptobaseddev/llmtxt"
+  },
+  "files": [
+    "llmtxt_core_bg.wasm",
+    "llmtxt_core.js",
+    "llmtxt_core.d.ts"
+  ],
+  "main": "llmtxt_core.js",
+  "types": "llmtxt_core.d.ts"
+}

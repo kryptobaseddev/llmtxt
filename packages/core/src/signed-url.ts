@@ -2,115 +2,65 @@
  * Signed URL generation and verification for conversation-scoped,
  * time-limited access to llmtxt content.
  *
- * Uses HMAC-SHA256 with a shared secret. URLs are compact (16-char hex signatures).
+ * HMAC computation and key derivation delegate to the Rust WASM module.
+ * URL construction and verification logic stays in TypeScript (URL parsing
+ * is complex in WASM and not needed in the Rust native crate).
  */
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import {
+  computeSignature as wasmComputeSignature,
+  deriveSigningKey as wasmDeriveSigningKey,
+  isExpired as wasmIsExpired,
+} from './wasm.js';
 
 // ── Types ───────────────────────────────────────────────────────
 
 /**
  * Parameters that uniquely identify a signed URL access grant.
- *
- * @remarks
- * Combined with an HMAC secret these fields form the signature payload.
- * Each parameter is included in the URL query string so that the
- * verifier can reconstruct and validate the signature independently.
  */
 export interface SignedUrlParams {
-  /** Short base62-encoded document identifier (e.g. `"xK9mP2nQ"`). */
   slug: string;
-  /** Unique identifier of the agent requesting access. */
   agentId: string;
-  /** Conversation scope that this access grant is bound to. */
   conversationId: string;
-  /** Absolute expiration time as a Unix timestamp in milliseconds. */
   expiresAt: number;
 }
 
 /**
  * Configuration for generating and verifying signed URLs.
- *
- * @remarks
- * The `secret` must be identical on both the URL-generating service and
- * the URL-verifying service. The `baseUrl` is used only during generation.
  */
 export interface SignedUrlConfig {
-  /** Shared HMAC-SHA256 secret used to sign and verify URLs. */
   secret: string;
-  /** Base URL for document access (e.g. `"https://llmtxt.my"`). */
   baseUrl: string;
 }
 
 /**
- * Outcome of verifying a signed URL via {@link verifySignedUrl}.
- *
- * @remarks
- * When `valid` is `true` the reconstructed {@link SignedUrlParams} are
- * included so the caller can use them for authorization decisions.
+ * Outcome of verifying a signed URL.
  */
 export interface VerifyResult {
-  /** Whether the signature is valid and the URL has not expired. */
   valid: boolean;
-  /** Machine-readable failure reason, present only when `valid` is `false`. */
   reason?: 'missing_params' | 'expired' | 'invalid_signature';
-  /** Reconstructed request parameters, present only when `valid` is `true`. */
   params?: SignedUrlParams;
 }
 
-// ── Signature ───────────────────────────────────────────────────
+// ── Signature (WASM-backed) ─────────────────────────────────────
 
 /**
- * Compute the HMAC-SHA256 signature for a set of signed URL parameters.
- *
- * @remarks
- * Concatenates the parameter fields with colon delimiters, computes
- * an HMAC-SHA256 digest, and returns the first 16 hex characters for
- * URL compactness. The truncated signature still provides 64 bits of
- * collision resistance.
- *
- * @param params - The signed URL parameters to include in the signature payload.
- * @param secret - The shared HMAC secret.
- * @returns A 16-character hex string representing the truncated HMAC signature.
- *
- * @example
- * ```ts
- * const sig = computeSignature(
- *   { slug: 'xK9mP2nQ', agentId: 'agent-1', conversationId: 'conv_1', expiresAt: 1711234567890 },
- *   'my-secret',
- * );
- * // sig.length === 16
- * ```
+ * Compute the HMAC-SHA256 signature for signed URL parameters.
+ * Delegates to the Rust WASM module.
  */
 export function computeSignature(params: SignedUrlParams, secret: string): string {
-  const payload = `${params.slug}:${params.agentId}:${params.conversationId}:${params.expiresAt}`;
-  return createHmac('sha256', secret)
-    .update(payload)
-    .digest('hex')
-    .substring(0, 16);
+  return wasmComputeSignature(
+    params.slug,
+    params.agentId,
+    params.conversationId,
+    params.expiresAt,
+    secret,
+  );
 }
 
 // ── Generate ────────────────────────────────────────────────────
 
 /**
  * Generate a signed URL for accessing a document.
- *
- * @remarks
- * Combines the document slug, agent identity, conversation scope, and
- * expiration into a single URL whose query string includes the HMAC
- * signature. The URL can later be verified with {@link verifySignedUrl}.
- *
- * @param params - The signed URL parameters (slug, agent, conversation, expiry).
- * @param config - The HMAC secret and base URL for URL construction.
- * @returns The fully-qualified signed URL string.
- *
- * @example
- * ```ts
- * const url = generateSignedUrl(
- *   { slug: 'xK9mP2nQ', agentId: 'my-agent', conversationId: 'conv_123', expiresAt: Date.now() + 3600000 },
- *   { secret: 'shared-secret', baseUrl: 'https://llmtxt.my' },
- * );
- * // => "https://llmtxt.my/xK9mP2nQ?agent=my-agent&conv=conv_123&exp=1711234567890&sig=a1b2c3d4e5f6a7b8"
- * ```
  */
 export function generateSignedUrl(params: SignedUrlParams, config: SignedUrlConfig): string {
   const signature = computeSignature(params, config.secret);
@@ -126,22 +76,7 @@ export function generateSignedUrl(params: SignedUrlParams, config: SignedUrlConf
 
 /**
  * Verify a signed URL's signature and expiration.
- *
- * @remarks
- * Extracts the query parameters from the URL, reconstructs the expected
- * HMAC signature, and performs a timing-safe comparison to prevent
- * timing attacks. Returns a {@link VerifyResult} indicating whether the
- * URL is valid and, if so, the reconstructed parameters.
- *
- * @param url - The signed URL to verify (string or `URL` instance).
- * @param secret - The shared HMAC secret used when the URL was generated.
- * @returns A {@link VerifyResult} with `valid`, optional `reason`, and optional `params`.
- *
- * @example
- * ```ts
- * const result = verifySignedUrl('https://llmtxt.my/xK9mP2nQ?agent=a&conv=c&exp=9999999999999&sig=abc123', 'secret');
- * if (result.valid) console.log(result.params);
- * ```
+ * Uses timing-safe comparison to prevent timing attacks.
  */
 export function verifySignedUrl(url: string | URL, secret: string): VerifyResult {
   const parsed = typeof url === 'string' ? new URL(url) : url;
@@ -175,29 +110,13 @@ export function verifySignedUrl(url: string | URL, secret: string): VerifyResult
   return { valid: true, params };
 }
 
+// Keep timing-safe from Node.js crypto for the URL verification step
+import { timingSafeEqual } from 'node:crypto';
+
 // ── Convenience ─────────────────────────────────────────────────
 
 /**
  * Generate a signed URL that expires after the given duration.
- *
- * @remarks
- * Convenience wrapper around {@link generateSignedUrl} that calculates
- * `expiresAt` from the current time plus a TTL, so callers do not need
- * to compute the absolute timestamp themselves.
- *
- * @param params - Slug, agentId, and conversationId (expiresAt is calculated automatically).
- * @param config - The HMAC secret and base URL for URL construction.
- * @param ttlMs - Time to live in milliseconds (default: 1 hour / 3 600 000 ms).
- * @returns The fully-qualified signed URL string with a computed expiration.
- *
- * @example
- * ```ts
- * const url = generateTimedUrl(
- *   { slug: 'xK9mP2nQ', agentId: 'agent-1', conversationId: 'conv_1' },
- *   { secret: 'secret', baseUrl: 'https://llmtxt.my' },
- *   300_000, // 5 minutes
- * );
- * ```
  */
 export function generateTimedUrl(
   params: Omit<SignedUrlParams, 'expiresAt'>,
@@ -210,52 +129,23 @@ export function generateTimedUrl(
   );
 }
 
-// ── Key Derivation ──────────────────────────────────────────────
+// ── Key Derivation (WASM-backed) ────────────────────────────────
 
 /**
  * Derive a per-agent signing key from their API key.
- *
- * @remarks
- * Uses `HMAC-SHA256(apiKey, "llmtxt-signing")` to derive a signing key
- * without requiring a shared secret. Each agent implicitly gets their own
- * signing key from their API key. This is a portable core function — the
- * Rust crate must produce identical output.
- *
- * @param apiKey - The agent's API key (e.g. `"sk_live_abc123"`).
- * @returns A 64-character hex-encoded derived signing key.
- *
- * @example
- * ```ts
- * const signingKey = deriveSigningKey('sk_live_abc123');
- * const url = generateSignedUrl(params, { secret: signingKey, baseUrl });
- * ```
+ * Delegates to the Rust WASM module.
  */
 export function deriveSigningKey(apiKey: string): string {
-  return createHmac('sha256', apiKey)
-    .update('llmtxt-signing')
-    .digest('hex');
+  return wasmDeriveSigningKey(apiKey);
 }
 
-// ── Expiration ──────────────────────────────────────────────────
+// ── Expiration (WASM-backed) ────────────────────────────────────
 
 /**
  * Check whether a timestamp has expired.
- *
- * @remarks
- * Returns `false` for `null`/`undefined` (no expiration set).
- * Compares against the current time.
- *
- * @param expiresAt - Unix timestamp in milliseconds, or null/undefined.
- * @returns `true` if the timestamp is in the past.
- *
- * @example
- * ```ts
- * isExpired(Date.now() - 1000);  // true
- * isExpired(Date.now() + 60000); // false
- * isExpired(null);               // false
- * ```
+ * Returns false for null/undefined (no expiration set).
  */
 export function isExpired(expiresAt: number | null | undefined): boolean {
   if (expiresAt == null) return false;
-  return Date.now() > expiresAt;
+  return wasmIsExpired(expiresAt);
 }

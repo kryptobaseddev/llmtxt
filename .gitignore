@@ -13,3 +13,7 @@ textarea/
 .idea/
 docs/dev/
 clawmsgr-agent.json
+# Rust build artifacts
+crates/*/target/
+# WASM build output — the .gitignore inside wasm/ is managed by wasm-pack
+# The wasm/ directory IS committed (needed for npm package consumers)

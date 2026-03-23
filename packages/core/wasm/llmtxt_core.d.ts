@@ -1,0 +1,74 @@
+/* tslint:disable */
+/* eslint-disable */
+
+/**
+ * Calculate the compression ratio (original / compressed), rounded to 2 decimals.
+ * Returns 1.0 when `compressed_size` is 0.
+ */
+export function calculate_compression_ratio(original_size: number, compressed_size: number): number;
+
+/**
+ * Estimate token count using the ~4 chars/token heuristic.
+ */
+export function calculate_tokens(text: string): number;
+
+/**
+ * Compress a UTF-8 string using zlib-wrapped deflate (RFC 1950).
+ *
+ * Matches Node.js `zlib.deflate` output for backward compatibility
+ * with existing stored data.
+ *
+ * # Errors
+ * Returns `JsValue` error if compression fails.
+ */
+export function compress(data: string): Uint8Array;
+
+/**
+ * Compute the HMAC-SHA256 signature for signed URL parameters.
+ * Returns the first 16 hex characters of the digest.
+ */
+export function compute_signature(slug: string, agent_id: string, conversation_id: string, expires_at: number, secret: string): string;
+
+/**
+ * Decode a base62-encoded string back into an integer.
+ */
+export function decode_base62(s: string): bigint;
+
+/**
+ * Decompress zlib-wrapped deflate bytes back to a UTF-8 string.
+ *
+ * Matches Node.js `zlib.inflate` for backward compatibility.
+ *
+ * # Errors
+ * Returns `JsValue` error if decompression or UTF-8 conversion fails.
+ */
+export function decompress(data: Uint8Array): string;
+
+/**
+ * Derive a per-agent signing key from their API key.
+ * Uses `HMAC-SHA256(api_key, "llmtxt-signing")`.
+ */
+export function derive_signing_key(api_key: string): string;
+
+/**
+ * Encode a non-negative integer into a base62 string.
+ *
+ * Uses the alphabet `0-9A-Za-z`. Zero encodes to `"0"`.
+ */
+export function encode_base62(num: bigint): string;
+
+/**
+ * Generate an 8-character base62 ID from a UUID v4.
+ */
+export function generate_id(): string;
+
+/**
+ * Compute the SHA-256 hash of a UTF-8 string, returned as lowercase hex.
+ */
+export function hash_content(data: string): string;
+
+/**
+ * Check whether a timestamp (milliseconds) has expired.
+ * Returns false for 0 (no expiration).
+ */
+export function is_expired(expires_at_ms: number): boolean;
