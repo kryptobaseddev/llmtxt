@@ -106,8 +106,39 @@ export function deriveSigningKey(apiKey: string): string {
   return wasmModule.derive_signing_key(apiKey);
 }
 
+// ── Similarity (WASM-backed) ────────────────────────────────────
+
+export function wasmTextSimilarity(a: string, b: string): number {
+  return wasmModule.text_similarity(a, b);
+}
+
+export function wasmTextSimilarityNgram(a: string, b: string, n: number): number {
+  return wasmModule.text_similarity_ngram(a, b, n);
+}
+
 // ── Expiration ──────────────────────────────────────────────────
 
 export function isExpired(expiresAtMs: number): boolean {
   return wasmModule.is_expired(expiresAtMs);
+}
+
+// ── Diff ────────────────────────────────────────────────────────
+
+export interface DiffResult {
+  addedLines: number;
+  removedLines: number;
+  addedTokens: number;
+  removedTokens: number;
+}
+
+export function computeDiff(oldText: string, newText: string): DiffResult {
+  const result = wasmModule.compute_diff(oldText, newText);
+  const out: DiffResult = {
+    addedLines: result.added_lines,
+    removedLines: result.removed_lines,
+    addedTokens: result.added_tokens,
+    removedTokens: result.removed_tokens,
+  };
+  result.free();
+  return out;
 }

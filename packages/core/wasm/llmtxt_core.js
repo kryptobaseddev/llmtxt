@@ -1,6 +1,63 @@
 /* @ts-self-types="./llmtxt_core.d.ts" */
 
 /**
+ * Result of computing a line-based diff between two texts.
+ */
+class DiffResult {
+    static __wrap(ptr) {
+        ptr = ptr >>> 0;
+        const obj = Object.create(DiffResult.prototype);
+        obj.__wbg_ptr = ptr;
+        DiffResultFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        DiffResultFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_diffresult_free(ptr, 0);
+    }
+    /**
+     * Number of lines added in the new text.
+     * @returns {number}
+     */
+    get added_lines() {
+        const ret = wasm.diffresult_added_lines(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Estimated tokens added.
+     * @returns {number}
+     */
+    get added_tokens() {
+        const ret = wasm.diffresult_added_tokens(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Number of lines removed from the old text.
+     * @returns {number}
+     */
+    get removed_lines() {
+        const ret = wasm.diffresult_removed_lines(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Estimated tokens removed.
+     * @returns {number}
+     */
+    get removed_tokens() {
+        const ret = wasm.diffresult_removed_tokens(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+}
+if (Symbol.dispose) DiffResult.prototype[Symbol.dispose] = DiffResult.prototype.free;
+exports.DiffResult = DiffResult;
+
+/**
  * Calculate the compression ratio (original / compressed), rounded to 2 decimals.
  * Returns 1.0 when `compressed_size` is 0.
  * @param {number} original_size
@@ -49,6 +106,26 @@ function compress(data) {
     return v2;
 }
 exports.compress = compress;
+
+/**
+ * Compute a line-based diff between two texts.
+ *
+ * Uses a hash-based LCS (Longest Common Subsequence) approach for
+ * O(n*m) comparison where n and m are line counts. Returns counts
+ * of added/removed lines and estimated token impact.
+ * @param {string} old_text
+ * @param {string} new_text
+ * @returns {DiffResult}
+ */
+function compute_diff(old_text, new_text) {
+    const ptr0 = passStringToWasm0(old_text, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(new_text, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.compute_diff(ptr0, len0, ptr1, len1);
+    return DiffResult.__wrap(ret);
+}
+exports.compute_diff = compute_diff;
 
 /**
  * Compute the HMAC-SHA256 signature for org-scoped signed URL parameters.
@@ -330,6 +407,42 @@ function is_expired(expires_at_ms) {
 }
 exports.is_expired = is_expired;
 
+/**
+ * Compute character-level n-gram Jaccard similarity between two texts.
+ * Returns 0.0 (no overlap) to 1.0 (identical). Default n=3.
+ *
+ * Suitable for finding similar messages without vector embeddings.
+ * @param {string} a
+ * @param {string} b
+ * @returns {number}
+ */
+function text_similarity(a, b) {
+    const ptr0 = passStringToWasm0(a, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(b, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.text_similarity(ptr0, len0, ptr1, len1);
+    return ret;
+}
+exports.text_similarity = text_similarity;
+
+/**
+ * Compute n-gram Jaccard similarity with configurable gram size.
+ * @param {string} a
+ * @param {string} b
+ * @param {number} n
+ * @returns {number}
+ */
+function text_similarity_ngram(a, b, n) {
+    const ptr0 = passStringToWasm0(a, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(b, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.text_similarity_ngram(ptr0, len0, ptr1, len1, n);
+    return ret;
+}
+exports.text_similarity_ngram = text_similarity_ngram;
+
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,
@@ -363,6 +476,10 @@ function __wbg_get_imports() {
         "./llmtxt_core_bg.js": import0,
     };
 }
+
+const DiffResultFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_diffresult_free(ptr >>> 0, 1));
 
 function addToExternrefTable0(obj) {
     const idx = wasm.__externref_table_alloc();

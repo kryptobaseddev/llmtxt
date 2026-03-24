@@ -13,4 +13,7 @@ export {
   hashContent,
   calculateTokens,
   calculateCompressionRatio,
+  computeDiff,
 } from './wasm.js';
+
+export type { DiffResult } from './wasm.js';

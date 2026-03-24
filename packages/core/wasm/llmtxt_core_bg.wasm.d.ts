@@ -1,8 +1,10 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
+export const __wbg_diffresult_free: (a: number, b: number) => void;
 export const calculate_tokens: (a: number, b: number) => number;
 export const compress: (a: number, b: number) => [number, number, number, number];
+export const compute_diff: (a: number, b: number, c: number, d: number) => number;
 export const compute_org_signature: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => [number, number];
 export const compute_org_signature_with_length: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => [number, number];
 export const compute_signature: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number];
@@ -10,10 +12,16 @@ export const compute_signature_with_length: (a: number, b: number, c: number, d:
 export const decode_base62: (a: number, b: number) => bigint;
 export const decompress: (a: number, b: number) => [number, number, number, number];
 export const derive_signing_key: (a: number, b: number) => [number, number];
+export const diffresult_added_lines: (a: number) => number;
+export const diffresult_added_tokens: (a: number) => number;
+export const diffresult_removed_lines: (a: number) => number;
+export const diffresult_removed_tokens: (a: number) => number;
 export const encode_base62: (a: bigint) => [number, number];
 export const generate_id: () => [number, number];
 export const hash_content: (a: number, b: number) => [number, number];
 export const is_expired: (a: number) => number;
+export const text_similarity: (a: number, b: number, c: number, d: number) => number;
+export const text_similarity_ngram: (a: number, b: number, c: number, d: number, e: number) => number;
 export const calculate_compression_ratio: (a: number, b: number) => number;
 export const __wbindgen_exn_store: (a: number) => void;
 export const __externref_table_alloc: () => number;

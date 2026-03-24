@@ -195,7 +195,15 @@ pub fn compute_org_signature(
     expires_at: f64,
     secret: &str,
 ) -> String {
-    compute_org_signature_with_length(slug, agent_id, conversation_id, org_id, expires_at, secret, 32)
+    compute_org_signature_with_length(
+        slug,
+        agent_id,
+        conversation_id,
+        org_id,
+        expires_at,
+        secret,
+        32,
+    )
 }
 
 /// Compute org-scoped HMAC-SHA256 signature with configurable output length.
@@ -263,6 +271,137 @@ fn current_time_ms() -> f64 {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as f64)
         .unwrap_or(0.0)
+}
+
+// ── Similarity ─────────────────────────────────────────────────
+
+/// Compute character-level n-gram Jaccard similarity between two texts.
+/// Returns 0.0 (no overlap) to 1.0 (identical). Default n=3.
+///
+/// Suitable for finding similar messages without vector embeddings.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn text_similarity(a: &str, b: &str) -> f64 {
+    text_similarity_ngram(a, b, 3)
+}
+
+/// Compute n-gram Jaccard similarity with configurable gram size.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn text_similarity_ngram(a: &str, b: &str, n: usize) -> f64 {
+    let a_lower = a.to_lowercase();
+    let b_lower = b.to_lowercase();
+    let a_norm: String = a_lower.split_whitespace().collect::<Vec<_>>().join(" ");
+    let b_norm: String = b_lower.split_whitespace().collect::<Vec<_>>().join(" ");
+
+    if a_norm.len() < n && b_norm.len() < n {
+        return if a_norm == b_norm { 1.0 } else { 0.0 };
+    }
+
+    let a_grams: std::collections::HashSet<&str> = (0..=a_norm.len().saturating_sub(n))
+        .filter_map(|i| a_norm.get(i..i + n))
+        .collect();
+    let b_grams: std::collections::HashSet<&str> = (0..=b_norm.len().saturating_sub(n))
+        .filter_map(|i| b_norm.get(i..i + n))
+        .collect();
+
+    if a_grams.is_empty() && b_grams.is_empty() {
+        return 1.0;
+    }
+
+    let intersection = a_grams.intersection(&b_grams).count();
+    let union = a_grams.union(&b_grams).count();
+
+    if union == 0 { 0.0 } else { intersection as f64 / union as f64 }
+}
+
+// ── Diff ────────────────────────────────────────────────────────
+
+/// Result of computing a line-based diff between two texts.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+#[derive(Debug, Clone)]
+pub struct DiffResult {
+    added_lines: u32,
+    removed_lines: u32,
+    added_tokens: u32,
+    removed_tokens: u32,
+}
+
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+impl DiffResult {
+    /// Number of lines added in the new text.
+    #[cfg_attr(feature = "wasm", wasm_bindgen(getter))]
+    pub fn added_lines(&self) -> u32 {
+        self.added_lines
+    }
+    /// Number of lines removed from the old text.
+    #[cfg_attr(feature = "wasm", wasm_bindgen(getter))]
+    pub fn removed_lines(&self) -> u32 {
+        self.removed_lines
+    }
+    /// Estimated tokens added.
+    #[cfg_attr(feature = "wasm", wasm_bindgen(getter))]
+    pub fn added_tokens(&self) -> u32 {
+        self.added_tokens
+    }
+    /// Estimated tokens removed.
+    #[cfg_attr(feature = "wasm", wasm_bindgen(getter))]
+    pub fn removed_tokens(&self) -> u32 {
+        self.removed_tokens
+    }
+}
+
+/// Compute a line-based diff between two texts.
+///
+/// Uses a hash-based LCS (Longest Common Subsequence) approach for
+/// O(n*m) comparison where n and m are line counts. Returns counts
+/// of added/removed lines and estimated token impact.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn compute_diff(old_text: &str, new_text: &str) -> DiffResult {
+    let old_lines: Vec<&str> = old_text.lines().collect();
+    let new_lines: Vec<&str> = new_text.lines().collect();
+
+    let n = old_lines.len();
+    let m = new_lines.len();
+
+    // Build LCS table
+    let mut dp = vec![vec![0u32; m + 1]; n + 1];
+    for i in 1..=n {
+        for j in 1..=m {
+            if old_lines[i - 1] == new_lines[j - 1] {
+                dp[i][j] = dp[i - 1][j - 1] + 1;
+            } else {
+                dp[i][j] = dp[i - 1][j].max(dp[i][j - 1]);
+            }
+        }
+    }
+
+    // Backtrack to find which lines were removed and which were added
+    let mut removed = Vec::new();
+    let mut added = Vec::new();
+    let mut i = n;
+    let mut j = m;
+
+    while i > 0 || j > 0 {
+        if i > 0 && j > 0 && old_lines[i - 1] == new_lines[j - 1] {
+            i -= 1;
+            j -= 1;
+        } else if j > 0 && (i == 0 || dp[i][j - 1] >= dp[i - 1][j]) {
+            added.push(new_lines[j - 1]);
+            j -= 1;
+        } else {
+            removed.push(old_lines[i - 1]);
+            i -= 1;
+        }
+    }
+
+    let added_tokens: u32 = added.iter().map(|l| calculate_tokens(l)).sum();
+    let removed_tokens: u32 = removed.iter().map(|l| calculate_tokens(l)).sum();
+
+    DiffResult {
+        added_lines: added.len() as u32,
+        removed_lines: removed.len() as u32,
+        added_tokens,
+        removed_tokens,
+    }
 }
 
 // ── Native-only (not WASM) ──────────────────────────────────────
@@ -501,12 +640,22 @@ mod tests {
     #[test]
     fn test_compute_org_signature_with_length() {
         let sig16 = compute_org_signature_with_length(
-            "xK9mP2nQ", "test-agent", "conv_123", "org_456",
-            1_700_000_000_000.0, "test-secret", 16,
+            "xK9mP2nQ",
+            "test-agent",
+            "conv_123",
+            "org_456",
+            1_700_000_000_000.0,
+            "test-secret",
+            16,
         );
         let sig32 = compute_org_signature_with_length(
-            "xK9mP2nQ", "test-agent", "conv_123", "org_456",
-            1_700_000_000_000.0, "test-secret", 32,
+            "xK9mP2nQ",
+            "test-agent",
+            "conv_123",
+            "org_456",
+            1_700_000_000_000.0,
+            "test-secret",
+            32,
         );
         assert_eq!(sig16.len(), 16);
         assert_eq!(sig32.len(), 32);
@@ -518,5 +667,55 @@ mod tests {
         assert!(!is_expired(0.0));
         assert!(is_expired(1.0)); // 1ms after epoch = definitely expired
         assert!(!is_expired(f64::MAX)); // far future
+    }
+
+    #[test]
+    fn test_compute_diff_identical() {
+        let text = "line 1\nline 2\nline 3";
+        let result = compute_diff(text, text);
+        assert_eq!(result.added_lines(), 0);
+        assert_eq!(result.removed_lines(), 0);
+        assert_eq!(result.added_tokens(), 0);
+        assert_eq!(result.removed_tokens(), 0);
+    }
+
+    #[test]
+    fn test_compute_diff_empty_to_content() {
+        let result = compute_diff("", "line 1\nline 2");
+        assert_eq!(result.added_lines(), 2);
+        assert_eq!(result.removed_lines(), 0);
+    }
+
+    #[test]
+    fn test_compute_diff_content_to_empty() {
+        let result = compute_diff("line 1\nline 2", "");
+        assert_eq!(result.added_lines(), 0);
+        assert_eq!(result.removed_lines(), 2);
+    }
+
+    #[test]
+    fn test_compute_diff_mixed_changes() {
+        let old = "line 1\nline 2\nline 3\nline 4";
+        let new = "line 1\nmodified 2\nline 3\nline 5\nline 6";
+        let result = compute_diff(old, new);
+        // "line 2" and "line 4" removed; "modified 2", "line 5", "line 6" added
+        assert_eq!(result.removed_lines(), 2);
+        assert_eq!(result.added_lines(), 3);
+        assert!(result.added_tokens() > 0);
+        assert!(result.removed_tokens() > 0);
+    }
+
+    #[test]
+    fn test_compute_diff_tokens() {
+        let old = "short";
+        let new = "this is a much longer replacement line";
+        let result = compute_diff(old, new);
+        assert_eq!(result.removed_lines(), 1);
+        assert_eq!(result.added_lines(), 1);
+        assert_eq!(result.removed_tokens(), calculate_tokens("short"));
+        assert_eq!(
+            result.added_tokens(),
+            calculate_tokens("this is a much longer replacement line")
+        );
     }
 }

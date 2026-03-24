@@ -8,4 +8,7 @@ export {
   hashContent,
   calculateTokens,
   calculateCompressionRatio,
+  computeDiff,
 } from '@codluv/llmtxt';
+
+export type { DiffResult } from '@codluv/llmtxt';

@@ -1,7 +1,7 @@
 {
   "name": "@codluv/llmtxt",
-  "version": "0.3.0",
-  "description": "Core primitives for llmtxt: compression, validation, progressive disclosure, signed URLs, and caching for LLM agent content workflows",
+  "version": "0.4.0",
+  "description": "Core primitives for llmtxt: compression, validation, progressive disclosure, signed URLs, similarity, and caching for LLM agent content workflows",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -27,7 +27,10 @@
     "compression",
     "content",
     "progressive-disclosure",
-    "signed-urls"
+    "signed-urls",
+    "similarity",
+    "fingerprint",
+    "org-scoped"
   ],
   "license": "MIT",
   "dependencies": {

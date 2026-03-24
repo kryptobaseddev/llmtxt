@@ -15,7 +15,10 @@ export {
   hashContent,
   calculateTokens,
   calculateCompressionRatio,
+  computeDiff,
 } from './compression.js';
+
+export type { DiffResult } from './compression.js';
 
 // ── Validation ──────────────────────────────────────────────────
 export {
@@ -108,6 +111,10 @@ export type {
   VerifyResult,
 } from './signed-url.js';
 
+// ── Client ─────────────────────────────────────────────────────
+export { createClient } from './client.js';
+export type { LlmtxtClientConfig, UploadResult, FetchResult } from './client.js';
+
 // ── Similarity ─────────────────────────────────────────────────
 export {
   extractNgrams,
@@ -119,6 +126,23 @@ export {
   fingerprintSimilarity,
   rankBySimilarity,
 } from './similarity.js';
+
+// ── Knowledge Graph ────────────────────────────────────────────
+export {
+  extractMentions,
+  extractTags,
+  extractDirectives,
+  buildGraph,
+  topTopics,
+  topAgents,
+} from './graph.js';
+
+export type {
+  GraphNode,
+  GraphEdge,
+  KnowledgeGraph,
+  MessageInput,
+} from './graph.js';
 
 // ── Types ───────────────────────────────────────────────────────
 export type {

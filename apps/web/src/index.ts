@@ -6,6 +6,7 @@ import fastifyStatic from '@fastify/static';
 import http from 'http';
 import { apiRoutes } from './routes/api.js';
 import { disclosureRoutes } from './routes/disclosure.js';
+import { versionRoutes } from './routes/versions.js';
 import { publicDir, extractSlug, extractSlugWithExtension, handleContentNegotiation, getDocumentWithContent } from './routes/web.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -104,6 +105,26 @@ async function main() {
             description: 'Get document statistics'
           },
           {
+            path: '/documents/:slug',
+            method: 'PUT',
+            description: 'Update document content (creates a new version)'
+          },
+          {
+            path: '/documents/:slug/versions',
+            method: 'GET',
+            description: 'List all versions of a document'
+          },
+          {
+            path: '/documents/:slug/versions/:num',
+            method: 'GET',
+            description: 'Get a specific version of a document'
+          },
+          {
+            path: '/documents/:slug/diff?from=N&to=M',
+            method: 'GET',
+            description: 'Compute diff between two document versions'
+          },
+          {
             path: '/disclosure',
             method: 'POST',
             description: 'Submit AI disclosure information'
@@ -131,6 +152,7 @@ async function main() {
     // ──────────────────────────────────────────────────────────────────
     await app.register(apiRoutes, { prefix: '/api' });
     await app.register(disclosureRoutes, { prefix: '/api' });
+    await app.register(versionRoutes, { prefix: '/api' });
 
     // Register error handler
     app.setErrorHandler((error: unknown, request, reply) => {

@@ -2,6 +2,31 @@
 /* eslint-disable */
 
 /**
+ * Result of computing a line-based diff between two texts.
+ */
+export class DiffResult {
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Number of lines added in the new text.
+     */
+    readonly added_lines: number;
+    /**
+     * Estimated tokens added.
+     */
+    readonly added_tokens: number;
+    /**
+     * Number of lines removed from the old text.
+     */
+    readonly removed_lines: number;
+    /**
+     * Estimated tokens removed.
+     */
+    readonly removed_tokens: number;
+}
+
+/**
  * Calculate the compression ratio (original / compressed), rounded to 2 decimals.
  * Returns 1.0 when `compressed_size` is 0.
  */
@@ -22,6 +47,15 @@ export function calculate_tokens(text: string): number;
  * Returns an error string if compression fails.
  */
 export function compress(data: string): Uint8Array;
+
+/**
+ * Compute a line-based diff between two texts.
+ *
+ * Uses a hash-based LCS (Longest Common Subsequence) approach for
+ * O(n*m) comparison where n and m are line counts. Returns counts
+ * of added/removed lines and estimated token impact.
+ */
+export function compute_diff(old_text: string, new_text: string): DiffResult;
 
 /**
  * Compute the HMAC-SHA256 signature for org-scoped signed URL parameters.
@@ -95,3 +129,16 @@ export function hash_content(data: string): string;
  * Uses `js_sys::Date::now()` in WASM, `std::time::SystemTime` natively.
  */
 export function is_expired(expires_at_ms: number): boolean;
+
+/**
+ * Compute character-level n-gram Jaccard similarity between two texts.
+ * Returns 0.0 (no overlap) to 1.0 (identical). Default n=3.
+ *
+ * Suitable for finding similar messages without vector embeddings.
+ */
+export function text_similarity(a: string, b: string): number;
+
+/**
+ * Compute n-gram Jaccard similarity with configurable gram size.
+ */
+export function text_similarity_ngram(a: string, b: string, n: number): number;
