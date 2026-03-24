@@ -111,6 +111,21 @@ export type {
   VerifyResult,
 } from './signed-url.js';
 
+// ── Snapshot Compression ───────────────────────────────────────
+export {
+  compressSnapshot,
+  decompressSnapshot,
+  compressSessionData,
+  decompressSessionData,
+  snapshotSummary,
+} from './snapshot.js';
+
+export type {
+  SnapshotMeta,
+  CompressedSnapshot,
+  SnapshotOptions,
+} from './snapshot.js';
+
 // ── Client ─────────────────────────────────────────────────────
 export { createClient } from './client.js';
 export type { LlmtxtClientConfig, UploadResult, FetchResult } from './client.js';
