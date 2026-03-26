@@ -36,8 +36,18 @@
   "dependencies": {
     "zod": "^3.25.3"
   },
+  "peerDependencies": {
+    "@cleocode/lafs": ">=2026.3"
+  },
+  "peerDependenciesMeta": {
+    "@cleocode/lafs": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@cleocode/lafs": "^2026.3.74",
     "@types/node": "^22.19.15",
+    "forge-ts": "^0.0.2",
     "typescript": "^5.8.2"
   },
   "engines": {
