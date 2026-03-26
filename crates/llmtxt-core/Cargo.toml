@@ -31,6 +31,7 @@ url = "2"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
+ferrous-forge = { version = "1.9", default-features = false }
 
 [lints.rustdoc]
 broken_intra_doc_links = "warn"

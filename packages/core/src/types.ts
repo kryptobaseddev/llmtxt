@@ -78,3 +78,6 @@ export interface AttachmentOptions {
   fromAgentId: string;
   expiresInMs?: number;
 }
+
+/** Attachment fetch mode supported by the bridge/API layer. */
+export type AttachmentAccessMode = 'signed_url' | 'conversation' | 'owner';

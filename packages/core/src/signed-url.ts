@@ -33,6 +33,10 @@ export interface SignedUrlParams {
 export interface SignedUrlConfig {
   secret: string;
   baseUrl: string;
+  /** Optional path prefix like `/attachments`. Default: root path. */
+  pathPrefix?: string;
+  /** Signature length in hex chars. Default: 16. */
+  signatureLength?: number;
 }
 
 /**
@@ -85,8 +89,9 @@ export function computeSignatureWithLength(
  * Generate a signed URL for accessing a document.
  */
 export function generateSignedUrl(params: SignedUrlParams, config: SignedUrlConfig): string {
-  const signature = computeSignature(params, config.secret);
-  const url = new URL(`/${params.slug}`, config.baseUrl);
+  const signatureLength = config.signatureLength ?? 16;
+  const signature = computeSignatureWithLength(params, config.secret, signatureLength);
+  const url = new URL(buildSignedUrlPath(params.slug, config.pathPrefix), config.baseUrl);
   url.searchParams.set('agent', params.agentId);
   url.searchParams.set('conv', params.conversationId);
   url.searchParams.set('exp', String(params.expiresAt));
@@ -103,7 +108,7 @@ export function generateSignedUrl(params: SignedUrlParams, config: SignedUrlConf
 export function verifySignedUrl(url: string | URL, secret: string): VerifyResult {
   const parsed = typeof url === 'string' ? new URL(url) : url;
 
-  const slug = parsed.pathname.replace(/^\//, '');
+  const slug = getSignedUrlSlug(parsed);
   const agent = parsed.searchParams.get('agent');
   const conv = parsed.searchParams.get('conv');
   const exp = parsed.searchParams.get('exp');
@@ -114,12 +119,12 @@ export function verifySignedUrl(url: string | URL, secret: string): VerifyResult
   }
 
   const expiresAt = parseInt(exp, 10);
-  if (isNaN(expiresAt) || Date.now() > expiresAt) {
+  if (isNaN(expiresAt) || isExpired(expiresAt)) {
     return { valid: false, reason: 'expired' };
   }
 
   const params: SignedUrlParams = { slug, agentId: agent, conversationId: conv, expiresAt };
-  const expected = computeSignature(params, secret);
+  const expected = computeSignatureWithLength(params, secret, sig.length);
 
   // Timing-safe comparison
   const sigBuf = Buffer.from(sig, 'utf-8');
@@ -185,8 +190,9 @@ export function computeOrgSignatureWithLength(
  * The URL includes the org parameter for organization-level access verification.
  */
 export function generateOrgSignedUrl(params: OrgSignedUrlParams, config: SignedUrlConfig): string {
-  const signature = computeOrgSignature(params, config.secret);
-  const url = new URL(`/${params.slug}`, config.baseUrl);
+  const signatureLength = config.signatureLength ?? 32;
+  const signature = computeOrgSignatureWithLength(params, config.secret, signatureLength);
+  const url = new URL(buildSignedUrlPath(params.slug, config.pathPrefix), config.baseUrl);
   url.searchParams.set('agent', params.agentId);
   url.searchParams.set('conv', params.conversationId);
   url.searchParams.set('org', params.orgId);
@@ -201,7 +207,7 @@ export function generateOrgSignedUrl(params: OrgSignedUrlParams, config: SignedU
 export function verifyOrgSignedUrl(url: string | URL, secret: string): VerifyResult & { orgId?: string } {
   const parsed = typeof url === 'string' ? new URL(url) : url;
 
-  const slug = parsed.pathname.replace(/^\//, '');
+  const slug = getSignedUrlSlug(parsed);
   const agent = parsed.searchParams.get('agent');
   const conv = parsed.searchParams.get('conv');
   const org = parsed.searchParams.get('org');
@@ -213,12 +219,12 @@ export function verifyOrgSignedUrl(url: string | URL, secret: string): VerifyRes
   }
 
   const expiresAt = parseInt(exp, 10);
-  if (isNaN(expiresAt) || Date.now() > expiresAt) {
+  if (isNaN(expiresAt) || isExpired(expiresAt)) {
     return { valid: false, reason: 'expired' };
   }
 
   const params: OrgSignedUrlParams = { slug, agentId: agent, conversationId: conv, orgId: org, expiresAt };
-  const expected = computeOrgSignature(params, secret);
+  const expected = computeOrgSignatureWithLength(params, secret, sig.length);
 
   const sigBuf = Buffer.from(sig, 'utf-8');
   const expBuf = Buffer.from(expected, 'utf-8');
@@ -254,6 +260,16 @@ export function generateTimedUrl(
  */
 export function deriveSigningKey(apiKey: string): string {
   return wasmDeriveSigningKey(apiKey);
+}
+
+function buildSignedUrlPath(slug: string, pathPrefix = ''): string {
+  const normalizedPrefix = pathPrefix.replace(/\/+$/, '').replace(/^([^/])/, '/$1');
+  return normalizedPrefix ? `${normalizedPrefix}/${slug}` : `/${slug}`;
+}
+
+function getSignedUrlSlug(url: URL): string {
+  const segments = url.pathname.split('/').filter(Boolean);
+  return segments.at(-1) ?? '';
 }
 
 // ── Expiration (WASM-backed) ────────────────────────────────────

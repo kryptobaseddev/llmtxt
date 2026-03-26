@@ -21,6 +21,14 @@ use uuid::Uuid;
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
+#[cfg(not(target_arch = "wasm32"))]
+mod native_signed_url;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub use native_signed_url::{
+    SignedUrlBuildRequest, SignedUrlParams, VerifyError, generate_signed_url, verify_signed_url,
+};
+
 type HmacSha256 = Hmac<Sha256>;
 
 const BASE62: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -310,7 +318,11 @@ pub fn text_similarity_ngram(a: &str, b: &str, n: usize) -> f64 {
     let intersection = a_grams.intersection(&b_grams).count();
     let union = a_grams.union(&b_grams).count();
 
-    if union == 0 { 0.0 } else { intersection as f64 / union as f64 }
+    if union == 0 {
+        0.0
+    } else {
+        intersection as f64 / union as f64
+    }
 }
 
 // ── Diff ────────────────────────────────────────────────────────
@@ -402,81 +414,6 @@ pub fn compute_diff(old_text: &str, new_text: &str) -> DiffResult {
         added_tokens,
         removed_tokens,
     }
-}
-
-// ── Native-only (not WASM) ──────────────────────────────────────
-
-/// Parameters extracted from a verified signed URL.
-#[cfg(not(target_arch = "wasm32"))]
-#[derive(Debug)]
-pub struct SignedUrlParams {
-    /// Document slug.
-    pub slug: String,
-    /// Agent that was granted access.
-    pub agent_id: String,
-    /// Conversation scope.
-    pub conversation_id: String,
-    /// Expiration timestamp in milliseconds.
-    pub expires_at: u64,
-}
-
-/// Errors that can occur during signed URL verification.
-#[cfg(not(target_arch = "wasm32"))]
-#[derive(Debug)]
-pub enum VerifyError {
-    /// Required query parameters are missing or malformed.
-    MissingParams,
-    /// The URL has expired.
-    Expired,
-    /// The HMAC signature does not match.
-    InvalidSignature,
-}
-
-/// Verify a signed URL. Native Rust API only.
-///
-/// The TypeScript wrapper handles URL parsing and calls `compute_signature` directly.
-///
-/// # Errors
-/// Returns `VerifyError` if the URL is invalid, expired, or has a bad signature.
-#[cfg(not(target_arch = "wasm32"))]
-pub fn verify_signed_url(input: &str, secret: &str) -> Result<SignedUrlParams, VerifyError> {
-    let parsed = url::Url::parse(input).map_err(|_| VerifyError::MissingParams)?;
-
-    let slug = parsed.path().trim_start_matches('/').to_string();
-
-    let get_param = |name: &str| -> Result<String, VerifyError> {
-        parsed
-            .query_pairs()
-            .find(|(k, _)| k == name)
-            .map(|(_, v)| v.to_string())
-            .ok_or(VerifyError::MissingParams)
-    };
-
-    let agent = get_param("agent")?;
-    let conv = get_param("conv")?;
-    let exp_str = get_param("exp")?;
-    let sig = get_param("sig")?;
-
-    let expires_at: u64 = exp_str.parse().map_err(|_| VerifyError::MissingParams)?;
-
-    // Check expiration
-    let now = current_time_ms() as u64;
-    if now > expires_at {
-        return Err(VerifyError::Expired);
-    }
-
-    // Verify signature
-    let expected = compute_signature(&slug, &agent, &conv, expires_at as f64, secret);
-    if sig != expected {
-        return Err(VerifyError::InvalidSignature);
-    }
-
-    Ok(SignedUrlParams {
-        slug,
-        agent_id: agent,
-        conversation_id: conv,
-        expires_at,
-    })
 }
 
 #[cfg(test)]
@@ -592,6 +529,24 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_signed_url_with_path_prefix() {
+        let url = generate_signed_url(&SignedUrlBuildRequest {
+            base_url: "https://api.example.com",
+            path_prefix: "attachments",
+            slug: "xK9mP2nQ",
+            agent_id: "test-agent",
+            conversation_id: "conv_123",
+            expires_at: 1_700_000_000_000,
+            secret: "test-secret",
+            sig_length: 32,
+        })
+        .expect("signed URL should build");
+
+        assert!(url.starts_with("https://api.example.com/attachments/xK9mP2nQ?"));
+        assert!(url.contains("sig="));
+    }
+
+    #[test]
     fn test_derive_signing_key() {
         let key = derive_signing_key("sk_live_abc123");
         assert_eq!(
@@ -667,6 +622,26 @@ mod tests {
         assert!(!is_expired(0.0));
         assert!(is_expired(1.0)); // 1ms after epoch = definitely expired
         assert!(!is_expired(f64::MAX)); // far future
+    }
+
+    #[test]
+    fn test_verify_signed_url_accepts_32_char_signature_and_path_prefix() {
+        let url = generate_signed_url(&SignedUrlBuildRequest {
+            base_url: "https://api.example.com",
+            path_prefix: "attachments",
+            slug: "xK9mP2nQ",
+            agent_id: "test-agent",
+            conversation_id: "conv_123",
+            expires_at: u64::MAX / 2,
+            secret: "test-secret",
+            sig_length: 32,
+        })
+        .expect("signed URL should build");
+
+        let params = verify_signed_url(&url, "test-secret").expect("signed URL should verify");
+        assert_eq!(params.slug, "xK9mP2nQ");
+        assert_eq!(params.agent_id, "test-agent");
+        assert_eq!(params.conversation_id, "conv_123");
     }
 
     #[test]

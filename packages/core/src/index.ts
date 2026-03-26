@@ -128,7 +128,7 @@ export type {
 
 // ── Client ─────────────────────────────────────────────────────
 export { createClient } from './client.js';
-export type { LlmtxtClientConfig, UploadResult, FetchResult } from './client.js';
+export type { LlmtxtClientConfig, UploadResult, FetchResult, ResignResult } from './client.js';
 
 // ── Similarity ─────────────────────────────────────────────────
 export {
@@ -168,4 +168,5 @@ export type {
   VersionDiff,
   LlmtxtRef,
   AttachmentOptions,
+  AttachmentAccessMode,
 } from './types.js';
