@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **signed-url**: support configurable path prefixes and signature lengths when generating URLs
 - **signed-url**: verify URLs using the actual signature length and final path segment so `/attachments/{slug}` URLs verify correctly
 
-## [0.1.0] - 2026-03-23
+## [0.4.0] - 2026-03-23
 
 ### Added
 
@@ -28,4 +28,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **cache**: generic LRU cache with configurable TTL, max size, and hit/miss statistics
 - **signed-url**: HMAC-SHA256 signed URL generation and verification — conversation-scoped, time-limited, with timing-safe comparison
 
-[0.1.0]: https://github.com/kryptobaseddev/llmtxt/releases/tag/core-v0.1.0
+[Unreleased]: https://github.com/kryptobaseddev/llmtxt/compare/core-v0.4.0...HEAD
+[0.4.0]: https://github.com/kryptobaseddev/llmtxt/releases/tag/core-v0.4.0

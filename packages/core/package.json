@@ -46,6 +46,12 @@
   },
   "devDependencies": {
     "@cleocode/lafs": "^2026.3.74",
+    "@codluv/versionguard": "^0.5.0",
+    "@forge-ts/api": "^0.21.1",
+    "@forge-ts/cli": "^0.21.1",
+    "@forge-ts/doctest": "^0.21.1",
+    "@forge-ts/enforcer": "^0.21.1",
+    "@forge-ts/gen": "^0.21.1",
     "@types/node": "^22.19.15",
     "forge-ts": "^0.0.2",
     "typescript": "^5.8.2"
