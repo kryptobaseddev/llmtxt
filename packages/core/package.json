@@ -1,7 +1,7 @@
 {
   "name": "@codluv/llmtxt",
-  "version": "0.4.0",
-  "description": "Core primitives for llmtxt: compression, validation, progressive disclosure, signed URLs, similarity, and caching for LLM agent content workflows",
+  "version": "0.5.0",
+  "description": "Core primitives for llmtxt: compression, validation, patching, progressive disclosure, signed URLs, and attachment helpers for LLM agent content workflows",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -14,23 +14,28 @@
   "files": [
     "dist",
     "wasm",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc",
+    "build:wasm": "bash -lc \"cd ../../crates/llmtxt-core && wasm-pack build --target nodejs --out-dir ../../packages/core/wasm && rm -f ../../packages/core/wasm/.gitignore\"",
+    "build:all": "pnpm run build:wasm && pnpm run build",
     "dev": "tsc --watch",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "validate": "pnpm run typecheck && pnpm exec forge-ts check && pnpm exec versionguard validate"
   },
   "keywords": [
     "llm",
     "agent",
     "compression",
     "content",
-    "progressive-disclosure",
+    "patch",
     "signed-urls",
-    "similarity",
-    "fingerprint",
-    "org-scoped"
+    "versioning",
+    "wasm"
   ],
   "license": "MIT",
   "dependencies": {
@@ -53,8 +58,8 @@
     "@forge-ts/enforcer": "^0.21.1",
     "@forge-ts/gen": "^0.21.1",
     "@types/node": "^22.19.15",
-    "forge-ts": "^0.0.2",
-    "typescript": "^5.8.2"
+    "typescript": "^5.9.3",
+    "@forge-ts/core": "^0.21.1"
   },
   "engines": {
     "node": ">=22.0.0"

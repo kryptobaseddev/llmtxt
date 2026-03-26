@@ -80,4 +80,19 @@ export interface AttachmentOptions {
 }
 
 /** Attachment fetch mode supported by the bridge/API layer. */
-export type AttachmentAccessMode = 'signed_url' | 'conversation' | 'owner';
+export type AttachmentAccessMode = 'signed_url' | 'conversation' | 'owner' | 'public';
+
+/** Share state persisted by the API layer for an attachment. */
+export type AttachmentSharingMode = 'signed_url' | 'conversation' | 'public';
+
+/** Options for re-sharing an existing attachment. */
+export interface AttachmentReshareOptions {
+  expiresIn?: number;
+  mode?: AttachmentSharingMode;
+}
+
+/** Options for appending a version to an existing attachment slug. */
+export interface AttachmentVersionOptions {
+  baseVersion?: number;
+  changelog?: string;
+}

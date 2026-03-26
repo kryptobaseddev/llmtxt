@@ -23,6 +23,8 @@ export const is_expired: (a: number) => number;
 export const text_similarity: (a: number, b: number, c: number, d: number) => number;
 export const text_similarity_ngram: (a: number, b: number, c: number, d: number, e: number) => number;
 export const calculate_compression_ratio: (a: number, b: number) => number;
+export const apply_patch: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+export const create_patch: (a: number, b: number, c: number, d: number) => [number, number];
 export const __wbindgen_exn_store: (a: number) => void;
 export const __externref_table_alloc: () => number;
 export const __wbindgen_externrefs: WebAssembly.Table;

@@ -1,10 +1,15 @@
 [package]
 name = "llmtxt-core"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
-description = "Core primitives for llmtxt: compression, hashing, signing, encoding"
+description = "Core primitives for llmtxt: compression, patching, hashing, signing, and encoding"
 license = "MIT"
 repository = "https://github.com/kryptobaseddev/llmtxt"
+homepage = "https://github.com/kryptobaseddev/llmtxt/tree/main/crates/llmtxt-core"
+documentation = "https://docs.rs/llmtxt-core"
+readme = "README.md"
+keywords = ["llm", "agent", "patch", "wasm", "signing"]
+categories = ["compression", "encoding", "wasm", "text-processing"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

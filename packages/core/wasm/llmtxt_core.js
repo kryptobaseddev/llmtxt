@@ -58,6 +58,38 @@ if (Symbol.dispose) DiffResult.prototype[Symbol.dispose] = DiffResult.prototype.
 exports.DiffResult = DiffResult;
 
 /**
+ * Apply a unified diff patch to an original string.
+ * Returns the updated string on success, or an error if the patch is invalid
+ * or fails to apply cleanly.
+ * @param {string} original
+ * @param {string} patch_text
+ * @returns {string}
+ */
+function apply_patch(original, patch_text) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(original, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(patch_text, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.apply_patch(ptr0, len0, ptr1, len1);
+        var ptr3 = ret[0];
+        var len3 = ret[1];
+        if (ret[3]) {
+            ptr3 = 0; len3 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred4_0 = ptr3;
+        deferred4_1 = len3;
+        return getStringFromWasm0(ptr3, len3);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+exports.apply_patch = apply_patch;
+
+/**
  * Calculate the compression ratio (original / compressed), rounded to 2 decimals.
  * Returns 1.0 when `compressed_size` is 0.
  * @param {number} original_size
@@ -265,6 +297,31 @@ function compute_signature_with_length(slug, agent_id, conversation_id, expires_
     }
 }
 exports.compute_signature_with_length = compute_signature_with_length;
+
+/**
+ * Create a unified diff patch representing the difference between `original`
+ * and `modified`.
+ * @param {string} original
+ * @param {string} modified
+ * @returns {string}
+ */
+function create_patch(original, modified) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(original, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(modified, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.create_patch(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+exports.create_patch = create_patch;
 
 /**
  * Decode a base62-encoded string back into an integer.

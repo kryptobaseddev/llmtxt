@@ -5,6 +5,8 @@
     "moduleResolution": "bundler",
     "outDir": "dist",
     "rootDir": "src",
+    "strict": true,
+    "strictNullChecks": true,
     "noImplicitAny": true
   },
   "include": ["src/**/*.ts"],

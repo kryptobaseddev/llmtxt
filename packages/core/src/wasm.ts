@@ -106,6 +106,17 @@ export function deriveSigningKey(apiKey: string): string {
   return wasmModule.derive_signing_key(apiKey);
 }
 
+
+// ── Patching ─────────────────────────────────────────────────────
+
+export function createPatch(original: string, modified: string): string {
+  return wasmModule.create_patch(original, modified);
+}
+
+export function applyPatch(original: string, patchText: string): string {
+  return wasmModule.apply_patch(original, patchText);
+}
+
 // ── Similarity (WASM-backed) ────────────────────────────────────
 
 export function wasmTextSimilarity(a: string, b: string): number {

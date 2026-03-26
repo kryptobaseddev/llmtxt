@@ -7,17 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-26
+
 ### Added
 
-- **client**: attachment helpers for conversation-scoped reads, owner reads, and signed URL re-signing
-- **types**: `AttachmentAccessMode` export for bridge/API integrations
+- **patching**: `createPatch` and `applyPatch` unified-diff helpers backed by the Rust core for deterministic attachment versioning workflows
+- **client**: `reshare`, `addVersion`, `addVersionFromContent`, and `createVersionPatch` helpers for attachment lifecycle and version submission
+- **types**: `AttachmentSharingMode`, `AttachmentReshareOptions`, `AttachmentVersionOptions`, and `AttachmentVersionResult` support for consumers integrating attachment APIs
 
 ### Changed
 
+- **client**: keep `resign` as a backward-compatible alias while standardizing on `reshare`
 - **signed-url**: support configurable path prefixes and signature lengths when generating URLs
 - **signed-url**: verify URLs using the actual signature length and final path segment so `/attachments/{slug}` URLs verify correctly
+- **build**: add `build:wasm`, `build:all`, and `validate` scripts for release-ready consumer artifacts
 
-## [0.4.0] - 2026-03-23
+## [0.5.0] - 2026-03-23
 
 ### Added
 
@@ -28,5 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **cache**: generic LRU cache with configurable TTL, max size, and hit/miss statistics
 - **signed-url**: HMAC-SHA256 signed URL generation and verification — conversation-scoped, time-limited, with timing-safe comparison
 
-[Unreleased]: https://github.com/kryptobaseddev/llmtxt/compare/core-v0.4.0...HEAD
+[Unreleased]: https://github.com/kryptobaseddev/llmtxt/compare/core-v0.5.0...HEAD
+[0.5.0]: https://github.com/kryptobaseddev/llmtxt/releases/tag/core-v0.5.0
 [0.4.0]: https://github.com/kryptobaseddev/llmtxt/releases/tag/core-v0.4.0

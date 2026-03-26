@@ -1,0 +1,48 @@
+{
+  "version": "1.0.0",
+  "lockedAt": "2026-03-26T20:22:51.243Z",
+  "lockedBy": "forge-ts lock",
+  "config": {
+    "rules": {
+      "require-summary": "off",
+      "require-param": "off",
+      "require-returns": "off",
+      "require-example": "off",
+      "require-package-doc": "off",
+      "require-class-member-doc": "off",
+      "require-interface-member-doc": "off",
+      "require-tsdoc-syntax": "warn",
+      "require-remarks": "off",
+      "require-default-value": "off",
+      "require-type-param": "off",
+      "require-see": "warn",
+      "require-release-tag": "off",
+      "require-fresh-guides": "warn",
+      "require-guide-coverage": "warn",
+      "require-internal-boundary": "error",
+      "require-route-response": "warn",
+      "require-inheritdoc-source": "warn",
+      "require-migration-path": "warn",
+      "require-since": "warn",
+      "require-fresh-examples": "warn",
+      "require-no-ts-ignore": "error",
+      "require-no-any-in-api": "warn",
+      "require-fresh-link-text": "warn",
+      "require-fresh-params": "warn",
+      "require-param-count": "warn",
+      "require-fresh-returns": "warn",
+      "require-meaningful-remarks": "warn",
+      "require-operation-completeness": "warn",
+      "require-ckm-tag-content": "warn",
+      "require-constraint-throws": "warn"
+    },
+    "tsconfig": {
+      "enabled": true,
+      "requiredFlags": [
+        "strict",
+        "strictNullChecks",
+        "noImplicitAny"
+      ]
+    }
+  }
+}

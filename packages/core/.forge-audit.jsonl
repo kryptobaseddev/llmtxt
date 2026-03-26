@@ -1,0 +1,2 @@
+{"timestamp":"2026-03-26T20:22:25.802Z","event":"config.lock","user":"forge-ts lock","details":{"rules":31,"tsconfig":true,"biome":false,"overwrote":false}}
+{"timestamp":"2026-03-26T20:22:51.243Z","event":"config.lock","user":"forge-ts lock","details":{"rules":31,"tsconfig":true,"biome":false,"overwrote":true}}

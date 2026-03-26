@@ -27,6 +27,13 @@ export class DiffResult {
 }
 
 /**
+ * Apply a unified diff patch to an original string.
+ * Returns the updated string on success, or an error if the patch is invalid
+ * or fails to apply cleanly.
+ */
+export function apply_patch(original: string, patch_text: string): string;
+
+/**
  * Calculate the compression ratio (original / compressed), rounded to 2 decimals.
  * Returns 1.0 when `compressed_size` is 0.
  */
@@ -83,6 +90,12 @@ export function compute_signature(slug: string, agent_id: string, conversation_i
  * Use 16 for short-lived URLs (backward compat), 32 for long-lived URLs (128 bits).
  */
 export function compute_signature_with_length(slug: string, agent_id: string, conversation_id: string, expires_at: number, secret: string, sig_length: number): string;
+
+/**
+ * Create a unified diff patch representing the difference between `original`
+ * and `modified`.
+ */
+export function create_patch(original: string, modified: string): string;
 
 /**
  * Decode a base62-encoded string back into an integer.

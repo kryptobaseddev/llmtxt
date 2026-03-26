@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-26
+
 ### Added
+- `generate_signed_url` / `verify_signed_url` — native Rust helpers for path-prefixed attachment URLs and variable signature lengths
 - `create_patch` / `apply_patch` — unified diff creation and application primitives for attachment versioning workflows
+- `SignedUrlBuildRequest` — structured input for native Rust URL generation
+
+### Changed
+- switched attachment patching to `diffy` for typed parse failures and deterministic unified diff transport
+- improved native signed URL verification so `/attachments/{slug}` paths and 32-character signatures verify cleanly
 
 ## [0.2.0] - 2026-03-24
 
@@ -40,3 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `derive_signing_key` — HMAC-SHA256 key derivation with "llmtxt-signing" context
 - WASM bindings via wasm-bindgen (feature-gated)
 - Shared test vectors (`test-vectors.json`) between Rust and TypeScript
+
+[Unreleased]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v0.3.0...HEAD
+[0.3.0]: https://github.com/kryptobaseddev/llmtxt/releases/tag/llmtxt-core-v0.3.0
+[0.2.0]: https://github.com/kryptobaseddev/llmtxt/releases/tag/llmtxt-core-v0.2.0
+[0.1.0]: https://github.com/kryptobaseddev/llmtxt/releases/tag/llmtxt-core-v0.1.0

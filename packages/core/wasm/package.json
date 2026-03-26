@@ -1,7 +1,7 @@
 {
   "name": "llmtxt-core",
-  "description": "Core primitives for llmtxt: compression, hashing, signing, encoding",
-  "version": "0.2.0",
+  "description": "Core primitives for llmtxt: compression, patching, hashing, signing, and encoding",
+  "version": "0.3.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -13,5 +13,13 @@
     "llmtxt_core.d.ts"
   ],
   "main": "llmtxt_core.js",
-  "types": "llmtxt_core.d.ts"
+  "homepage": "https://github.com/kryptobaseddev/llmtxt/tree/main/crates/llmtxt-core",
+  "types": "llmtxt_core.d.ts",
+  "keywords": [
+    "llm",
+    "agent",
+    "patch",
+    "wasm",
+    "signing"
+  ]
 }

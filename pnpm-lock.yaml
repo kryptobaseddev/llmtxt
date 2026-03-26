@@ -72,6 +72,9 @@ importers:
       '@forge-ts/cli':
         specifier: ^0.21.1
         version: 0.21.1
+      '@forge-ts/core':
+        specifier: ^0.21.1
+        version: 0.21.1
       '@forge-ts/doctest':
         specifier: ^0.21.1
         version: 0.21.1
@@ -84,11 +87,8 @@ importers:
       '@types/node':
         specifier: ^22.19.15
         version: 22.19.15
-      forge-ts:
-        specifier: ^0.0.2
-        version: 0.0.2
       typescript:
-        specifier: ^5.8.2
+        specifier: ^5.9.3
         version: 5.9.3
 
 packages:
@@ -1141,10 +1141,6 @@ packages:
   foreground-child@3.3.1:
     resolution: {integrity: sha512-gIXjKqtFuWEgzFRJA9WCQeSJLZDjgJUOMCMzxtvFq/37KojM1BFGufqsCy0r4qSQmYLsZYMeyRqzIWOMup03sw==}
     engines: {node: '>=14'}
-
-  forge-ts@0.0.2:
-    resolution: {integrity: sha512-e0pR3tXfKzKEzYIz7LEnnVsmpIIAiDpb6rNjji8LMljwnNqunA7RgNMVUK7giifLD+G14eizM9Tu4diqN4OIgg==}
-    hasBin: true
 
   format@0.2.2:
     resolution: {integrity: sha512-wzsgA6WOq+09wrU1tsJ09udeR/YZRaeArL9e1wPbFg3GG2yDnC2ldKpxs4xunpFF9DgqCqOIra3bc1HWrJ37Ww==}
@@ -3044,8 +3040,6 @@ snapshots:
     dependencies:
       cross-spawn: 7.0.6
       signal-exit: 4.1.0
-
-  forge-ts@0.0.2: {}
 
   format@0.2.2: {}
 

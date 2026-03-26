@@ -111,6 +111,9 @@ export type {
   VerifyResult,
 } from './signed-url.js';
 
+// ── Patching ───────────────────────────────────────────────────
+export { createPatch, applyPatch } from './patch.js';
+
 // ── Snapshot Compression ───────────────────────────────────────
 export {
   compressSnapshot,
@@ -128,7 +131,14 @@ export type {
 
 // ── Client ─────────────────────────────────────────────────────
 export { createClient } from './client.js';
-export type { LlmtxtClientConfig, UploadResult, FetchResult, ResignResult } from './client.js';
+export type {
+  LlmtxtClientConfig,
+  UploadResult,
+  FetchResult,
+  ReshareResult,
+  ResignResult,
+  AttachmentVersionResult,
+} from './client.js';
 
 // ── Similarity ─────────────────────────────────────────────────
 export {
@@ -169,4 +179,7 @@ export type {
   LlmtxtRef,
   AttachmentOptions,
   AttachmentAccessMode,
+  AttachmentSharingMode,
+  AttachmentReshareOptions,
+  AttachmentVersionOptions,
 } from './types.js';

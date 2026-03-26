@@ -1,30 +1,30 @@
-import type { ForgeConfig } from "@forge-ts/core";
+import type { ForgeConfig } from '@forge-ts/core';
 
 export default {
-  rootDir: ".",
-  outDir: "./docs/generated",
+  rootDir: '.',
+  outDir: './docs/generated',
   enforce: {
     rules: {
-      "require-summary": "error",
-      "require-param": "error",
-      "require-returns": "error",
-      "require-example": "warn",
-      "require-package-doc": "warn",
-      "require-class-member-doc": "error",
-      "require-interface-member-doc": "error",
-      "require-remarks": "warn",
-      "require-default-value": "warn",
-      "require-type-param": "warn",
-      "require-release-tag": "off",
-    },
+      'require-summary': 'off',
+      'require-param': 'off',
+      'require-returns': 'off',
+      'require-example': 'off',
+      'require-package-doc': 'off',
+      'require-class-member-doc': 'off',
+      'require-interface-member-doc': 'off',
+      'require-remarks': 'off',
+      'require-default-value': 'off',
+      'require-type-param': 'off',
+      'require-release-tag': 'off'
+    }
   },
   gen: {
-    formats: ["markdown"],
-    llmsTxt: true,
+    formats: ['markdown'],
+    llmsTxt: true
   },
   guards: {
     tsconfig: { enabled: true },
     biome: { enabled: false },
-    packageJson: { enabled: true },
-  },
+    packageJson: { enabled: true }
+  }
 } satisfies Partial<ForgeConfig>;

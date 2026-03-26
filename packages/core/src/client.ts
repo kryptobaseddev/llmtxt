@@ -7,6 +7,13 @@
  * against the LAFS envelope schema. Without it, raw JSON is parsed directly.
  */
 
+import { createPatch } from './patch.js';
+import type {
+  AttachmentReshareOptions,
+  AttachmentSharingMode,
+  AttachmentVersionOptions,
+} from './types.js';
+
 export interface LlmtxtClientConfig {
   apiBase: string;
   apiKey: string;
@@ -34,10 +41,24 @@ export interface FetchResult {
   tokens: number;
 }
 
-export interface ResignResult {
+export interface ReshareResult {
   slug: string;
-  signedUrl: string;
-  expiresAt: number;
+  mode: AttachmentSharingMode;
+  signedUrl?: string;
+  expiresAt?: number | null;
+}
+
+/** Backward-compatible alias. Prefer `ReshareResult`. */
+export type ResignResult = ReshareResult;
+
+export interface AttachmentVersionResult {
+  slug: string;
+  versionNumber: number;
+  patchText?: string;
+  contentHash?: string;
+  createdAt?: string;
+  createdBy?: string;
+  changelog?: string;
 }
 
 // ── LAFS integration (optional) ─────────────────────────────────
@@ -63,25 +84,14 @@ async function getLafsParser(): Promise<((envelope: unknown) => unknown) | false
 
 /**
  * Parse a JSON response, using LAFS envelope validation when available.
- *
- * LAFS envelope: { success, result, _meta, error }
- * Legacy envelope: { success, data }
- *
- * With LAFS: validates envelope, throws LafsError on failure, returns result.
- * Without LAFS: extracts from `result` (LAFS) or `data` (legacy) directly.
  */
 async function parseResponse<T>(json: unknown): Promise<T> {
   const envelope = json as Record<string, unknown>;
-
-  // Try LAFS parsing when available AND the response looks like a LAFS envelope.
-  // During the migration period, SignalDock may return legacy envelopes without
-  // $schema — in that case, fall through to the manual parser.
   const parser = await getLafsParser();
   if (parser && '$schema' in envelope) {
     return parser(json) as T;
   }
 
-  // Fallback: handle both LAFS (`result`) and legacy (`data`) envelope formats
   if (envelope.success === false) {
     const err = envelope.error as Record<string, unknown> | undefined;
     throw new Error(err?.message as string ?? 'Request failed');
@@ -91,113 +101,113 @@ async function parseResponse<T>(json: unknown): Promise<T> {
 
 // ── Client ──────────────────────────────────────────────────────
 
-/**
- * Create a lightweight llmtxt client for uploading and fetching content.
- *
- * ```ts
- * const client = createClient({
- *   apiBase: 'https://api.clawmsgr.com',
- *   apiKey: 'sk_live_...',
- *   agentId: 'my-agent',
- * });
- *
- * const { slug, signedUrl } = await client.upload('conv_123', '# My Doc\n\nContent here');
- * const { content } = await client.fetch(signedUrl);
- * ```
- */
 export function createClient(config: LlmtxtClientConfig) {
   const headers = {
-    'Authorization': `Bearer ${config.apiKey}`,
+    Authorization: `Bearer ${config.apiKey}`,
     'X-Agent-Id': config.agentId,
     'Content-Type': 'application/json',
   };
 
   return {
-    /**
-     * Upload content as an attachment to a conversation.
-     * Returns slug, signed URL, and metadata.
-     */
+    /** Upload content as an attachment to a conversation. */
     async upload(
       conversationId: string,
       content: string,
       options: { format?: string; title?: string; expiresIn?: number } = {},
     ): Promise<UploadResult> {
       const { format = 'markdown', title, expiresIn = 3600 } = options;
-      const res = await fetch(
-        `${config.apiBase}/conversations/${conversationId}/attachments`,
-        {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ content, format, title, expiresIn }),
-        },
-      );
-      if (!res.ok) {
-        const err = await res.text();
-        throw new Error(`Upload failed (${res.status}): ${err}`);
-      }
+      const res = await fetch(`${config.apiBase}/conversations/${conversationId}/attachments`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ content, format, title, expiresIn }),
+      });
+      if (!res.ok) throw new Error(`Upload failed (${res.status}): ${await res.text()}`);
       return parseResponse<UploadResult>(await res.json());
     },
 
-    /**
-     * Fetch content from a signed URL.
-     * Handles decompression automatically (server returns decompressed content).
-     */
+    /** Fetch content from a signed URL. */
     async fetch(signedUrl: string): Promise<FetchResult> {
       const res = await fetch(signedUrl, { headers });
-      if (!res.ok) {
-        const err = await res.text();
-        throw new Error(`Fetch failed (${res.status}): ${err}`);
-      }
+      if (!res.ok) throw new Error(`Fetch failed (${res.status}): ${await res.text()}`);
       return parseResponse<FetchResult>(await res.json());
     },
 
-    /**
-     * Fetch an attachment shared in a conversation without needing a signed URL.
-     */
+    /** Fetch an attachment shared in a conversation without needing a signed URL. */
     async fetchFromConversation(slug: string, conversationId: string): Promise<FetchResult> {
       const url = new URL(`${config.apiBase}/attachments/${slug}`);
       url.searchParams.set('conv', conversationId);
       const res = await fetch(url, { headers });
       if (!res.ok) {
-        const err = await res.text();
-        throw new Error(`Conversation fetch failed (${res.status}): ${err}`);
+        throw new Error(`Conversation fetch failed (${res.status}): ${await res.text()}`);
       }
       return parseResponse<FetchResult>(await res.json());
     },
 
-    /**
-     * Fetch an attachment owned by the current agent.
-     */
+    /** Fetch an attachment owned by the current agent. */
     async fetchOwned(slug: string): Promise<FetchResult> {
       const res = await fetch(`${config.apiBase}/attachments/${slug}`, { headers });
-      if (!res.ok) {
-        const err = await res.text();
-        throw new Error(`Owner fetch failed (${res.status}): ${err}`);
-      }
+      if (!res.ok) throw new Error(`Owner fetch failed (${res.status}): ${await res.text()}`);
       return parseResponse<FetchResult>(await res.json());
     },
 
     /**
-     * Generate a fresh signed URL for an attachment owned by the current agent.
+     * Change how an attachment is shared. For `signed_url` mode the API may
+     * return a fresh `signedUrl`; for `conversation`/`public` it may not.
      */
-    async resign(slug: string, options: { expiresIn?: number } = {}): Promise<ResignResult> {
-      const { expiresIn = 3600 } = options;
-      const res = await fetch(`${config.apiBase}/attachments/${slug}/resign`, {
+    async reshare(
+      slug: string,
+      options: AttachmentReshareOptions = {},
+    ): Promise<ReshareResult> {
+      const { expiresIn = 3600, mode = 'signed_url' } = options;
+      const res = await fetch(`${config.apiBase}/attachments/${slug}/reshare`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ expiresIn }),
+        body: JSON.stringify({ expiresIn, mode }),
       });
-      if (!res.ok) {
-        const err = await res.text();
-        throw new Error(`Resign failed (${res.status}): ${err}`);
-      }
-      return parseResponse<ResignResult>(await res.json());
+      if (!res.ok) throw new Error(`Reshare failed (${res.status}): ${await res.text()}`);
+      return parseResponse<ReshareResult>(await res.json());
     },
 
-    /**
-     * Check if a signed URL is still valid (not expired) without fetching content.
-     * Returns true if the URL would succeed, false if expired.
-     */
+    /** Backward-compatible alias for older API wording. Prefer `reshare`. */
+    async resign(
+      slug: string,
+      options: AttachmentReshareOptions = {},
+    ): Promise<ResignResult> {
+      return this.reshare(slug, options);
+    },
+
+    /** Build a version patch locally using the Rust/WASM core. */
+    createVersionPatch(original: string, updated: string): string {
+      return createPatch(original, updated);
+    },
+
+    /** Submit a patch as the next version for an attachment slug. */
+    async addVersion(
+      slug: string,
+      patchText: string,
+      options: AttachmentVersionOptions = {},
+    ): Promise<AttachmentVersionResult> {
+      const res = await fetch(`${config.apiBase}/attachments/${slug}/versions`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ patchText, ...options }),
+      });
+      if (!res.ok) throw new Error(`Add version failed (${res.status}): ${await res.text()}`);
+      return parseResponse<AttachmentVersionResult>(await res.json());
+    },
+
+    /** Convenience helper that diffs local content then appends the new version. */
+    async addVersionFromContent(
+      slug: string,
+      original: string,
+      updated: string,
+      options: AttachmentVersionOptions = {},
+    ): Promise<AttachmentVersionResult> {
+      const patchText = createPatch(original, updated);
+      return this.addVersion(slug, patchText, options);
+    },
+
+    /** Check if a signed URL is still valid without fetching content. */
     isValid(signedUrl: string): boolean {
       try {
         const url = new URL(signedUrl);
