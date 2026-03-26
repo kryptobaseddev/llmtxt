@@ -1,0 +1,31 @@
+versioning:
+  type: calver
+  calver:
+    format: YYYY.M.PATCH
+    preventFutureDates: true
+manifest:
+  source: auto
+sync:
+  files:
+    - README.md
+    - CHANGELOG.md
+  patterns:
+    - regex: (version\s*[=:]\s*["'])(.+?)(["'])
+      template: $1{{version}}$3
+changelog:
+  enabled: true
+  file: CHANGELOG.md
+  strict: true
+  requireEntry: true
+git:
+  hooks:
+    pre-commit: false
+    pre-push: false
+    post-tag: false
+  enforceHooks: false
+ignore:
+  - node_modules/**
+  - dist/**
+  - .git/**
+  - "*.lock"
+  - .changeset/**

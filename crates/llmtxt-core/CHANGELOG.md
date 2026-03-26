@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.3.0] - 2026-03-26
+## [2026.3.0] - 2026-03-26
 
 ### Added
 - `generate_signed_url` / `verify_signed_url` — native Rust helpers for path-prefixed attachment URLs and variable signature lengths
@@ -15,10 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SignedUrlBuildRequest` — structured input for native Rust URL generation
 
 ### Changed
+- **versioning**: adopt unified ecosystem CalVer across the Rust crate, WASM artifacts, and TypeScript consumers using a Cargo-safe `YYYY.M.PATCH` format
 - switched attachment patching to `diffy` for typed parse failures and deterministic unified diff transport
 - improved native signed URL verification so `/attachments/{slug}` paths and 32-character signatures verify cleanly
 
-## [0.2.0] - 2026-03-24
+## Legacy [0.2.0] - 2026-03-24
 
 ### Added
 - `text_similarity` — n-gram Jaccard similarity (native Rust, WASM-exported)
@@ -35,21 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `is_expired` off-by-one on boundary timestamps (signaldock-core-agent review)
 - WASM feature flag gating — native consumers no longer pull wasm-bindgen
 
-## [0.1.0] - 2026-03-22
-
-### Added
-- `compress` / `decompress` — RFC 1950 zlib compression
-- `generate_id` — UUID to base62, 8 chars
-- `hash_content` — SHA-256 content hashing
-- `calculate_tokens` — ceil(len/4) token estimation
-- `encode_base62` / `decode_base62` — base62 encoding
-- `compute_signature` / `compute_signature_with_length` — HMAC-SHA256 signing
-- `calculate_compression_ratio` — ratio helper
-- `derive_signing_key` — HMAC-SHA256 key derivation with "llmtxt-signing" context
-- WASM bindings via wasm-bindgen (feature-gated)
-- Shared test vectors (`test-vectors.json`) between Rust and TypeScript
-
-[Unreleased]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v0.3.0...HEAD
-[0.3.0]: https://github.com/kryptobaseddev/llmtxt/releases/tag/llmtxt-core-v0.3.0
+[Unreleased]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.3.0...HEAD
+[2026.3.0]: https://github.com/kryptobaseddev/llmtxt/releases/tag/llmtxt-core-v2026.3.0
 [0.2.0]: https://github.com/kryptobaseddev/llmtxt/releases/tag/llmtxt-core-v0.2.0
-[0.1.0]: https://github.com/kryptobaseddev/llmtxt/releases/tag/llmtxt-core-v0.1.0

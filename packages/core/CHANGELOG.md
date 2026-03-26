@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.5.0] - 2026-03-26
+## [2026.3.0] - 2026-03-26
 
 ### Added
 
@@ -17,12 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **versioning**: adopt unified ecosystem CalVer across the Rust crate, WASM artifacts, and TypeScript package consumers using a Cargo-safe `YYYY.M.PATCH` format
 - **client**: keep `resign` as a backward-compatible alias while standardizing on `reshare`
 - **signed-url**: support configurable path prefixes and signature lengths when generating URLs
 - **signed-url**: verify URLs using the actual signature length and final path segment so `/attachments/{slug}` URLs verify correctly
 - **build**: add `build:wasm`, `build:all`, and `validate` scripts for release-ready consumer artifacts
 
-## [0.5.0] - 2026-03-23
+## Legacy [0.4.0] - 2026-03-23
 
 ### Added
 
@@ -33,6 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **cache**: generic LRU cache with configurable TTL, max size, and hit/miss statistics
 - **signed-url**: HMAC-SHA256 signed URL generation and verification — conversation-scoped, time-limited, with timing-safe comparison
 
-[Unreleased]: https://github.com/kryptobaseddev/llmtxt/compare/core-v0.5.0...HEAD
-[0.5.0]: https://github.com/kryptobaseddev/llmtxt/releases/tag/core-v0.5.0
+[Unreleased]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.3.0...HEAD
+[2026.3.0]: https://github.com/kryptobaseddev/llmtxt/releases/tag/core-v2026.3.0
 [0.4.0]: https://github.com/kryptobaseddev/llmtxt/releases/tag/core-v0.4.0

@@ -1,6 +1,6 @@
 {
   "name": "@codluv/llmtxt",
-  "version": "0.5.0",
+  "version": "2026.3.0",
   "description": "Core primitives for llmtxt: compression, validation, patching, progressive disclosure, signed URLs, and attachment helpers for LLM agent content workflows",
   "type": "module",
   "main": "dist/index.js",
@@ -51,7 +51,7 @@
   },
   "devDependencies": {
     "@cleocode/lafs": "^2026.3.74",
-    "@codluv/versionguard": "^0.5.0",
+    "@codluv/versionguard": "^0.9.0",
     "@forge-ts/api": "^0.21.1",
     "@forge-ts/cli": "^0.21.1",
     "@forge-ts/doctest": "^0.21.1",
