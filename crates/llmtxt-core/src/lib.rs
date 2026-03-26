@@ -29,6 +29,9 @@ pub use native_signed_url::{
     SignedUrlBuildRequest, SignedUrlParams, VerifyError, generate_signed_url, verify_signed_url,
 };
 
+mod patch;
+pub use patch::{apply_patch, create_patch};
+
 type HmacSha256 = Hmac<Sha256>;
 
 const BASE62: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";

@@ -28,6 +28,7 @@ js-sys = { version = "0.3", optional = true }
 
 # Native-only deps — only used behind cfg(not(wasm32))
 url = "2"
+diffy = "0.4.2"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
