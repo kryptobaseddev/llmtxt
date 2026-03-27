@@ -7,6 +7,13 @@ import http from 'http';
 import { apiRoutes } from './routes/api.js';
 import { disclosureRoutes } from './routes/disclosure.js';
 import { versionRoutes } from './routes/versions.js';
+import { authRoutes } from './routes/auth.js';
+import { lifecycleRoutes } from './routes/lifecycle.js';
+import { patchRoutes } from './routes/patches.js';
+import { similarityRoutes } from './routes/similarity.js';
+import { graphRoutes } from './routes/graph.js';
+import { retrievalRoutes } from './routes/retrieval.js';
+import { signedUrlRoutes } from './routes/signed-urls.js';
 import { publicDir, extractSlug, extractSlugWithExtension, handleContentNegotiation, getDocumentWithContent } from './routes/web.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -128,6 +135,71 @@ async function main() {
             path: '/disclosure',
             method: 'POST',
             description: 'Submit AI disclosure information'
+          },
+          {
+            path: '/documents/:slug/transition',
+            method: 'POST',
+            description: 'Transition document lifecycle state (DRAFT/REVIEW/LOCKED/ARCHIVED)'
+          },
+          {
+            path: '/documents/:slug/approve',
+            method: 'POST',
+            description: 'Approve document (consensus voting)'
+          },
+          {
+            path: '/documents/:slug/reject',
+            method: 'POST',
+            description: 'Reject document with reason'
+          },
+          {
+            path: '/documents/:slug/approvals',
+            method: 'GET',
+            description: 'List all approval votes and consensus status'
+          },
+          {
+            path: '/documents/:slug/contributors',
+            method: 'GET',
+            description: 'Get contributor attribution summary'
+          },
+          {
+            path: '/documents/:slug/patch',
+            method: 'POST',
+            description: 'Submit unified diff patch to create new version'
+          },
+          {
+            path: '/documents/:slug/similar?q=',
+            method: 'GET',
+            description: 'Find similar sections by text similarity'
+          },
+          {
+            path: '/documents/:slug/graph',
+            method: 'GET',
+            description: 'Extract knowledge graph (mentions, tags, directives)'
+          },
+          {
+            path: '/documents/:slug/plan-retrieval',
+            method: 'POST',
+            description: 'Plan token-budget-aware section retrieval'
+          },
+          {
+            path: '/signed-urls',
+            method: 'POST',
+            description: 'Generate time-limited signed URL for document access'
+          },
+          {
+            path: '/auth/sign-up/email',
+            method: 'POST',
+            description: 'Register with email/password'
+          },
+          {
+            path: '/auth/sign-in/email',
+            method: 'POST',
+            description: 'Login with email/password'
+          },
+          {
+            path: '/auth/sign-in/anonymous',
+            method: 'POST',
+            description: 'Create anonymous session (24hr TTL)'
           }
         ],
         llms_txt: 'https://api.llmtxt.my/llms.txt'
@@ -153,6 +225,13 @@ async function main() {
     await app.register(apiRoutes, { prefix: '/api' });
     await app.register(disclosureRoutes, { prefix: '/api' });
     await app.register(versionRoutes, { prefix: '/api' });
+    await app.register(authRoutes, { prefix: '/api' });
+    await app.register(lifecycleRoutes, { prefix: '/api' });
+    await app.register(patchRoutes, { prefix: '/api' });
+    await app.register(similarityRoutes, { prefix: '/api' });
+    await app.register(graphRoutes, { prefix: '/api' });
+    await app.register(retrievalRoutes, { prefix: '/api' });
+    await app.register(signedUrlRoutes, { prefix: '/api' });
 
     // Register error handler
     app.setErrorHandler((error: unknown, request, reply) => {
