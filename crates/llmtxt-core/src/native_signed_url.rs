@@ -112,7 +112,7 @@ pub fn verify_signed_url(input: &str, secret: &str) -> Result<SignedUrlParams, V
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0);
-    if now > expires_at {
+    if expires_at != 0 && now > expires_at {
         return Err(VerifyError::Expired);
     }
 

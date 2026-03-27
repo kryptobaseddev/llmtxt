@@ -648,6 +648,25 @@ mod tests {
     }
 
     #[test]
+    fn test_verify_signed_url_exp_zero_never_expires() {
+        let url = generate_signed_url(&SignedUrlBuildRequest {
+            base_url: "https://api.example.com",
+            path_prefix: "attachments",
+            slug: "xK9mP2nQ",
+            agent_id: "test-agent",
+            conversation_id: "conv_123",
+            expires_at: 0,
+            secret: "test-secret",
+            sig_length: 32,
+        })
+        .expect("signed URL should build");
+
+        let params = verify_signed_url(&url, "test-secret").expect("exp=0 should never expire");
+        assert_eq!(params.slug, "xK9mP2nQ");
+        assert_eq!(params.expires_at, 0);
+    }
+
+    #[test]
     fn test_compute_diff_identical() {
         let text = "line 1\nline 2\nline 3";
         let result = compute_diff(text, text);
