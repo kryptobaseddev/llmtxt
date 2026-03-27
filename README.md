@@ -1,52 +1,91 @@
 # LLMtxt
 
-Lightweight text document service optimized for LLM agents.
+Context-sharing and collaborative document platform for LLM agents. Token-efficient content retrieval, versioned multi-agent collaboration, and consensus-based approval.
+
+## Packages
+
+| Package | Registry | Description |
+|---------|----------|-------------|
+| `llmtxt` | [npm](https://www.npmjs.com/package/llmtxt) | TypeScript SDK: primitives, progressive disclosure, collaborative docs |
+| `llmtxt-core` | [crates.io](https://crates.io/crates/llmtxt-core) | Rust engine: compression, hashing, signing, patching, similarity |
 
 ## Quick Start
 
-```bash
-# Install dependencies
-npm install
+```ts
+import { compress, hashContent, createPatch, generateOverview } from 'llmtxt';
+import { LlmtxtDocument, planRetrieval } from 'llmtxt/sdk';
 
-# Setup environment
-cp .env.example .env
+// Compress and hash content
+const compressed = await compress('# My Document\n...');
+const hash = hashContent('# My Document\n...');
 
-# Generate and run migrations
-npm run db:generate
-npm run db:migrate
+// Progressive disclosure (save 60-80% tokens)
+const overview = generateOverview(content);
+const plan = planRetrieval(overview, 4000, 'auth');
 
-# Start development server
-npm run dev
+// Collaborative documents
+const doc = new LlmtxtDocument({ slug, storage: myAdapter });
+await doc.createVersion(newContent, { agentId: 'agent-1', changelog: 'Added section' });
+await doc.transition('REVIEW', { changedBy: 'agent-1', reason: 'Ready' });
+await doc.approve({ reviewerId: 'agent-2', reason: 'LGTM' });
 ```
 
 ## Project Structure
 
 ```
-src/
-├── db/           # Database schema and migrations
-├── routes/       # API and web routes
-├── utils/        # Utilities (compression, cache)
-├── schemas/      # Zod validation schemas
-└── index.ts      # Main entry point
+crates/llmtxt-core/        Rust crate (SSoT, compiles to WASM)
+packages/llmtxt/            npm package (TypeScript SDK + WASM bridge)
+  src/
+    sdk/                    Collaborative document modules
+      document.ts           LlmtxtDocument orchestration class
+      lifecycle.ts          DRAFT -> REVIEW -> LOCKED -> ARCHIVED
+      versions.ts           Patch stack reconstruction
+      attribution.ts        Per-version author tracking
+      consensus.ts          Multi-agent approval evaluation
+      storage.ts            Content reference abstraction
+      storage-adapter.ts    Platform persistence interface
+      retrieval.ts          Token-budget-aware section planning
+    disclosure.ts           Progressive disclosure (MVI)
+    similarity.ts           N-gram Jaccard, MinHash, ranking
+    graph.ts                Knowledge graph from messages
+    client.ts               HTTP client for attachment API
+    validation.ts           Zod-based format validation
+    wasm.ts                 WASM bridge layer
+apps/web/                   Demo web app (Fastify + SQLite)
+docs/
+  LLMTXT-REFERENCE.md      Canonical system reference
+  VISION.md                 Design philosophy
+  ARCHITECTURE.md           System architecture
 ```
 
-## Scripts
+## Features
 
-- `npm run dev` - Development with hot reload
-- `npm run build` - Build for production
-- `npm run start` - Run production build
-- `npm run db:generate` - Generate migrations
-- `npm run db:migrate` - Run migrations
-- `npm run db:push` - Push schema changes (dev)
-- `npm run db:studio` - Open Drizzle Studio
+- **Token-efficient retrieval**: Progressive disclosure saves 60-80% tokens via MVI (overview, section, search)
+- **Rust SSoT**: Compression, hashing, signing, patching in Rust; identical output via WASM and native
+- **Collaborative documents**: Versioning, lifecycle states, attribution, consensus-based approval
+- **Signed URLs**: HMAC-SHA256, conversation-scoped, time-limited, org-scoped variants
+- **Similarity**: N-gram Jaccard, MinHash fingerprinting, ranked search
+- **Knowledge graph**: Extract @mentions, #tags, /directives from message streams
 
-## API
+## Development
 
-- `POST /api/documents` - Create a new document
-- `GET /api/documents/:id` - Get document by ID
-- `GET /api/documents/:id/raw` - Get raw document content
-- `GET /d/:shortId` - Redirect to document viewer
-- `GET /:shortId` - View document with metadata
+```bash
+# Rust tests (32 pass)
+cd crates/llmtxt-core && cargo test
+
+# Build WASM + TypeScript
+cd packages/llmtxt && pnpm run build:all
+
+# Typecheck
+pnpm run typecheck
+```
+
+## Documentation
+
+- [LLMTXT-REFERENCE.md](docs/LLMTXT-REFERENCE.md) -- complete system reference
+- [VISION.md](docs/VISION.md) -- design philosophy
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) -- system architecture
+- [PORTABLE_CORE_CONTRACT.md](packages/llmtxt/PORTABLE_CORE_CONTRACT.md) -- cross-platform guarantees
 
 ## License
 

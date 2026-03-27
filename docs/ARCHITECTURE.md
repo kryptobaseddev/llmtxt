@@ -3,24 +3,98 @@
 ## System Overview
 
 ```
-llmtxt ecosystem
-├── llmtxt-core (Rust crate)          SSoT: compression, hashing, signing, patching, similarity
-│   └── WASM build (wasm-pack)        Consumed by TypeScript package
-│
-├── llmtxt (npm package)              Primitives + SDK for Node.js consumers
-│   ├── primitives                    WASM-backed: compress, hash, sign, patch, diff
-│   ├── disclosure                    Progressive disclosure: overview, sections, search
-│   ├── sdk                           Collaborative docs: lifecycle, versions, consensus
-│   ├── similarity                    N-gram Jaccard, MinHash, ranking
-│   ├── graph                         Knowledge graph from messages
-│   └── client                        HTTP wrapper for attachment API
-│
-├── SignalDock API                    Application layer: storage, access control, versioning
-│   ├── api.signaldock.io (canonical) Postgres + S3 + Redis
-│   └── api.clawmsgr.com (legacy)    SQLite (parallel during transition)
-│
-└── llmtxt.my (web app)              Demo/utility: Fastify + SQLite + Drizzle
+┌─────────────────────────────────────────────────────────────────────┐
+│                        llmtxt ecosystem                             │
+│                                                                     │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │  llmtxt-core (Rust crate, crates.io)                          │  │
+│  │  SSoT: compression, hashing, signing, patching, similarity    │  │
+│  │                                                               │  │
+│  │  ┌─────────────┐     ┌──────────────────┐                    │  │
+│  │  │  wasm-pack   │     │  Cargo native    │                    │  │
+│  │  │  (WASM build)│     │  (Rust backends) │                    │  │
+│  │  └──────┬──────┘     └────────┬─────────┘                    │  │
+│  └─────────┼─────────────────────┼───────────────────────────────┘  │
+│            │                     │                                   │
+│  ┌─────────▼───────────────┐     │                                  │
+│  │  llmtxt (npm, Node.js)  │     │                                  │
+│  │                         │     │                                  │
+│  │  primitives (WASM)      │     │                                  │
+│  │  disclosure (TS)        │     │                                  │
+│  │  sdk (TS + WASM)        │     │                                  │
+│  │  similarity (TS)        │     │                                  │
+│  │  graph (TS)             │     │                                  │
+│  │  client (HTTP)          │     │                                  │
+│  │  validation (Zod)       │     │                                  │
+│  └─────────┬───────────────┘     │                                  │
+│            │ HTTP client         │ Cargo dep                        │
+│  ┌─────────▼─────────────────────▼──────────────────────────────┐  │
+│  │  SignalDock API (Axum/Rust)                                   │  │
+│  │                                                               │  │
+│  │  ┌──────────┐  ┌──────────┐  ┌───────────┐  ┌────────────┐  │  │
+│  │  │ Postgres │  │ S3 Bucket│  │   Redis   │  │  Axum HTTP │  │  │
+│  │  │ metadata │  │ blobs    │  │ locks/cache│  │  endpoints │  │  │
+│  │  └──────────┘  └──────────┘  └───────────┘  └────────────┘  │  │
+│  │                                                               │  │
+│  │  api.signaldock.io (canonical)                                │  │
+│  │  api.clawmsgr.com (legacy parallel)                           │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+│                                                                     │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │  llmtxt.my (web app)                                          │  │
+│  │                                                               │  │
+│  │  ┌──────────┐  ┌──────────┐  ┌───────────────┐               │  │
+│  │  │ Fastify  │  │  Static  │  │  SSR Views    │               │  │
+│  │  │ API      │  │  Files   │  │  (slug->HTML) │               │  │
+│  │  └────┬─────┘  └──────────┘  └───────────────┘               │  │
+│  │       │                                                       │  │
+│  │  ┌────┴──────────────────────────────────────────────┐       │  │
+│  │  │  llmtxt (npm)                                      │       │  │
+│  │  │  compression | validation | disclosure | cache     │       │  │
+│  │  └────┬──────────────────────────────────────────────┘       │  │
+│  │       │                                                       │  │
+│  │  ┌────┴─────┐                                                │  │
+│  │  │  SQLite  │  (Drizzle ORM, WAL mode)                       │  │
+│  │  └──────────┘                                                │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────┘
 ```
+
+## Tech Stack
+
+| Layer | Technology | Where |
+|-------|-----------|-------|
+| Primitives | Rust (Edition 2024) | crates/llmtxt-core/ |
+| WASM Bridge | wasm-pack + wasm-bindgen | packages/llmtxt/wasm/ |
+| npm Package | TypeScript 5.9 (ESM) | packages/llmtxt/ |
+| Validation | Zod 3.x | packages/llmtxt/src/validation.ts |
+| Web App | Node.js + Fastify 5.x | apps/web/ |
+| Web ORM | Drizzle 1.0 beta | apps/web/ |
+| Web DB | SQLite (better-sqlite3, WAL) | apps/web/ |
+| API Server | Rust + Axum 0.8 | SignalDock repo |
+| API DB | PostgreSQL (sqlx) | Railway |
+| Blob Storage | S3-compatible (Railway) | signaldock-bucket |
+| Cache/Locks | Redis | Railway (shared) |
+| CI | GitHub Actions | .github/workflows/ |
+| Versioning | CalVer (YYYY.M.PATCH) | VersionGuard |
+
+## API Design
+
+### Content Negotiation (llmtxt.my web app)
+
+`GET /{slug}` serves different content based on the client:
+- `Accept: text/plain` or agent UA -> raw content with `X-Token-Count` header
+- `Accept: text/html` or browser -> SSR HTML view
+- `/{slug}.json` / `/{slug}.md` / `/{slug}.txt` -> forced format
+
+### Host-Based Routing (llmtxt.my)
+
+- `api.llmtxt.my/*` -> `/api/*` (JSON API)
+- `llmtxt.my/*` -> static files + slug-based SSR
+
+### SignalDock API (canonical production API)
+
+All collaborative document operations go through the SignalDock API. See the Collaborative Document Endpoints section below for the full endpoint list.
 
 ## Rust Crate (`llmtxt-core`)
 
