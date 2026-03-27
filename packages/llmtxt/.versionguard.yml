@@ -19,10 +19,10 @@ changelog:
   requireEntry: true
 git:
   hooks:
-    pre-commit: false
-    pre-push: false
+    pre-commit: true
+    pre-push: true
     post-tag: false
-  enforceHooks: false
+  enforceHooks: true
 ignore:
   - node_modules/**
   - dist/**

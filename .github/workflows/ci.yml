@@ -59,3 +59,7 @@ jobs:
       - name: Typecheck
         working-directory: packages/llmtxt
         run: pnpm run typecheck
+
+      - name: Validate version (CalVer guard)
+        working-directory: packages/llmtxt
+        run: pnpm exec versionguard validate
