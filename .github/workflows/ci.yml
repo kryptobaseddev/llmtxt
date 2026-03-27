@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  rust:
+    name: Rust (test + lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Check formatting
+        working-directory: crates/llmtxt-core
+        run: cargo fmt --check
+
+      - name: Clippy
+        working-directory: crates/llmtxt-core
+        run: cargo clippy -- -D warnings
+
+      - name: Run tests
+        working-directory: crates/llmtxt-core
+        run: cargo test
+
+  typescript:
+    name: TypeScript (build + typecheck)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        run: cargo install wasm-pack
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build WASM + TypeScript
+        working-directory: packages/llmtxt
+        run: pnpm run build:all
+
+      - name: Typecheck
+        working-directory: packages/llmtxt
+        run: pnpm run typecheck
