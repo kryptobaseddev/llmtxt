@@ -1,6 +1,6 @@
 # Portable Core Contract
 
-Version: 2.0.0
+Version: 3.0.0
 Status: ACTIVE
 
 ## Purpose
@@ -175,6 +175,56 @@ Note: No fixed test vectors — output depends on current time. Verify:
 - `isExpired(0) === false` (no expiration)
 - `isExpired(farFutureTimestamp) === false`
 - `isExpired(pastTimestamp) === true`
+
+### 10. computeSignatureWithLength
+
+- **Algorithm**: HMAC-SHA256 with configurable output length
+- **Payload format**: Same as `computeSignature`
+- **Output**: First `sigLength` characters of hex-encoded HMAC digest
+- **Use case**: 16-char for short-lived URLs, 32-char for long-lived
+
+### 11. computeOrgSignature / computeOrgSignatureWithLength
+
+- **Algorithm**: HMAC-SHA256 with organization scope
+- **Payload format**: `"${slug}:${agentId}:${conversationId}:${orgId}:${expiresAt}"`
+- **Output**: 32 hex characters (default) or configurable length
+- **Use case**: Multi-tenant access control with organization-level scoping
+
+### 12. textSimilarity / textSimilarityNgram
+
+- **Algorithm**: Character-level n-gram Jaccard similarity
+- **Default n-gram size**: 3 (configurable via `textSimilarityNgram`)
+- **Output**: Float 0.0 (no overlap) to 1.0 (identical)
+- **Processing**: Case-insensitive, whitespace-normalized
+- **Formula**: `|intersection| / |union|` of n-gram sets
+
+### 13. computeDiff
+
+- **Algorithm**: Line-based LCS (Longest Common Subsequence) diff
+- **Output**: `DiffResult` struct with `addedLines`, `removedLines`, `addedTokens`, `removedTokens`
+- **Token estimation**: Uses `calculateTokens` on added/removed lines
+
+### 14. createPatch / applyPatch
+
+- **Algorithm**: Unified diff format via `diffy` crate
+- **Contract**: `applyPatch(original, createPatch(original, modified)) === modified`
+- **Error handling**: `applyPatch` returns error if patch does not apply cleanly
+
+### 15. reconstructVersion
+
+- **Algorithm**: Sequential patch application in a single call
+- **Input**: Base content + JSON array of patch strings + target version number
+- **Output**: Content at the target version
+- **WASM variant**: Accepts `patches_json: &str` (JSON-encoded array)
+- **Native variant**: `reconstructVersionNative` accepts `&[String]` directly
+- **Purpose**: Avoids N WASM boundary crossings when reconstructing from N patches
+
+### 16. squashPatches
+
+- **Algorithm**: Apply all patches sequentially, then diff base vs final
+- **Input**: Base content + JSON array of patch strings
+- **Output**: Single unified diff from original to final state
+- **Native variant**: `squashPatchesNative` accepts `&[String]` directly
 
 ## Non-Portable Functions
 
