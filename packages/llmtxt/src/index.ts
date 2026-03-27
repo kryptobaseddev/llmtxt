@@ -1,7 +1,8 @@
 /**
  * @packageDocumentation
- * Core primitives for LLM agent content workflows.
- * Compression, validation, progressive disclosure, signed URLs, and caching.
+ * Primitives and SDK for LLM agent content workflows.
+ * Compression, validation, progressive disclosure, signed URLs, caching,
+ * collaborative document lifecycle, versioning, and retrieval planning.
  * Provider-agnostic. Only external dependency: zod.
  */
 
@@ -112,7 +113,7 @@ export type {
 } from './signed-url.js';
 
 // ── Patching ───────────────────────────────────────────────────
-export { createPatch, applyPatch } from './patch.js';
+export { createPatch, applyPatch, reconstructVersion, squashPatchesWasm } from './patch.js';
 
 // ── Snapshot Compression ───────────────────────────────────────
 export {
@@ -183,3 +184,46 @@ export type {
   AttachmentReshareOptions,
   AttachmentVersionOptions,
 } from './types.js';
+
+// ── SDK Types (re-exported for convenience) ────────────────────
+export type { StorageAdapter } from './sdk/storage-adapter.js';
+export type { LlmtxtDocumentOptions, CreateVersionOptions } from './sdk/document.js';
+export { LlmtxtDocument } from './sdk/document.js';
+
+export type {
+  DocumentState,
+  StateTransition,
+  TransitionResult,
+} from './sdk/lifecycle.js';
+
+export type {
+  VersionEntry,
+  ReconstructionResult,
+  PatchValidationResult,
+  VersionDiffSummary,
+} from './sdk/versions.js';
+
+export type {
+  ApprovalStatus,
+  Review,
+  ApprovalPolicy,
+  ApprovalResult,
+} from './sdk/consensus.js';
+
+export type {
+  VersionAttribution,
+  ContributorSummary,
+} from './sdk/attribution.js';
+
+export type {
+  StorageType,
+  CompressionMethod,
+  ContentRef,
+  StorageMetadata,
+} from './sdk/storage.js';
+
+export type {
+  PlannedSection,
+  RetrievalPlan,
+  RetrievalOptions,
+} from './sdk/retrieval.js';

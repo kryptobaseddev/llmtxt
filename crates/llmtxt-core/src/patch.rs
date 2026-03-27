@@ -19,6 +19,51 @@ pub fn create_patch(original: &str, modified: &str) -> String {
     diffy_create_patch(original, modified).to_string()
 }
 
+/// Apply a sequence of patches to base content, returning the content at the
+/// target version. This avoids N WASM boundary crossings by performing all
+/// patch applications in a single Rust call.
+///
+/// `patches_json` is a JSON array of patch strings: `["patch1", "patch2", ...]`.
+/// `target` is the 1-based version to reconstruct (0 returns `base` unchanged).
+/// If `target` exceeds the number of patches, all patches are applied.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn reconstruct_version(base: &str, patches_json: &str, target: u32) -> Result<String, String> {
+    if target == 0 {
+        return Ok(base.to_string());
+    }
+
+    let patches: Vec<String> =
+        serde_json::from_str(patches_json).map_err(|e| format!("Invalid patches JSON: {e}"))?;
+
+    let limit = (target as usize).min(patches.len());
+    let mut content = base.to_string();
+
+    for (i, patch_text) in patches.iter().take(limit).enumerate() {
+        content = apply_patch(&content, patch_text)
+            .map_err(|e| format!("Patch {} failed: {e}", i + 1))?;
+    }
+
+    Ok(content)
+}
+
+/// Apply all patches sequentially to base content, then produce a single
+/// unified diff from the original base to the final state.
+///
+/// `patches_json` is a JSON array of patch strings: `["patch1", "patch2", ...]`.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn squash_patches(base: &str, patches_json: &str) -> Result<String, String> {
+    let patches: Vec<String> =
+        serde_json::from_str(patches_json).map_err(|e| format!("Invalid patches JSON: {e}"))?;
+
+    let mut content = base.to_string();
+    for (i, patch_text) in patches.iter().enumerate() {
+        content = apply_patch(&content, patch_text)
+            .map_err(|e| format!("Patch {} failed: {e}", i + 1))?;
+    }
+
+    Ok(create_patch(base, &content))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -39,6 +84,45 @@ mod tests {
     fn test_apply_invalid_patch() {
         let result = apply_patch("Hello world\n", "@@ invalid patch format @@");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_reconstruct_version_zero_returns_base() {
+        let base = "Hello world\n";
+        let result = reconstruct_version(base, "[]", 0).unwrap();
+        assert_eq!(result, base);
+    }
+
+    #[test]
+    fn test_reconstruct_version_applies_patches() {
+        let v0 = "line 1\n";
+        let v1 = "line 1\nline 2\n";
+        let v2 = "line 1\nline 2\nline 3\n";
+
+        let p1 = create_patch(v0, v1);
+        let p2 = create_patch(v1, v2);
+        let patches_json = serde_json::to_string(&vec![p1, p2]).unwrap();
+
+        let at_v1 = reconstruct_version(v0, &patches_json, 1).unwrap();
+        assert_eq!(at_v1, v1);
+
+        let at_v2 = reconstruct_version(v0, &patches_json, 2).unwrap();
+        assert_eq!(at_v2, v2);
+    }
+
+    #[test]
+    fn test_squash_patches_produces_single_diff() {
+        let v0 = "line 1\n";
+        let v1 = "line 1\nline 2\n";
+        let v2 = "line 1\nline 2\nline 3\n";
+
+        let p1 = create_patch(v0, v1);
+        let p2 = create_patch(v1, v2);
+        let patches_json = serde_json::to_string(&vec![p1, p2]).unwrap();
+
+        let squashed = squash_patches(v0, &patches_json).unwrap();
+        let result = apply_patch(v0, &squashed).unwrap();
+        assert_eq!(result, v2);
     }
 
     #[test]

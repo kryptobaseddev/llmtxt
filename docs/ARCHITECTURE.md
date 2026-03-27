@@ -12,7 +12,7 @@
 │  └────┬─────┘  └──────────┘  └───────────────┘  │
 │       │                                          │
 │  ┌────┴──────────────────────────────────────┐   │
-│  │         @codluv/llmtxt (core package)     │   │
+│  │         llmtxt (core package)     │   │
 │  │  compression │ validation │ disclosure    │   │
 │  │  schemas     │ cache      │ signed-url    │   │
 │  └────┬──────────────────────────────────────┘   │
@@ -34,7 +34,7 @@
 | Validation | Zod | Runtime type checking, schema registry |
 | Compression | Node.js zlib (deflate) | ~70% reduction, built-in, no dependencies |
 
-## Core Package (`@codluv/llmtxt`)
+## Core Package (`llmtxt`)
 
 The framework-agnostic primitives extracted into a standalone npm package. Zero framework dependencies — only `zod` and Node.js built-ins.
 
@@ -117,7 +117,7 @@ The Fastify `serverFactory` rewrites URLs based on hostname:
 - Slugs are unguessable (base62 from UUID)
 - HTTPS only in production
 
-### Planned (via `@codluv/llmtxt` signed-url module)
+### Planned (via `llmtxt` signed-url module)
 
 - HMAC-SHA256 signed URLs scoped to conversation + agent
 - Time-limited expiration

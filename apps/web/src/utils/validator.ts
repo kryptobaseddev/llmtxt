@@ -1,4 +1,4 @@
-// Re-export validation utilities from @codluv/llmtxt.
+// Re-export validation utilities from llmtxt.
 export {
   validateJson,
   validateText,
@@ -6,10 +6,10 @@ export {
   validateContent,
   autoValidate,
   DEFAULT_MAX_CONTENT_BYTES,
-} from '@codluv/llmtxt';
+} from 'llmtxt';
 
 export type {
   ValidationResult,
   ValidationError,
   ValidateContentOptions,
-} from '@codluv/llmtxt';
+} from 'llmtxt';

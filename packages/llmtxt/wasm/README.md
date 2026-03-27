@@ -6,7 +6,7 @@ Portable Rust primitives for llmtxt content workflows.
 patch creation/application, and other low-level text utilities used by both:
 
 - native Rust consumers like SignalDock
-- the TypeScript package `@codluv/llmtxt` via WASM bindings
+- the TypeScript package `llmtxt` via WASM bindings
 
 ## Install
 
@@ -60,4 +60,4 @@ println!("{url}");
 ## Publishing
 
 This crate is designed to be consumable both directly from Rust and indirectly
-through the WASM-backed TypeScript package in `packages/core`.
+through the WASM-backed TypeScript package in `packages/llmtxt`.

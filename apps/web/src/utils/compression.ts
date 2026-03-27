@@ -1,4 +1,4 @@
-// Re-export compression utilities from @codluv/llmtxt.
+// Re-export compression utilities from llmtxt.
 export {
   encodeBase62,
   decodeBase62,
@@ -9,6 +9,6 @@ export {
   calculateTokens,
   calculateCompressionRatio,
   computeDiff,
-} from '@codluv/llmtxt';
+} from 'llmtxt';
 
-export type { DiffResult } from '@codluv/llmtxt';
+export type { DiffResult } from 'llmtxt';

@@ -117,6 +117,14 @@ export function applyPatch(original: string, patchText: string): string {
   return wasmModule.apply_patch(original, patchText);
 }
 
+export function reconstructVersion(base: string, patchesJson: string, target: number): string {
+  return wasmModule.reconstruct_version(base, patchesJson, target);
+}
+
+export function squashPatchesWasm(base: string, patchesJson: string): string {
+  return wasmModule.squash_patches(base, patchesJson);
+}
+
 // ── Similarity (WASM-backed) ────────────────────────────────────
 
 export function wasmTextSimilarity(a: string, b: string): number {

@@ -465,6 +465,76 @@ function is_expired(expires_at_ms) {
 exports.is_expired = is_expired;
 
 /**
+ * Apply a sequence of patches to base content, returning the content at the
+ * target version. This avoids N WASM boundary crossings by performing all
+ * patch applications in a single Rust call.
+ *
+ * `patches_json` is a JSON array of patch strings: `["patch1", "patch2", ...]`.
+ * `target` is the 1-based version to reconstruct (0 returns `base` unchanged).
+ * If `target` exceeds the number of patches, all patches are applied.
+ * @param {string} base
+ * @param {string} patches_json
+ * @param {number} target
+ * @returns {string}
+ */
+function reconstruct_version(base, patches_json, target) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(base, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(patches_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.reconstruct_version(ptr0, len0, ptr1, len1, target);
+        var ptr3 = ret[0];
+        var len3 = ret[1];
+        if (ret[3]) {
+            ptr3 = 0; len3 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred4_0 = ptr3;
+        deferred4_1 = len3;
+        return getStringFromWasm0(ptr3, len3);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+exports.reconstruct_version = reconstruct_version;
+
+/**
+ * Apply all patches sequentially to base content, then produce a single
+ * unified diff from the original base to the final state.
+ *
+ * `patches_json` is a JSON array of patch strings: `["patch1", "patch2", ...]`.
+ * @param {string} base
+ * @param {string} patches_json
+ * @returns {string}
+ */
+function squash_patches(base, patches_json) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(base, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(patches_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.squash_patches(ptr0, len0, ptr1, len1);
+        var ptr3 = ret[0];
+        var len3 = ret[1];
+        if (ret[3]) {
+            ptr3 = 0; len3 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred4_0 = ptr3;
+        deferred4_1 = len3;
+        return getStringFromWasm0(ptr3, len3);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+exports.squash_patches = squash_patches;
+
+/**
  * Compute character-level n-gram Jaccard similarity between two texts.
  * Returns 0.0 (no overlap) to 1.0 (identical). Default n=3.
  *

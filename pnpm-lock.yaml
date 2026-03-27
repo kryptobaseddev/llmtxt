@@ -10,9 +10,6 @@ importers:
 
   apps/web:
     dependencies:
-      '@codluv/llmtxt':
-        specifier: workspace:*
-        version: link:../../packages/core
       '@fastify/compress':
         specifier: ^8.0.1
         version: 8.3.1
@@ -34,6 +31,9 @@ importers:
       fastify:
         specifier: ^5.2.2
         version: 5.8.4
+      llmtxt:
+        specifier: workspace:*
+        version: link:../../packages/llmtxt
       zod:
         specifier: ^3.25.3
         version: 3.25.76
@@ -54,7 +54,7 @@ importers:
         specifier: ^5.8.2
         version: 5.9.3
 
-  packages/core:
+  packages/llmtxt:
     dependencies:
       zod:
         specifier: ^3.25.3

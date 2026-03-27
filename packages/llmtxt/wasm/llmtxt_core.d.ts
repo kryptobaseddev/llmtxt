@@ -144,6 +144,25 @@ export function hash_content(data: string): string;
 export function is_expired(expires_at_ms: number): boolean;
 
 /**
+ * Apply a sequence of patches to base content, returning the content at the
+ * target version. This avoids N WASM boundary crossings by performing all
+ * patch applications in a single Rust call.
+ *
+ * `patches_json` is a JSON array of patch strings: `["patch1", "patch2", ...]`.
+ * `target` is the 1-based version to reconstruct (0 returns `base` unchanged).
+ * If `target` exceeds the number of patches, all patches are applied.
+ */
+export function reconstruct_version(base: string, patches_json: string, target: number): string;
+
+/**
+ * Apply all patches sequentially to base content, then produce a single
+ * unified diff from the original base to the final state.
+ *
+ * `patches_json` is a JSON array of patch strings: `["patch1", "patch2", ...]`.
+ */
+export function squash_patches(base: string, patches_json: string): string;
+
+/**
  * Compute character-level n-gram Jaccard similarity between two texts.
  * Returns 0.0 (no overlap) to 1.0 (identical). Default n=3.
  *

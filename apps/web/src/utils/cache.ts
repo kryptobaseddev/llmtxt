@@ -1,7 +1,7 @@
 // Cache instances for the llmtxt application.
-// LRUCache implementation provided by @codluv/llmtxt.
-import { LRUCache } from '@codluv/llmtxt';
-export type { CacheStats } from '@codluv/llmtxt';
+// LRUCache implementation provided by llmtxt.
+import { LRUCache } from 'llmtxt';
+export type { CacheStats } from 'llmtxt';
 export { LRUCache };
 
 const maxSize = parseInt(process.env.CACHE_MAX_SIZE || '1000', 10);

@@ -1,4 +1,4 @@
-// Re-export schemas from @codluv/llmtxt.
+// Re-export schemas from llmtxt.
 export {
   jsonFormatSchema,
   textFormatSchema,
@@ -11,7 +11,7 @@ export {
   compressRequestSchema,
   decompressRequestSchema,
   searchRequestSchema,
-} from '@codluv/llmtxt';
+} from 'llmtxt';
 
 export type {
   PredefinedSchemaName,
@@ -23,4 +23,4 @@ export type {
   CompressRequest,
   DecompressRequest,
   SearchRequest,
-} from '@codluv/llmtxt';
+} from 'llmtxt';

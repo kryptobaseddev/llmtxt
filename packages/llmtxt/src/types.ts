@@ -10,6 +10,9 @@
 /** Supported content formats. */
 export type ContentFormat = 'json' | 'text' | 'markdown';
 
+/** Lifecycle state for collaborative documents. */
+export type DocumentMode = 'draft' | 'review' | 'locked' | 'archived';
+
 /** Metadata for a stored document. */
 export interface DocumentMeta {
   id: string;
@@ -23,6 +26,14 @@ export interface DocumentMeta {
   expiresAt: number | null;
   accessCount: number;
   lastAccessedAt: number | null;
+  /** Lifecycle state (collaborative documents). */
+  mode?: DocumentMode;
+  /** Total number of versions. */
+  versionCount?: number;
+  /** Current version number. */
+  currentVersion?: number;
+  /** Object storage key when content lives in S3 instead of inline. */
+  storageKey?: string;
 }
 
 // ── Version Types ───────────────────────────────────────────────

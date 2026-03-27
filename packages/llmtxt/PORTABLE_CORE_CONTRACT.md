@@ -5,11 +5,11 @@ Status: ACTIVE
 
 ## Purpose
 
-This document defines the subset of `@codluv/llmtxt` functions that MUST produce
+This document defines the subset of `llmtxt` functions that MUST produce
 byte-identical output across all consumers. The Rust crate (`crates/llmtxt-core`)
 is the **single source of truth**. It ships two ways:
 
-- **WASM** (via `wasm-pack`): loaded by the TypeScript npm package (`@codluv/llmtxt`)
+- **WASM** (via `wasm-pack`): loaded by the TypeScript npm package (`llmtxt`)
 - **Native** (via Cargo): consumed directly by Rust services (e.g. SignalDock)
 
 ```
@@ -202,14 +202,14 @@ identical output across implementations. They stay in their respective ecosystem
 ## Compatibility Testing
 
 Both WASM and native Rust consume the same test vector suite. The shared file
-is at `packages/core/test-vectors.json`.
+is at `packages/llmtxt/test-vectors.json`.
 
 ### File Format
 
 ```json
 {
   "version": "1.0.0",
-  "description": "Cross-platform test vectors for @codluv/llmtxt portable core contract.",
+  "description": "Cross-platform test vectors for llmtxt portable core contract.",
   "hashContent": [
     { "input": "hello", "expected": "2cf24dba..." }
   ],

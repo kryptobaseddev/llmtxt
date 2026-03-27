@@ -23,7 +23,7 @@ LLMtxt stores content with compression, gives it a short URL, and lets agents re
 - **LLM-first**: HTTP headers carry metadata (token counts, compression ratios). Response bodies stay minimal. Content negotiation serves raw text to agents, HTML to browsers.
 - **Token-efficient**: Progressive disclosure lets agents inspect document structure before fetching content. Compression reduces storage and transfer.
 - **Simple**: One content model (compressed text with a slug). No accounts, no complex permissions for the base layer. Signed URLs add access control when needed.
-- **Composable**: The core primitives (`@codluv/llmtxt` package) are framework-agnostic. Any platform can embed compression, validation, and disclosure without depending on the llmtxt.my service.
+- **Composable**: The core primitives (`llmtxt` package) are framework-agnostic. Any platform can embed compression, validation, and disclosure without depending on the llmtxt.my service.
 
 ## Integration Model
 
@@ -37,7 +37,7 @@ Agent A → ClawMsgr message (with llmtxt slug) → Agent B
                                          overview → section → done
 ```
 
-The `@codluv/llmtxt` npm package provides the core primitives for direct integration — platforms like ClawMsgr can store and retrieve compressed content without HTTP round-trips to the llmtxt.my service.
+The `llmtxt` npm package provides the core primitives for direct integration — platforms like ClawMsgr can store and retrieve compressed content without HTTP round-trips to the llmtxt.my service.
 
 ## Non-Goals
 

@@ -1,7 +1,7 @@
 {
-  "name": "@codluv/llmtxt",
-  "version": "2026.3.1",
-  "description": "Core primitives for llmtxt: compression, validation, patching, progressive disclosure, signed URLs, and attachment helpers for LLM agent content workflows",
+  "name": "llmtxt",
+  "version": "2026.4.0",
+  "description": "Primitives and SDK for LLM agent content workflows: compression, patching, progressive disclosure, signed URLs, collaborative document lifecycle, and retrieval planning",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -9,6 +9,22 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./sdk": {
+      "types": "./dist/sdk/index.d.ts",
+      "import": "./dist/sdk/index.js"
+    },
+    "./disclosure": {
+      "types": "./dist/disclosure.d.ts",
+      "import": "./dist/disclosure.js"
+    },
+    "./similarity": {
+      "types": "./dist/similarity.d.ts",
+      "import": "./dist/similarity.js"
+    },
+    "./graph": {
+      "types": "./dist/graph.d.ts",
+      "import": "./dist/graph.js"
     }
   },
   "files": [
@@ -20,7 +36,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "build:wasm": "bash -lc \"cd ../../crates/llmtxt-core && wasm-pack build --target nodejs --out-dir ../../packages/core/wasm && rm -f ../../packages/core/wasm/.gitignore\"",
+    "build:wasm": "bash -lc \"cd ../../crates/llmtxt-core && wasm-pack build --target nodejs --out-dir ../../packages/llmtxt/wasm && rm -f ../../packages/llmtxt/wasm/.gitignore\"",
     "build:all": "pnpm run build:wasm && pnpm run build",
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
@@ -35,6 +51,8 @@
     "patch",
     "signed-urls",
     "versioning",
+    "collaborative-docs",
+    "sdk",
     "wasm"
   ],
   "license": "MIT",
@@ -71,9 +89,9 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/kryptobaseddev/llmtxt.git",
-    "directory": "packages/core"
+    "directory": "packages/llmtxt"
   },
-  "homepage": "https://github.com/kryptobaseddev/llmtxt/tree/main/packages/core",
+  "homepage": "https://github.com/kryptobaseddev/llmtxt/tree/main/packages/llmtxt",
   "bugs": {
     "url": "https://github.com/kryptobaseddev/llmtxt/issues"
   }

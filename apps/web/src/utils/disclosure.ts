@@ -1,4 +1,4 @@
-// Re-export progressive disclosure utilities from @codluv/llmtxt.
+// Re-export progressive disclosure utilities from llmtxt.
 export {
   getLineRange,
   searchContent,
@@ -6,11 +6,11 @@ export {
   generateOverview,
   queryJsonPath,
   getSection,
-} from '@codluv/llmtxt';
+} from 'llmtxt';
 
 export type {
   Section,
   DocumentOverview,
   SearchResult,
   LineRangeResult,
-} from '@codluv/llmtxt';
+} from 'llmtxt';

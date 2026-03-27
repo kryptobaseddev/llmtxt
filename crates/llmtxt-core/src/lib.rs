@@ -2,7 +2,7 @@
 //!
 //! This crate is the single source of truth for compression, hashing,
 //! signing, and encoding functions used by both the Rust (SignalDock)
-//! and TypeScript (npm `@codluv/llmtxt` via WASM) consumers.
+//! and TypeScript (npm `llmtxt` via WASM) consumers.
 //!
 //! # Features
 //! - `wasm` (default): Enables `wasm-bindgen` exports for JavaScript consumption.
@@ -30,7 +30,7 @@ pub use native_signed_url::{
 };
 
 mod patch;
-pub use patch::{apply_patch, create_patch};
+pub use patch::{apply_patch, create_patch, reconstruct_version, squash_patches};
 
 type HmacSha256 = Hmac<Sha256>;
 

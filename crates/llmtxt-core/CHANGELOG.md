@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026.4.0] - 2026-03-27
+
+### Added
+- `reconstruct_version` -- apply a sequence of patches to base content in a single Rust call, avoiding N WASM boundary crossings
+- `squash_patches` -- apply all patches then produce a single unified diff from base to final state
+
 ## [2026.3.1] - 2026-03-27
 
 ### Fixed

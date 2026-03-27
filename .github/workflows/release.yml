@@ -1,4 +1,4 @@
-name: Release @codluv/llmtxt
+name: Release llmtxt
 
 on:
   push:
@@ -35,11 +35,11 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build consumer artifacts
-        working-directory: packages/core
+        working-directory: packages/llmtxt
         run: pnpm run build:all
 
       - name: Publish to npm with provenance
-        working-directory: packages/core
+        working-directory: packages/llmtxt
         run: pnpm publish --provenance --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -52,9 +52,9 @@ jobs:
         id: changelog
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          NOTES=$(sed -n "/^## \[${VERSION}\]/,/^## \[/p" packages/core/CHANGELOG.md | sed '$ d')
+          NOTES=$(sed -n "/^## \[${VERSION}\]/,/^## \[/p" packages/llmtxt/CHANGELOG.md | sed '$ d')
           if [ -z "$NOTES" ]; then
-            NOTES="Release @codluv/llmtxt v${VERSION}"
+            NOTES="Release llmtxt v${VERSION}"
           fi
           echo "notes<<CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
           echo "$NOTES" >> "$GITHUB_OUTPUT"
@@ -70,6 +70,6 @@ jobs:
             echo "Release ${GITHUB_REF_NAME} already exists"
           else
             gh release create "${GITHUB_REF_NAME}" \
-            --title "@codluv/llmtxt v${VERSION}" \
+            --title "llmtxt v${VERSION}" \
             --notes "${NOTES}"
           fi
