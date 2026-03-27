@@ -30,7 +30,10 @@ pub use native_signed_url::{
 };
 
 mod patch;
-pub use patch::{apply_patch, create_patch, reconstruct_version, squash_patches};
+pub use patch::{
+    apply_patch, create_patch, reconstruct_version, reconstruct_version_native, squash_patches,
+    squash_patches_native,
+};
 
 type HmacSha256 = Hmac<Sha256>;
 

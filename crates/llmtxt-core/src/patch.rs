@@ -46,6 +46,32 @@ pub fn reconstruct_version(base: &str, patches_json: &str, target: u32) -> Resul
     Ok(content)
 }
 
+/// Native-friendly version of [`reconstruct_version`] that accepts a slice
+/// directly instead of JSON. Use this from Rust consumers; the JSON variant
+/// is for WASM callers.
+pub fn reconstruct_version_native(
+    base: &str,
+    patches: &[String],
+    target: usize,
+) -> Result<String, String> {
+    if target == 0 {
+        return Ok(base.to_string());
+    }
+    let limit = target.min(patches.len());
+    let mut content = base.to_string();
+    for (i, patch_text) in patches.iter().take(limit).enumerate() {
+        content = apply_patch(&content, patch_text)
+            .map_err(|e| format!("Patch {} failed: {e}", i + 1))?;
+    }
+    Ok(content)
+}
+
+/// Native-friendly version of [`squash_patches`] that accepts a slice directly.
+pub fn squash_patches_native(base: &str, patches: &[String]) -> Result<String, String> {
+    let final_content = reconstruct_version_native(base, patches, patches.len())?;
+    Ok(create_patch(base, &final_content))
+}
+
 /// Apply all patches sequentially to base content, then produce a single
 /// unified diff from the original base to the final state.
 ///
@@ -121,6 +147,29 @@ mod tests {
         let patches_json = serde_json::to_string(&vec![p1, p2]).unwrap();
 
         let squashed = squash_patches(v0, &patches_json).unwrap();
+        let result = apply_patch(v0, &squashed).unwrap();
+        assert_eq!(result, v2);
+    }
+
+    #[test]
+    fn test_reconstruct_version_native() {
+        let v0 = "line 1\n";
+        let v1 = "line 1\nline 2\n";
+        let v2 = "line 1\nline 2\nline 3\n";
+
+        let patches = vec![create_patch(v0, v1), create_patch(v1, v2)];
+        let at_v2 = reconstruct_version_native(v0, &patches, 2).unwrap();
+        assert_eq!(at_v2, v2);
+    }
+
+    #[test]
+    fn test_squash_patches_native() {
+        let v0 = "line 1\n";
+        let v1 = "line 1\nline 2\n";
+        let v2 = "line 1\nline 2\nline 3\n";
+
+        let patches = vec![create_patch(v0, v1), create_patch(v1, v2)];
+        let squashed = squash_patches_native(v0, &patches).unwrap();
         let result = apply_patch(v0, &squashed).unwrap();
         assert_eq!(result, v2);
     }
