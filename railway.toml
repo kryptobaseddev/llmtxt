@@ -13,7 +13,4 @@ restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
 
 [[deploy.domains]]
-domain = "www.llmtxt.my"
-
-[[deploy.domains]]
 domain = "api.llmtxt.my"
