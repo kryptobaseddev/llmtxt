@@ -1,9 +1,8 @@
 [build]
-builder = "RAILPACK"
-buildCommand = "pnpm -r build"
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "cd apps/web && pnpm db:migrate && node dist/index.js"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
