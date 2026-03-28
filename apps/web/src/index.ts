@@ -47,18 +47,9 @@ const app = Fastify({
 async function main() {
   try {
     // Register CORS plugin
-    const allowedOrigins = (process.env.CORS_ORIGIN || 'https://www.llmtxt.my')
-      .split(',')
-      .map(o => o.trim());
+    const corsOrigin = process.env.CORS_ORIGIN || 'https://www.llmtxt.my';
     await app.register(cors, {
-      origin: (origin, cb) => {
-        // Allow requests with no origin (same-origin, curl, agents)
-        if (!origin) return cb(null, true);
-        if (allowedOrigins.includes(origin)) return cb(null, true);
-        // Allow Railway preview domains
-        if (origin.endsWith('.up.railway.app')) return cb(null, true);
-        cb(new Error('CORS not allowed'), false);
-      },
+      origin: corsOrigin.split(',').map(o => o.trim()),
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
       credentials: true,
