@@ -1,3 +1,2 @@
-// All data loading happens client-side (SPA mode)
-// The API is on a different domain so we can't SSR fetch
+// SPA mode: all rendering client-side, all data loading via API
 export const ssr = false;
