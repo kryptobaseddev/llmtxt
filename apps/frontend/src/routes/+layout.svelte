@@ -1,7 +1,10 @@
 <script lang="ts">
 	import './layout.css';
+	import { page } from '$app/state';
 
 	let { children } = $props();
+
+	let isLanding = $derived(page.url.pathname === '/');
 </script>
 
 <svelte:head>
@@ -16,9 +19,11 @@
 		<a href="/" class="font-display text-xl font-bold tracking-tight">
 			<span class="text-primary">LLM</span><span class="text-base-content/70">txt</span>
 		</a>
-		<a href="/doc" class="btn btn-primary btn-sm font-display">
-			Share
-		</a>
+		{#if !isLanding}
+			<a href="/" class="btn btn-primary btn-sm font-display">
+				New
+			</a>
+		{/if}
 	</header>
 
 	<!-- Content -->
