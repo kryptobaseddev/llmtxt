@@ -1,15 +1,12 @@
 [build]
-builder = "railpack"
-
-[build.config]
-installCommand = "corepack enable && pnpm install --frozen-lockfile"
+builder = "RAILPACK"
 buildCommand = "pnpm -r build"
 
 [deploy]
 startCommand = "cd apps/web && pnpm db:migrate && node dist/index.js"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 100
-restartPolicyType = "on_failure"
+restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
 
 [[deploy.domains]]
