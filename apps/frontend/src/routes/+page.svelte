@@ -5,11 +5,12 @@
   let content = $state('');
   let submitting = $state(false);
   let menuOpen = $state(false);
-  let shared = $state(false);
   let sharedSlug = $state('');
-  let shareUrl = $state('');
   let copyFeedback = $state('');
   let shareError = $state('');
+
+  let shared = $derived(sharedSlug !== '');
+  let shareUrl = $derived(sharedSlug ? `${window.location.origin}/doc/${sharedSlug}` : '');
 
   // Live stats
   let chars = $derived(content.length);
@@ -38,9 +39,7 @@
     try {
       const result = await api.createDocument(content, format);
       sharedSlug = result.slug;
-      shareUrl = `${window.location.origin}/doc/${result.slug}`;
-      shared = true;
-      await copyToClipboard(shareUrl);
+      await copyToClipboard(`${window.location.origin}/doc/${result.slug}`);
     } catch (e) {
       shareError = e instanceof Error ? e.message : 'Failed to create document';
     } finally {
@@ -53,16 +52,14 @@
       await navigator.clipboard.writeText(text);
       copyFeedback = 'Copied!';
     } catch {
-      copyFeedback = '';
+      copyFeedback = 'Select & copy manually';
     }
     setTimeout(() => { copyFeedback = ''; }, 2000);
   }
 
   function newDoc() {
     content = '';
-    shared = false;
     sharedSlug = '';
-    shareUrl = '';
     shareError = '';
     menuOpen = false;
   }

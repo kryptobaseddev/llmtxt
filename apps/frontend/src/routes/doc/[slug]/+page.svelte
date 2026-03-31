@@ -13,7 +13,7 @@
   let { data } = $props();
 
   let activeTab = $state<'content' | 'overview' | 'versions' | 'contributors' | 'approvals'>('content');
-  let rawContent = $state<string | null>(data.rawContent ?? null);
+  let rawContent = $state<string | null>(null);
   let loadingContent = $state(false);
   let activeSection = $state<string | undefined>(undefined);
   let copied = $state(false);
@@ -29,6 +29,7 @@
   let contributorsData = $derived(data.contributors);
   let state = $derived<DocumentState>((doc?.state as DocumentState) || 'DRAFT');
   let isEditable = $derived(state === 'DRAFT' || state === 'REVIEW');
+  let docShareUrl = $derived(`${window.location.origin}/doc/${data.slug}`);
 
   async function loadContent() {
     if (rawContent !== null) return;
@@ -93,7 +94,7 @@
 
   async function copySlug() {
     try {
-      await navigator.clipboard.writeText(`${window.location.origin}/doc/${data.slug}`);
+      await navigator.clipboard.writeText(docShareUrl);
       copied = true;
       setTimeout(() => { copied = false; }, 2000);
     } catch {
@@ -201,7 +202,7 @@
                 <input
                   type="text"
                   readonly
-                  value="{window.location.origin}/doc/{data.slug}"
+                  value={docShareUrl}
                   class="flex-1 bg-transparent text-sm font-display text-base-content/70 outline-none select-all min-w-0"
                   onclick={(e) => (e.target as HTMLInputElement).select()}
                 />
@@ -212,7 +213,7 @@
             </div>
             <div class="shrink-0">
               <img
-                src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data={encodeURIComponent(`${window.location.origin}/doc/${data.slug}`)}&bgcolor=1a1b2e&color=58c7f3&format=svg"
+                src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data={encodeURIComponent(docShareUrl)}&bgcolor=1a1b2e&color=58c7f3&format=svg"
                 alt="QR code"
                 width="100"
                 height="100"

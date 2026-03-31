@@ -3,7 +3,7 @@
  */
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.llmtxt.my';
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+async function request<T>(path: string, options?: RequestInit, responseType: 'json' | 'text' = 'json'): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -13,7 +13,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.message || err.error || `${res.status} ${res.statusText}`);
   }
-  return res.json();
+  return responseType === 'text' ? res.text() as Promise<T> : res.json();
 }
 
 // Documents
@@ -23,8 +23,7 @@ export const api = {
     request<any>('/compress', { method: 'POST', body: JSON.stringify({ content, format }) }),
   getDocument: (slug: string) => request<any>(`/documents/${slug}`),
   getRawContent: (slug: string) =>
-    fetch(`${API_BASE}/documents/${slug}/raw`, { credentials: 'include' })
-      .then(r => r.ok ? r.text() : Promise.reject(new Error(`${r.status}`))),
+    request<string>(`/documents/${slug}/raw`, undefined, 'text'),
   getStats: (slug: string) => request<any>(`/documents/${slug}/stats`),
 
   // Progressive Disclosure

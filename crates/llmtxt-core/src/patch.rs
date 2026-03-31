@@ -106,10 +106,10 @@ pub fn diff_versions(
     from_version: u32,
     to_version: u32,
 ) -> Result<String, String> {
-    let from_content = reconstruct_version(base, patches_json, from_version)?;
-    let to_content = reconstruct_version(base, patches_json, to_version)?;
-    let diff = compute_diff(&from_content, &to_content);
-    let patch_text = create_patch(&from_content, &to_content);
+    let patches: Vec<String> =
+        serde_json::from_str(patches_json).map_err(|e| format!("Invalid patches JSON: {e}"))?;
+    let (diff, patch_text) =
+        diff_versions_native(base, &patches, from_version as usize, to_version as usize)?;
 
     Ok(serde_json::json!({
         "fromVersion": from_version,

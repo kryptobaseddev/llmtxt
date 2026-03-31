@@ -6,13 +6,12 @@ export const prerender = false;
 export const load: PageLoad = async ({ params }) => {
   const { slug } = params;
 
-  const [doc, overview, versions, approvals, contributors, rawContent] = await Promise.allSettled([
+  const [doc, overview, versions, approvals, contributors] = await Promise.allSettled([
     api.getDocument(slug),
     api.getOverview(slug),
     api.getVersions(slug),
     api.getApprovals(slug),
     api.getContributors(slug),
-    api.getRawContent(slug),
   ]);
 
   return {
@@ -22,6 +21,5 @@ export const load: PageLoad = async ({ params }) => {
     versions: versions.status === 'fulfilled' ? versions.value : null,
     approvals: approvals.status === 'fulfilled' ? approvals.value : null,
     contributors: contributors.status === 'fulfilled' ? contributors.value : null,
-    rawContent: rawContent.status === 'fulfilled' ? rawContent.value : null,
   };
 };

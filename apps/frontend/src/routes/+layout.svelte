@@ -3,7 +3,6 @@
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { getAuth } from '$lib/stores/auth.svelte';
-	import { api } from '$lib/api/client';
 
 	let { children } = $props();
 
