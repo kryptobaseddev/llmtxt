@@ -25,4 +25,4 @@ COPY --from=build /app/apps/backend/drizzle.config.ts ./apps/backend/
 
 EXPOSE 8080
 ENV PORT=8080
-CMD ["sh", "-c", "cd apps/backend && npx drizzle-kit migrate && node dist/index.js"]
+CMD ["sh", "-c", "cd apps/backend && npx drizzle-kit push --force && node dist/index.js"]
