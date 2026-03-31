@@ -16,7 +16,7 @@
     "forge:build": "forge-ts build",
     "forge:doctor": "forge-ts doctor",
     "prepublishOnly": "forge-ts prepublish",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "dependencies": {
     "@fastify/compress": "^8.0.1",
