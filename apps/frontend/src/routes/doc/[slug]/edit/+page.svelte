@@ -25,7 +25,7 @@
 
   let hasChanges = $derived(modified !== originalContent);
 
-  // Compute a simple unified diff for preview
+  // Compute a simple line diff for preview
   let diffLines = $derived(() => {
     if (!hasChanges) return [];
 
@@ -53,43 +53,16 @@
     return result;
   });
 
-  // Create a unified diff string to send to the API
-  function createPatchText(): string {
-    const oldLines = originalContent.split('\n');
-    const newLines = modified.split('\n');
-    const lines: string[] = [];
-
-    lines.push(`--- a/${data.slug}`);
-    lines.push(`+++ b/${data.slug}`);
-    lines.push(`@@ -1,${oldLines.length} +1,${newLines.length} @@`);
-
-    const maxLen = Math.max(oldLines.length, newLines.length);
-    for (let i = 0; i < maxLen; i++) {
-      const oldLine = i < oldLines.length ? oldLines[i] : undefined;
-      const newLine = i < newLines.length ? newLines[i] : undefined;
-
-      if (oldLine === newLine) {
-        lines.push(` ${oldLine}`);
-      } else {
-        if (oldLine !== undefined) lines.push(`-${oldLine}`);
-        if (newLine !== undefined) lines.push(`+${newLine}`);
-      }
-    }
-
-    return lines.join('\n');
-  }
-
   async function handleSubmit() {
     if (!hasChanges || !changelog.trim()) return;
     submitting = true;
     error = '';
 
     try {
-      const patchText = createPatchText();
-      await api.submitPatch(data.slug, patchText, changelog);
+      await api.updateDocument(data.slug, modified, changelog);
       goto(`/doc/${data.slug}`);
     } catch (e) {
-      error = e instanceof Error ? e.message : 'Patch submission failed';
+      error = e instanceof Error ? e.message : 'Update failed';
     } finally {
       submitting = false;
     }

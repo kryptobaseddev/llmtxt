@@ -48,6 +48,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ patchText, changelog }),
     }),
+  updateDocument: (slug: string, content: string, changelog: string) =>
+    request<any>(`/documents/${slug}`, {
+      method: 'PUT',
+      body: JSON.stringify({ content, changelog }),
+    }),
 
   // Lifecycle
   transition: (slug: string, state: string, reason?: string) =>
