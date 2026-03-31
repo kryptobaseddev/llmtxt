@@ -7,37 +7,37 @@ Type contracts exported by this package: interfaces, type aliases, and enums.
 ## User
 
 ```typescript
-{ id: string; accountType: string; email: string | null; passwordHash: string | null; displayName: string | null; agentId: string | null; createdAt: number; expiresAt: number | null; lastLoginAt: number | null; deletedAt: number | null; }
+{ id: string; name: string; email: string; emailVerified: boolean; image: string | null; createdAt: Date; updatedAt: Date; isAnonymous: boolean | null; agentId: string | null; expiresAt: number | null; }
 ```
 
 ## NewUser
 
 ```typescript
-{ id: string; createdAt: number; accountType?: string | undefined; email?: string | null | undefined; passwordHash?: string | null | undefined; displayName?: string | null | undefined; agentId?: string | null | undefined; expiresAt?: number | null | undefined; lastLoginAt?: number | null | undefined; deletedAt?: number | null | undefined; }
+{ id: string; email: string; createdAt: Date; updatedAt: Date; name?: string | undefined; emailVerified?: boolean | undefined; image?: string | null | undefined; isAnonymous?: boolean | null | undefined; agentId?: string | null | undefined; expiresAt?: number | null | undefined; }
 ```
 
 ## Session
 
 ```typescript
-{ id: string; createdAt: number; expiresAt: number; userId: string; tokenHash: string; userAgent: string | null; ipAddress: string | null; lastActiveAt: number | null; }
+{ id: string; createdAt: Date; updatedAt: Date; expiresAt: Date; userId: string; token: string; ipAddress: string | null; userAgent: string | null; }
 ```
 
 ## NewSession
 
 ```typescript
-{ id: string; createdAt: number; expiresAt: number; userId: string; tokenHash: string; userAgent?: string | null | undefined; ipAddress?: string | null | undefined; lastActiveAt?: number | null | undefined; }
+{ id: string; createdAt: Date; updatedAt: Date; expiresAt: Date; userId: string; token: string; ipAddress?: string | null | undefined; userAgent?: string | null | undefined; }
 ```
 
 ## Document
 
 ```typescript
-{ id: string; createdAt: number; expiresAt: number | null; slug: string; format: string; contentHash: string; compressedData: unknown; originalSize: number; compressedSize: number; tokenCount: number | null; accessCount: number; lastAccessedAt: number | null; state: string; ownerId: string | null; isAnonymous: boolean; storageType: string; storageKey: string | null; currentVersion: number; versionCount: number; sharingMode: string; approvalRequiredCount: number; approvalRequireUnanimous: boolean; approvalAllowedReviewers: string; approvalTimeoutMs: number; }
+{ id: string; createdAt: number; isAnonymous: boolean; expiresAt: number | null; slug: string; format: string; contentHash: string; compressedData: unknown; originalSize: number; compressedSize: number; tokenCount: number | null; accessCount: number; lastAccessedAt: number | null; state: string; ownerId: string | null; storageType: string; storageKey: string | null; currentVersion: number; versionCount: number; sharingMode: string; approvalRequiredCount: number; approvalRequireUnanimous: boolean; approvalAllowedReviewers: string; approvalTimeoutMs: number; }
 ```
 
 ## NewDocument
 
 ```typescript
-{ id: string; createdAt: number; slug: string; format: string; contentHash: string; originalSize: number; compressedSize: number; expiresAt?: number | null | undefined; compressedData?: unknown; tokenCount?: number | null | undefined; accessCount?: number | undefined; lastAccessedAt?: number | null | undefined; state?: string | undefined; ownerId?: string | null | undefined; isAnonymous?: boolean | undefined; storageType?: string | undefined; storageKey?: string | null | undefined; currentVersion?: number | undefined; versionCount?: number | undefined; sharingMode?: string | undefined; approvalRequiredCount?: number | undefined; approvalRequireUnanimous?: boolean | undefined; approvalAllowedReviewers?: string | undefined; approvalTimeoutMs?: number | undefined; }
+{ id: string; createdAt: number; slug: string; format: string; contentHash: string; originalSize: number; compressedSize: number; isAnonymous?: boolean | undefined; expiresAt?: number | null | undefined; compressedData?: unknown; tokenCount?: number | null | undefined; accessCount?: number | undefined; lastAccessedAt?: number | null | undefined; state?: string | undefined; ownerId?: string | null | undefined; storageType?: string | undefined; storageKey?: string | null | undefined; currentVersion?: number | undefined; versionCount?: number | undefined; sharingMode?: string | undefined; approvalRequiredCount?: number | undefined; approvalRequireUnanimous?: boolean | undefined; approvalAllowedReviewers?: string | undefined; approvalTimeoutMs?: number | undefined; }
 ```
 
 ## Version
@@ -79,25 +79,25 @@ Type contracts exported by this package: interfaces, type aliases, and enums.
 ## Contributor
 
 ```typescript
-{ id: string; displayName: string | null; agentId: string; documentId: string; versionsAuthored: number; totalTokensAdded: number; totalTokensRemoved: number; netTokens: number; firstContribution: number; lastContribution: number; sectionsModified: string; }
+{ id: string; agentId: string; documentId: string; versionsAuthored: number; totalTokensAdded: number; totalTokensRemoved: number; netTokens: number; firstContribution: number; lastContribution: number; sectionsModified: string; displayName: string | null; }
 ```
 
 ## NewContributor
 
 ```typescript
-{ id: string; agentId: string; documentId: string; firstContribution: number; lastContribution: number; displayName?: string | null | undefined; versionsAuthored?: number | undefined; totalTokensAdded?: number | undefined; totalTokensRemoved?: number | undefined; netTokens?: number | undefined; sectionsModified?: string | undefined; }
+{ id: string; agentId: string; documentId: string; firstContribution: number; lastContribution: number; versionsAuthored?: number | undefined; totalTokensAdded?: number | undefined; totalTokensRemoved?: number | undefined; netTokens?: number | undefined; sectionsModified?: string | undefined; displayName?: string | null | undefined; }
 ```
 
 ## SignedUrlToken
 
 ```typescript
-{ id: string; agentId: string; createdAt: number; expiresAt: number; slug: string; accessCount: number; lastAccessedAt: number | null; documentId: string; conversationId: string; orgId: string | null; signature: string; signatureLength: number; revoked: boolean; }
+{ id: string; createdAt: number; agentId: string; expiresAt: number; slug: string; accessCount: number; lastAccessedAt: number | null; documentId: string; conversationId: string; orgId: string | null; signature: string; signatureLength: number; revoked: boolean; }
 ```
 
 ## NewSignedUrlToken
 
 ```typescript
-{ id: string; agentId: string; createdAt: number; expiresAt: number; slug: string; documentId: string; conversationId: string; signature: string; accessCount?: number | undefined; lastAccessedAt?: number | null | undefined; orgId?: string | null | undefined; signatureLength?: number | undefined; revoked?: boolean | undefined; }
+{ id: string; createdAt: number; agentId: string; expiresAt: number; slug: string; documentId: string; conversationId: string; signature: string; accessCount?: number | undefined; lastAccessedAt?: number | null | undefined; orgId?: string | null | undefined; signatureLength?: number | undefined; revoked?: boolean | undefined; }
 ```
 
 ## VersionAttribution
@@ -115,37 +115,37 @@ Type contracts exported by this package: interfaces, type aliases, and enums.
 ## InsertUser
 
 ```typescript
-{ id: string; createdAt: number; accountType?: string | undefined; email?: string | null | undefined; passwordHash?: string | null | undefined; displayName?: string | null | undefined; agentId?: string | null | undefined; expiresAt?: number | null | undefined; lastLoginAt?: number | null | undefined; deletedAt?: number | null | undefined; }
+{ id: string; email: string; createdAt: Date; updatedAt: Date; name?: string | undefined; emailVerified?: boolean | undefined; image?: string | null | undefined; isAnonymous?: boolean | null | undefined; agentId?: string | null | undefined; expiresAt?: number | null | undefined; }
 ```
 
 ## SelectUser
 
 ```typescript
-{ id: string; accountType: string; email: string | null; passwordHash: string | null; displayName: string | null; agentId: string | null; createdAt: number; expiresAt: number | null; lastLoginAt: number | null; deletedAt: number | null; }
+{ id: string; name: string; email: string; emailVerified: boolean; image: string | null; createdAt: Date; updatedAt: Date; isAnonymous: boolean | null; agentId: string | null; expiresAt: number | null; }
 ```
 
 ## InsertSession
 
 ```typescript
-{ id: string; createdAt: number; expiresAt: number; userId: string; tokenHash: string; userAgent?: string | null | undefined; ipAddress?: string | null | undefined; lastActiveAt?: number | null | undefined; }
+{ id: string; createdAt: Date; updatedAt: Date; expiresAt: Date; userId: string; token: string; ipAddress?: string | null | undefined; userAgent?: string | null | undefined; }
 ```
 
 ## SelectSession
 
 ```typescript
-{ id: string; createdAt: number; expiresAt: number; userId: string; tokenHash: string; userAgent: string | null; ipAddress: string | null; lastActiveAt: number | null; }
+{ id: string; createdAt: Date; updatedAt: Date; expiresAt: Date; userId: string; token: string; ipAddress: string | null; userAgent: string | null; }
 ```
 
 ## InsertDocument
 
 ```typescript
-{ id: string; createdAt: number; slug: string; format: string; contentHash: string; originalSize: number; compressedSize: number; expiresAt?: number | null | undefined; compressedData?: any; tokenCount?: number | null | undefined; accessCount?: number | undefined; lastAccessedAt?: number | null | undefined; state?: string | undefined; ownerId?: string | null | undefined; isAnonymous?: boolean | undefined; storageType?: string | undefined; storageKey?: string | null | undefined; currentVersion?: number | undefined; versionCount?: number | undefined; sharingMode?: string | undefined; approvalRequiredCount?: number | undefined; approvalRequireUnanimous?: boolean | undefined; approvalAllowedReviewers?: string | undefined; approvalTimeoutMs?: number | undefined; }
+{ id: string; createdAt: number; slug: string; format: string; contentHash: string; originalSize: number; compressedSize: number; isAnonymous?: boolean | undefined; expiresAt?: number | null | undefined; compressedData?: any; tokenCount?: number | null | undefined; accessCount?: number | undefined; lastAccessedAt?: number | null | undefined; state?: string | undefined; ownerId?: string | null | undefined; storageType?: string | undefined; storageKey?: string | null | undefined; currentVersion?: number | undefined; versionCount?: number | undefined; sharingMode?: string | undefined; approvalRequiredCount?: number | undefined; approvalRequireUnanimous?: boolean | undefined; approvalAllowedReviewers?: string | undefined; approvalTimeoutMs?: number | undefined; }
 ```
 
 ## SelectDocument
 
 ```typescript
-{ id: string; createdAt: number; expiresAt: number | null; slug: string; format: string; contentHash: string; originalSize: number; compressedSize: number; tokenCount: number | null; accessCount: number; lastAccessedAt: number | null; state: string; ownerId: string | null; isAnonymous: boolean; storageType: string; storageKey: string | null; currentVersion: number; versionCount: number; sharingMode: string; approvalRequiredCount: number; approvalRequireUnanimous: boolean; approvalAllowedReviewers: string; approvalTimeoutMs: number; compressedData?: any; }
+{ id: string; createdAt: number; isAnonymous: boolean; expiresAt: number | null; slug: string; format: string; contentHash: string; originalSize: number; compressedSize: number; tokenCount: number | null; accessCount: number; lastAccessedAt: number | null; state: string; ownerId: string | null; storageType: string; storageKey: string | null; currentVersion: number; versionCount: number; sharingMode: string; approvalRequiredCount: number; approvalRequireUnanimous: boolean; approvalAllowedReviewers: string; approvalTimeoutMs: number; compressedData?: any; }
 ```
 
 ## InsertVersion
@@ -187,25 +187,25 @@ Type contracts exported by this package: interfaces, type aliases, and enums.
 ## InsertContributor
 
 ```typescript
-{ id: string; agentId: string; documentId: string; firstContribution: number; lastContribution: number; displayName?: string | null | undefined; versionsAuthored?: number | undefined; totalTokensAdded?: number | undefined; totalTokensRemoved?: number | undefined; netTokens?: number | undefined; sectionsModified?: string | undefined; }
+{ id: string; agentId: string; documentId: string; firstContribution: number; lastContribution: number; versionsAuthored?: number | undefined; totalTokensAdded?: number | undefined; totalTokensRemoved?: number | undefined; netTokens?: number | undefined; sectionsModified?: string | undefined; displayName?: string | null | undefined; }
 ```
 
 ## SelectContributor
 
 ```typescript
-{ id: string; displayName: string | null; agentId: string; documentId: string; versionsAuthored: number; totalTokensAdded: number; totalTokensRemoved: number; netTokens: number; firstContribution: number; lastContribution: number; sectionsModified: string; }
+{ id: string; agentId: string; documentId: string; versionsAuthored: number; totalTokensAdded: number; totalTokensRemoved: number; netTokens: number; firstContribution: number; lastContribution: number; sectionsModified: string; displayName: string | null; }
 ```
 
 ## InsertSignedUrlToken
 
 ```typescript
-{ id: string; agentId: string; createdAt: number; expiresAt: number; slug: string; documentId: string; conversationId: string; signature: string; accessCount?: number | undefined; lastAccessedAt?: number | null | undefined; orgId?: string | null | undefined; signatureLength?: number | undefined; revoked?: boolean | undefined; }
+{ id: string; createdAt: number; agentId: string; expiresAt: number; slug: string; documentId: string; conversationId: string; signature: string; accessCount?: number | undefined; lastAccessedAt?: number | null | undefined; orgId?: string | null | undefined; signatureLength?: number | undefined; revoked?: boolean | undefined; }
 ```
 
 ## SelectSignedUrlToken
 
 ```typescript
-{ id: string; agentId: string; createdAt: number; expiresAt: number; slug: string; accessCount: number; lastAccessedAt: number | null; documentId: string; conversationId: string; orgId: string | null; signature: string; signatureLength: number; revoked: boolean; }
+{ id: string; createdAt: number; agentId: string; expiresAt: number; slug: string; accessCount: number; lastAccessedAt: number | null; documentId: string; conversationId: string; orgId: string | null; signature: string; signatureLength: number; revoked: boolean; }
 ```
 
 ## InsertVersionAttribution

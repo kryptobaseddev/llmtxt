@@ -2,10 +2,10 @@
   "$schema": "https://ckm.dev/schemas/v2.json",
   "version": "2.0.0",
   "meta": {
-    "project": "@llmtxt/web",
+    "project": "@llmtxt/backend",
     "language": "typescript",
     "generator": "forge-ts@1.0.0",
-    "generated": "2026-03-31T04:31:58.145Z"
+    "generated": "2026-03-31T17:01:14.548Z"
   },
   "concepts": [
     {

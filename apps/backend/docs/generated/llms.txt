@@ -1,11 +1,11 @@
-# @llmtxt/web
-> API documentation for @llmtxt/web
+# @llmtxt/backend
+> API documentation for @llmtxt/backend
 > Version: 1.0.0
 
 ## Install
 
 ```bash
-npm install -D @llmtxt/web
+npm install -D @llmtxt/backend
 ```
 
 ## Documentation
@@ -16,7 +16,7 @@ npm install -D @llmtxt/web
 ## Packages
 
 ### main
-27 functions, 36 types, 32 variables
+27 functions, 36 types, 34 variables
 
 - getDocumentCacheKey() — Generate cache key for a document
 - shouldSkipCache() — Check if cache should be skipped based on query params
@@ -85,6 +85,8 @@ npm install -D @llmtxt/web
 
 - users — Users table - supports both anonymous (24hr TTL) and registered accounts.  Anonymous users get a generated ID and no credentials. They are auto-purged after `expiresAt`. Registered users provide email/password and persist indefinitely until explicitly deleted.
 - sessions — Sessions table - server-side session tokens for both user types.  Anonymous users get a session on first document creation. Registered users get a session on login. Sessions are invalidated on logout or expiration.
+- accounts — Accounts table — better-auth manages OAuth and credential providers.
+- verifications — Verifications table — better-auth email verification and password reset tokens.
 - documents — Documents table - stores compressed text documents.  Extended with lifecycle state, ownership, anonymous flag, storage mode, version tracking, and approval policy to support the full SDK feature set (lifecycle, consensus, versioning, signed URLs).
 - versions — Versions table - tracks document version history with patch support.  Extended with patchText for incremental storage (SDK VersionEntry), storage mode, and base version reference for patch chains.
 - stateTransitions — State transitions table - audit trail for document lifecycle changes.  Maps directly to the SDK StateTransition interface. Every call to `LlmtxtDocument.transition()` inserts a row here.
