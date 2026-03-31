@@ -12,6 +12,13 @@ API_LLMS="$ROOT_DIR/apps/backend/docs/generated/llms.txt"
 API_FULL="$ROOT_DIR/apps/backend/docs/generated/llms-full.txt"
 API_SPEC="$ROOT_DIR/apps/backend/public/llms.txt"
 
+# Skip regeneration if source files aren't available (e.g. RAILPACK build
+# which only has apps/docs/). The committed public/ files are used instead.
+if [ ! -f "$SDK_LLMS" ] && [ ! -f "$API_LLMS" ]; then
+  echo "Source files not found (isolated build context). Using committed public/ files."
+  exit 0
+fi
+
 mkdir -p "$DOCS_DIR/public"
 
 # Generate llms.txt (combined index)
