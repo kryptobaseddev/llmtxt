@@ -1,0 +1,28 @@
+{
+  "description": "Cross-language test vectors for document lifecycle state machine",
+  "version": "2026.4.0",
+  "validTransitions": [
+    { "from": "DRAFT", "to": "REVIEW", "valid": true },
+    { "from": "DRAFT", "to": "LOCKED", "valid": true },
+    { "from": "REVIEW", "to": "DRAFT", "valid": true },
+    { "from": "REVIEW", "to": "LOCKED", "valid": true },
+    { "from": "LOCKED", "to": "ARCHIVED", "valid": true }
+  ],
+  "invalidTransitions": [
+    { "from": "DRAFT", "to": "ARCHIVED", "valid": false },
+    { "from": "DRAFT", "to": "DRAFT", "valid": false },
+    { "from": "REVIEW", "to": "REVIEW", "valid": false },
+    { "from": "REVIEW", "to": "ARCHIVED", "valid": false },
+    { "from": "LOCKED", "to": "DRAFT", "valid": false },
+    { "from": "LOCKED", "to": "REVIEW", "valid": false },
+    { "from": "LOCKED", "to": "LOCKED", "valid": false },
+    { "from": "ARCHIVED", "to": "DRAFT", "valid": false },
+    { "from": "ARCHIVED", "to": "REVIEW", "valid": false },
+    { "from": "ARCHIVED", "to": "LOCKED", "valid": false },
+    { "from": "ARCHIVED", "to": "ARCHIVED", "valid": false }
+  ],
+  "editableStates": ["DRAFT", "REVIEW"],
+  "nonEditableStates": ["LOCKED", "ARCHIVED"],
+  "terminalStates": ["ARCHIVED"],
+  "nonTerminalStates": ["DRAFT", "REVIEW", "LOCKED"]
+}

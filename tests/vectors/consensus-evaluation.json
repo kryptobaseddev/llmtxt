@@ -1,0 +1,140 @@
+{
+  "description": "Cross-language test vectors for consensus/approval evaluation",
+  "version": "2026.4.0",
+  "cases": [
+    {
+      "name": "single approval meets default policy",
+      "reviews": [
+        { "reviewerId": "agent-1", "status": "APPROVED", "timestamp": 1000000, "atVersion": 1 }
+      ],
+      "policy": {
+        "requiredCount": 1,
+        "requireUnanimous": false,
+        "allowedReviewerIds": [],
+        "timeoutMs": 0
+      },
+      "currentVersion": 1,
+      "now": 2000000,
+      "expected": {
+        "approved": true,
+        "approvedBy": ["agent-1"],
+        "rejectedBy": [],
+        "pendingFrom": [],
+        "staleFrom": []
+      }
+    },
+    {
+      "name": "no reviews with required reviewer",
+      "reviews": [],
+      "policy": {
+        "requiredCount": 1,
+        "requireUnanimous": false,
+        "allowedReviewerIds": ["agent-1"],
+        "timeoutMs": 0
+      },
+      "currentVersion": 1,
+      "now": 2000000,
+      "expected": {
+        "approved": false,
+        "approvedBy": [],
+        "rejectedBy": [],
+        "pendingFrom": ["agent-1"],
+        "staleFrom": []
+      }
+    },
+    {
+      "name": "rejection overrides approval count",
+      "reviews": [
+        { "reviewerId": "agent-1", "status": "APPROVED", "timestamp": 1000000, "atVersion": 1 },
+        { "reviewerId": "agent-2", "status": "REJECTED", "timestamp": 1000000, "atVersion": 1 }
+      ],
+      "policy": {
+        "requiredCount": 1,
+        "requireUnanimous": false,
+        "allowedReviewerIds": [],
+        "timeoutMs": 0
+      },
+      "currentVersion": 1,
+      "now": 2000000,
+      "expected": {
+        "approved": false,
+        "rejectedBy": ["agent-2"]
+      }
+    },
+    {
+      "name": "stale review for old version",
+      "reviews": [
+        { "reviewerId": "agent-1", "status": "APPROVED", "timestamp": 1000000, "atVersion": 1 }
+      ],
+      "policy": {
+        "requiredCount": 1,
+        "requireUnanimous": false,
+        "allowedReviewerIds": [],
+        "timeoutMs": 0
+      },
+      "currentVersion": 2,
+      "now": 2000000,
+      "expected": {
+        "approved": false,
+        "approvedBy": [],
+        "staleFrom": ["agent-1"]
+      }
+    },
+    {
+      "name": "timed out review",
+      "reviews": [
+        { "reviewerId": "agent-1", "status": "APPROVED", "timestamp": 1000000, "atVersion": 1 }
+      ],
+      "policy": {
+        "requiredCount": 1,
+        "requireUnanimous": false,
+        "allowedReviewerIds": [],
+        "timeoutMs": 500000
+      },
+      "currentVersion": 1,
+      "now": 2000000,
+      "expected": {
+        "approved": false,
+        "staleFrom": ["agent-1"]
+      }
+    },
+    {
+      "name": "unanimous policy - partial approval",
+      "reviews": [
+        { "reviewerId": "agent-1", "status": "APPROVED", "timestamp": 1000000, "atVersion": 1 }
+      ],
+      "policy": {
+        "requiredCount": 2,
+        "requireUnanimous": true,
+        "allowedReviewerIds": ["agent-1", "agent-2"],
+        "timeoutMs": 0
+      },
+      "currentVersion": 1,
+      "now": 2000000,
+      "expected": {
+        "approved": false,
+        "approvedBy": ["agent-1"],
+        "pendingFrom": ["agent-2"]
+      }
+    },
+    {
+      "name": "unanimous policy - all approved",
+      "reviews": [
+        { "reviewerId": "agent-1", "status": "APPROVED", "timestamp": 1000000, "atVersion": 1 },
+        { "reviewerId": "agent-2", "status": "APPROVED", "timestamp": 1000000, "atVersion": 1 }
+      ],
+      "policy": {
+        "requiredCount": 2,
+        "requireUnanimous": true,
+        "allowedReviewerIds": ["agent-1", "agent-2"],
+        "timeoutMs": 0
+      },
+      "currentVersion": 1,
+      "now": 2000000,
+      "expected": {
+        "approved": true,
+        "approvedBy": ["agent-1", "agent-2"]
+      }
+    }
+  ]
+}

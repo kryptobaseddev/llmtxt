@@ -1,0 +1,90 @@
+{
+  "description": "Cross-language test vectors for patch creation, application, and diff computation",
+  "version": "2026.4.0",
+  "patchRoundtrip": [
+    {
+      "name": "simple addition",
+      "original": "line 1\n",
+      "modified": "line 1\nline 2\n",
+      "expectPatchContains": "@@"
+    },
+    {
+      "name": "simple modification",
+      "original": "Hello world. This is a test.\n",
+      "modified": "Hello beautiful world. This is an awesome test.\n",
+      "expectPatchContains": "@@"
+    }
+  ],
+  "versionReconstruction": [
+    {
+      "name": "three-version chain",
+      "base": "line 1\n",
+      "versions": [
+        "line 1\nline 2\n",
+        "line 1\nline 2\nline 3\n"
+      ],
+      "expectations": {
+        "0": "line 1\n",
+        "1": "line 1\nline 2\n",
+        "2": "line 1\nline 2\nline 3\n"
+      }
+    }
+  ],
+  "diffStats": [
+    {
+      "name": "identical texts",
+      "old": "line 1\nline 2\nline 3",
+      "new": "line 1\nline 2\nline 3",
+      "expected": {
+        "addedLines": 0,
+        "removedLines": 0,
+        "addedTokens": 0,
+        "removedTokens": 0
+      }
+    },
+    {
+      "name": "empty to content",
+      "old": "",
+      "new": "line 1\nline 2",
+      "expected": {
+        "addedLines": 2,
+        "removedLines": 0
+      }
+    },
+    {
+      "name": "content to empty",
+      "old": "line 1\nline 2",
+      "new": "",
+      "expected": {
+        "addedLines": 0,
+        "removedLines": 2
+      }
+    }
+  ],
+  "sectionsModified": [
+    {
+      "name": "single section modified",
+      "old": "# Intro\nHello world\n# Details\nSome details\n",
+      "new": "# Intro\nHello world\n# Details\nModified details\n",
+      "expected": ["Details"]
+    },
+    {
+      "name": "new section added",
+      "old": "# Intro\nHello world\n",
+      "new": "# Intro\nHello world\n# New Section\nNew content\n",
+      "expected": ["New Section"]
+    },
+    {
+      "name": "section removed",
+      "old": "# Intro\nHello world\n# ToRemove\nOld content\n",
+      "new": "# Intro\nHello world\n",
+      "expected": ["ToRemove"]
+    },
+    {
+      "name": "no changes",
+      "old": "# Intro\nHello world\n# Details\nSome details\n",
+      "new": "# Intro\nHello world\n# Details\nSome details\n",
+      "expected": []
+    }
+  ]
+}

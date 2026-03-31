@@ -13,7 +13,7 @@
   let { data } = $props();
 
   let activeTab = $state<'content' | 'overview' | 'versions' | 'contributors' | 'approvals'>('content');
-  let rawContent = $state<string | null>(null);
+  let rawContent = $state<string | null>(data.rawContent ?? null);
   let loadingContent = $state(false);
   let activeSection = $state<string | undefined>(undefined);
   let copied = $state(false);
@@ -89,10 +89,17 @@
     }
   }
 
+  let showSharePanel = $state(false);
+
   async function copySlug() {
-    await navigator.clipboard.writeText(`${window.location.origin}/doc/${data.slug}`);
-    copied = true;
-    setTimeout(() => { copied = false; }, 2000);
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/doc/${data.slug}`);
+      copied = true;
+      setTimeout(() => { copied = false; }, 2000);
+    } catch {
+      // Fallback: select the URL from the share panel
+      showSharePanel = true;
+    }
   }
 
   function handleSelectVersion(version: Version) {
@@ -144,6 +151,12 @@
           <button class="btn btn-ghost btn-sm font-display text-xs" onclick={copySlug}>
             {copied ? 'Copied!' : 'Copy link'}
           </button>
+          <button
+            class="btn btn-ghost btn-sm font-display text-xs"
+            onclick={() => showSharePanel = !showSharePanel}
+          >
+            Share
+          </button>
           {#if isEditable}
             <a href="/doc/{data.slug}/edit" class="btn btn-primary btn-sm font-display text-xs">
               Edit
@@ -177,6 +190,38 @@
           <p class="font-display text-sm mt-0.5">{doc.accessCount}</p>
         </div>
       </div>
+
+      <!-- Share panel -->
+      {#if showSharePanel}
+        <div class="mb-6 p-4 rounded-lg bg-base-200/30 border border-base-content/10 animate-fade-in">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div class="flex-1 min-w-0 space-y-2">
+              <p class="font-display text-xs text-base-content/40 uppercase tracking-wider">Shareable link</p>
+              <div class="flex items-center gap-1 bg-base-300/50 rounded px-3 py-2">
+                <input
+                  type="text"
+                  readonly
+                  value="{window.location.origin}/doc/{data.slug}"
+                  class="flex-1 bg-transparent text-sm font-display text-base-content/70 outline-none select-all min-w-0"
+                  onclick={(e) => (e.target as HTMLInputElement).select()}
+                />
+                <button class="btn btn-ghost btn-xs font-display shrink-0" onclick={copySlug}>
+                  {copied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+            </div>
+            <div class="shrink-0">
+              <img
+                src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data={encodeURIComponent(`${window.location.origin}/doc/${data.slug}`)}&bgcolor=1a1b2e&color=58c7f3&format=svg"
+                alt="QR code"
+                width="100"
+                height="100"
+                class="rounded"
+              />
+            </div>
+          </div>
+        </div>
+      {/if}
 
       <!-- Tabs + Content layout -->
       <div class="flex flex-col lg:flex-row gap-6">

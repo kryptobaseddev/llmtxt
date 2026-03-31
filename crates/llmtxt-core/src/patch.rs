@@ -3,6 +3,8 @@ use diffy::{Patch, apply as diffy_apply, create_patch as diffy_create_patch};
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
+use crate::{DiffResult, compute_diff};
+
 /// Apply a unified diff patch to an original string.
 /// Returns the updated string on success, or an error if the patch is invalid
 /// or fails to apply cleanly.
@@ -88,6 +90,123 @@ pub fn squash_patches(base: &str, patches_json: &str) -> Result<String, String> 
     }
 
     Ok(create_patch(base, &content))
+}
+
+// ── Version Diff ──────────────────────────────────────────────
+
+/// Reconstruct two versions and compute a diff between them.
+///
+/// Returns a JSON string with `fromVersion`, `toVersion`, `addedLines`,
+/// `removedLines`, `addedTokens`, `removedTokens`, and `patchText` fields.
+/// Matches the TypeScript `VersionDiffSummary` interface.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn diff_versions(
+    base: &str,
+    patches_json: &str,
+    from_version: u32,
+    to_version: u32,
+) -> Result<String, String> {
+    let from_content = reconstruct_version(base, patches_json, from_version)?;
+    let to_content = reconstruct_version(base, patches_json, to_version)?;
+    let diff = compute_diff(&from_content, &to_content);
+    let patch_text = create_patch(&from_content, &to_content);
+
+    Ok(serde_json::json!({
+        "fromVersion": from_version,
+        "toVersion": to_version,
+        "addedLines": diff.added_lines(),
+        "removedLines": diff.removed_lines(),
+        "addedTokens": diff.added_tokens(),
+        "removedTokens": diff.removed_tokens(),
+        "patchText": patch_text
+    })
+    .to_string())
+}
+
+/// Native version of [`diff_versions`] that accepts a slice and returns a struct.
+pub fn diff_versions_native(
+    base: &str,
+    patches: &[String],
+    from_version: usize,
+    to_version: usize,
+) -> Result<(DiffResult, String), String> {
+    let from_content = reconstruct_version_native(base, patches, from_version)?;
+    let to_content = reconstruct_version_native(base, patches, to_version)?;
+    let diff = compute_diff(&from_content, &to_content);
+    let patch_text = create_patch(&from_content, &to_content);
+    Ok((diff, patch_text))
+}
+
+// ── Section Change Detection ──────────────────────────────────
+
+/// Split content into sections keyed by their heading name.
+/// Lines before the first heading go under "".
+fn sections_map(content: &str) -> std::collections::HashMap<String, String> {
+    let mut map = std::collections::HashMap::new();
+    let mut current_heading = String::new();
+    let mut current_lines: Vec<&str> = Vec::new();
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('#') {
+            // Save previous section
+            if !current_lines.is_empty() || !current_heading.is_empty() {
+                map.insert(current_heading.clone(), current_lines.join("\n"));
+            }
+            current_heading = trimmed.trim_start_matches('#').trim().to_string();
+            current_lines = Vec::new();
+        } else {
+            current_lines.push(line);
+        }
+    }
+    // Save last section
+    map.insert(current_heading, current_lines.join("\n"));
+    map
+}
+
+/// Compute which markdown sections were modified between two document versions.
+///
+/// Returns a JSON array of section heading names that changed.
+/// Detects added, removed, and modified sections.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn compute_sections_modified(old_content: &str, new_content: &str) -> String {
+    let result = compute_sections_modified_native(old_content, new_content);
+    serde_json::to_string(&result).unwrap_or_else(|_| "[]".to_string())
+}
+
+/// Native version returning a `Vec<String>` of modified section names.
+pub fn compute_sections_modified_native(old_content: &str, new_content: &str) -> Vec<String> {
+    let old_sections = sections_map(old_content);
+    let new_sections = sections_map(new_content);
+
+    let mut modified = Vec::new();
+
+    // Check for modified or removed sections
+    for (name, old_body) in &old_sections {
+        match new_sections.get(name) {
+            Some(new_body) if new_body != old_body => {
+                if !name.is_empty() {
+                    modified.push(name.clone());
+                }
+            }
+            None => {
+                if !name.is_empty() {
+                    modified.push(name.clone());
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Check for new sections
+    for name in new_sections.keys() {
+        if !name.is_empty() && !old_sections.contains_key(name) {
+            modified.push(name.clone());
+        }
+    }
+
+    modified.sort();
+    modified
 }
 
 #[cfg(test)]
@@ -182,5 +301,84 @@ mod tests {
 
         let result = apply_patch("Completely different text\n", &patch);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_diff_versions() {
+        let v0 = "line 1\n";
+        let v1 = "line 1\nline 2\n";
+        let v2 = "line 1\nline 2\nline 3\n";
+
+        let p1 = create_patch(v0, v1);
+        let p2 = create_patch(v1, v2);
+        let patches_json = serde_json::to_string(&vec![p1, p2]).unwrap();
+
+        let result_json = diff_versions(v0, &patches_json, 0, 2).unwrap();
+        let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
+        assert_eq!(result["fromVersion"], 0);
+        assert_eq!(result["toVersion"], 2);
+        assert_eq!(result["addedLines"], 2);
+        assert_eq!(result["removedLines"], 0);
+    }
+
+    #[test]
+    fn test_diff_versions_between_non_zero() {
+        let v0 = "line 1\n";
+        let v1 = "line 1\nline 2\n";
+        let v2 = "line 1\nmodified 2\nline 3\n";
+
+        let p1 = create_patch(v0, v1);
+        let p2 = create_patch(v1, v2);
+        let patches_json = serde_json::to_string(&vec![p1, p2]).unwrap();
+
+        let result_json = diff_versions(v0, &patches_json, 1, 2).unwrap();
+        let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
+        assert_eq!(result["fromVersion"], 1);
+        assert_eq!(result["toVersion"], 2);
+        // "line 2" removed, "modified 2" and "line 3" added
+        assert!(result["addedLines"].as_u64().unwrap() > 0);
+    }
+
+    #[test]
+    fn test_compute_sections_modified_basic() {
+        let old = "# Intro\nHello world\n# Details\nSome details\n";
+        let new = "# Intro\nHello world\n# Details\nModified details\n";
+
+        let result = compute_sections_modified_native(old, new);
+        assert_eq!(result, vec!["Details"]);
+    }
+
+    #[test]
+    fn test_compute_sections_modified_new_section() {
+        let old = "# Intro\nHello world\n";
+        let new = "# Intro\nHello world\n# New Section\nNew content\n";
+
+        let result = compute_sections_modified_native(old, new);
+        assert_eq!(result, vec!["New Section"]);
+    }
+
+    #[test]
+    fn test_compute_sections_modified_removed_section() {
+        let old = "# Intro\nHello world\n# ToRemove\nOld content\n";
+        let new = "# Intro\nHello world\n";
+
+        let result = compute_sections_modified_native(old, new);
+        assert_eq!(result, vec!["ToRemove"]);
+    }
+
+    #[test]
+    fn test_compute_sections_modified_no_changes() {
+        let content = "# Intro\nHello world\n# Details\nSome details\n";
+        let result = compute_sections_modified_native(content, content);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_compute_sections_modified_wasm_json() {
+        let old = "# A\ntext\n# B\ntext\n";
+        let new = "# A\nchanged\n# B\ntext\n";
+        let json = compute_sections_modified(old, new);
+        let result: Vec<String> = serde_json::from_str(&json).unwrap();
+        assert_eq!(result, vec!["A"]);
     }
 }

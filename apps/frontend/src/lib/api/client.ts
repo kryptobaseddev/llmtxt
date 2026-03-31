@@ -20,9 +20,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const api = {
   // Core
   createDocument: (content: string, format = 'text') =>
-    request<any>('/documents', { method: 'POST', body: JSON.stringify({ content, format }) }),
+    request<any>('/compress', { method: 'POST', body: JSON.stringify({ content, format }) }),
   getDocument: (slug: string) => request<any>(`/documents/${slug}`),
-  getRawContent: (slug: string) => request<any>(`/documents/${slug}/raw`),
+  getRawContent: (slug: string) =>
+    fetch(`${API_BASE}/documents/${slug}/raw`, { credentials: 'include' })
+      .then(r => r.ok ? r.text() : Promise.reject(new Error(`${r.status}`))),
   getStats: (slug: string) => request<any>(`/documents/${slug}/stats`),
 
   // Progressive Disclosure

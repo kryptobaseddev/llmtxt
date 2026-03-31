@@ -31,8 +31,21 @@ pub use native_signed_url::{
 
 mod patch;
 pub use patch::{
-    apply_patch, create_patch, reconstruct_version, reconstruct_version_native, squash_patches,
-    squash_patches_native,
+    apply_patch, compute_sections_modified, compute_sections_modified_native, create_patch,
+    diff_versions, diff_versions_native, reconstruct_version, reconstruct_version_native,
+    squash_patches, squash_patches_native,
+};
+
+mod lifecycle;
+pub use lifecycle::{
+    DocumentState, is_editable, is_editable_str, is_terminal, is_terminal_str, is_valid_transition,
+    is_valid_transition_str, validate_transition,
+};
+
+mod consensus;
+pub use consensus::{
+    ApprovalPolicy, ApprovalResult, Review, evaluate_approvals, evaluate_approvals_native,
+    mark_stale_reviews, mark_stale_reviews_native,
 };
 
 type HmacSha256 = Hmac<Sha256>;

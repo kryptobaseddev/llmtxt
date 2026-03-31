@@ -1,13 +1,15 @@
 <script lang="ts">
   import { api } from '$lib/api/client';
   import { goto } from '$app/navigation';
-  import { onMount } from 'svelte';
 
   let content = $state('');
   let submitting = $state(false);
   let menuOpen = $state(false);
   let shared = $state(false);
   let sharedSlug = $state('');
+  let shareUrl = $state('');
+  let copyFeedback = $state('');
+  let shareError = $state('');
 
   // Live stats
   let chars = $derived(content.length);
@@ -29,35 +31,39 @@
     return `${(b / 1024).toFixed(1)} KB`;
   }
 
-  // Auto-create anonymous session on mount
-  onMount(async () => {
-    const session = await api.getSession();
-    if (!session?.user) {
-      try { await api.signInAnonymous(); } catch {}
-    }
-  });
-
   async function share() {
     if (!content.trim()) return;
     submitting = true;
+    shareError = '';
     try {
       const result = await api.createDocument(content, format);
       sharedSlug = result.slug;
+      shareUrl = `${window.location.origin}/doc/${result.slug}`;
       shared = true;
-      await navigator.clipboard.writeText(`${window.location.origin}/doc/${result.slug}`);
+      await copyToClipboard(shareUrl);
     } catch (e) {
-      // fallback: store in URL hash
-      const encoded = btoa(JSON.stringify({ c: content, t: Date.now() }));
-      window.location.hash = encoded;
+      shareError = e instanceof Error ? e.message : 'Failed to create document';
     } finally {
       submitting = false;
     }
+  }
+
+  async function copyToClipboard(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      copyFeedback = 'Copied!';
+    } catch {
+      copyFeedback = '';
+    }
+    setTimeout(() => { copyFeedback = ''; }, 2000);
   }
 
   function newDoc() {
     content = '';
     shared = false;
     sharedSlug = '';
+    shareUrl = '';
+    shareError = '';
     menuOpen = false;
   }
 
@@ -76,9 +82,37 @@
     {#if shared}
       <!-- Shared confirmation overlay -->
       <div class="absolute inset-0 flex items-center justify-center z-10 bg-base-100/80 backdrop-blur-sm animate-fade-in">
-        <div class="text-center space-y-4">
+        <div class="text-center space-y-5 max-w-sm px-4">
           <div class="font-display text-4xl text-primary">{sharedSlug}</div>
-          <p class="text-base-content/40 text-sm">Link copied to clipboard</p>
+
+          <!-- Copyable URL field -->
+          <div class="flex items-center gap-1 bg-base-200 rounded-lg border border-base-content/10 px-3 py-2">
+            <input
+              type="text"
+              readonly
+              value={shareUrl}
+              class="flex-1 bg-transparent text-sm font-display text-base-content/70 outline-none select-all min-w-0"
+              onclick={(e) => (e.target as HTMLInputElement).select()}
+            />
+            <button
+              class="btn btn-ghost btn-xs font-display shrink-0"
+              onclick={() => copyToClipboard(shareUrl)}
+            >
+              {copyFeedback || 'Copy'}
+            </button>
+          </div>
+
+          <!-- QR Code -->
+          <div class="flex justify-center">
+            <img
+              src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data={encodeURIComponent(shareUrl)}&bgcolor=1a1b2e&color=58c7f3&format=svg"
+              alt="QR code for {sharedSlug}"
+              width="120"
+              height="120"
+              class="rounded-lg"
+            />
+          </div>
+
           <div class="flex gap-2 justify-center">
             <button class="btn btn-primary btn-sm font-display" onclick={viewShared}>
               View document
@@ -88,6 +122,13 @@
             </button>
           </div>
         </div>
+      </div>
+    {/if}
+
+    {#if shareError}
+      <div class="absolute top-4 left-1/2 -translate-x-1/2 z-20 alert alert-error text-sm font-display max-w-sm animate-fade-in">
+        <span>{shareError}</span>
+        <button class="btn btn-ghost btn-xs" onclick={() => shareError = ''}>dismiss</button>
       </div>
     {/if}
 
