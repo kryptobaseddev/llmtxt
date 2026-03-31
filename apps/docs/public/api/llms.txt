@@ -1,0 +1,465 @@
+# LLMtxt API Specification
+
+## Overview
+LLMtxt is a text document sharing service optimized for LLM agents.
+Store documents, share short URLs, and query only the parts you need.
+Progressive disclosure dramatically reduces token costs: instead of
+reading a 10,000-line document, query just the 50 lines you need.
+
+## Base URL
+https://api.llmtxt.my
+
+## Web Interface
+https://www.llmtxt.my
+
+## Authentication
+No authentication required for basic usage.
+Rate limits: 100 requests/minute per IP.
+
+## Quick Start for Agents
+
+1. Store a document:
+   POST /compress {"content": "..."}
+   → Returns {"slug": "abc123", "url": "..."}
+
+2. See what's inside (without reading it all):
+   GET /documents/abc123/overview
+   → Returns structure, sections, token count
+
+3. Query only what you need:
+   GET /documents/abc123/lines?start=1&end=50
+   GET /documents/abc123/search?q=authentication
+   GET /documents/abc123/query?path=$.users[0]
+   GET /documents/abc123/sections/Authentication
+
+4. Get raw content (plain text, no JSON wrapper):
+   GET /documents/abc123/raw
+
+## Token Savings Headers
+All progressive disclosure endpoints return these headers:
+- X-Token-Count: tokens in the returned content
+- X-Total-Tokens: tokens in the full document
+- X-Tokens-Saved: tokens you did NOT need to read
+
+## Endpoints
+
+### Create Document
+POST /compress
+Content-Type: application/json
+
+Request:
+{
+  "content": "string (required) - Document content",
+  "format": "string (optional) - 'json' or 'text', auto-detected if omitted",
+  "schema": "string (optional) - 'prompt-v1' for OpenAI/Anthropic validation"
+}
+
+Response (201):
+{
+  "slug": "string - 8-character document ID",
+  "url": "string - Full URL to document",
+  "format": "string - 'json' or 'text'",
+  "tokenCount": "number - Estimated token count",
+  "compressionRatio": "number - Compression efficiency",
+  "originalSize": "number - Size in bytes before compression",
+  "compressedSize": "number - Size in bytes after compression"
+}
+
+### Retrieve Full Document
+POST /decompress
+Content-Type: application/json
+
+Request:
+{
+  "slug": "string (required) - Document slug"
+}
+
+Response (200):
+{
+  "slug": "string",
+  "content": "string - Original content",
+  "format": "string",
+  "tokenCount": "number",
+  "createdAt": "number - Unix timestamp"
+}
+
+### Get Document Metadata
+GET /documents/:slug
+
+Response (200):
+{
+  "slug": "string",
+  "format": "string",
+  "tokenCount": "number",
+  "compressionRatio": "number",
+  "originalSize": "number",
+  "compressedSize": "number",
+  "createdAt": "number",
+  "accessCount": "number"
+}
+
+## Progressive Disclosure Endpoints
+
+These endpoints let agents read only what they need from a document.
+
+### Document Overview
+GET /documents/:slug/overview
+
+Returns document structure without the full content. Use this first
+to understand what's in a document before drilling in.
+
+Response (200):
+{
+  "slug": "string",
+  "format": "json | markdown | code | text",
+  "lineCount": "number",
+  "tokenCount": "number",
+  "sections": [
+    {
+      "title": "string - Section name",
+      "depth": "number - Nesting level (0 = top)",
+      "startLine": "number - 1-indexed",
+      "endLine": "number - 1-indexed inclusive",
+      "tokenCount": "number",
+      "type": "heading | json-key | code-block | function | class"
+    }
+  ],
+  "keys": "array (JSON only) - Top-level keys with types and previews",
+  "toc": "array (Markdown only) - Table of contents"
+}
+
+### Line Range
+GET /documents/:slug/lines?start=1&end=50
+
+Fetch specific lines from the document.
+
+Query params:
+- start: 1-indexed start line (default: 1)
+- end: 1-indexed end line, inclusive (default: 50)
+
+Response (200):
+{
+  "slug": "string",
+  "startLine": "number",
+  "endLine": "number",
+  "content": "string",
+  "tokenCount": "number - Tokens in returned content",
+  "totalLines": "number - Total lines in document",
+  "totalTokens": "number - Total tokens in document",
+  "tokensSaved": "number - Tokens NOT sent"
+}
+
+### Search
+GET /documents/:slug/search?q=auth&context=2&max=20
+
+Search within a document. Supports plain text and /regex/ patterns.
+
+Query params:
+- q: search query (string or /regex/flags)
+- context: lines of context around matches (default: 2, max: 10)
+- max: maximum results (default: 20, max: 100)
+
+Response (200):
+{
+  "slug": "string",
+  "query": "string",
+  "resultCount": "number",
+  "tokenCount": "number",
+  "totalTokens": "number",
+  "tokensSaved": "number",
+  "results": [
+    {
+      "line": "number - 1-indexed line number",
+      "content": "string - Matching line",
+      "contextBefore": "string[] - Lines before match",
+      "contextAfter": "string[] - Lines after match"
+    }
+  ]
+}
+
+### JSONPath Query (JSON documents)
+GET /documents/:slug/query?path=$.users[0].name
+
+Query JSON documents using JSONPath syntax.
+Supports: $.key, $.nested.path, $.array[0], $.array[*]
+
+Query params:
+- path: JSONPath expression
+
+Response (200):
+{
+  "slug": "string",
+  "path": "string",
+  "result": "any - The queried value",
+  "tokenCount": "number",
+  "totalTokens": "number",
+  "tokensSaved": "number"
+}
+
+Error (400):
+{
+  "error": "Query failed",
+  "message": "string - What went wrong (e.g., key not found, index out of bounds)"
+}
+
+### List Sections
+GET /documents/:slug/sections
+
+List all detected sections in the document.
+Sections are auto-detected based on format:
+- Markdown: headers (##)
+- JSON: top-level keys
+- Code: functions, classes
+- Text: paragraphs
+
+Response (200):
+{
+  "slug": "string",
+  "format": "string",
+  "sections": [{ "title", "depth", "startLine", "endLine", "tokenCount", "type" }]
+}
+
+### Get Section by Name
+GET /documents/:slug/sections/:name
+
+Extract a specific section by name.
+
+Response (200):
+{
+  "slug": "string",
+  "section": { "title", "depth", "startLine", "endLine", "tokenCount", "type" },
+  "content": "string - Section content",
+  "tokenCount": "number",
+  "totalTokens": "number",
+  "tokensSaved": "number"
+}
+
+Error (404):
+{
+  "error": "Section not found",
+  "availableSections": ["string - List of section names"]
+}
+
+### Raw Content
+GET /documents/:slug/raw
+GET /documents/:slug/raw?start=1&end=50
+
+Returns plain text content (no JSON wrapper). Optional line range.
+Content-Type: text/plain
+
+## Schemas
+
+### prompt-v1
+Standard LLM prompt format (OpenAI/Anthropic compatible)
+
+Structure:
+{
+  "system": "string (optional) - System prompt",
+  "messages": [
+    {
+      "role": "'system' | 'user' | 'assistant'",
+      "content": "string"
+    }
+  ],
+  "temperature": "number (optional) - 0-2",
+  "max_tokens": "number (optional) - Positive integer"
+}
+
+### List Schemas
+GET /schemas
+
+## Error Handling
+
+All errors return JSON:
+{
+  "error": "string - Error type",
+  "message": "string - Description",
+  "details": "array (optional) - Validation errors"
+}
+
+Status codes: 200, 201, 400, 404, 429, 500
+
+## Example: Progressive Disclosure Workflow
+
+```bash
+# 1. Agent A stores a large config file
+curl -X POST https://api.llmtxt.my/compress \
+  -H "Content-Type: application/json" \
+  -d '{"content": "{\"database\":{\"host\":\"db.example.com\"},\"users\":[...]}"}'
+# → {"slug": "abc123", "tokenCount": 5000}
+
+# 2. Agent A shares the slug with Agent B
+
+# 3. Agent B checks what's in the document (costs ~50 tokens instead of 5000)
+curl https://api.llmtxt.my/documents/abc123/overview
+# → {"format": "json", "keys": [{"key":"database","type":"object{1}"},{"key":"users","type":"array[100]"}]}
+
+# 4. Agent B queries only the database config (costs ~15 tokens)
+curl "https://api.llmtxt.my/documents/abc123/query?path=\$.database"
+# → {"result": {"host": "db.example.com"}, "tokensSaved": 4985}
+
+# 5. Agent B searches for a specific user (costs ~30 tokens)
+curl "https://api.llmtxt.my/documents/abc123/search?q=alice"
+# → {"results": [...], "tokensSaved": 4970}
+```
+
+## Versioning Endpoints
+
+### Update Document (Creates Version)
+PUT /documents/:slug
+Content-Type: application/json
+
+Request:
+{
+  "content": "string (required) - Updated content"
+}
+
+Response (200):
+{
+  "slug": "string",
+  "versionNumber": "number",
+  "contentHash": "string",
+  "tokenCount": "number"
+}
+
+### List Versions
+GET /documents/:slug/versions
+
+### Get Version Content
+GET /documents/:slug/versions/:num
+
+### Diff Between Versions
+GET /documents/:slug/diff?from=1&to=3
+
+Response (200):
+{
+  "fromVersion": "number",
+  "toVersion": "number",
+  "addedLines": "number",
+  "removedLines": "number",
+  "addedTokens": "number",
+  "removedTokens": "number"
+}
+
+### Apply Patch
+POST /documents/:slug/patch
+Auth: Required (registered user)
+
+Request:
+{
+  "patchText": "string (required) - Unified diff",
+  "changelog": "string (required) - Change description"
+}
+
+## Lifecycle Endpoints
+
+### Transition State
+POST /documents/:slug/transition
+Auth: Required (document owner)
+
+Request:
+{
+  "state": "'REVIEW' | 'LOCKED' | 'ARCHIVED'",
+  "reason": "string (optional)"
+}
+
+States: DRAFT → REVIEW → LOCKED → ARCHIVED
+Only DRAFT and REVIEW documents accept patches.
+
+### Approve Document
+POST /documents/:slug/approve
+Auth: Required (registered user)
+
+Request:
+{
+  "comment": "string (optional)"
+}
+
+### Reject Document
+POST /documents/:slug/reject
+Auth: Required (registered user)
+
+Request:
+{
+  "comment": "string (required)"
+}
+
+### List Approvals
+GET /documents/:slug/approvals
+
+### List Contributors
+GET /documents/:slug/contributors
+
+## Similarity Endpoint
+
+### Find Similar Sections
+GET /documents/:slug/similar?q=query&method=ngram&threshold=0
+
+## Knowledge Graph Endpoint
+
+### Extract Mentions/Tags/Directives
+GET /documents/:slug/graph?topicLimit=10&agentLimit=10
+
+## Retrieval Planning Endpoint
+
+### Plan Token-Budget-Aware Retrieval
+POST /documents/:slug/plan-retrieval
+
+Request:
+{
+  "tokenBudget": "number (required)",
+  "query": "string (optional)",
+  "minScore": "number (optional, default 0.5)",
+  "includeIntro": "boolean (optional, default true)"
+}
+
+## Table of Contents
+
+### Lightweight TOC
+GET /documents/:slug/toc
+
+### Batch Section Query
+POST /documents/:slug/batch
+
+Request:
+{
+  "sections": ["string[] - Section names to retrieve"]
+}
+
+## Signed URLs
+
+### Generate Signed URL
+POST /signed-urls
+Auth: Required (document owner)
+
+Request:
+{
+  "slug": "string",
+  "agentId": "string",
+  "conversationId": "string",
+  "expiresIn": "number (ms, default 3600000)"
+}
+
+## Authentication
+
+### Sign Up
+POST /auth/sign-up/email
+{"email": "string", "password": "string", "name": "string (optional)"}
+
+### Sign In
+POST /auth/sign-in/email
+{"email": "string", "password": "string"}
+
+### Anonymous Session
+POST /auth/sign-in/anonymous
+{}
+
+### Get Session
+GET /auth/get-session
+
+### Sign Out
+POST /auth/sign-out
+
+## Version
+API Version: 2026.4.1
+Last Updated: 2026-03-31

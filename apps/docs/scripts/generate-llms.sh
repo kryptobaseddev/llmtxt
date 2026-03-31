@@ -1,6 +1,7 @@
 #!/bin/bash
-# Combine forge-ts generated docs into public/llms.txt and public/llms-full.txt
-# Run before `next build` so they're served as static files.
+# Copy forge-ts generated docs into public/ for static serving.
+# Run before `next build`. Skips if source files aren't available
+# (RAILPACK isolated build) — uses committed files instead.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DOCS_DIR="$(dirname "$SCRIPT_DIR")"
@@ -12,58 +13,20 @@ API_LLMS="$ROOT_DIR/apps/backend/docs/generated/llms.txt"
 API_FULL="$ROOT_DIR/apps/backend/docs/generated/llms-full.txt"
 API_SPEC="$ROOT_DIR/apps/backend/public/llms.txt"
 
-# Skip regeneration if source files aren't available (e.g. RAILPACK build
-# which only has apps/docs/). The committed public/ files are used instead.
-if [ ! -f "$SDK_LLMS" ] && [ ! -f "$API_LLMS" ]; then
+# Skip if source files aren't available (isolated build context)
+if [ ! -f "$SDK_LLMS" ] && [ ! -f "$API_SPEC" ]; then
   echo "Source files not found (isolated build context). Using committed public/ files."
   exit 0
 fi
 
-mkdir -p "$DOCS_DIR/public"
+mkdir -p "$DOCS_DIR/public/api" "$DOCS_DIR/public/sdk"
 
-# Generate llms.txt (combined index)
-{
-  echo "# LLMtxt Documentation"
-  echo "> SDK and API reference for llmtxt — context sharing for AI agents"
-  echo ""
-  echo "## Links"
-  echo "- Web App: https://www.llmtxt.my"
-  echo "- API: https://api.llmtxt.my"
-  echo "- Docs: https://docs.llmtxt.my"
-  echo "- Full context: https://docs.llmtxt.my/llms-full.txt"
-  echo "- GitHub: https://github.com/kryptobaseddev/llmtxt"
-  echo ""
-  echo "---"
-  echo ""
-  echo "# API Specification (api.llmtxt.my)"
-  echo ""
-  [ -f "$API_SPEC" ] && cat "$API_SPEC"
-  echo ""
-  echo "---"
-  echo ""
-  echo "# SDK Reference (npm: llmtxt)"
-  echo ""
-  [ -f "$SDK_LLMS" ] && cat "$SDK_LLMS"
-  echo ""
-  echo "---"
-  echo ""
-  echo "# Backend Internals (@llmtxt/backend)"
-  echo ""
-  [ -f "$API_LLMS" ] && cat "$API_LLMS"
-} > "$DOCS_DIR/public/llms.txt"
+# API docs (hand-written spec + forge-ts internals)
+[ -f "$API_SPEC" ] && cp "$API_SPEC" "$DOCS_DIR/public/api/llms.txt"
+[ -f "$API_FULL" ] && cp "$API_FULL" "$DOCS_DIR/public/api/llms-full.txt"
 
-# Generate llms-full.txt (complete context)
-{
-  echo "# LLMtxt — Full Context"
-  echo "> Complete SDK and API documentation for deep LLM consumption"
-  echo ""
-  echo "---"
-  echo ""
-  [ -f "$SDK_FULL" ] && cat "$SDK_FULL"
-  echo ""
-  echo "---"
-  echo ""
-  [ -f "$API_FULL" ] && cat "$API_FULL"
-} > "$DOCS_DIR/public/llms-full.txt"
+# SDK docs (forge-ts generated from actual code)
+[ -f "$SDK_LLMS" ] && cp "$SDK_LLMS" "$DOCS_DIR/public/sdk/llms.txt"
+[ -f "$SDK_FULL" ] && cp "$SDK_FULL" "$DOCS_DIR/public/sdk/llms-full.txt"
 
-echo "Generated public/llms.txt and public/llms-full.txt"
+echo "Generated public/api/ and public/sdk/ llms files"
