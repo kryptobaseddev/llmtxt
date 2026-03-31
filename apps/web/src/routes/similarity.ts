@@ -9,6 +9,7 @@ import { generateOverview } from 'llmtxt/disclosure';
 import { rankBySimilarity } from 'llmtxt/similarity';
 import { decompress } from 'llmtxt';
 
+/** Register similarity route: GET /documents/:slug/similar?q=query&method=ngram&threshold=0 to rank document sections by similarity to a query. */
 export async function similarityRoutes(fastify: FastifyInstance) {
   // GET /documents/:slug/similar?q=searchterm
   fastify.get<{

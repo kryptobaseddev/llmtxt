@@ -1,4 +1,4 @@
-// Re-export compression utilities from llmtxt.
+/** Re-export compression, hashing, encoding, and diff utilities from the llmtxt SDK. */
 export {
   encodeBase62,
   decodeBase62,

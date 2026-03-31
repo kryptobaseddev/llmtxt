@@ -1,4 +1,7 @@
-// API routes for document management with dual format validation
+/**
+ * Core document API routes: POST /compress, GET /documents/:slug, POST /decompress,
+ * POST /validate, GET /schemas, POST /search, GET /stats/cache, DELETE /cache.
+ */
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import fs from 'fs';
@@ -58,6 +61,7 @@ function formatValidationErrors(errors: Array<{ path: string; message: string; c
   };
 }
 
+/** Register core document API routes: compress, decompress, validate, search, schemas, and cache management. */
 export async function apiRoutes(fastify: FastifyInstance) {
   // Serve llms.txt at API root for agent auto-discovery
   fastify.get('/llms.txt', async (_request, reply) => {

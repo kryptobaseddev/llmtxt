@@ -303,6 +303,163 @@ curl "https://api.llmtxt.my/documents/abc123/search?q=alice"
 # → {"results": [...], "tokensSaved": 4970}
 ```
 
+## Versioning Endpoints
+
+### Update Document (Creates Version)
+PUT /documents/:slug
+Content-Type: application/json
+
+Request:
+{
+  "content": "string (required) - Updated content"
+}
+
+Response (200):
+{
+  "slug": "string",
+  "versionNumber": "number",
+  "contentHash": "string",
+  "tokenCount": "number"
+}
+
+### List Versions
+GET /documents/:slug/versions
+
+### Get Version Content
+GET /documents/:slug/versions/:num
+
+### Diff Between Versions
+GET /documents/:slug/diff?from=1&to=3
+
+Response (200):
+{
+  "fromVersion": "number",
+  "toVersion": "number",
+  "addedLines": "number",
+  "removedLines": "number",
+  "addedTokens": "number",
+  "removedTokens": "number"
+}
+
+### Apply Patch
+POST /documents/:slug/patch
+Auth: Required (registered user)
+
+Request:
+{
+  "patchText": "string (required) - Unified diff",
+  "changelog": "string (required) - Change description"
+}
+
+## Lifecycle Endpoints
+
+### Transition State
+POST /documents/:slug/transition
+Auth: Required (document owner)
+
+Request:
+{
+  "state": "'REVIEW' | 'LOCKED' | 'ARCHIVED'",
+  "reason": "string (optional)"
+}
+
+States: DRAFT → REVIEW → LOCKED → ARCHIVED
+Only DRAFT and REVIEW documents accept patches.
+
+### Approve Document
+POST /documents/:slug/approve
+Auth: Required (registered user)
+
+Request:
+{
+  "comment": "string (optional)"
+}
+
+### Reject Document
+POST /documents/:slug/reject
+Auth: Required (registered user)
+
+Request:
+{
+  "comment": "string (required)"
+}
+
+### List Approvals
+GET /documents/:slug/approvals
+
+### List Contributors
+GET /documents/:slug/contributors
+
+## Similarity Endpoint
+
+### Find Similar Sections
+GET /documents/:slug/similar?q=query&method=ngram&threshold=0
+
+## Knowledge Graph Endpoint
+
+### Extract Mentions/Tags/Directives
+GET /documents/:slug/graph?topicLimit=10&agentLimit=10
+
+## Retrieval Planning Endpoint
+
+### Plan Token-Budget-Aware Retrieval
+POST /documents/:slug/plan-retrieval
+
+Request:
+{
+  "tokenBudget": "number (required)",
+  "query": "string (optional)",
+  "minScore": "number (optional, default 0.5)",
+  "includeIntro": "boolean (optional, default true)"
+}
+
+## Table of Contents
+
+### Lightweight TOC
+GET /documents/:slug/toc
+
+### Batch Section Query
+POST /documents/:slug/batch
+
+Request:
+{
+  "sections": ["string[] - Section names to retrieve"]
+}
+
+## Signed URLs
+
+### Generate Signed URL
+POST /signed-urls
+Auth: Required (document owner)
+
+Request:
+{
+  "slug": "string",
+  "agentId": "string",
+  "conversationId": "string",
+  "expiresIn": "number (ms, default 3600000)"
+}
+
+## Authentication
+
+### Sign Up
+POST /auth/sign-up/email
+{"email": "string", "password": "string", "name": "string (optional)"}
+
+### Sign In
+POST /auth/sign-in/email
+{"email": "string", "password": "string"}
+
+### Anonymous Session
+POST /auth/sign-in/anonymous
+{}
+
+### Get Session
+GET /auth/get-session
+
+### Sign Out
+POST /auth/sign-out
+
 ## Version
-API Version: 2.0.0
-Last Updated: 2026-03-09
+API Version: 2026.4.1
+Last Updated: 2026-03-31

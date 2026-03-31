@@ -1,3 +1,4 @@
+/** Render the server-side HTML view template for a document page, including meta tags and structured content display. */
 export function renderViewHtml(slug: string, data: any): string {
   const format = data.format || 'text';
   const created = data.createdAt ? new Date(data.createdAt).toLocaleString() : '-';

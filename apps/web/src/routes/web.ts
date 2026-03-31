@@ -1,4 +1,7 @@
-// Simple web routes - slug detection utility
+/**
+ * Web utilities: slug detection, content negotiation, and SSR document rendering.
+ * Handles smart URL routing for /:slug, /:slug.txt, /:slug.json, /:slug.md.
+ */
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { FastifyRequest, FastifyReply } from 'fastify';
@@ -9,6 +12,7 @@ import { decompress } from '../utils/compression.js';
 import { getDocumentCacheKey, contentCache, setCachedContent, shouldSkipCache } from '../middleware/cache.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+/** Absolute path to the public assets directory for static file serving. */
 export const publicDir = path.join(__dirname, '..', '..', 'public');
 
 const BOT_USER_AGENTS = [
@@ -30,6 +34,7 @@ const BOT_USER_AGENTS = [
   'axios',
 ];
 
+/** Fetch a document by slug, resolving content from cache or database with decompression. */
 export async function getDocumentWithContent(slug: string, request: FastifyRequest) {
   const skipCache = shouldSkipCache(request);
   let content: string | undefined;

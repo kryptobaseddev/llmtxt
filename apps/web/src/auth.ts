@@ -9,6 +9,7 @@ import { anonymous } from 'better-auth/plugins';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { db } from './db/index.js';
 
+/** Better-auth instance with email/password + anonymous authentication, cookie-based sessions, and 24hr anonymous user TTL. */
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: 'sqlite' }),
   emailAndPassword: {

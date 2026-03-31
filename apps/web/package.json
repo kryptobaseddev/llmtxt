@@ -10,7 +10,13 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "forge:check": "forge-ts check",
+    "forge:test": "forge-ts test",
+    "forge:build": "forge-ts build",
+    "forge:doctor": "forge-ts doctor",
+    "prepublishOnly": "forge-ts prepublish",
+    "prepare": "husky"
   },
   "dependencies": {
     "@fastify/compress": "^8.0.1",

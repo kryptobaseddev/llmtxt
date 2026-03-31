@@ -1,0 +1,117 @@
+# @llmtxt/web
+> API documentation for @llmtxt/web
+> Version: 1.0.0
+
+## Install
+
+```bash
+npm install -D @llmtxt/web
+```
+
+## Documentation
+
+- [API Reference](./api-reference.md): Full API documentation with signatures and examples
+- [Full Context](./llms-full.txt): Complete symbol documentation for deep LLM consumption
+
+## Packages
+
+### main
+27 functions, 36 types, 32 variables
+
+- getDocumentCacheKey() — Generate cache key for a document
+- shouldSkipCache() — Check if cache should be skipped based on query params
+- cacheDocumentContent() — Middleware to cache document content Usage: app.get('/documents/:slug', cacheDocumentContent, async (request, reply) =  ... )
+- cacheDocumentMetadata() — Middleware to cache document metadata
+- setCachedContent() — Store document content in cache
+- setCachedMetadata() — Store document metadata in cache
+- invalidateDocumentCache() — Invalidate cache for a document
+- invalidateAllCache() — Invalidate all cache
+- getCacheStats() — Get cache stats for both caches
+- apiRoutes() — Register core document API routes: compress, decompress, validate, search, schemas, and cache management.
+- disclosureRoutes() — Register progressive disclosure routes: overview, sections, toc, search, lines, raw, query, and batch endpoints for token-efficient content retrieval.
+- versionRoutes() — Register version management routes: document update, version listing, version retrieval, and pairwise diff computation.
+- authRoutes() — Register authentication routes by proxying all /auth/* requests to the better-auth handler.
+- requireAuth() — Authenticate the request via session cookie. Populates request.user and request.session, or returns 401.
+- requireRegistered() — Require an authenticated, non-anonymous user. Calls requireAuth first, then rejects anonymous sessions with 403.
+- requireOwner() — Require the authenticated user to be the document owner. Checks slug from route params against document ownerId. Returns 403 if not owner, 404 if document not found.
+- lifecycleRoutes() — Register lifecycle and consensus routes: state transitions, approve/reject voting, approval listing, and contributor attribution.
+- patchRoutes() — Register patch route: POST /documents/:slug/patch to apply a unified diff and create a new version. Requires authentication and editable document state.
+- similarityRoutes() — Register similarity route: GET /documents/:slug/similar?q=query&method=ngram&threshold=0 to rank document sections by similarity to a query.
+- graphRoutes() — Register knowledge graph route: GET /documents/:slug/graph to extract mentions, #tags, and /directives from document content.
+- retrievalRoutes() — Register retrieval planning route: POST /documents/:slug/plan-retrieval for token-budget-aware section selection. Ranks sections by relevance and greedily packs within a token budget.
+- signedUrlRoutes() — Register signed URL route: POST /signed-urls to generate time-limited HMAC-signed access tokens for document retrieval. Requires owner authentication.
+- getDocumentWithContent() — Fetch a document by slug, resolving content from cache or database with decompression.
+- handleContentNegotiation() — Handle content negotiation for slug requests. Returns true if the request was handled (response sent), false otherwise.
+- extractSlugWithExtension() — Check if a URL path looks like a document slug with an explicit extension. Supported extensions: .txt, .json, .md
+- extractSlug() — Check if a URL path looks like a document slug. Slugs are short alphanumeric strings at the root level. Returns the slug if valid, null otherwise.
+- renderViewHtml() — Render the server-side HTML view template for a document page, including meta tags and structured content display.
+
+- User — 
+- NewUser — 
+- Session — 
+- NewSession — 
+- Document — 
+- NewDocument — 
+- Version — 
+- NewVersion — 
+- StateTransition — 
+- NewStateTransition — 
+- Approval — 
+- NewApproval — 
+- Contributor — 
+- NewContributor — 
+- SignedUrlToken — 
+- NewSignedUrlToken — 
+- VersionAttribution — 
+- NewVersionAttribution — 
+- InsertUser — 
+- SelectUser — 
+- InsertSession — 
+- SelectSession — 
+- InsertDocument — 
+- SelectDocument — 
+- InsertVersion — 
+- SelectVersion — 
+- InsertStateTransition — 
+- SelectStateTransition — 
+- InsertApproval — 
+- SelectApproval — 
+- InsertContributor — 
+- SelectContributor — 
+- InsertSignedUrlToken — 
+- SelectSignedUrlToken — 
+- InsertVersionAttribution — 
+- SelectVersionAttribution — 
+
+- users — Users table - supports both anonymous (24hr TTL) and registered accounts.  Anonymous users get a generated ID and no credentials. They are auto-purged after `expiresAt`. Registered users provide email/password and persist indefinitely until explicitly deleted.
+- sessions — Sessions table - server-side session tokens for both user types.  Anonymous users get a session on first document creation. Registered users get a session on login. Sessions are invalidated on logout or expiration.
+- documents — Documents table - stores compressed text documents.  Extended with lifecycle state, ownership, anonymous flag, storage mode, version tracking, and approval policy to support the full SDK feature set (lifecycle, consensus, versioning, signed URLs).
+- versions — Versions table - tracks document version history with patch support.  Extended with patchText for incremental storage (SDK VersionEntry), storage mode, and base version reference for patch chains.
+- stateTransitions — State transitions table - audit trail for document lifecycle changes.  Maps directly to the SDK StateTransition interface. Every call to `LlmtxtDocument.transition()` inserts a row here.
+- approvals — Approvals table - stores individual review/approval records.  Maps directly to the SDK Review interface from consensus.ts. Each row is one review action; the latest per reviewer wins.
+- contributors — Contributors table - materialized aggregation of per-agent attribution.  Maps directly to the SDK ContributorSummary interface. Denormalized from version + attribution data for fast reads. Refreshed on each version creation via application logic.
+- signedUrlTokens — Signed URL tokens table - persists generated signed URL grants.  Maps to the SDK SignedUrlParams interface. Each row represents an active access grant. Expired tokens are cleaned up by the purge job. Supports both conversation-scoped and org-scoped signatures.
+- versionAttributions — Version attributions table - per-version diff metadata for attribution.  Maps directly to the SDK VersionAttribution interface. Stores the computed diff stats (lines/tokens added/removed, sections modified) for each version, enabling fast attribution queries without recomputing diffs.
+- insertUserSchema — 
+- selectUserSchema — 
+- insertSessionSchema — 
+- selectSessionSchema — 
+- insertDocumentSchema — 
+- selectDocumentSchema — 
+- insertVersionSchema — 
+- selectVersionSchema — 
+- insertStateTransitionSchema — 
+- selectStateTransitionSchema — 
+- insertApprovalSchema — 
+- selectApprovalSchema — 
+- insertContributorSchema — 
+- selectContributorSchema — 
+- insertSignedUrlTokenSchema — 
+- selectSignedUrlTokenSchema — 
+- insertVersionAttributionSchema — 
+- selectVersionAttributionSchema — 
+- db — Drizzle ORM instance connected to the SQLite database with full schema.
+- auth — Better-auth instance with email/password + anonymous authentication, cookie-based sessions, and 24hr anonymous user TTL.
+- contentCache — LRU cache for decompressed document content strings, keyed by slug.
+- metadataCache — LRU cache for document metadata objects, keyed by slug.
+- publicDir — Absolute path to the public assets directory for static file serving.

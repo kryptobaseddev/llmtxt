@@ -17,6 +17,7 @@ declare module 'fastify' {
   }
 }
 
+/** Authenticate the request via session cookie. Populates request.user and request.session, or returns 401. */
 export async function requireAuth(request: FastifyRequest, reply: FastifyReply) {
   const headers = new Headers();
   for (const [key, value] of Object.entries(request.headers)) {
@@ -39,6 +40,7 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply) 
   request.session = { id: session.session.id, userId: session.user.id };
 }
 
+/** Require an authenticated, non-anonymous user. Calls requireAuth first, then rejects anonymous sessions with 403. */
 export async function requireRegistered(request: FastifyRequest, reply: FastifyReply) {
   await requireAuth(request, reply);
   if (reply.sent) return;
@@ -52,6 +54,7 @@ export async function requireRegistered(request: FastifyRequest, reply: FastifyR
   }
 }
 
+/** Require the authenticated user to be the document owner. Checks slug from route params against document ownerId. Returns 403 if not owner, 404 if document not found. */
 export async function requireOwner(request: FastifyRequest, reply: FastifyReply) {
   await requireRegistered(request, reply);
   if (reply.sent) return;

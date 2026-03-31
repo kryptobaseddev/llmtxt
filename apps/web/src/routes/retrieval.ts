@@ -9,6 +9,7 @@ import { planRetrieval } from 'llmtxt/sdk';
 import { generateOverview } from 'llmtxt/disclosure';
 import { decompress } from 'llmtxt';
 
+/** Register retrieval planning route: POST /documents/:slug/plan-retrieval for token-budget-aware section selection. Ranks sections by relevance and greedily packs within a token budget. */
 export async function retrievalRoutes(fastify: FastifyInstance) {
   // POST /documents/:slug/plan-retrieval
   fastify.post<{

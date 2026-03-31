@@ -47,6 +47,7 @@ function toSdkReviews(rows: Array<{
   }));
 }
 
+/** Register lifecycle and consensus routes: state transitions, approve/reject voting, approval listing, and contributor attribution. */
 export async function lifecycleRoutes(fastify: FastifyInstance) {
   // POST /documents/:slug/transition
   fastify.post<{ Params: { slug: string }; Body: { state: string; reason?: string } }>(

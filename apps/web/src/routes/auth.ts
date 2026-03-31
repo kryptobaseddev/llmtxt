@@ -11,6 +11,7 @@
 import type { FastifyInstance } from 'fastify';
 import { auth } from '../auth.js';
 
+/** Register authentication routes by proxying all /auth/* requests to the better-auth handler. */
 export async function authRoutes(fastify: FastifyInstance) {
   fastify.route({
     method: ['GET', 'POST'],

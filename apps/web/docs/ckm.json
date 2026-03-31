@@ -1,0 +1,52 @@
+{
+  "$schema": "https://ckm.dev/schemas/v2.json",
+  "version": "2.0.0",
+  "meta": {
+    "project": "@llmtxt/web",
+    "language": "typescript",
+    "generator": "forge-ts@1.0.0",
+    "generated": "2026-03-31T04:06:31.955Z"
+  },
+  "concepts": [
+    {
+      "id": "concept-StateTransition",
+      "name": "StateTransition",
+      "slug": "statetransition",
+      "what": "",
+      "tags": [
+        "domain"
+      ]
+    },
+    {
+      "id": "concept-NewStateTransition",
+      "name": "NewStateTransition",
+      "slug": "newstatetransition",
+      "what": "",
+      "tags": [
+        "domain"
+      ]
+    },
+    {
+      "id": "concept-InsertStateTransition",
+      "name": "InsertStateTransition",
+      "slug": "insertstatetransition",
+      "what": "",
+      "tags": [
+        "domain"
+      ]
+    },
+    {
+      "id": "concept-SelectStateTransition",
+      "name": "SelectStateTransition",
+      "slug": "selectstatetransition",
+      "what": "",
+      "tags": [
+        "domain"
+      ]
+    }
+  ],
+  "operations": [],
+  "constraints": [],
+  "workflows": [],
+  "configSchema": []
+}

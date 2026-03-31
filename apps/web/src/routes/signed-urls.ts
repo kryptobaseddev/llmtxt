@@ -12,6 +12,7 @@ import {
 
 const SIGNING_SECRET = process.env.SIGNING_SECRET || 'llmtxt-dev-secret';
 
+/** Register signed URL route: POST /signed-urls to generate time-limited HMAC-signed access tokens for document retrieval. Requires owner authentication. */
 export async function signedUrlRoutes(fastify: FastifyInstance) {
   // POST /signed-urls
   fastify.post<{

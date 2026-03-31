@@ -1,0 +1,245 @@
+---
+title: ''
+---
+
+Functions and classes exported by this package.
+
+## getDocumentCacheKey()
+
+Generate cache key for a document
+
+**Signature**
+
+```typescript
+(slug: string, type?: "content" | "metadata") => string
+```
+
+## shouldSkipCache()
+
+Check if cache should be skipped based on query params
+
+**Signature**
+
+```typescript
+(request: FastifyRequest) => boolean
+```
+
+## cacheDocumentContent()
+
+Middleware to cache document content Usage: app.get('/documents/:slug', cacheDocumentContent, async (request, reply) =  ... )
+
+**Signature**
+
+```typescript
+(request: FastifyRequest<{ Params: { slug: string; }; Querystring: Record<string, string>; }>, reply: FastifyReply) => Promise<void>
+```
+
+## cacheDocumentMetadata()
+
+Middleware to cache document metadata
+
+**Signature**
+
+```typescript
+(request: FastifyRequest<{ Params: { slug: string; }; Querystring: Record<string, string>; }>, reply: FastifyReply) => Promise<void>
+```
+
+## setCachedContent()
+
+Store document content in cache
+
+**Signature**
+
+```typescript
+(slug: string, content: string, ttl?: number) => void
+```
+
+## setCachedMetadata()
+
+Store document metadata in cache
+
+**Signature**
+
+```typescript
+(slug: string, metadata: Record<string, unknown>, ttl?: number) => void
+```
+
+## invalidateDocumentCache()
+
+Invalidate cache for a document
+
+**Signature**
+
+```typescript
+(slug: string) => void
+```
+
+## invalidateAllCache()
+
+Invalidate all cache
+
+**Signature**
+
+```typescript
+() => void
+```
+
+## getCacheStats()
+
+Get cache stats for both caches
+
+**Signature**
+
+```typescript
+() => { content: ReturnType<typeof contentCache.getStats>; metadata: ReturnType<typeof metadataCache.getStats>; }
+```
+
+## apiRoutes()
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## disclosureRoutes()
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## versionRoutes()
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## authRoutes()
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## requireAuth()
+
+**Signature**
+
+```typescript
+(request: FastifyRequest, reply: FastifyReply) => Promise<undefined>
+```
+
+## requireRegistered()
+
+**Signature**
+
+```typescript
+(request: FastifyRequest, reply: FastifyReply) => Promise<undefined>
+```
+
+## requireOwner()
+
+**Signature**
+
+```typescript
+(request: FastifyRequest, reply: FastifyReply) => Promise<undefined>
+```
+
+## lifecycleRoutes()
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## patchRoutes()
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## similarityRoutes()
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## graphRoutes()
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## retrievalRoutes()
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## signedUrlRoutes()
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## getDocumentWithContent()
+
+**Signature**
+
+```typescript
+(slug: string, request: FastifyRequest) => Promise<{ content: string; id: string; slug: string; format: string; contentHash: string; compressedData: unknown; originalSize: number; compressedSize: number; tokenCount: number | null; createdAt: number; expiresAt: number | null; accessCount: number; lastAccessedAt: number | null; state: string; ownerId: string | null; isAnonymous: boolean; storageType: string; storageKey: string | null; currentVersion: number; versionCount: number; sharingMode: string; approvalRequiredCount: number; approvalRequireUnanimous: boolean; approvalAllowedReviewers: string; approvalTimeoutMs: number; } | null>
+```
+
+## handleContentNegotiation()
+
+Handle content negotiation for slug requests. Returns true if the request was handled (response sent), false otherwise.
+
+**Signature**
+
+```typescript
+(request: FastifyRequest, reply: FastifyReply, slug: string) => Promise<boolean>
+```
+
+## extractSlugWithExtension()
+
+Check if a URL path looks like a document slug with an explicit extension. Supported extensions: .txt, .json, .md
+
+**Signature**
+
+```typescript
+(urlPath: string) => { slug: string; ext: string; } | null
+```
+
+## extractSlug()
+
+Check if a URL path looks like a document slug. Slugs are short alphanumeric strings at the root level. Returns the slug if valid, null otherwise.
+
+**Signature**
+
+```typescript
+(urlPath: string) => string | null
+```
+
+## renderViewHtml()
+
+**Signature**
+
+```typescript
+(slug: string, data: any) => string
+```

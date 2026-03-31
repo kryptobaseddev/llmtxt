@@ -1,0 +1,275 @@
+---
+title: ''
+---
+
+Functions and classes exported by this package.
+
+## getDocumentCacheKey()
+
+Generate cache key for a document
+
+**Signature**
+
+```typescript
+(slug: string, type?: "content" | "metadata") => string
+```
+
+## shouldSkipCache()
+
+Check if cache should be skipped based on query params
+
+**Signature**
+
+```typescript
+(request: FastifyRequest) => boolean
+```
+
+## cacheDocumentContent()
+
+Middleware to cache document content Usage: app.get('/documents/:slug', cacheDocumentContent, async (request, reply) =  ... )
+
+**Signature**
+
+```typescript
+(request: FastifyRequest<{ Params: { slug: string; }; Querystring: Record<string, string>; }>, reply: FastifyReply) => Promise<void>
+```
+
+## cacheDocumentMetadata()
+
+Middleware to cache document metadata
+
+**Signature**
+
+```typescript
+(request: FastifyRequest<{ Params: { slug: string; }; Querystring: Record<string, string>; }>, reply: FastifyReply) => Promise<void>
+```
+
+## setCachedContent()
+
+Store document content in cache
+
+**Signature**
+
+```typescript
+(slug: string, content: string, ttl?: number) => void
+```
+
+## setCachedMetadata()
+
+Store document metadata in cache
+
+**Signature**
+
+```typescript
+(slug: string, metadata: Record<string, unknown>, ttl?: number) => void
+```
+
+## invalidateDocumentCache()
+
+Invalidate cache for a document
+
+**Signature**
+
+```typescript
+(slug: string) => void
+```
+
+## invalidateAllCache()
+
+Invalidate all cache
+
+**Signature**
+
+```typescript
+() => void
+```
+
+## getCacheStats()
+
+Get cache stats for both caches
+
+**Signature**
+
+```typescript
+() => { content: ReturnType<typeof contentCache.getStats>; metadata: ReturnType<typeof metadataCache.getStats>; }
+```
+
+## apiRoutes()
+
+Register core document API routes: compress, decompress, validate, search, schemas, and cache management.
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## disclosureRoutes()
+
+Register progressive disclosure routes: overview, sections, toc, search, lines, raw, query, and batch endpoints for token-efficient content retrieval.
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## versionRoutes()
+
+Register version management routes: document update, version listing, version retrieval, and pairwise diff computation.
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## authRoutes()
+
+Register authentication routes by proxying all /auth/\* requests to the better-auth handler.
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## requireAuth()
+
+Authenticate the request via session cookie. Populates request.user and request.session, or returns 401.
+
+**Signature**
+
+```typescript
+(request: FastifyRequest, reply: FastifyReply) => Promise<undefined>
+```
+
+## requireRegistered()
+
+Require an authenticated, non-anonymous user. Calls requireAuth first, then rejects anonymous sessions with 403.
+
+**Signature**
+
+```typescript
+(request: FastifyRequest, reply: FastifyReply) => Promise<undefined>
+```
+
+## requireOwner()
+
+Require the authenticated user to be the document owner. Checks slug from route params against document ownerId. Returns 403 if not owner, 404 if document not found.
+
+**Signature**
+
+```typescript
+(request: FastifyRequest, reply: FastifyReply) => Promise<undefined>
+```
+
+## lifecycleRoutes()
+
+Register lifecycle and consensus routes: state transitions, approve/reject voting, approval listing, and contributor attribution.
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## patchRoutes()
+
+Register patch route: POST /documents/:slug/patch to apply a unified diff and create a new version. Requires authentication and editable document state.
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## similarityRoutes()
+
+Register similarity route: GET /documents/:slug/similar?q=query\&method=ngram\&threshold=0 to rank document sections by similarity to a query.
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## graphRoutes()
+
+Register knowledge graph route: GET /documents/:slug/graph to extract mentions, #tags, and /directives from document content.
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## retrievalRoutes()
+
+Register retrieval planning route: POST /documents/:slug/plan-retrieval for token-budget-aware section selection. Ranks sections by relevance and greedily packs within a token budget.
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## signedUrlRoutes()
+
+Register signed URL route: POST /signed-urls to generate time-limited HMAC-signed access tokens for document retrieval. Requires owner authentication.
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## getDocumentWithContent()
+
+Fetch a document by slug, resolving content from cache or database with decompression.
+
+**Signature**
+
+```typescript
+(slug: string, request: FastifyRequest) => Promise<{ content: string; id: string; slug: string; format: string; contentHash: string; compressedData: unknown; originalSize: number; compressedSize: number; tokenCount: number | null; createdAt: number; expiresAt: number | null; accessCount: number; lastAccessedAt: number | null; state: string; ownerId: string | null; isAnonymous: boolean; storageType: string; storageKey: string | null; currentVersion: number; versionCount: number; sharingMode: string; approvalRequiredCount: number; approvalRequireUnanimous: boolean; approvalAllowedReviewers: string; approvalTimeoutMs: number; } | null>
+```
+
+## handleContentNegotiation()
+
+Handle content negotiation for slug requests. Returns true if the request was handled (response sent), false otherwise.
+
+**Signature**
+
+```typescript
+(request: FastifyRequest, reply: FastifyReply, slug: string) => Promise<boolean>
+```
+
+## extractSlugWithExtension()
+
+Check if a URL path looks like a document slug with an explicit extension. Supported extensions: .txt, .json, .md
+
+**Signature**
+
+```typescript
+(urlPath: string) => { slug: string; ext: string; } | null
+```
+
+## extractSlug()
+
+Check if a URL path looks like a document slug. Slugs are short alphanumeric strings at the root level. Returns the slug if valid, null otherwise.
+
+**Signature**
+
+```typescript
+(urlPath: string) => string | null
+```
+
+## renderViewHtml()
+
+Render the server-side HTML view template for a document page, including meta tags and structured content display.
+
+**Signature**
+
+```typescript
+(slug: string, data: any) => string
+```

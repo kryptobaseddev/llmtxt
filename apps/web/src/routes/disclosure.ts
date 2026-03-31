@@ -119,6 +119,7 @@ const batchQuerySchema = z.object({
 // Route registration
 // ──────────────────────────────────────────────────────────────────
 
+/** Register progressive disclosure routes: overview, sections, toc, search, lines, raw, query, and batch endpoints for token-efficient content retrieval. */
 export async function disclosureRoutes(fastify: FastifyInstance) {
 
   /**

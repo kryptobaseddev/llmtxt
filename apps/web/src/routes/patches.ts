@@ -12,6 +12,7 @@ import {
   applyPatch, hashContent, compress, calculateTokens, generateId, computeDiff,
 } from 'llmtxt';
 
+/** Register patch route: POST /documents/:slug/patch to apply a unified diff and create a new version. Requires authentication and editable document state. */
 export async function patchRoutes(fastify: FastifyInstance) {
   // POST /documents/:slug/patch
   fastify.post<{

@@ -11,6 +11,7 @@ import {
 } from 'llmtxt/graph';
 import { decompress } from 'llmtxt';
 
+/** Register knowledge graph route: GET /documents/:slug/graph to extract @mentions, #tags, and /directives from document content. */
 export async function graphRoutes(fastify: FastifyInstance) {
   // GET /documents/:slug/graph
   fastify.get<{

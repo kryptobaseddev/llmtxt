@@ -1,4 +1,8 @@
-// Version management API routes for living documents
+/**
+ * Version management routes: PUT /documents/:slug (update + create version),
+ * GET /documents/:slug/versions, GET /documents/:slug/versions/:num,
+ * GET /documents/:slug/diff?from=N&to=M.
+ */
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { db } from '../db/index.js';
@@ -35,6 +39,7 @@ const updateBodySchema = z.object({
   createdBy: z.string().max(100).optional(),
 });
 
+/** Register version management routes: document update, version listing, version retrieval, and pairwise diff computation. */
 export async function versionRoutes(fastify: FastifyInstance) {
   /**
    * PUT /api/documents/:slug - Update document content (creates a new version)

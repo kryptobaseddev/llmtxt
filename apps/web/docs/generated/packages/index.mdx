@@ -1,0 +1,136 @@
+---
+title: ''
+---
+
+## Functions & Classes
+
+| Symbol                                                                         | Kind     | Description                                                                       |
+| ------------------------------------------------------------------------------ | -------- | --------------------------------------------------------------------------------- |
+| [`getDocumentCacheKey()`](/packages/./api/index#getdocumentcachekey)           | function | Generate cache key for a document                                                 |
+| [`shouldSkipCache()`](/packages/./api/index#shouldskipcache)                   | function | Check if cache should be skipped based on query params                            |
+| [`cacheDocumentContent()`](/packages/./api/index#cachedocumentcontent)         | function | Middleware to cache document content Usage: app.get('/documents/:slug', cache...  |
+| [`cacheDocumentMetadata()`](/packages/./api/index#cachedocumentmetadata)       | function | Middleware to cache document metadata                                             |
+| [`setCachedContent()`](/packages/./api/index#setcachedcontent)                 | function | Store document content in cache                                                   |
+| [`setCachedMetadata()`](/packages/./api/index#setcachedmetadata)               | function | Store document metadata in cache                                                  |
+| [`invalidateDocumentCache()`](/packages/./api/index#invalidatedocumentcache)   | function | Invalidate cache for a document                                                   |
+| [`invalidateAllCache()`](/packages/./api/index#invalidateallcache)             | function | Invalidate all cache                                                              |
+| [`getCacheStats()`](/packages/./api/index#getcachestats)                       | function | Get cache stats for both caches                                                   |
+| [`apiRoutes()`](/packages/./api/index#apiroutes)                               | function | Register core document API routes: compress, decompress, validate, search, sc...  |
+| [`disclosureRoutes()`](/packages/./api/index#disclosureroutes)                 | function | Register progressive disclosure routes: overview, sections, toc, search, line...  |
+| [`versionRoutes()`](/packages/./api/index#versionroutes)                       | function | Register version management routes: document update, version listing, version...  |
+| [`authRoutes()`](/packages/./api/index#authroutes)                             | function | Register authentication routes by proxying all /auth/\* requests to the better... |
+| [`requireAuth()`](/packages/./api/index#requireauth)                           | function | Authenticate the request via session cookie. Populates request.user and reque...  |
+| [`requireRegistered()`](/packages/./api/index#requireregistered)               | function | Require an authenticated, non-anonymous user. Calls requireAuth first, then r...  |
+| [`requireOwner()`](/packages/./api/index#requireowner)                         | function | Require the authenticated user to be the document owner. Checks slug from rou...  |
+| [`lifecycleRoutes()`](/packages/./api/index#lifecycleroutes)                   | function | Register lifecycle and consensus routes: state transitions, approve/reject vo...  |
+| [`patchRoutes()`](/packages/./api/index#patchroutes)                           | function | Register patch route: POST /documents/:slug/patch to apply a unified diff and...  |
+| [`similarityRoutes()`](/packages/./api/index#similarityroutes)                 | function | Register similarity route: GET /documents/:slug/similar?q=query\&method=ngram&... |
+| [`graphRoutes()`](/packages/./api/index#graphroutes)                           | function | Register knowledge graph route: GET /documents/:slug/graph to extract mention...  |
+| [`retrievalRoutes()`](/packages/./api/index#retrievalroutes)                   | function | Register retrieval planning route: POST /documents/:slug/plan-retrieval for t...  |
+| [`signedUrlRoutes()`](/packages/./api/index#signedurlroutes)                   | function | Register signed URL route: POST /signed-urls to generate time-limited HMAC-si...  |
+| [`getDocumentWithContent()`](/packages/./api/index#getdocumentwithcontent)     | function | Fetch a document by slug, resolving content from cache or database with decom...  |
+| [`handleContentNegotiation()`](/packages/./api/index#handlecontentnegotiation) | function | Handle content negotiation for slug requests. Returns true if the request was...  |
+| [`extractSlugWithExtension()`](/packages/./api/index#extractslugwithextension) | function | Check if a URL path looks like a document slug with an explicit extension. Su...  |
+| [`extractSlug()`](/packages/./api/index#extractslug)                           | function | Check if a URL path looks like a document slug. Slugs are short alphanumeric...   |
+| [`renderViewHtml()`](/packages/./api/index#renderviewhtml)                     | function | Render the server-side HTML view template for a document page, including meta...  |
+
+## Types & Interfaces
+
+| Symbol                                                                       | Kind | Description |
+| ---------------------------------------------------------------------------- | ---- | ----------- |
+| [`User`](/packages/./api/index#user)                                         | type |             |
+| [`NewUser`](/packages/./api/index#newuser)                                   | type |             |
+| [`Session`](/packages/./api/index#session)                                   | type |             |
+| [`NewSession`](/packages/./api/index#newsession)                             | type |             |
+| [`Document`](/packages/./api/index#document)                                 | type |             |
+| [`NewDocument`](/packages/./api/index#newdocument)                           | type |             |
+| [`Version`](/packages/./api/index#version)                                   | type |             |
+| [`NewVersion`](/packages/./api/index#newversion)                             | type |             |
+| [`StateTransition`](/packages/./api/index#statetransition)                   | type |             |
+| [`NewStateTransition`](/packages/./api/index#newstatetransition)             | type |             |
+| [`Approval`](/packages/./api/index#approval)                                 | type |             |
+| [`NewApproval`](/packages/./api/index#newapproval)                           | type |             |
+| [`Contributor`](/packages/./api/index#contributor)                           | type |             |
+| [`NewContributor`](/packages/./api/index#newcontributor)                     | type |             |
+| [`SignedUrlToken`](/packages/./api/index#signedurltoken)                     | type |             |
+| [`NewSignedUrlToken`](/packages/./api/index#newsignedurltoken)               | type |             |
+| [`VersionAttribution`](/packages/./api/index#versionattribution)             | type |             |
+| [`NewVersionAttribution`](/packages/./api/index#newversionattribution)       | type |             |
+| [`InsertUser`](/packages/./api/index#insertuser)                             | type |             |
+| [`SelectUser`](/packages/./api/index#selectuser)                             | type |             |
+| [`InsertSession`](/packages/./api/index#insertsession)                       | type |             |
+| [`SelectSession`](/packages/./api/index#selectsession)                       | type |             |
+| [`InsertDocument`](/packages/./api/index#insertdocument)                     | type |             |
+| [`SelectDocument`](/packages/./api/index#selectdocument)                     | type |             |
+| [`InsertVersion`](/packages/./api/index#insertversion)                       | type |             |
+| [`SelectVersion`](/packages/./api/index#selectversion)                       | type |             |
+| [`InsertStateTransition`](/packages/./api/index#insertstatetransition)       | type |             |
+| [`SelectStateTransition`](/packages/./api/index#selectstatetransition)       | type |             |
+| [`InsertApproval`](/packages/./api/index#insertapproval)                     | type |             |
+| [`SelectApproval`](/packages/./api/index#selectapproval)                     | type |             |
+| [`InsertContributor`](/packages/./api/index#insertcontributor)               | type |             |
+| [`SelectContributor`](/packages/./api/index#selectcontributor)               | type |             |
+| [`InsertSignedUrlToken`](/packages/./api/index#insertsignedurltoken)         | type |             |
+| [`SelectSignedUrlToken`](/packages/./api/index#selectsignedurltoken)         | type |             |
+| [`InsertVersionAttribution`](/packages/./api/index#insertversionattribution) | type |             |
+| [`SelectVersionAttribution`](/packages/./api/index#selectversionattribution) | type |             |
+
+## Other Exports
+
+| Symbol                                                                                   | Kind     | Description                                                                      |
+| ---------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------- |
+| [`users`](/packages/./api/index#users)                                                   | variable | Users table - supports both anonymous (24hr TTL) and registered accounts.  An... |
+| [`sessions`](/packages/./api/index#sessions)                                             | variable | Sessions table - server-side session tokens for both user types.  Anonymous u... |
+| [`documents`](/packages/./api/index#documents)                                           | variable | Documents table - stores compressed text documents.  Extended with lifecycle...  |
+| [`versions`](/packages/./api/index#versions)                                             | variable | Versions table - tracks document version history with patch support.  Extende... |
+| [`stateTransitions`](/packages/./api/index#statetransitions)                             | variable | State transitions table - audit trail for document lifecycle changes.  Maps d... |
+| [`approvals`](/packages/./api/index#approvals)                                           | variable | Approvals table - stores individual review/approval records.  Maps directly t... |
+| [`contributors`](/packages/./api/index#contributors)                                     | variable | Contributors table - materialized aggregation of per-agent attribution.  Maps... |
+| [`signedUrlTokens`](/packages/./api/index#signedurltokens)                               | variable | Signed URL tokens table - persists generated signed URL grants.  Maps to the...  |
+| [`versionAttributions`](/packages/./api/index#versionattributions)                       | variable | Version attributions table - per-version diff metadata for attribution.  Maps... |
+| [`insertUserSchema`](/packages/./api/index#insertuserschema)                             | variable |                                                                                  |
+| [`selectUserSchema`](/packages/./api/index#selectuserschema)                             | variable |                                                                                  |
+| [`insertSessionSchema`](/packages/./api/index#insertsessionschema)                       | variable |                                                                                  |
+| [`selectSessionSchema`](/packages/./api/index#selectsessionschema)                       | variable |                                                                                  |
+| [`insertDocumentSchema`](/packages/./api/index#insertdocumentschema)                     | variable |                                                                                  |
+| [`selectDocumentSchema`](/packages/./api/index#selectdocumentschema)                     | variable |                                                                                  |
+| [`insertVersionSchema`](/packages/./api/index#insertversionschema)                       | variable |                                                                                  |
+| [`selectVersionSchema`](/packages/./api/index#selectversionschema)                       | variable |                                                                                  |
+| [`insertStateTransitionSchema`](/packages/./api/index#insertstatetransitionschema)       | variable |                                                                                  |
+| [`selectStateTransitionSchema`](/packages/./api/index#selectstatetransitionschema)       | variable |                                                                                  |
+| [`insertApprovalSchema`](/packages/./api/index#insertapprovalschema)                     | variable |                                                                                  |
+| [`selectApprovalSchema`](/packages/./api/index#selectapprovalschema)                     | variable |                                                                                  |
+| [`insertContributorSchema`](/packages/./api/index#insertcontributorschema)               | variable |                                                                                  |
+| [`selectContributorSchema`](/packages/./api/index#selectcontributorschema)               | variable |                                                                                  |
+| [`insertSignedUrlTokenSchema`](/packages/./api/index#insertsignedurltokenschema)         | variable |                                                                                  |
+| [`selectSignedUrlTokenSchema`](/packages/./api/index#selectsignedurltokenschema)         | variable |                                                                                  |
+| [`insertVersionAttributionSchema`](/packages/./api/index#insertversionattributionschema) | variable |                                                                                  |
+| [`selectVersionAttributionSchema`](/packages/./api/index#selectversionattributionschema) | variable |                                                                                  |
+| [`schema.ts`](/packages/./api/index#schemats)                                            | file     |                                                                                  |
+| [`db`](/packages/./api/index#db)                                                         | variable | Drizzle ORM instance connected to the SQLite database with full schema.          |
+| [`index.ts`](/packages/./api/index#indexts)                                              | file     |                                                                                  |
+| [`auth`](/packages/./api/index#auth)                                                     | variable | Better-auth instance with email/password + anonymous authentication, cookie-b... |
+| [`auth.ts`](/packages/./api/index#authts)                                                | file     |                                                                                  |
+| [`compression.ts`](/packages/./api/index#compressionts)                                  | file     |                                                                                  |
+| [`validation.ts`](/packages/./api/index#validationts)                                    | file     |                                                                                  |
+| [`validator.ts`](/packages/./api/index#validatorts)                                      | file     |                                                                                  |
+| [`contentCache`](/packages/./api/index#contentcache)                                     | variable | LRU cache for decompressed document content strings, keyed by slug.              |
+| [`metadataCache`](/packages/./api/index#metadatacache)                                   | variable | LRU cache for document metadata objects, keyed by slug.                          |
+| [`cache.ts`](/packages/./api/index#cachets)                                              | file     |                                                                                  |
+| [`cache.ts`](/packages/./api/index#cachets)                                              | file     |                                                                                  |
+| [`api.ts`](/packages/./api/index#apits)                                                  | file     |                                                                                  |
+| [`disclosure.ts`](/packages/./api/index#disclosurets)                                    | file     |                                                                                  |
+| [`disclosure.ts`](/packages/./api/index#disclosurets)                                    | file     |                                                                                  |
+| [`versions.ts`](/packages/./api/index#versionsts)                                        | file     |                                                                                  |
+| [`auth.ts`](/packages/./api/index#authts)                                                | file     |                                                                                  |
+| [`auth.ts`](/packages/./api/index#authts)                                                | file     |                                                                                  |
+| [`lifecycle.ts`](/packages/./api/index#lifecyclets)                                      | file     |                                                                                  |
+| [`patches.ts`](/packages/./api/index#patchests)                                          | file     |                                                                                  |
+| [`similarity.ts`](/packages/./api/index#similarityts)                                    | file     |                                                                                  |
+| [`graph.ts`](/packages/./api/index#graphts)                                              | file     |                                                                                  |
+| [`retrieval.ts`](/packages/./api/index#retrievalts)                                      | file     |                                                                                  |
+| [`signed-urls.ts`](/packages/./api/index#signed-urlsts)                                  | file     |                                                                                  |
+| [`publicDir`](/packages/./api/index#publicdir)                                           | variable | Absolute path to the public assets directory for static file serving.            |
+| [`web.ts`](/packages/./api/index#webts)                                                  | file     |                                                                                  |
+| [`viewTemplate.ts`](/packages/./api/index#viewtemplatets)                                | file     |                                                                                  |
+| [`index.ts`](/packages/./api/index#indexts)                                              | file     |                                                                                  |
