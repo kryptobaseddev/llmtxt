@@ -261,9 +261,11 @@
             <span><strong class="text-base-content/60">For agents</strong>: API at api.llmtxt.my with progressive disclosure, versioning, consensus, and signed URLs.</span>
           </div>
         </div>
-        <div class="pt-2 flex gap-2">
+        <div class="pt-2 flex flex-wrap gap-2">
           <a href="https://github.com/kryptobaseddev/llmtxt" target="_blank" rel="noopener" class="btn btn-ghost btn-sm font-display text-xs">GitHub</a>
-          <a href="https://api.llmtxt.my/llms.txt" target="_blank" rel="noopener" class="btn btn-ghost btn-sm font-display text-xs">API Docs</a>
+          <a href="https://docs.llmtxt.my/docs/api" target="_blank" rel="noopener" class="btn btn-ghost btn-sm font-display text-xs">API Docs</a>
+          <a href="https://docs.llmtxt.my/docs/sdk" target="_blank" rel="noopener" class="btn btn-ghost btn-sm font-display text-xs">SDK Docs</a>
+          <a href="https://docs.llmtxt.my/llms.txt" target="_blank" rel="noopener" class="btn btn-ghost btn-sm font-display text-xs">LLMs.txt</a>
         </div>
       </div>
     </div>
