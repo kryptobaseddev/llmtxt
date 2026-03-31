@@ -25,4 +25,4 @@ COPY --from=build /app/apps/backend/drizzle.config.ts ./apps/backend/
 
 EXPOSE 8080
 ENV PORT=8080
-CMD ["sh", "-c", "cd apps/backend && npx drizzle-kit push --force && node dist/index.js"]
+CMD ["sh", "-c", "cd apps/backend && if [ ! -f data.db.v2 ]; then rm -f data.db data.db-wal data.db-shm && touch data.db.v2; fi && npx drizzle-kit migrate && node dist/index.js"]
