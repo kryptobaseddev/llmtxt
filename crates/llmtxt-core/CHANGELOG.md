@@ -7,12 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026.4.1] - 2026-03-31
+
 ### Added
 - `lifecycle` module — `DocumentState` enum, `is_valid_transition()`, `is_editable()`, `is_terminal()`, `validate_transition()` with string and enum variants for WASM and native callers
 - `consensus` module — `evaluate_approvals()`, `mark_stale_reviews()` with JSON I/O for WASM and native struct-based APIs
-- `diff_versions()` — reconstruct two versions and compute a diff between them in a single call
+- `ApprovalPolicy.required_percentage` — percentage-based consensus thresholds (e.g. 51% of reviewers). Overrides `required_count` when > 0. Threshold computed as `ceil(percentage * reviewer_count / 100)`
+- `diff_versions()` — reconstruct two versions and compute a diff between them in a single call (parses patch JSON once)
 - `compute_sections_modified()` — detect which markdown sections changed between two document versions
 - Cross-language test vectors (`tests/vectors/`) for lifecycle, consensus, and patch/diff operations
+- Comprehensive integration tests: 10-version chain with arbitrary diffs, consensus threshold scenarios (51%, 20%, unanimous, rejection blocking, stale detection, timeout)
 
 ## [2026.4.0] - 2026-03-27
 

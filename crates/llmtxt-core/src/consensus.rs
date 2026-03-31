@@ -33,14 +33,20 @@ pub struct Review {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApprovalPolicy {
-    /// Minimum number of approvals required.
+    /// Minimum number of approvals required (absolute count).
+    /// Ignored when `required_percentage` is set (> 0).
     pub required_count: u32,
-    /// If true, all allowed reviewers must approve.
+    /// If true, all allowed reviewers must approve (overrides count/percentage).
     pub require_unanimous: bool,
     /// Agent IDs allowed to review. Empty means anyone can review.
     pub allowed_reviewer_ids: Vec<String>,
     /// Auto-expire reviews older than this (ms). 0 means no timeout.
     pub timeout_ms: f64,
+    /// Percentage of effective reviewers required to approve (0-100).
+    /// 0 means use `required_count` instead. When > 0, the required count
+    /// is computed as `ceil(percentage * effective_reviewer_count / 100)`.
+    #[serde(default)]
+    pub required_percentage: u32,
 }
 
 /// Result of evaluating reviews against a policy.
@@ -148,22 +154,32 @@ pub fn evaluate_approvals_native(
         };
         (all_approved, reason)
     } else {
-        let met = approved_by.len() as u32 >= policy.required_count;
+        // Compute effective threshold: percentage overrides count when > 0
+        let threshold = if policy.required_percentage > 0 {
+            let pct = policy.required_percentage.min(100) as f64 / 100.0;
+            (pct * effective_reviewers.len() as f64).ceil() as u32
+        } else {
+            policy.required_count
+        };
+        let met = approved_by.len() as u32 >= threshold;
+        let threshold_label = if policy.required_percentage > 0 {
+            format!("{}% = {}", policy.required_percentage, threshold)
+        } else {
+            format!("{}", threshold)
+        };
         let reason = if met {
             format!(
                 "Approved ({}/{} required)",
                 approved_by.len(),
-                policy.required_count
+                threshold_label
             )
         } else {
-            let remaining = policy
-                .required_count
-                .saturating_sub(approved_by.len() as u32);
+            let remaining = threshold.saturating_sub(approved_by.len() as u32);
             format!(
                 "Needs {} more approval(s) ({}/{} required)",
                 remaining,
                 approved_by.len(),
-                policy.required_count
+                threshold_label
             )
         };
         (met, reason)
@@ -244,6 +260,7 @@ mod tests {
             require_unanimous: false,
             allowed_reviewer_ids: vec![],
             timeout_ms: 0.0,
+            required_percentage: 0,
         }
     }
 
@@ -325,6 +342,7 @@ mod tests {
             require_unanimous: true,
             allowed_reviewer_ids: vec!["agent-1".to_string(), "agent-2".to_string()],
             timeout_ms: 0.0,
+            required_percentage: 0,
         };
 
         // Only one approved
@@ -395,5 +413,77 @@ mod tests {
         let result_json = mark_stale_reviews(reviews_json, 2).unwrap();
         let result: Vec<Review> = serde_json::from_str(&result_json).unwrap();
         assert_eq!(result[0].status, "STALE");
+    }
+
+    #[test]
+    fn test_percentage_threshold_51_percent() {
+        // 51% of 10 reviewers = ceil(5.1) = 6 required
+        let ids: Vec<String> = (1..=10).map(|i| format!("agent-{i}")).collect();
+        let policy = ApprovalPolicy {
+            required_count: 0,
+            require_unanimous: false,
+            allowed_reviewer_ids: ids,
+            timeout_ms: 0.0,
+            required_percentage: 51,
+        };
+
+        // 5 approved — not enough (need 6)
+        let reviews: Vec<Review> = (1..=5)
+            .map(|i| review(&format!("agent-{i}"), "APPROVED", 1))
+            .collect();
+        let result = evaluate_approvals_native(&reviews, &policy, 1, 2_000_000.0);
+        assert!(!result.approved, "5/10 should not meet 51%");
+        assert!(result.reason.contains("51%"));
+
+        // 6 approved — enough
+        let reviews: Vec<Review> = (1..=6)
+            .map(|i| review(&format!("agent-{i}"), "APPROVED", 1))
+            .collect();
+        let result = evaluate_approvals_native(&reviews, &policy, 1, 2_000_000.0);
+        assert!(result.approved, "6/10 should meet 51%");
+    }
+
+    #[test]
+    fn test_percentage_threshold_20_percent() {
+        // 20% of 5 reviewers = ceil(1.0) = 1 required
+        let policy = ApprovalPolicy {
+            required_count: 0,
+            require_unanimous: false,
+            allowed_reviewer_ids: vec![
+                "a1".into(),
+                "a2".into(),
+                "a3".into(),
+                "a4".into(),
+                "a5".into(),
+            ],
+            timeout_ms: 0.0,
+            required_percentage: 20,
+        };
+
+        let reviews = vec![review("a1", "APPROVED", 1)];
+        let result = evaluate_approvals_native(&reviews, &policy, 1, 2_000_000.0);
+        assert!(result.approved, "1/5 should meet 20%");
+    }
+
+    #[test]
+    fn test_percentage_overrides_count() {
+        // required_count is 10 but percentage says 20% of 5 = 1
+        let policy = ApprovalPolicy {
+            required_count: 10,
+            require_unanimous: false,
+            allowed_reviewer_ids: vec![
+                "a1".into(),
+                "a2".into(),
+                "a3".into(),
+                "a4".into(),
+                "a5".into(),
+            ],
+            timeout_ms: 0.0,
+            required_percentage: 20,
+        };
+
+        let reviews = vec![review("a1", "APPROVED", 1)];
+        let result = evaluate_approvals_native(&reviews, &policy, 1, 2_000_000.0);
+        assert!(result.approved, "percentage should override count");
     }
 }

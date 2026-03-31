@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026.4.1] - 2026-03-31
+
+### Added
+- **consensus**: `ApprovalPolicy.requiredPercentage` — percentage-based consensus thresholds (e.g. 51% of reviewers). Overrides `requiredCount` when > 0. Threshold computed as `ceil(percentage * reviewerCount / 100)`
+
 ## [2026.4.0] - 2026-03-27
 
 ### Added

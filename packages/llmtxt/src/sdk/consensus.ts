@@ -26,14 +26,18 @@ export interface Review {
 
 /** Policy governing how approvals are evaluated. */
 export interface ApprovalPolicy {
-  /** Minimum number of approvals required. */
+  /** Minimum number of approvals required (absolute count).
+   *  Ignored when `requiredPercentage` is set (> 0). */
   requiredCount: number;
-  /** If true, all allowed reviewers must approve (overrides `requiredCount`). */
+  /** If true, all allowed reviewers must approve (overrides count/percentage). */
   requireUnanimous: boolean;
   /** Agent IDs allowed to review. Empty means anyone can review. */
   allowedReviewerIds: string[];
   /** Auto-expire reviews older than this (ms). 0 means no timeout. */
   timeoutMs: number;
+  /** Percentage of effective reviewers required (0-100). 0 means use requiredCount.
+   *  When > 0, threshold = ceil(percentage * effectiveReviewerCount / 100). */
+  requiredPercentage?: number;
 }
 
 /** Result of evaluating reviews against a policy. */
@@ -60,6 +64,7 @@ export const DEFAULT_APPROVAL_POLICY: ApprovalPolicy = {
   requireUnanimous: false,
   allowedReviewerIds: [],
   timeoutMs: 0,
+  requiredPercentage: 0,
 };
 
 // ── Evaluation ─────────────────────────────────────────────────
@@ -146,10 +151,17 @@ export function evaluateApprovals(
       ? `Unanimous approval (${approvedBy.length}/${effectiveReviewers.length})`
       : `Awaiting unanimous approval (${approvedBy.length}/${effectiveReviewers.length})`;
   } else {
-    approved = approvedBy.length >= policy.requiredCount;
+    // Compute effective threshold: percentage overrides count when > 0
+    const threshold = (policy.requiredPercentage && policy.requiredPercentage > 0)
+      ? Math.ceil(Math.min(policy.requiredPercentage, 100) / 100 * effectiveReviewers.length)
+      : policy.requiredCount;
+    approved = approvedBy.length >= threshold;
+    const thresholdLabel = (policy.requiredPercentage && policy.requiredPercentage > 0)
+      ? `${policy.requiredPercentage}% = ${threshold}`
+      : `${threshold}`;
     reason = approved
-      ? `Approved (${approvedBy.length}/${policy.requiredCount} required)`
-      : `Needs ${policy.requiredCount - approvedBy.length} more approval(s) (${approvedBy.length}/${policy.requiredCount})`;
+      ? `Approved (${approvedBy.length}/${thresholdLabel} required)`
+      : `Needs ${threshold - approvedBy.length} more approval(s) (${approvedBy.length}/${thresholdLabel} required)`;
   }
 
   return { approved, approvedBy, rejectedBy, pendingFrom, staleFrom, reason };
