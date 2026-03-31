@@ -166,29 +166,29 @@
         </div>
       </div>
 
-      <!-- Stats bar -->
-      <div class="flex flex-wrap gap-6 mb-6 px-4 py-3 rounded-lg bg-base-200/30 border border-base-content/5">
+      <!-- Stats bar — compact on mobile -->
+      <div class="flex flex-wrap gap-3 md:gap-6 mb-6 px-3 md:px-4 py-2 md:py-3 rounded-lg bg-base-200/30 border border-base-content/5 text-xs font-display">
         <div>
-          <span class="text-xs text-base-content/30 font-display">tokens</span>
-          <div class="mt-0.5">
-            <TokenCount tokens={doc.tokenCount} size="sm" />
-          </div>
+          <span class="text-base-content/30 hidden md:inline">tokens </span>
+          <span class="text-base-content/30 md:hidden">tok </span>
+          <span class="text-base-content/60">{doc.tokenCount}</span>
         </div>
         <div>
-          <span class="text-xs text-base-content/30 font-display">size</span>
-          <p class="font-display text-sm mt-0.5">{(doc.originalSize / 1024).toFixed(1)} KB</p>
+          <span class="text-base-content/30">size </span>
+          <span class="text-base-content/60">{(doc.originalSize / 1024).toFixed(1)}KB</span>
         </div>
         <div>
-          <span class="text-xs text-base-content/30 font-display">compression</span>
-          <p class="font-display text-sm mt-0.5">{doc.compressionRatio?.toFixed(1) ?? '-'}x</p>
+          <span class="text-base-content/30 hidden md:inline">compression </span>
+          <span class="text-base-content/30 md:hidden">ratio </span>
+          <span class="text-base-content/60">{doc.compressionRatio?.toFixed(1) ?? '-'}x</span>
+        </div>
+        <div class="hidden md:block">
+          <span class="text-base-content/30">created </span>
+          <span class="text-base-content/60">{formatDate(doc.createdAt)}</span>
         </div>
         <div>
-          <span class="text-xs text-base-content/30 font-display">created</span>
-          <p class="font-display text-sm mt-0.5">{formatDate(doc.createdAt)}</p>
-        </div>
-        <div>
-          <span class="text-xs text-base-content/30 font-display">views</span>
-          <p class="font-display text-sm mt-0.5">{doc.accessCount}</p>
+          <span class="text-base-content/30 hidden md:inline">views </span>
+          <span class="text-base-content/60">{doc.accessCount}</span>
         </div>
       </div>
 
@@ -248,29 +248,49 @@
           <div role="tablist" class="tabs tabs-bordered mb-6">
             <button
               role="tab"
-              class="tab font-display text-xs {activeTab === 'content' ? 'tab-active' : ''}"
+              class="tab font-display text-xs gap-1.5 {activeTab === 'content' ? 'tab-active' : ''}"
               onclick={() => activeTab = 'content'}
-            >Content</button>
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+              <span class="hidden md:inline">Content</span>
+            </button>
             <button
               role="tab"
-              class="tab font-display text-xs {activeTab === 'overview' ? 'tab-active' : ''}"
+              class="tab font-display text-xs gap-1.5 {activeTab === 'overview' ? 'tab-active' : ''}"
               onclick={() => activeTab = 'overview'}
-            >Overview</button>
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" /></svg>
+              <span class="hidden md:inline">Overview</span>
+            </button>
             <button
               role="tab"
-              class="tab font-display text-xs {activeTab === 'versions' ? 'tab-active' : ''}"
+              class="tab font-display text-xs gap-1.5 {activeTab === 'versions' ? 'tab-active' : ''}"
               onclick={() => activeTab = 'versions'}
-            >Versions{versions ? ` (${versions.totalVersions})` : ''}</button>
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              {#if versions}<span class="text-base-content/40">({versions.totalVersions})</span>{/if}
+              <span class="hidden md:inline">Versions</span>
+            </button>
             <button
               role="tab"
-              class="tab font-display text-xs {activeTab === 'contributors' ? 'tab-active' : ''}"
+              class="tab font-display text-xs gap-1.5 {activeTab === 'contributors' ? 'tab-active' : ''}"
               onclick={() => activeTab = 'contributors'}
-            >Contributors</button>
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+              {#if contributorsData?.contributors?.length}<span class="text-base-content/40">({contributorsData.contributors.length})</span>{/if}
+              <span class="hidden md:inline">Contributors</span>
+            </button>
             <button
               role="tab"
-              class="tab font-display text-xs {activeTab === 'approvals' ? 'tab-active' : ''}"
+              class="tab font-display text-xs gap-1.5 {activeTab === 'approvals' ? 'tab-active' : ''}"
               onclick={() => activeTab = 'approvals'}
-            >Approvals</button>
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              {#if approvalsData?.consensus}
+                <span class="text-base-content/40">({approvalsData.consensus.approvedCount}/{approvalsData.consensus.rejectedCount}/{approvalsData.consensus.requiredCount})</span>
+              {/if}
+              <span class="hidden md:inline">Approvals</span>
+            </button>
           </div>
 
           <!-- Tab panels -->
