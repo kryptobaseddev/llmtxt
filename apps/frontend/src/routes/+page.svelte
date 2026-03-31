@@ -165,7 +165,7 @@
   </div>
 
   <!-- FAB menu -->
-  <div class="fixed bottom-6 right-6 z-50">
+  <div class="fixed bottom-6 right-6 z-50 flex flex-col items-end">
     {#if menuOpen}
       <div class="mb-2 bg-base-200 rounded-lg border border-base-content/10 shadow-xl overflow-hidden animate-fade-in">
         <ul class="menu menu-sm w-56 font-display text-sm">

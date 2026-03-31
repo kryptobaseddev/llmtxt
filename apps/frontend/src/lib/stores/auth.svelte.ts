@@ -9,14 +9,14 @@ export function getAuth() {
     get session() { return session; },
     get loading() { return loading; },
     get isAuthenticated() { return session.user !== null; },
-    get isAnonymous() { return session.user?.isAnonymous ?? false; },
+    get isAnonymous() { return session.user?.isAnonymous === true; },
 
     async init() {
       loading = true;
       try {
         const data = await api.getSession();
-        if (data?.session) {
-          session = { user: data.session.user };
+        if (data?.user) {
+          session = { user: data.user };
         } else {
           session = { user: null };
         }
@@ -46,7 +46,7 @@ export function getAuth() {
     async signInAnonymous() {
       const data = await api.signInAnonymous();
       if (data?.user) {
-        session = { user: { ...data.user, isAnonymous: true } };
+        session = { user: data.user };
       }
       return data;
     },
