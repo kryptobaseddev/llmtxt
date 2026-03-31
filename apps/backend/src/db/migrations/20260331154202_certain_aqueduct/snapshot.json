@@ -1,11 +1,15 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "bdbb704d-0046-493f-bc45-da8d3cde2f5e",
+  "id": "68d8ad0f-7d4b-4a97-8610-e1ee51f7de85",
   "prevIds": [
-    "6288edfe-b75a-45e9-a943-51eb06f6e8f4"
+    "00000000-0000-0000-0000-000000000000"
   ],
   "ddl": [
+    {
+      "name": "accounts",
+      "entityType": "tables"
+    },
     {
       "name": "approvals",
       "entityType": "tables"
@@ -35,12 +39,146 @@
       "entityType": "tables"
     },
     {
+      "name": "verifications",
+      "entityType": "tables"
+    },
+    {
       "name": "version_attributions",
       "entityType": "tables"
     },
     {
       "name": "versions",
       "entityType": "tables"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "accounts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "user_id",
+      "entityType": "columns",
+      "table": "accounts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "account_id",
+      "entityType": "columns",
+      "table": "accounts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "provider_id",
+      "entityType": "columns",
+      "table": "accounts"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "access_token",
+      "entityType": "columns",
+      "table": "accounts"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "refresh_token",
+      "entityType": "columns",
+      "table": "accounts"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "access_token_expires_at",
+      "entityType": "columns",
+      "table": "accounts"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "refresh_token_expires_at",
+      "entityType": "columns",
+      "table": "accounts"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "scope",
+      "entityType": "columns",
+      "table": "accounts"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id_token",
+      "entityType": "columns",
+      "table": "accounts"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "password",
+      "entityType": "columns",
+      "table": "accounts"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "accounts"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "accounts"
     },
     {
       "type": "text",
@@ -488,17 +626,17 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "token_hash",
+      "name": "token",
       "entityType": "columns",
       "table": "sessions"
     },
     {
-      "type": "text",
-      "notNull": false,
+      "type": "integer",
+      "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "user_agent",
+      "name": "expires_at",
       "entityType": "columns",
       "table": "sessions"
     },
@@ -509,6 +647,16 @@
       "default": null,
       "generated": null,
       "name": "ip_address",
+      "entityType": "columns",
+      "table": "sessions"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "user_agent",
       "entityType": "columns",
       "table": "sessions"
     },
@@ -528,17 +676,7 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "expires_at",
-      "entityType": "columns",
-      "table": "sessions"
-    },
-    {
-      "type": "integer",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "last_active_at",
+      "name": "updated_at",
       "entityType": "columns",
       "table": "sessions"
     },
@@ -766,15 +904,15 @@
       "type": "text",
       "notNull": true,
       "autoincrement": false,
-      "default": "'anonymous'",
+      "default": "''",
       "generated": null,
-      "name": "account_type",
+      "name": "name",
       "entityType": "columns",
       "table": "users"
     },
     {
       "type": "text",
-      "notNull": false,
+      "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
@@ -783,12 +921,12 @@
       "table": "users"
     },
     {
-      "type": "text",
-      "notNull": false,
+      "type": "integer",
+      "notNull": true,
       "autoincrement": false,
-      "default": null,
+      "default": "false",
       "generated": null,
-      "name": "password_hash",
+      "name": "email_verified",
       "entityType": "columns",
       "table": "users"
     },
@@ -798,17 +936,7 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "display_name",
-      "entityType": "columns",
-      "table": "users"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "agent_id",
+      "name": "image",
       "entityType": "columns",
       "table": "users"
     },
@@ -824,6 +952,36 @@
     },
     {
       "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": "false",
+      "generated": null,
+      "name": "is_anonymous",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "agent_id",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "integer",
       "notNull": false,
       "autoincrement": false,
       "default": null,
@@ -833,14 +991,44 @@
       "table": "users"
     },
     {
-      "type": "integer",
+      "type": "text",
       "notNull": false,
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "last_login_at",
+      "name": "id",
       "entityType": "columns",
-      "table": "users"
+      "table": "verifications"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "identifier",
+      "entityType": "columns",
+      "table": "verifications"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "value",
+      "entityType": "columns",
+      "table": "verifications"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "expires_at",
+      "entityType": "columns",
+      "table": "verifications"
     },
     {
       "type": "integer",
@@ -848,9 +1036,19 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "deleted_at",
+      "name": "created_at",
       "entityType": "columns",
-      "table": "users"
+      "table": "verifications"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "verifications"
     },
     {
       "type": "text",
@@ -1094,6 +1292,21 @@
     },
     {
       "columns": [
+        "user_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_accounts_user_id_users_id_fk",
+      "entityType": "fks",
+      "table": "accounts"
+    },
+    {
+      "columns": [
         "document_id"
       ],
       "tableTo": "documents",
@@ -1217,6 +1430,15 @@
         "id"
       ],
       "nameExplicit": false,
+      "name": "accounts_pk",
+      "table": "accounts",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
       "name": "approvals_pk",
       "table": "approvals",
       "entityType": "pks"
@@ -1273,6 +1495,15 @@
       "nameExplicit": false,
       "name": "users_pk",
       "table": "users",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "verifications_pk",
+      "table": "verifications",
       "entityType": "pks"
     },
     {
@@ -1594,14 +1825,14 @@
     {
       "columns": [
         {
-          "value": "token_hash",
+          "value": "token",
           "isExpression": false
         }
       ],
       "isUnique": true,
       "where": null,
       "origin": "manual",
-      "name": "sessions_token_hash_idx",
+      "name": "sessions_token_idx",
       "entityType": "indexes",
       "table": "sessions"
     },
@@ -1804,20 +2035,6 @@
       "where": null,
       "origin": "manual",
       "name": "users_email_idx",
-      "entityType": "indexes",
-      "table": "users"
-    },
-    {
-      "columns": [
-        {
-          "value": "account_type",
-          "isExpression": false
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "origin": "manual",
-      "name": "users_account_type_idx",
       "entityType": "indexes",
       "table": "users"
     },

@@ -22,4 +22,16 @@ Execute a JSONPath-style query against JSON content.
 
 - Error if the JSON is invalid or the path cannot be resolved.
 
+### `reconstructVersion()`
+
+Reconstruct a document at a specific version by applying patches sequentially from the base content.
+
+```typescript
+(baseContent: string, patches: VersionEntry[], targetVersion?: number) => ReconstructionResult
+```
+
+**Throws**
+
+- If a patch in the sequence fails to apply.
+
 {/* FORGE:AUTO-END guide-error-handling */}

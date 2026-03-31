@@ -17,25 +17,24 @@ import type { z } from 'zod';
 export const users = sqliteTable(
   'users',
   {
-    id: text('id').primaryKey(), // base62 encoded UUID
-    /** 'anonymous' | 'registered' */
-    accountType: text('account_type').notNull().default('anonymous'),
-    email: text('email'), // null for anonymous users
-    /** bcrypt/argon2 hash - null for anonymous users */
-    passwordHash: text('password_hash'),
-    displayName: text('display_name'), // optional human-readable name
+    id: text('id').primaryKey(),
+    // better-auth required fields
+    name: text('name').notNull().default(''),
+    email: text('email').notNull(),
+    emailVerified: integer('email_verified', { mode: 'boolean' }).notNull().default(false),
+    image: text('image'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+    // anonymous plugin field
+    isAnonymous: integer('is_anonymous', { mode: 'boolean' }).default(false),
+    // llmtxt custom fields
     /** Agent identifier for programmatic users (SDK client agentId) */
     agentId: text('agent_id'),
-    createdAt: integer('created_at').notNull(), // unix timestamp ms
     /** Auto-purge deadline for anonymous users. Null = no expiry. */
     expiresAt: integer('expires_at'),
-    lastLoginAt: integer('last_login_at'), // unix timestamp ms
-    /** Soft-delete flag. Preserves FK integrity when user is removed. */
-    deletedAt: integer('deleted_at'),
   },
   (table) => ({
     emailIdx: uniqueIndex('users_email_idx').on(table.email),
-    accountTypeIdx: index('users_account_type_idx').on(table.accountType),
     expiresAtIdx: index('users_expires_at_idx').on(table.expiresAt),
     agentIdIdx: index('users_agent_id_idx').on(table.agentId),
   })
@@ -55,24 +54,66 @@ export const users = sqliteTable(
 export const sessions = sqliteTable(
   'sessions',
   {
-    id: text('id').primaryKey(), // opaque session token (base62)
+    id: text('id').primaryKey(),
     userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    /** SHA-256 hash of the bearer token sent to the client */
-    tokenHash: text('token_hash').notNull(),
-    /** User-agent or client identifier */
-    userAgent: text('user_agent'),
+    // better-auth required fields
+    token: text('token').notNull(),
+    expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
     ipAddress: text('ip_address'),
-    createdAt: integer('created_at').notNull(),
-    expiresAt: integer('expires_at').notNull(),
-    lastActiveAt: integer('last_active_at'),
+    userAgent: text('user_agent'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
   },
   (table) => ({
     userIdIdx: index('sessions_user_id_idx').on(table.userId),
-    tokenHashIdx: uniqueIndex('sessions_token_hash_idx').on(table.tokenHash),
+    tokenIdx: uniqueIndex('sessions_token_idx').on(table.token),
     expiresAtIdx: index('sessions_expires_at_idx').on(table.expiresAt),
   })
+);
+
+// ────────────────────────────────────────────────────────────────
+// Accounts (better-auth)
+// ────────────────────────────────────────────────────────────────
+
+/** Accounts table — better-auth manages OAuth and credential providers. */
+export const accounts = sqliteTable(
+  'accounts',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    accountId: text('account_id').notNull(),
+    providerId: text('provider_id').notNull(),
+    accessToken: text('access_token'),
+    refreshToken: text('refresh_token'),
+    accessTokenExpiresAt: integer('access_token_expires_at', { mode: 'timestamp' }),
+    refreshTokenExpiresAt: integer('refresh_token_expires_at', { mode: 'timestamp' }),
+    scope: text('scope'),
+    idToken: text('id_token'),
+    password: text('password'),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+  }
+);
+
+// ────────────────────────────────────────────────────────────────
+// Verifications (better-auth)
+// ────────────────────────────────────────────────────────────────
+
+/** Verifications table — better-auth email verification and password reset tokens. */
+export const verifications = sqliteTable(
+  'verifications',
+  {
+    id: text('id').primaryKey(),
+    identifier: text('identifier').notNull(),
+    value: text('value').notNull(),
+    expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' }),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }),
+  }
 );
 
 // ────────────────────────────────────────────────────────────────

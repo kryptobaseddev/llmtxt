@@ -25,6 +25,214 @@ Configuration options for constructing an `LRUCache` instance.
 | `maxSize` | `number \| undefined` | No       | Maximum number of entries before the least-recently-used entry is evicted (default: 1000). |
 | `ttl`     | `number \| undefined` | No       | Default time-to-live in milliseconds for new entries (default: 24 hours).                  |
 
+## DiffResult
+
+| Property        | Type     | Required | Description   |
+| --------------- | -------- | -------- | ------------- |
+| `addedLines`    | `number` | Yes      | addedLines    |
+| `removedLines`  | `number` | Yes      | removedLines  |
+| `addedTokens`   | `number` | Yes      | addedTokens   |
+| `removedTokens` | `number` | Yes      | removedTokens |
+
+## ContentFormat
+
+Supported content formats.
+
+```typescript
+ContentFormat
+```
+
+## DocumentMode
+
+Lifecycle state for collaborative documents.
+
+```typescript
+DocumentMode
+```
+
+## DocumentMeta
+
+Metadata for a stored document.
+
+| Property         | Type                        | Required | Description                                                    |
+| ---------------- | --------------------------- | -------- | -------------------------------------------------------------- |
+| `id`             | `string`                    | Yes      | id                                                             |
+| `slug`           | `string`                    | Yes      | slug                                                           |
+| `format`         | `ContentFormat`             | Yes      | format                                                         |
+| `contentHash`    | `string`                    | Yes      | contentHash                                                    |
+| `originalSize`   | `number`                    | Yes      | originalSize                                                   |
+| `compressedSize` | `number`                    | Yes      | compressedSize                                                 |
+| `tokenCount`     | `number`                    | Yes      | tokenCount                                                     |
+| `createdAt`      | `number`                    | Yes      | createdAt                                                      |
+| `expiresAt`      | `number \| null`            | Yes      | expiresAt                                                      |
+| `accessCount`    | `number`                    | Yes      | accessCount                                                    |
+| `lastAccessedAt` | `number \| null`            | Yes      | lastAccessedAt                                                 |
+| `mode`           | `DocumentMode \| undefined` | No       | Lifecycle state (collaborative documents).                     |
+| `versionCount`   | `number \| undefined`       | No       | Total number of versions.                                      |
+| `currentVersion` | `number \| undefined`       | No       | Current version number.                                        |
+| `storageKey`     | `string \| undefined`       | No       | Object storage key when content lives in S3 instead of inline. |
+
+## VersionMeta
+
+Metadata for a single document version.
+
+| Property        | Type                  | Required | Description   |
+| --------------- | --------------------- | -------- | ------------- |
+| `id`            | `string`              | Yes      | id            |
+| `documentId`    | `string`              | Yes      | documentId    |
+| `versionNumber` | `number`              | Yes      | versionNumber |
+| `contentHash`   | `string`              | Yes      | contentHash   |
+| `tokenCount`    | `number`              | Yes      | tokenCount    |
+| `createdAt`     | `number`              | Yes      | createdAt     |
+| `createdBy`     | `string \| undefined` | No       | createdBy     |
+| `changelog`     | `string \| undefined` | No       | changelog     |
+
+## VersionSummary
+
+Summary of a version for listing (no content).
+
+| Property        | Type                  | Required | Description   |
+| --------------- | --------------------- | -------- | ------------- |
+| `versionNumber` | `number`              | Yes      | versionNumber |
+| `tokenCount`    | `number`              | Yes      | tokenCount    |
+| `createdAt`     | `number`              | Yes      | createdAt     |
+| `createdBy`     | `string \| undefined` | No       | createdBy     |
+| `changelog`     | `string \| undefined` | No       | changelog     |
+
+## VersionDiff
+
+Result of comparing two versions.
+
+| Property        | Type     | Required | Description   |
+| --------------- | -------- | -------- | ------------- |
+| `documentId`    | `string` | Yes      | documentId    |
+| `fromVersion`   | `number` | Yes      | fromVersion   |
+| `toVersion`     | `number` | Yes      | toVersion     |
+| `addedTokens`   | `number` | Yes      | addedTokens   |
+| `removedTokens` | `number` | Yes      | removedTokens |
+| `addedLines`    | `number` | Yes      | addedLines    |
+| `removedLines`  | `number` | Yes      | removedLines  |
+
+## LlmtxtRef
+
+Reference to an llmtxt document shared in a message.
+
+| Property     | Type            | Required | Description |
+| ------------ | --------------- | -------- | ----------- |
+| `slug`       | `string`        | Yes      | slug        |
+| `url`        | `string`        | Yes      | url         |
+| `format`     | `ContentFormat` | Yes      | format      |
+| `tokenCount` | `number`        | Yes      | tokenCount  |
+| `preview`    | `string`        | Yes      | preview     |
+
+## AttachmentOptions
+
+Options for creating an attachment via the bridge.
+
+| Property         | Type                         | Required | Description    |
+| ---------------- | ---------------------------- | -------- | -------------- |
+| `content`        | `string`                     | Yes      | content        |
+| `format`         | `ContentFormat \| undefined` | No       | format         |
+| `conversationId` | `string`                     | Yes      | conversationId |
+| `fromAgentId`    | `string`                     | Yes      | fromAgentId    |
+| `expiresInMs`    | `number \| undefined`        | No       | expiresInMs    |
+
+## AttachmentAccessMode
+
+Attachment fetch mode supported by the bridge/API layer.
+
+```typescript
+AttachmentAccessMode
+```
+
+## AttachmentSharingMode
+
+Share state persisted by the API layer for an attachment.
+
+```typescript
+AttachmentSharingMode
+```
+
+## AttachmentReshareOptions
+
+Options for re-sharing an existing attachment.
+
+| Property    | Type                                 | Required | Description |
+| ----------- | ------------------------------------ | -------- | ----------- |
+| `expiresIn` | `number \| undefined`                | No       | expiresIn   |
+| `mode`      | `AttachmentSharingMode \| undefined` | No       | mode        |
+
+## AttachmentVersionOptions
+
+Options for appending a version to an existing attachment slug.
+
+| Property      | Type                  | Required | Description |
+| ------------- | --------------------- | -------- | ----------- |
+| `baseVersion` | `number \| undefined` | No       | baseVersion |
+| `changelog`   | `string \| undefined` | No       | changelog   |
+
+## LlmtxtClientConfig
+
+| Property  | Type     | Required | Description |
+| --------- | -------- | -------- | ----------- |
+| `apiBase` | `string` | Yes      | apiBase     |
+| `apiKey`  | `string` | Yes      | apiKey      |
+| `agentId` | `string` | Yes      | agentId     |
+
+## UploadResult
+
+| Property           | Type     | Required | Description      |
+| ------------------ | -------- | -------- | ---------------- |
+| `slug`             | `string` | Yes      | slug             |
+| `contentHash`      | `string` | Yes      | contentHash      |
+| `originalSize`     | `number` | Yes      | originalSize     |
+| `compressedSize`   | `number` | Yes      | compressedSize   |
+| `compressionRatio` | `number` | Yes      | compressionRatio |
+| `tokens`           | `number` | Yes      | tokens           |
+| `signedUrl`        | `string` | Yes      | signedUrl        |
+| `expiresAt`        | `number` | Yes      | expiresAt        |
+
+## FetchResult
+
+| Property       | Type                  | Required | Description  |
+| -------------- | --------------------- | -------- | ------------ |
+| `slug`         | `string`              | Yes      | slug         |
+| `content`      | `string`              | Yes      | content      |
+| `format`       | `string`              | Yes      | format       |
+| `title`        | `string \| undefined` | No       | title        |
+| `contentHash`  | `string`              | Yes      | contentHash  |
+| `originalSize` | `number`              | Yes      | originalSize |
+| `tokens`       | `number`              | Yes      | tokens       |
+
+## ReshareResult
+
+| Property    | Type                          | Required | Description |
+| ----------- | ----------------------------- | -------- | ----------- |
+| `slug`      | `string`                      | Yes      | slug        |
+| `mode`      | `AttachmentSharingMode`       | Yes      | mode        |
+| `signedUrl` | `string \| undefined`         | No       | signedUrl   |
+| `expiresAt` | `number \| null \| undefined` | No       | expiresAt   |
+
+## ResignResult
+
+Backward-compatible alias. Prefer `ReshareResult`.
+
+```typescript
+ReshareResult
+```
+
+## AttachmentVersionResult
+
+| Property        | Type                  | Required | Description   |
+| --------------- | --------------------- | -------- | ------------- |
+| `slug`          | `string`              | Yes      | slug          |
+| `versionNumber` | `number`              | Yes      | versionNumber |
+| `patchText`     | `string \| undefined` | No       | patchText     |
+| `contentHash`   | `string \| undefined` | No       | contentHash   |
+| `createdAt`     | `string \| undefined` | No       | createdAt     |
+| `createdBy`     | `string \| undefined` | No       | createdBy     |
+| `changelog`     | `string \| undefined` | No       | changelog     |
+
 ## Section
 
 A logical section identified within a document.
@@ -44,7 +252,7 @@ High-level structural overview of a document.
 
 | Property     | Type                                                             | Required | Description                                                           |
 | ------------ | ---------------------------------------------------------------- | -------- | --------------------------------------------------------------------- |
-| `format`     | `"json" \| "markdown" \| "code" \| "text"`                       | Yes      | The detected document format.                                         |
+| `format`     | `"json" \| "text" \| "markdown" \| "code"`                       | Yes      | The detected document format.                                         |
 | `lineCount`  | `number`                                                         | Yes      | Total number of lines in the document.                                |
 | `tokenCount` | `number`                                                         | Yes      | Estimated total token count for the entire document.                  |
 | `sections`   | `Section[]`                                                      | Yes      | Ordered list of sections found in the document.                       |
@@ -75,6 +283,42 @@ Result of extracting a line range from a document via `getLineRange`.
 | `totalLines`  | `number` | Yes      | Total number of lines in the full document.                     |
 | `totalTokens` | `number` | Yes      | Estimated total token count for the full document.              |
 | `tokensSaved` | `number` | Yes      | Number of tokens saved by extracting only this range.           |
+
+## GraphNode
+
+| Property | Type                               | Required | Description |
+| -------- | ---------------------------------- | -------- | ----------- |
+| `id`     | `string`                           | Yes      | id          |
+| `type`   | `"agent" \| "topic" \| "decision"` | Yes      | type        |
+| `label`  | `string`                           | Yes      | label       |
+| `weight` | `number`                           | Yes      | weight      |
+
+## GraphEdge
+
+| Property | Type                                                       | Required | Description |
+| -------- | ---------------------------------------------------------- | -------- | ----------- |
+| `source` | `string`                                                   | Yes      | source      |
+| `target` | `string`                                                   | Yes      | target      |
+| `type`   | `"mentions" \| "discusses" \| "decides" \| "participates"` | Yes      | type        |
+| `weight` | `number`                                                   | Yes      | weight      |
+
+## KnowledgeGraph
+
+| Property | Type                                                                                    | Required | Description |
+| -------- | --------------------------------------------------------------------------------------- | -------- | ----------- |
+| `nodes`  | `GraphNode[]`                                                                           | Yes      | nodes       |
+| `edges`  | `GraphEdge[]`                                                                           | Yes      | edges       |
+| `stats`  | `{ agentCount: number; topicCount: number; decisionCount: number; edgeCount: number; }` | Yes      | stats       |
+
+## MessageInput
+
+| Property      | Type                                                                            | Required | Description |
+| ------------- | ------------------------------------------------------------------------------- | -------- | ----------- |
+| `id`          | `string`                                                                        | Yes      | id          |
+| `fromAgentId` | `string`                                                                        | Yes      | fromAgentId |
+| `content`     | `string`                                                                        | Yes      | content     |
+| `metadata`    | `{ mentions?: string[]; directives?: string[]; tags?: string[]; } \| undefined` | No       | metadata    |
+| `createdAt`   | `string`                                                                        | Yes      | createdAt   |
 
 ## PredefinedSchemaName
 
@@ -129,7 +373,7 @@ Inferred TypeScript type for a single prompt message with role and content.
 Inferred TypeScript type for content compression request payloads.
 
 ```typescript
-{ content: string; format: "json" | "markdown" | "text"; schema?: string | undefined; metadata?: Record<string, unknown> | undefined; }
+{ content: string; format: "json" | "text" | "markdown"; schema?: string | undefined; metadata?: Record<string, unknown> | undefined; }
 ```
 
 ## DecompressRequest
@@ -157,7 +401,7 @@ Outcome of a content validation operation.
 | `success` | `boolean`                                     | Yes      | Whether the validation passed without errors.                      |
 | `data`    | `T \| undefined`                              | No       | The parsed/validated data, present only when `success` is `true`.  |
 | `errors`  | `ValidationError[] \| undefined`              | No       | List of validation errors, present only when `success` is `false`. |
-| `format`  | `"json" \| "markdown" \| "text" \| undefined` | No       | The detected or requested content format, when determinable.       |
+| `format`  | `"json" \| "text" \| "markdown" \| undefined` | No       | The detected or requested content format, when determinable.       |
 
 ## ValidationError
 
@@ -169,32 +413,344 @@ A single validation error with location, message, and error code.
 | `message` | `string` | Yes      | Human-readable description of the validation failure.                           |
 | `code`    | `string` | Yes      | Machine-readable error code (e.g. `"invalid_json"`, `"unknown_schema"`).        |
 
+## ValidateContentOptions
+
+Options for content validation.
+
+| Property       | Type                   | Required | Description                                                               |
+| -------------- | ---------------------- | -------- | ------------------------------------------------------------------------- |
+| `schemaName`   | `string \| undefined`  | No       | Optional predefined schema name for JSON validation.                      |
+| `maxBytes`     | `number \| undefined`  | No       | Maximum content size in bytes. Set to 0 to disable. Default: 5 MB.        |
+| `maxLineBytes` | `number \| undefined`  | No       | Maximum line length in bytes. Set to 0 to disable. Default: 64 KB.        |
+| `rejectBinary` | `boolean \| undefined` | No       | Reject content with binary control characters (0x00-0x08). Default: true. |
+
 ## SignedUrlParams
 
 Parameters that uniquely identify a signed URL access grant.
 
-| Property         | Type     | Required | Description                                                   |
-| ---------------- | -------- | -------- | ------------------------------------------------------------- |
-| `slug`           | `string` | Yes      | Short base62-encoded document identifier (e.g. `"xK9mP2nQ"`). |
-| `agentId`        | `string` | Yes      | Unique identifier of the agent requesting access.             |
-| `conversationId` | `string` | Yes      | Conversation scope that this access grant is bound to.        |
-| `expiresAt`      | `number` | Yes      | Absolute expiration time as a Unix timestamp in milliseconds. |
+| Property         | Type     | Required | Description    |
+| ---------------- | -------- | -------- | -------------- |
+| `slug`           | `string` | Yes      | slug           |
+| `agentId`        | `string` | Yes      | agentId        |
+| `conversationId` | `string` | Yes      | conversationId |
+| `expiresAt`      | `number` | Yes      | expiresAt      |
 
 ## SignedUrlConfig
 
 Configuration for generating and verifying signed URLs.
 
-| Property  | Type     | Required | Description                                                |
-| --------- | -------- | -------- | ---------------------------------------------------------- |
-| `secret`  | `string` | Yes      | Shared HMAC-SHA256 secret used to sign and verify URLs.    |
-| `baseUrl` | `string` | Yes      | Base URL for document access (e.g. `"https://llmtxt.my"`). |
+| Property          | Type                  | Required | Description                                                   |
+| ----------------- | --------------------- | -------- | ------------------------------------------------------------- |
+| `secret`          | `string`              | Yes      | secret                                                        |
+| `baseUrl`         | `string`              | Yes      | baseUrl                                                       |
+| `pathPrefix`      | `string \| undefined` | No       | Optional path prefix like `/attachments`. Default: root path. |
+| `signatureLength` | `number \| undefined` | No       | Signature length in hex chars. Default: 16.                   |
 
 ## VerifyResult
 
-Outcome of verifying a signed URL via `verifySignedUrl`.
+Outcome of verifying a signed URL.
 
-| Property | Type                                                                | Required | Description                                                            |
-| -------- | ------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------- |
-| `valid`  | `boolean`                                                           | Yes      | Whether the signature is valid and the URL has not expired.            |
-| `reason` | `"missing_params" \| "expired" \| "invalid_signature" \| undefined` | No       | Machine-readable failure reason, present only when `valid` is `false`. |
-| `params` | `SignedUrlParams \| undefined`                                      | No       | Reconstructed request parameters, present only when `valid` is `true`. |
+| Property | Type                                                                | Required | Description |
+| -------- | ------------------------------------------------------------------- | -------- | ----------- |
+| `valid`  | `boolean`                                                           | Yes      | valid       |
+| `reason` | `"missing_params" \| "expired" \| "invalid_signature" \| undefined` | No       | reason      |
+| `params` | `SignedUrlParams \| undefined`                                      | No       | params      |
+
+## OrgSignedUrlParams
+
+Parameters for org-scoped signed URLs (Phase 5 enterprise). Extends conversation-scoped params with an organization ID.
+
+| Property | Type     | Required | Description |
+| -------- | -------- | -------- | ----------- |
+| `orgId`  | `string` | Yes      | orgId       |
+
+## SnapshotMeta
+
+| Property           | Type     | Required | Description      |
+| ------------------ | -------- | -------- | ---------------- |
+| `sessionId`        | `string` | Yes      | sessionId        |
+| `agentId`          | `string` | Yes      | agentId          |
+| `createdAt`        | `string` | Yes      | createdAt        |
+| `originalSize`     | `number` | Yes      | originalSize     |
+| `compressedSize`   | `number` | Yes      | compressedSize   |
+| `compressionRatio` | `number` | Yes      | compressionRatio |
+| `tokens`           | `number` | Yes      | tokens           |
+| `contentHash`      | `string` | Yes      | contentHash      |
+
+## CompressedSnapshot
+
+| Property | Type           | Required | Description |
+| -------- | -------------- | -------- | ----------- |
+| `meta`   | `SnapshotMeta` | Yes      | meta        |
+| `data`   | `Buffer`       | Yes      | data        |
+
+## SnapshotOptions
+
+| Property              | Type                   | Required | Description                                                 |
+| --------------------- | ---------------------- | -------- | ----------------------------------------------------------- |
+| `includeDecisions`    | `boolean \| undefined` | No       | Include full decision log (default: true)                   |
+| `includeObservations` | `boolean \| undefined` | No       | Include brain observations (default: true)                  |
+| `maxSize`             | `number \| undefined`  | No       | Max content size before compression in bytes (default: 5MB) |
+
+## DocumentState
+
+Lifecycle state of a collaborative document.
+
+```typescript
+DocumentState
+```
+
+## StateTransition
+
+Record of a lifecycle state change.
+
+| Property    | Type                  | Required | Description                                        |
+| ----------- | --------------------- | -------- | -------------------------------------------------- |
+| `from`      | `DocumentState`       | Yes      | State before the transition.                       |
+| `to`        | `DocumentState`       | Yes      | State after the transition.                        |
+| `changedBy` | `string`              | Yes      | Agent that initiated the transition.               |
+| `changedAt` | `number`              | Yes      | Timestamp of the transition (ms since epoch).      |
+| `reason`    | `string \| undefined` | No       | Human-readable reason for the transition.          |
+| `atVersion` | `number`              | Yes      | Document version number at the time of transition. |
+
+## TransitionResult
+
+Result of attempting a state transition.
+
+| Property         | Type                       | Required | Description                                                     |
+| ---------------- | -------------------------- | -------- | --------------------------------------------------------------- |
+| `valid`          | `boolean`                  | Yes      | Whether the transition is allowed.                              |
+| `reason`         | `string \| undefined`      | No       | Human-readable explanation when invalid.                        |
+| `allowedTargets` | `readonly DocumentState[]` | Yes      | The allowed targets from the current state (for error context). |
+
+## VersionEntry
+
+A single version entry in a document's patch stack.
+
+| Property        | Type     | Required | Description                                                      |
+| --------------- | -------- | -------- | ---------------------------------------------------------------- |
+| `versionNumber` | `number` | Yes      | Sequential version number (1-based).                             |
+| `patchText`     | `string` | Yes      | Unified diff patch text.                                         |
+| `createdBy`     | `string` | Yes      | Agent that authored this version.                                |
+| `changelog`     | `string` | Yes      | One-line description of the change.                              |
+| `contentHash`   | `string` | Yes      | SHA-256 hash of the resulting content after applying this patch. |
+| `createdAt`     | `number` | Yes      | Timestamp of creation (ms since epoch).                          |
+
+## ReconstructionResult
+
+Result of reconstructing a document at a specific version.
+
+| Property         | Type     | Required | Description                                      |
+| ---------------- | -------- | -------- | ------------------------------------------------ |
+| `content`        | `string` | Yes      | The document content at the requested version.   |
+| `version`        | `number` | Yes      | The version number that was reconstructed.       |
+| `patchesApplied` | `number` | Yes      | Number of patches applied to reach this version. |
+| `contentHash`    | `string` | Yes      | SHA-256 hash of the reconstructed content.       |
+| `tokenCount`     | `number` | Yes      | Token count of the reconstructed content.        |
+
+## PatchValidationResult
+
+Result of validating whether a patch applies cleanly.
+
+| Property        | Type                  | Required | Description                                         |
+| --------------- | --------------------- | -------- | --------------------------------------------------- |
+| `applies`       | `boolean`             | Yes      | Whether the patch can be applied without conflicts. |
+| `error`         | `string \| undefined` | No       | Error message if the patch does not apply.          |
+| `resultContent` | `string \| undefined` | No       | The content that would result if the patch applies. |
+
+## VersionDiffSummary
+
+Summary of changes between two versions.
+
+| Property        | Type     | Required | Description                      |
+| --------------- | -------- | -------- | -------------------------------- |
+| `fromVersion`   | `number` | Yes      | Source version number.           |
+| `toVersion`     | `number` | Yes      | Target version number.           |
+| `addedLines`    | `number` | Yes      | Lines added between versions.    |
+| `removedLines`  | `number` | Yes      | Lines removed between versions.  |
+| `addedTokens`   | `number` | Yes      | Tokens added between versions.   |
+| `removedTokens` | `number` | Yes      | Tokens removed between versions. |
+| `patchText`     | `string` | Yes      | Unified diff text.               |
+
+## ApprovalStatus
+
+Status of an individual review.
+
+```typescript
+ApprovalStatus
+```
+
+## Review
+
+A single review from an agent.
+
+| Property     | Type                  | Required | Description                                                               |
+| ------------ | --------------------- | -------- | ------------------------------------------------------------------------- |
+| `reviewerId` | `string`              | Yes      | Agent that submitted the review.                                          |
+| `status`     | `ApprovalStatus`      | Yes      | Current status of this review.                                            |
+| `timestamp`  | `number`              | Yes      | Timestamp of the review action (ms since epoch).                          |
+| `reason`     | `string \| undefined` | No       | Reason or comment provided with the review.                               |
+| `atVersion`  | `number`              | Yes      | Version number the review applies to (`STALE` if document changed since). |
+
+## ApprovalPolicy
+
+Policy governing how approvals are evaluated.
+
+| Property             | Type                  | Required | Description                                                                                                                                            |
+| -------------------- | --------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `requiredCount`      | `number`              | Yes      | Minimum number of approvals required (absolute count).  Ignored when `requiredPercentage` is set ( 0).                                                 |
+| `requireUnanimous`   | `boolean`             | Yes      | If true, all allowed reviewers must approve (overrides count/percentage).                                                                              |
+| `allowedReviewerIds` | `string[]`            | Yes      | Agent IDs allowed to review. Empty means anyone can review.                                                                                            |
+| `timeoutMs`          | `number`              | Yes      | Auto-expire reviews older than this (ms). 0 means no timeout.                                                                                          |
+| `requiredPercentage` | `number \| undefined` | No       | Percentage of effective reviewers required (0-100). 0 means use requiredCount.  When  0, threshold = ceil(percentage \* effectiveReviewerCount / 100). |
+
+## ApprovalResult
+
+Result of evaluating reviews against a policy.
+
+| Property      | Type       | Required | Description                                                 |
+| ------------- | ---------- | -------- | ----------------------------------------------------------- |
+| `approved`    | `boolean`  | Yes      | Whether the approval threshold is met.                      |
+| `approvedBy`  | `string[]` | Yes      | Reviewers that have approved.                               |
+| `rejectedBy`  | `string[]` | Yes      | Reviewers that have rejected.                               |
+| `pendingFrom` | `string[]` | Yes      | Reviewers that are still pending.                           |
+| `staleFrom`   | `string[]` | Yes      | Reviewers whose reviews are stale (document changed since). |
+| `reason`      | `string`   | Yes      | Human-readable summary of the evaluation.                   |
+
+## StorageType
+
+How document content is stored.
+
+```typescript
+StorageType
+```
+
+## CompressionMethod
+
+Compression method used for stored content.
+
+```typescript
+CompressionMethod
+```
+
+## ContentRef
+
+Reference to where a document's compressed content lives.  Inline: content is stored directly in the database (small documents). Object-store: content is stored in S3-compatible storage, referenced by key.
+
+| Property         | Type                  | Required | Description                                                                                                                                                     |
+| ---------------- | --------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `type`           | `StorageType`         | Yes      | Storage backend type.                                                                                                                                           |
+| `storageKey`     | `string \| undefined` | No       | Location of the content. - For `inline`: not used (content is in the database row). - For `object-store`: the object key (e.g. `attachments/xK9mP2nQ/v3.zlib`). |
+| `contentHash`    | `string`              | Yes      | SHA-256 hash of the uncompressed content for integrity verification.                                                                                            |
+| `originalSize`   | `number`              | Yes      | Size of the uncompressed content in bytes.                                                                                                                      |
+| `compressedSize` | `number`              | Yes      | Size of the compressed content in bytes.                                                                                                                        |
+| `compression`    | `CompressionMethod`   | Yes      | Compression method used.                                                                                                                                        |
+
+## StorageMetadata
+
+Metadata about a stored document blob.
+
+| Property         | Type         | Required | Description                                          |
+| ---------------- | ------------ | -------- | ---------------------------------------------------- |
+| `ref`            | `ContentRef` | Yes      | Content reference.                                   |
+| `createdAt`      | `number`     | Yes      | When the content was first stored (ms since epoch).  |
+| `lastAccessedAt` | `number`     | Yes      | When the content was last accessed (ms since epoch). |
+| `accessCount`    | `number`     | Yes      | Number of times the content has been accessed.       |
+
+## StorageAdapter
+
+Storage adapter that platforms implement.
+
+| Property            | Type                                                                      | Required | Description                                                                                                     |
+| ------------------- | ------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------- |
+| `getContent`        | `(slug: string, version?: number) => Promise<string>`                     | No       | Retrieve document content at a specific version. When version is omitted, returns the latest version's content. |
+| `putContent`        | `(slug: string, version: number, content: string) => Promise<ContentRef>` | Yes      | Store document content for a specific version. Returns a ContentRef indicating where the content was stored.    |
+| `getVersions`       | `(slug: string) => Promise<VersionEntry[]>`                               | Yes      | Get the ordered list of version entries for a document.                                                         |
+| `addVersion`        | `(slug: string, entry: VersionEntry) => Promise<void>`                    | Yes      | Append a new version entry to the document's version stack.                                                     |
+| `getState`          | `(slug: string) => Promise<DocumentState>`                                | Yes      | Get the current lifecycle state of a document.                                                                  |
+| `setState`          | `(slug: string, transition: StateTransition) => Promise<void>`            | Yes      | Record a lifecycle state transition.                                                                            |
+| `getReviews`        | `(slug: string) => Promise<Review[]>`                                     | Yes      | Get all reviews for a document.                                                                                 |
+| `addReview`         | `(slug: string, review: Review) => Promise<void>`                         | Yes      | Add or update a review for a document.                                                                          |
+| `getApprovalPolicy` | `(slug: string) => Promise<ApprovalPolicy>`                               | Yes      | Get the approval policy for a document.                                                                         |
+
+## VersionAttribution
+
+Attribution data for a single version.
+
+| Property           | Type       | Required | Description                                                           |
+| ------------------ | ---------- | -------- | --------------------------------------------------------------------- |
+| `versionNumber`    | `number`   | Yes      | Version number this attribution describes.                            |
+| `authorId`         | `string`   | Yes      | Agent that authored the change.                                       |
+| `addedLines`       | `number`   | Yes      | Lines added in this version.                                          |
+| `removedLines`     | `number`   | Yes      | Lines removed in this version.                                        |
+| `addedTokens`      | `number`   | Yes      | Tokens added in this version.                                         |
+| `removedTokens`    | `number`   | Yes      | Tokens removed in this version.                                       |
+| `sectionsModified` | `string[]` | Yes      | Section titles that were modified (detected via structural analysis). |
+| `changelog`        | `string`   | Yes      | One-line change description.                                          |
+| `createdAt`        | `number`   | Yes      | Timestamp of the change.                                              |
+
+## ContributorSummary
+
+Aggregated contribution summary for a single agent.
+
+| Property             | Type       | Required | Description                                |
+| -------------------- | ---------- | -------- | ------------------------------------------ |
+| `agentId`            | `string`   | Yes      | Agent identifier.                          |
+| `versionsAuthored`   | `number`   | Yes      | Number of versions this agent authored.    |
+| `totalTokensAdded`   | `number`   | Yes      | Total tokens added across all versions.    |
+| `totalTokensRemoved` | `number`   | Yes      | Total tokens removed across all versions.  |
+| `netTokens`          | `number`   | Yes      | Net token impact (added - removed).        |
+| `firstContribution`  | `number`   | Yes      | Timestamp of first contribution.           |
+| `lastContribution`   | `number`   | Yes      | Timestamp of most recent contribution.     |
+| `sectionsModified`   | `string[]` | Yes      | Unique section titles this agent modified. |
+
+## PlannedSection
+
+A section selected for retrieval.
+
+| Property       | Type                                            | Required | Description                                         |
+| -------------- | ----------------------------------------------- | -------- | --------------------------------------------------- |
+| `sectionIndex` | `number`                                        | Yes      | Index into the overview's sections array.           |
+| `title`        | `string`                                        | Yes      | Section title.                                      |
+| `tokenCount`   | `number`                                        | Yes      | Estimated token cost for this section.              |
+| `reason`       | `"query-match" \| "structural" \| "budget-fit"` | Yes      | Why this section was selected.                      |
+| `score`        | `number \| undefined`                           | No       | Relevance score (0-1) when selected by query match. |
+
+## RetrievalPlan
+
+The output of retrieval planning.
+
+| Property           | Type               | Required | Description                                                        |
+| ------------------ | ------------------ | -------- | ------------------------------------------------------------------ |
+| `sections`         | `PlannedSection[]` | Yes      | Sections selected for retrieval, ordered by relevance.             |
+| `totalTokens`      | `number`           | Yes      | Total tokens across all selected sections.                         |
+| `budgetRemaining`  | `number`           | Yes      | Remaining token budget after selection.                            |
+| `tokensSaved`      | `number`           | Yes      | Tokens saved compared to fetching the full document.               |
+| `fullDocumentFits` | `boolean`          | Yes      | Whether the full document fits within budget (no planning needed). |
+
+## RetrievalOptions
+
+Options for retrieval planning.
+
+| Property       | Type                   | Required | Description                                                             |
+| -------------- | ---------------------- | -------- | ----------------------------------------------------------------------- |
+| `minScore`     | `number \| undefined`  | No       | Minimum similarity score to include a section (0-1). Default: 0.1       |
+| `includeIntro` | `boolean \| undefined` | No       | Always include the first section (typically title/intro). Default: true |
+
+## CreateVersionOptions
+
+Options for creating a new version.
+
+| Property    | Type     | Required | Description                  |
+| ----------- | -------- | -------- | ---------------------------- |
+| `agentId`   | `string` | Yes      | Agent creating this version. |
+| `changelog` | `string` | Yes      | One-line change description. |
+
+## LlmtxtDocumentOptions
+
+Options for constructing an LlmtxtDocument.
+
+| Property  | Type             | Required | Description                      |
+| --------- | ---------------- | -------- | -------------------------------- |
+| `slug`    | `string`         | Yes      | Document slug.                   |
+| `storage` | `StorageAdapter` | Yes      | Storage adapter for persistence. |

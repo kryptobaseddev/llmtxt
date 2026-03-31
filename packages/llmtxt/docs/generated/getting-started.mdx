@@ -2,12 +2,12 @@
 title: ''
 ---
 
-Get up and running with **core** in minutes.
+Get up and running with **llmtxt** in minutes.
 
 ## Step 1: Install
 
 ```bash
-npm install -D @codluv/llmtxt
+npm install -D llmtxt
 ```
 
 ## Step 2: Add TSDoc to your code
@@ -56,9 +56,8 @@ npx forge-ts build
 Your code examples become live documentation:
 
 ```ts
-encodeBase62(0);   // "0"
-encodeBase62(61);  // "z"
-encodeBase62(62);  // "10"
+const range = getLineRange(doc, 10, 25);
+console.log(`Saved ${range.tokensSaved} tokens`);
 ```
 
 ## What's Next?

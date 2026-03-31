@@ -1,3 +1,20 @@
+CREATE TABLE `accounts` (
+	`id` text PRIMARY KEY,
+	`user_id` text NOT NULL,
+	`account_id` text NOT NULL,
+	`provider_id` text NOT NULL,
+	`access_token` text,
+	`refresh_token` text,
+	`access_token_expires_at` integer,
+	`refresh_token_expires_at` integer,
+	`scope` text,
+	`id_token` text,
+	`password` text,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	CONSTRAINT `fk_accounts_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+);
+--> statement-breakpoint
 CREATE TABLE `approvals` (
 	`id` text PRIMARY KEY,
 	`document_id` text NOT NULL,
@@ -24,15 +41,43 @@ CREATE TABLE `contributors` (
 	CONSTRAINT `fk_contributors_document_id_documents_id_fk` FOREIGN KEY (`document_id`) REFERENCES `documents`(`id`) ON DELETE CASCADE
 );
 --> statement-breakpoint
+CREATE TABLE `documents` (
+	`id` text PRIMARY KEY,
+	`slug` text NOT NULL,
+	`format` text NOT NULL,
+	`content_hash` text NOT NULL,
+	`compressed_data` blob,
+	`original_size` integer NOT NULL,
+	`compressed_size` integer NOT NULL,
+	`token_count` integer,
+	`created_at` integer NOT NULL,
+	`expires_at` integer,
+	`access_count` integer DEFAULT 0 NOT NULL,
+	`last_accessed_at` integer,
+	`state` text DEFAULT 'DRAFT' NOT NULL,
+	`owner_id` text,
+	`is_anonymous` integer DEFAULT false NOT NULL,
+	`storage_type` text DEFAULT 'inline' NOT NULL,
+	`storage_key` text,
+	`current_version` integer DEFAULT 0 NOT NULL,
+	`version_count` integer DEFAULT 0 NOT NULL,
+	`sharing_mode` text DEFAULT 'signed_url' NOT NULL,
+	`approval_required_count` integer DEFAULT 1 NOT NULL,
+	`approval_require_unanimous` integer DEFAULT false NOT NULL,
+	`approval_allowed_reviewers` text DEFAULT '' NOT NULL,
+	`approval_timeout_ms` integer DEFAULT 0 NOT NULL,
+	CONSTRAINT `fk_documents_owner_id_users_id_fk` FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
+);
+--> statement-breakpoint
 CREATE TABLE `sessions` (
 	`id` text PRIMARY KEY,
 	`user_id` text NOT NULL,
-	`token_hash` text NOT NULL,
-	`user_agent` text,
-	`ip_address` text,
-	`created_at` integer NOT NULL,
+	`token` text NOT NULL,
 	`expires_at` integer NOT NULL,
-	`last_active_at` integer,
+	`ip_address` text,
+	`user_agent` text,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
 	CONSTRAINT `fk_sessions_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
 );
 --> statement-breakpoint
@@ -67,15 +112,24 @@ CREATE TABLE `state_transitions` (
 --> statement-breakpoint
 CREATE TABLE `users` (
 	`id` text PRIMARY KEY,
-	`account_type` text DEFAULT 'anonymous' NOT NULL,
-	`email` text,
-	`password_hash` text,
-	`display_name` text,
-	`agent_id` text,
+	`name` text DEFAULT '' NOT NULL,
+	`email` text NOT NULL,
+	`email_verified` integer DEFAULT false NOT NULL,
+	`image` text,
 	`created_at` integer NOT NULL,
-	`expires_at` integer,
-	`last_login_at` integer,
-	`deleted_at` integer
+	`updated_at` integer NOT NULL,
+	`is_anonymous` integer DEFAULT false,
+	`agent_id` text,
+	`expires_at` integer
+);
+--> statement-breakpoint
+CREATE TABLE `verifications` (
+	`id` text PRIMARY KEY,
+	`identifier` text NOT NULL,
+	`value` text NOT NULL,
+	`expires_at` integer NOT NULL,
+	`created_at` integer,
+	`updated_at` integer
 );
 --> statement-breakpoint
 CREATE TABLE `version_attributions` (
@@ -93,57 +147,7 @@ CREATE TABLE `version_attributions` (
 	CONSTRAINT `fk_version_attributions_document_id_documents_id_fk` FOREIGN KEY (`document_id`) REFERENCES `documents`(`id`) ON DELETE CASCADE
 );
 --> statement-breakpoint
-ALTER TABLE `documents` ADD `state` text DEFAULT 'DRAFT' NOT NULL;--> statement-breakpoint
-ALTER TABLE `documents` ADD `owner_id` text REFERENCES users(id);--> statement-breakpoint
-ALTER TABLE `documents` ADD `is_anonymous` integer DEFAULT false NOT NULL;--> statement-breakpoint
-ALTER TABLE `documents` ADD `storage_type` text DEFAULT 'inline' NOT NULL;--> statement-breakpoint
-ALTER TABLE `documents` ADD `storage_key` text;--> statement-breakpoint
-ALTER TABLE `documents` ADD `current_version` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
-ALTER TABLE `documents` ADD `version_count` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
-ALTER TABLE `documents` ADD `sharing_mode` text DEFAULT 'signed_url' NOT NULL;--> statement-breakpoint
-ALTER TABLE `documents` ADD `approval_required_count` integer DEFAULT 1 NOT NULL;--> statement-breakpoint
-ALTER TABLE `documents` ADD `approval_require_unanimous` integer DEFAULT false NOT NULL;--> statement-breakpoint
-ALTER TABLE `documents` ADD `approval_allowed_reviewers` text DEFAULT '' NOT NULL;--> statement-breakpoint
-ALTER TABLE `documents` ADD `approval_timeout_ms` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
-ALTER TABLE `versions` ADD `patch_text` text;--> statement-breakpoint
-ALTER TABLE `versions` ADD `base_version` integer;--> statement-breakpoint
-ALTER TABLE `versions` ADD `storage_type` text DEFAULT 'inline' NOT NULL;--> statement-breakpoint
-ALTER TABLE `versions` ADD `storage_key` text;--> statement-breakpoint
-PRAGMA foreign_keys=OFF;--> statement-breakpoint
-CREATE TABLE `__new_documents` (
-	`id` text PRIMARY KEY,
-	`slug` text NOT NULL,
-	`format` text NOT NULL,
-	`content_hash` text NOT NULL,
-	`compressed_data` blob,
-	`original_size` integer NOT NULL,
-	`compressed_size` integer NOT NULL,
-	`token_count` integer,
-	`created_at` integer NOT NULL,
-	`expires_at` integer,
-	`access_count` integer DEFAULT 0 NOT NULL,
-	`last_accessed_at` integer,
-	`state` text DEFAULT 'DRAFT' NOT NULL,
-	`owner_id` text,
-	`is_anonymous` integer DEFAULT false NOT NULL,
-	`storage_type` text DEFAULT 'inline' NOT NULL,
-	`storage_key` text,
-	`current_version` integer DEFAULT 0 NOT NULL,
-	`version_count` integer DEFAULT 0 NOT NULL,
-	`sharing_mode` text DEFAULT 'signed_url' NOT NULL,
-	`approval_required_count` integer DEFAULT 1 NOT NULL,
-	`approval_require_unanimous` integer DEFAULT false NOT NULL,
-	`approval_allowed_reviewers` text DEFAULT '' NOT NULL,
-	`approval_timeout_ms` integer DEFAULT 0 NOT NULL,
-	CONSTRAINT `fk_documents_owner_id_users_id_fk` FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
-);
---> statement-breakpoint
-INSERT INTO `__new_documents`(`id`, `slug`, `format`, `content_hash`, `compressed_data`, `original_size`, `compressed_size`, `token_count`, `created_at`, `expires_at`, `access_count`, `last_accessed_at`) SELECT `id`, `slug`, `format`, `content_hash`, `compressed_data`, `original_size`, `compressed_size`, `token_count`, `created_at`, `expires_at`, `access_count`, `last_accessed_at` FROM `documents`;--> statement-breakpoint
-DROP TABLE `documents`;--> statement-breakpoint
-ALTER TABLE `__new_documents` RENAME TO `documents`;--> statement-breakpoint
-PRAGMA foreign_keys=ON;--> statement-breakpoint
-PRAGMA foreign_keys=OFF;--> statement-breakpoint
-CREATE TABLE `__new_versions` (
+CREATE TABLE `versions` (
 	`id` text PRIMARY KEY,
 	`document_id` text NOT NULL,
 	`version_number` integer NOT NULL,
@@ -160,23 +164,6 @@ CREATE TABLE `__new_versions` (
 	CONSTRAINT `fk_versions_document_id_documents_id_fk` FOREIGN KEY (`document_id`) REFERENCES `documents`(`id`) ON DELETE CASCADE
 );
 --> statement-breakpoint
-INSERT INTO `__new_versions`(`id`, `document_id`, `version_number`, `compressed_data`, `content_hash`, `token_count`, `created_at`, `created_by`, `changelog`) SELECT `id`, `document_id`, `version_number`, `compressed_data`, `content_hash`, `token_count`, `created_at`, `created_by`, `changelog` FROM `versions`;--> statement-breakpoint
-DROP TABLE `versions`;--> statement-breakpoint
-ALTER TABLE `__new_versions` RENAME TO `versions`;--> statement-breakpoint
-PRAGMA foreign_keys=ON;--> statement-breakpoint
-CREATE INDEX `documents_slug_idx` ON `documents` (`slug`);--> statement-breakpoint
-CREATE INDEX `documents_created_at_idx` ON `documents` (`created_at`);--> statement-breakpoint
-CREATE INDEX `documents_expires_at_idx` ON `documents` (`expires_at`);--> statement-breakpoint
-CREATE INDEX `documents_state_idx` ON `documents` (`state`);--> statement-breakpoint
-CREATE INDEX `documents_owner_id_idx` ON `documents` (`owner_id`);--> statement-breakpoint
-CREATE INDEX `documents_is_anonymous_idx` ON `documents` (`is_anonymous`);--> statement-breakpoint
-CREATE INDEX `documents_purge_idx` ON `documents` (`is_anonymous`,`expires_at`);--> statement-breakpoint
-CREATE INDEX `documents_storage_key_idx` ON `documents` (`storage_key`);--> statement-breakpoint
-CREATE INDEX `documents_sharing_mode_idx` ON `documents` (`sharing_mode`);--> statement-breakpoint
-CREATE INDEX `versions_document_id_idx` ON `versions` (`document_id`);--> statement-breakpoint
-CREATE INDEX `versions_version_number_idx` ON `versions` (`document_id`,`version_number`);--> statement-breakpoint
-CREATE INDEX `versions_created_at_idx` ON `versions` (`created_at`);--> statement-breakpoint
-CREATE UNIQUE INDEX `versions_unique_version_idx` ON `versions` (`document_id`,`version_number`);--> statement-breakpoint
 CREATE INDEX `approvals_document_id_idx` ON `approvals` (`document_id`);--> statement-breakpoint
 CREATE INDEX `approvals_reviewer_idx` ON `approvals` (`document_id`,`reviewer_id`);--> statement-breakpoint
 CREATE INDEX `approvals_status_idx` ON `approvals` (`document_id`,`status`);--> statement-breakpoint
@@ -186,8 +173,17 @@ CREATE INDEX `contributors_document_id_idx` ON `contributors` (`document_id`);--
 CREATE INDEX `contributors_agent_id_idx` ON `contributors` (`document_id`,`agent_id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `contributors_unique_idx` ON `contributors` (`document_id`,`agent_id`);--> statement-breakpoint
 CREATE INDEX `contributors_net_tokens_idx` ON `contributors` (`document_id`,`net_tokens`);--> statement-breakpoint
+CREATE INDEX `documents_slug_idx` ON `documents` (`slug`);--> statement-breakpoint
+CREATE INDEX `documents_created_at_idx` ON `documents` (`created_at`);--> statement-breakpoint
+CREATE INDEX `documents_expires_at_idx` ON `documents` (`expires_at`);--> statement-breakpoint
+CREATE INDEX `documents_state_idx` ON `documents` (`state`);--> statement-breakpoint
+CREATE INDEX `documents_owner_id_idx` ON `documents` (`owner_id`);--> statement-breakpoint
+CREATE INDEX `documents_is_anonymous_idx` ON `documents` (`is_anonymous`);--> statement-breakpoint
+CREATE INDEX `documents_purge_idx` ON `documents` (`is_anonymous`,`expires_at`);--> statement-breakpoint
+CREATE INDEX `documents_storage_key_idx` ON `documents` (`storage_key`);--> statement-breakpoint
+CREATE INDEX `documents_sharing_mode_idx` ON `documents` (`sharing_mode`);--> statement-breakpoint
 CREATE INDEX `sessions_user_id_idx` ON `sessions` (`user_id`);--> statement-breakpoint
-CREATE UNIQUE INDEX `sessions_token_hash_idx` ON `sessions` (`token_hash`);--> statement-breakpoint
+CREATE UNIQUE INDEX `sessions_token_idx` ON `sessions` (`token`);--> statement-breakpoint
 CREATE INDEX `sessions_expires_at_idx` ON `sessions` (`expires_at`);--> statement-breakpoint
 CREATE INDEX `signed_url_tokens_document_id_idx` ON `signed_url_tokens` (`document_id`);--> statement-breakpoint
 CREATE INDEX `signed_url_tokens_slug_idx` ON `signed_url_tokens` (`slug`);--> statement-breakpoint
@@ -201,9 +197,12 @@ CREATE INDEX `state_transitions_document_id_idx` ON `state_transitions` (`docume
 CREATE INDEX `state_transitions_changed_at_idx` ON `state_transitions` (`changed_at`);--> statement-breakpoint
 CREATE INDEX `state_transitions_doc_time_idx` ON `state_transitions` (`document_id`,`changed_at`);--> statement-breakpoint
 CREATE UNIQUE INDEX `users_email_idx` ON `users` (`email`);--> statement-breakpoint
-CREATE INDEX `users_account_type_idx` ON `users` (`account_type`);--> statement-breakpoint
 CREATE INDEX `users_expires_at_idx` ON `users` (`expires_at`);--> statement-breakpoint
 CREATE INDEX `users_agent_id_idx` ON `users` (`agent_id`);--> statement-breakpoint
 CREATE INDEX `version_attributions_document_id_idx` ON `version_attributions` (`document_id`);--> statement-breakpoint
 CREATE INDEX `version_attributions_author_id_idx` ON `version_attributions` (`author_id`);--> statement-breakpoint
-CREATE UNIQUE INDEX `version_attributions_unique_idx` ON `version_attributions` (`document_id`,`version_number`);
+CREATE UNIQUE INDEX `version_attributions_unique_idx` ON `version_attributions` (`document_id`,`version_number`);--> statement-breakpoint
+CREATE INDEX `versions_document_id_idx` ON `versions` (`document_id`);--> statement-breakpoint
+CREATE INDEX `versions_version_number_idx` ON `versions` (`document_id`,`version_number`);--> statement-breakpoint
+CREATE INDEX `versions_created_at_idx` ON `versions` (`created_at`);--> statement-breakpoint
+CREATE UNIQUE INDEX `versions_unique_version_idx` ON `versions` (`document_id`,`version_number`);

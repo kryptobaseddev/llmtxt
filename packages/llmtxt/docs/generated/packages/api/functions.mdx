@@ -88,61 +88,7 @@ Reset the hit/miss counters to zero without clearing cached entries.
 () => void
 ```
 
-## encodeBase62(num)
-
-Encode a non-negative integer into a base62 string.
-
-**Signature**
-
-```typescript
-(num: number) => string
-```
-
-**Parameters**
-
-| Name  | Type     | Description                         |
-| ----- | -------- | ----------------------------------- |
-| `num` | `number` | The non-negative integer to encode. |
-
-**Returns** — The base62-encoded string representation.
-
-**Example**
-
-```ts
-encodeBase62(0);   // "0"
-encodeBase62(61);  // "z"
-encodeBase62(62);  // "10"
-```
-
-## decodeBase62(str)
-
-Decode a base62-encoded string back into a non-negative integer.
-
-**Signature**
-
-```typescript
-(str: string) => number
-```
-
-**Parameters**
-
-| Name  | Type     | Description                          |
-| ----- | -------- | ------------------------------------ |
-| `str` | `string` | The base62-encoded string to decode. |
-
-**Returns** — The decoded non-negative integer.
-
-**Example**
-
-```ts
-decodeBase62("0");  // 0
-decodeBase62("z");  // 61
-decodeBase62("10"); // 62
-```
-
-## compress(data)
-
-Compress a UTF-8 string using deflate.
+## compress()
 
 **Signature**
 
@@ -150,23 +96,7 @@ Compress a UTF-8 string using deflate.
 (data: string) => Promise<Buffer>
 ```
 
-**Parameters**
-
-| Name   | Type     | Description                   |
-| ------ | -------- | ----------------------------- |
-| `data` | `string` | The UTF-8 string to compress. |
-
-**Returns** — A promise that resolves to the deflate-compressed buffer.
-
-**Example**
-
-```ts
-const compressed = await compress('Hello, world!');
-```
-
-## decompress(data)
-
-Decompress a deflate-compressed buffer back to a UTF-8 string.
+## decompress()
 
 **Signature**
 
@@ -174,23 +104,23 @@ Decompress a deflate-compressed buffer back to a UTF-8 string.
 (data: Buffer) => Promise<string>
 ```
 
-**Parameters**
+## encodeBase62()
 
-| Name   | Type     | Description                                  |
-| ------ | -------- | -------------------------------------------- |
-| `data` | `Buffer` | The deflate-compressed buffer to decompress. |
+**Signature**
 
-**Returns** — A promise that resolves to the decompressed UTF-8 string.
+```typescript
+(num: number) => string
+```
 
-**Example**
+## decodeBase62()
 
-```ts
-const original = await decompress(compressedBuffer);
+**Signature**
+
+```typescript
+(str: string) => number
 ```
 
 ## generateId()
-
-Generate a base62-encoded 8-character ID from a UUID.
 
 **Signature**
 
@@ -198,17 +128,7 @@ Generate a base62-encoded 8-character ID from a UUID.
 () => string
 ```
 
-**Returns** — An 8-character base62-encoded identifier string.
-
-**Example**
-
-```ts
-const id = generateId(); // e.g. "xK9mP2nQ"
-```
-
-## hashContent(data)
-
-Compute the SHA-256 hash of a string, returned as a hex digest.
+## hashContent()
 
 **Signature**
 
@@ -216,23 +136,7 @@ Compute the SHA-256 hash of a string, returned as a hex digest.
 (data: string) => string
 ```
 
-**Parameters**
-
-| Name   | Type     | Description               |
-| ------ | -------- | ------------------------- |
-| `data` | `string` | The UTF-8 string to hash. |
-
-**Returns** — The lowercase hex-encoded SHA-256 digest.
-
-**Example**
-
-```ts
-hashContent('hello'); // "2cf24dba5fb0a30e..."
-```
-
-## calculateTokens(text)
-
-Estimate the token count of a string using the \~4 chars/token heuristic.
+## calculateTokens()
 
 **Signature**
 
@@ -240,23 +144,7 @@ Estimate the token count of a string using the \~4 chars/token heuristic.
 (text: string) => number
 ```
 
-**Parameters**
-
-| Name   | Type     | Description                                    |
-| ------ | -------- | ---------------------------------------------- |
-| `text` | `string` | The text whose token count is to be estimated. |
-
-**Returns** — The estimated number of tokens (rounded up).
-
-**Example**
-
-```ts
-calculateTokens('Hello, world!'); // 4
-```
-
-## calculateCompressionRatio(originalSize, compressedSize)
-
-Calculate the compression ratio between original and compressed sizes.
+## calculateCompressionRatio()
 
 **Signature**
 
@@ -264,19 +152,116 @@ Calculate the compression ratio between original and compressed sizes.
 (originalSize: number, compressedSize: number) => number
 ```
 
-**Parameters**
+## computeSignature()
 
-| Name             | Type     | Description                                  |
-| ---------------- | -------- | -------------------------------------------- |
-| `originalSize`   | `number` | The size of the original content in bytes.   |
-| `compressedSize` | `number` | The size of the compressed content in bytes. |
+**Signature**
 
-**Returns** — The compression ratio (original / compressed), rounded to two decimals.
+```typescript
+(slug: string, agentId: string, conversationId: string, expiresAt: number, secret: string) => string
+```
 
-**Example**
+## computeSignatureWithLength()
 
-```ts
-calculateCompressionRatio(1000, 400); // 2.5
+**Signature**
+
+```typescript
+(slug: string, agentId: string, conversationId: string, expiresAt: number, secret: string, sigLength: number) => string
+```
+
+## computeOrgSignature()
+
+**Signature**
+
+```typescript
+(slug: string, agentId: string, conversationId: string, orgId: string, expiresAt: number, secret: string) => string
+```
+
+## computeOrgSignatureWithLength()
+
+**Signature**
+
+```typescript
+(slug: string, agentId: string, conversationId: string, orgId: string, expiresAt: number, secret: string, sigLength: number) => string
+```
+
+## deriveSigningKey()
+
+**Signature**
+
+```typescript
+(apiKey: string) => string
+```
+
+## createPatch()
+
+**Signature**
+
+```typescript
+(original: string, modified: string) => string
+```
+
+## applyPatch()
+
+**Signature**
+
+```typescript
+(original: string, patchText: string) => string
+```
+
+## reconstructVersion()
+
+**Signature**
+
+```typescript
+(base: string, patchesJson: string, target: number) => string
+```
+
+## squashPatchesWasm()
+
+**Signature**
+
+```typescript
+(base: string, patchesJson: string) => string
+```
+
+## wasmTextSimilarity()
+
+**Signature**
+
+```typescript
+(a: string, b: string) => number
+```
+
+## wasmTextSimilarityNgram()
+
+**Signature**
+
+```typescript
+(a: string, b: string, n: number) => number
+```
+
+## isExpired()
+
+**Signature**
+
+```typescript
+(expiresAtMs: number) => boolean
+```
+
+## computeDiff()
+
+**Signature**
+
+```typescript
+(oldText: string, newText: string) => DiffResult
+```
+
+## createClient()
+
+**Signature**
+
+```typescript
+(config: LlmtxtClientConfig) => { upload(conversationId: string, content: string, options?: { format?: string; title?: string; expiresIn?: number; }): Promise<UploadResult>; fetch(signedUrl: string): Promise<FetchResult>; fetchFromConversation(slug: string, conversationId: string): Promise<FetchResult>; fetchOwned(slug: string): Promise<FetchResult>; reshare(slug: string, options?: AttachmentReshareOptions): Promise<ReshareResult>; resign(slug: string, options?: AttachmentReshareOptions): Promise<ResignResult>; createVersionPatch(original: string, updated: string): string; addVersion(slug: string, patchText: string, options?: AttachmentVersionOptions): Promise<AttachmentVersionResult>; addVersionFromContent(slug: string, original: string, updated: string, options?: AttachmentVersionOptions): Promise<AttachmentVersionResult>; isValid(signedUrl: string): boolean; }
 ```
 
 ## getLineRange(content, start, end)
@@ -439,6 +424,66 @@ const section = getSection(doc, 'Installation', true);
 if (section) console.log(section.content);
 ```
 
+## extractMentions()
+
+Extract  from message content.
+
+**Signature**
+
+```typescript
+(content: string) => string[]
+```
+
+## extractTags()
+
+Extract #tags from message content.
+
+**Signature**
+
+```typescript
+(content: string) => string[]
+```
+
+## extractDirectives()
+
+Extract /directives from message content.
+
+**Signature**
+
+```typescript
+(content: string) => string[]
+```
+
+## buildGraph()
+
+Build a knowledge graph from an array of messages.  Nodes: agents (from fromAgentId + mentions), topics (#tags), decisions (/decision messages) Edges: mentions (agent→agent), discusses (agent→topic), decides (agent→decision), participates (agent→agent in same conversation)
+
+**Signature**
+
+```typescript
+(messages: MessageInput[]) => KnowledgeGraph
+```
+
+## topTopics()
+
+Find the most connected topics in the graph. Returns topics sorted by number of discussing agents.
+
+**Signature**
+
+```typescript
+(graph: KnowledgeGraph, limit?: number) => Array<{ topic: string; agents: number; }>
+```
+
+## topAgents()
+
+Find the most active agents in the graph. Returns agents sorted by total edge weight (mentions + discussions + decisions).
+
+**Signature**
+
+```typescript
+(graph: KnowledgeGraph, limit?: number) => Array<{ agent: string; activity: number; }>
+```
+
 ## isPredefinedSchema(name)
 
 Type-guard that checks whether a string is a registered predefined schema name.
@@ -542,7 +587,7 @@ const result = validateText('# Hello');
 
 ## detectFormat(content)
 
-Auto-detect whether a string is JSON or text.
+Auto-detect whether a string is JSON, markdown, or plain text.
 
 **Signature**
 
@@ -556,39 +601,41 @@ Auto-detect whether a string is JSON or text.
 | --------- | -------- | ---------------------- |
 | `content` | `string` | The string to inspect. |
 
-**Returns** — The detected format: `"json"` or `"text"`.
+**Returns** — The detected format: `"json"`, `"markdown"`, or `"text"`.
 
 **Example**
 
 ```ts
-detectFormat('{"a":1}'); // "json"
-detectFormat('Hello');   // "text"
+detectFormat('{"a":1}');                    // "json"
+detectFormat('# Title\n- item');            // "markdown"
+detectFormat('Hello');                      // "text"
 ```
 
-## validateContent(content, format, schemaName)
+## validateContent(content, format, schemaNameOrOptions)
 
-Validate content for a given format, with optional schema enforcement.
+Validate content for a given format, with optional schema enforcement and content size limits.
 
 **Signature**
 
 ```typescript
-(content: unknown, format: "json" | "text" | "markdown", schemaName?: string) => ValidationResult
+(content: unknown, format: "json" | "text" | "markdown", schemaNameOrOptions?: string | ValidateContentOptions) => ValidationResult
 ```
 
 **Parameters**
 
-| Name         | Type                             | Description                                          |
-| ------------ | -------------------------------- | ---------------------------------------------------- |
-| `content`    | `unknown`                        | The raw content to validate.                         |
-| `format`     | `"json" \| "text" \| "markdown"` | The expected content format.                         |
-| `schemaName` | `: string`                       | Optional predefined schema name for JSON validation. |
+| Name                  | Type                                 | Description                                               |
+| --------------------- | ------------------------------------ | --------------------------------------------------------- |
+| `content`             | `unknown`                            | The raw content to validate.                              |
+| `format`              | `"json" \| "text" \| "markdown"`     | The expected content format.                              |
+| `schemaNameOrOptions` | `: string \| ValidateContentOptions` | A schema name string (backward compat) or options object. |
 
 **Returns** — A `ValidationResult` indicating success or listing errors.
 
 **Example**
 
 ```ts
-const result = validateContent(payload, 'json', 'prompt-v1');
+validateContent(payload, 'json', 'prompt-v1');
+validateContent(payload, 'text', { maxBytes: 10 * 1024 * 1024 });
 ```
 
 ## autoValidate(content, schemaName)
@@ -616,9 +663,9 @@ Auto-detect the content format and then validate accordingly.
 const result = autoValidate('{"messages":[{"role":"user","content":"hi"}]}', 'prompt-v1');
 ```
 
-## computeSignature(params, secret)
+## computeSignature()
 
-Compute the HMAC-SHA256 signature for a set of signed URL parameters.
+Compute the HMAC-SHA256 signature for signed URL parameters. Delegates to the Rust WASM module.
 
 **Signature**
 
@@ -626,26 +673,17 @@ Compute the HMAC-SHA256 signature for a set of signed URL parameters.
 (params: SignedUrlParams, secret: string) => string
 ```
 
-**Parameters**
+## computeSignatureWithLength()
 
-| Name     | Type              | Description                                                    |
-| -------- | ----------------- | -------------------------------------------------------------- |
-| `params` | `SignedUrlParams` | The signed URL parameters to include in the signature payload. |
-| `secret` | `string`          | The shared HMAC secret.                                        |
+Compute signature with configurable length. Use 16 for short-lived URLs (default), 32 for long-lived URLs (128 bits).
 
-**Returns** — A 16-character hex string representing the truncated HMAC signature.
+**Signature**
 
-**Example**
-
-```ts
-const sig = computeSignature(
-  { slug: 'xK9mP2nQ', agentId: 'agent-1', conversationId: 'conv_1', expiresAt: 1711234567890 },
-  'my-secret',
-);
-// sig.length === 16
+```typescript
+(params: SignedUrlParams, secret: string, sigLength: number) => string
 ```
 
-## generateSignedUrl(params, config)
+## generateSignedUrl()
 
 Generate a signed URL for accessing a document.
 
@@ -655,28 +693,9 @@ Generate a signed URL for accessing a document.
 (params: SignedUrlParams, config: SignedUrlConfig) => string
 ```
 
-**Parameters**
+## verifySignedUrl()
 
-| Name     | Type              | Description                                                    |
-| -------- | ----------------- | -------------------------------------------------------------- |
-| `params` | `SignedUrlParams` | The signed URL parameters (slug, agent, conversation, expiry). |
-| `config` | `SignedUrlConfig` | The HMAC secret and base URL for URL construction.             |
-
-**Returns** — The fully-qualified signed URL string.
-
-**Example**
-
-```ts
-const url = generateSignedUrl(
-  { slug: 'xK9mP2nQ', agentId: 'my-agent', conversationId: 'conv_123', expiresAt: Date.now() + 3600000 },
-  { secret: 'shared-secret', baseUrl: 'https://llmtxt.my' },
-);
-// => "https://llmtxt.my/xK9mP2nQ?agent=my-agent&conv=conv_123&exp=1711234567890&sig=a1b2c3d4e5f6a7b8"
-```
-
-## verifySignedUrl(url, secret)
-
-Verify a signed URL's signature and expiration.
+Verify a signed URL's signature and expiration. Uses timing-safe comparison to prevent timing attacks.
 
 **Signature**
 
@@ -684,23 +703,47 @@ Verify a signed URL's signature and expiration.
 (url: string | URL, secret: string) => VerifyResult
 ```
 
-**Parameters**
+## computeOrgSignature()
 
-| Name     | Type            | Description                                             |
-| -------- | --------------- | ------------------------------------------------------- |
-| `url`    | `string \| URL` | The signed URL to verify (string or `URL` instance).    |
-| `secret` | `string`        | The shared HMAC secret used when the URL was generated. |
+Compute the HMAC-SHA256 signature for org-scoped signed URL parameters. Includes orgId in the HMAC payload for organization-level access control. Returns 32 hex characters (128 bits) by default.
 
-**Returns** — A `VerifyResult` with `valid`, optional `reason`, and optional `params`.
+**Signature**
 
-**Example**
-
-```ts
-const result = verifySignedUrl('https://llmtxt.my/xK9mP2nQ?agent=a&conv=c&exp=9999999999999&sig=abc123', 'secret');
-if (result.valid) console.log(result.params);
+```typescript
+(params: OrgSignedUrlParams, secret: string) => string
 ```
 
-## generateTimedUrl(params, config, ttlMs)
+## computeOrgSignatureWithLength()
+
+Compute org-scoped signature with configurable length.
+
+**Signature**
+
+```typescript
+(params: OrgSignedUrlParams, secret: string, sigLength: number) => string
+```
+
+## generateOrgSignedUrl()
+
+Generate an org-scoped signed URL for accessing a document. The URL includes the org parameter for organization-level access verification.
+
+**Signature**
+
+```typescript
+(params: OrgSignedUrlParams, config: SignedUrlConfig) => string
+```
+
+## verifyOrgSignedUrl()
+
+Verify an org-scoped signed URL's signature and expiration.
+
+**Signature**
+
+```typescript
+(url: string | URL, secret: string) => VerifyResult & { orgId?: string; }
+```
+
+## generateTimedUrl()
 
 Generate a signed URL that expires after the given duration.
 
@@ -710,22 +753,666 @@ Generate a signed URL that expires after the given duration.
 (params: Omit<SignedUrlParams, "expiresAt">, config: SignedUrlConfig, ttlMs?: number) => string
 ```
 
+## deriveSigningKey()
+
+Derive a per-agent signing key from their API key. Delegates to the Rust WASM module.
+
+**Signature**
+
+```typescript
+(apiKey: string) => string
+```
+
+## isExpired()
+
+Check whether a timestamp has expired. Returns false for null/undefined (no expiration set).
+
+**Signature**
+
+```typescript
+(expiresAt: number | null | undefined) => boolean
+```
+
+## compressSnapshot()
+
+Compress a session snapshot JSON string. Returns compressed data + metadata for storage/retrieval.
+
+**Signature**
+
+```typescript
+(jsonStr: string, sessionId: string, agentId: string) => Promise<CompressedSnapshot>
+```
+
+## decompressSnapshot()
+
+Decompress a snapshot back to JSON string. Verifies integrity via content hash if provided.
+
+**Signature**
+
+```typescript
+(data: Buffer, expectedHash?: string) => Promise<string>
+```
+
+## compressSessionData()
+
+Compress a session snapshot object directly. Serializes to JSON, then compresses.
+
+**Signature**
+
+```typescript
+(sessionData: Record<string, unknown>, sessionId: string, agentId: string, options?: SnapshotOptions) => Promise<CompressedSnapshot>
+```
+
+## decompressSessionData()
+
+Decompress and parse a snapshot back to an object.
+
+**Signature**
+
+```typescript
+<T = Record<string, unknown>>(data: Buffer, expectedHash?: string) => Promise<T>
+```
+
+## snapshotSummary()
+
+Generate a human-readable summary of a snapshot for handoff messages. Useful for agents posting session summaries to ClawMsgr.
+
+**Signature**
+
+```typescript
+(meta: SnapshotMeta) => string
+```
+
+## extractNgrams()
+
+Extract character-level n-grams from text. Normalizes whitespace and lowercases before extraction.
+
+**Signature**
+
+```typescript
+(text: string, n?: number) => Set<string>
+```
+
+## extractWordShingles()
+
+Extract word-level n-grams (shingles) from text. Better for longer content where word order matters.
+
+**Signature**
+
+```typescript
+(text: string, n?: number) => Set<string>
+```
+
+## jaccardSimilarity()
+
+Jaccard similarity: |A ∩ B| / |A ∪ B|. Returns 0.0 (no overlap) to 1.0 (identical).
+
+**Signature**
+
+```typescript
+(a: Set<string>, b: Set<string>) => number
+```
+
+## textSimilarity()
+
+Compute similarity between two texts using character n-grams. Returns 0.0 to 1.0.
+
+**Signature**
+
+```typescript
+(a: string, b: string, ngramSize?: number) => number
+```
+
+## contentSimilarity()
+
+Compute similarity using word shingles. Better for comparing messages or documents where word choice matters more than character patterns.
+
+**Signature**
+
+```typescript
+(a: string, b: string, shingleSize?: number) => number
+```
+
+## minHashFingerprint()
+
+Generate a compact fingerprint for content using MinHash. The fingerprint is an array of hash values that can be compared for approximate similarity without storing the full n-gram set.  Two fingerprints with many matching values indicate similar content.
+
+**Signature**
+
+```typescript
+(text: string, numHashes?: number, ngramSize?: number) => number[]
+```
+
+## fingerprintSimilarity()
+
+Estimate similarity between two MinHash fingerprints. Returns approximate Jaccard similarity (0.0 to 1.0).
+
+**Signature**
+
+```typescript
+(a: number[], b: number[]) => number
+```
+
+## rankBySimilarity()
+
+Rank a list of texts by similarity to a query. Returns indices sorted by descending similarity, with scores.
+
+**Signature**
+
+```typescript
+(query: string, candidates: string[], options?: { method?: "ngram" | "shingle"; threshold?: number; }) => Array<{ index: number; score: number; }>
+```
+
+## isValidTransition(from, to)
+
+Check whether a state transition is allowed.
+
+**Signature**
+
+```typescript
+(from: DocumentState, to: DocumentState) => boolean
+```
+
 **Parameters**
 
-| Name     | Type                   | Description                                                                |
-| -------- | ---------------------- | -------------------------------------------------------------------------- |
-| `params` | `Omit<SignedUrlParams` | Slug, agentId, and conversationId (expiresAt is calculated automatically). |
-| `config` | `SignedUrlConfig`      | The HMAC secret and base URL for URL construction.                         |
-| `ttlMs`  | `: number`             | Time to live in milliseconds (default: 1 hour / 3 600 000 ms).             |
+| Name   | Type            | Description             |
+| ------ | --------------- | ----------------------- |
+| `from` | `DocumentState` | Current document state. |
+| `to`   | `DocumentState` | Target document state.  |
 
-**Returns** — The fully-qualified signed URL string with a computed expiration.
+**Returns** — `true` if the transition is permitted by the lifecycle rules.
 
-**Example**
+## validateTransition(from, to)
 
-```ts
-const url = generateTimedUrl(
-  { slug: 'xK9mP2nQ', agentId: 'agent-1', conversationId: 'conv_1' },
-  { secret: 'secret', baseUrl: 'https://llmtxt.my' },
-  300_000, // 5 minutes
-);
+Validate a proposed state transition with a detailed result.
+
+**Signature**
+
+```typescript
+(from: DocumentState, to: DocumentState) => TransitionResult
+```
+
+**Parameters**
+
+| Name   | Type            | Description             |
+| ------ | --------------- | ----------------------- |
+| `from` | `DocumentState` | Current document state. |
+| `to`   | `DocumentState` | Target document state.  |
+
+**Returns** — A result object indicating validity and allowed alternatives.
+
+## isEditable(state)
+
+Check whether a document state allows content modifications.
+
+**Signature**
+
+```typescript
+(state: DocumentState) => boolean
+```
+
+**Parameters**
+
+| Name    | Type            | Description             |
+| ------- | --------------- | ----------------------- |
+| `state` | `DocumentState` | Current document state. |
+
+**Returns** — `true` if new versions can be created in this state.
+
+## isTerminal(state)
+
+Check whether a document state is terminal (no further transitions).
+
+**Signature**
+
+```typescript
+(state: DocumentState) => boolean
+```
+
+**Parameters**
+
+| Name    | Type            | Description             |
+| ------- | --------------- | ----------------------- |
+| `state` | `DocumentState` | Current document state. |
+
+**Returns** — `true` if the state has no outgoing transitions.
+
+## reconstructVersion(baseContent, patches, targetVersion)
+
+Reconstruct a document at a specific version by applying patches sequentially from the base content.
+
+**Signature**
+
+```typescript
+(baseContent: string, patches: VersionEntry[], targetVersion?: number) => ReconstructionResult
+```
+
+**Parameters**
+
+| Name            | Type             | Description                                     |
+| --------------- | ---------------- | ----------------------------------------------- |
+| `baseContent`   | `string`         | The original document content (version 0).      |
+| `patches`       | `VersionEntry[]` | Ordered array of version entries.               |
+| `targetVersion` | `: number`       | The version to reconstruct. Defaults to latest. |
+
+**Returns** — The reconstructed document content and metadata.
+
+**Throws**
+
+- If a patch in the sequence fails to apply.
+
+## validatePatchApplies(content, patchText)
+
+Check whether a patch applies cleanly to the given content.
+
+**Signature**
+
+```typescript
+(content: string, patchText: string) => PatchValidationResult
+```
+
+**Parameters**
+
+| Name        | Type     | Description                   |
+| ----------- | -------- | ----------------------------- |
+| `content`   | `string` | The current document content. |
+| `patchText` | `string` | The unified diff to test.     |
+
+**Returns** — Whether the patch applies and the resulting content.
+
+## squashPatches(baseContent, patches)
+
+Squash a sequence of patches into a single unified diff.  Applies all patches sequentially to the base content, then produces one diff from base to final state.
+
+**Signature**
+
+```typescript
+(baseContent: string, patches: VersionEntry[]) => { patchText: string; contentHash: string; tokenCount: number; }
+```
+
+**Parameters**
+
+| Name          | Type             | Description                                 |
+| ------------- | ---------------- | ------------------------------------------- |
+| `baseContent` | `string`         | The content before the first patch.         |
+| `patches`     | `VersionEntry[]` | Ordered array of version entries to squash. |
+
+**Returns** — A single patch text and the final content hash.
+
+## computeReversePatch(contentBefore, contentAfter)
+
+Compute a reverse patch that undoes a version's changes.
+
+**Signature**
+
+```typescript
+(contentBefore: string, contentAfter: string) => string
+```
+
+**Parameters**
+
+| Name            | Type     | Description                                    |
+| --------------- | -------- | ---------------------------------------------- |
+| `contentBefore` | `string` | Document content before the patch was applied. |
+| `contentAfter`  | `string` | Document content after the patch was applied.  |
+
+**Returns** — A unified diff that reverts `contentAfter` back to `contentBefore`.
+
+## diffVersions(baseContent, patches, fromVersion, toVersion)
+
+Compute a diff summary between two versions of a document.
+
+**Signature**
+
+```typescript
+(baseContent: string, patches: VersionEntry[], fromVersion: number, toVersion: number) => VersionDiffSummary
+```
+
+**Parameters**
+
+| Name          | Type             | Description                                |
+| ------------- | ---------------- | ------------------------------------------ |
+| `baseContent` | `string`         | The original document content (version 0). |
+| `patches`     | `VersionEntry[]` | Full ordered patch stack.                  |
+| `fromVersion` | `number`         | Start version.                             |
+| `toVersion`   | `number`         | End version.                               |
+
+**Returns** — Diff statistics and patch text between the two versions.
+
+## evaluateApprovals(reviews, policy, currentVersion, now)
+
+Evaluate reviews against an approval policy.  Filters out stale and timed-out reviews, then checks whether the remaining approvals meet the policy threshold.
+
+**Signature**
+
+```typescript
+(reviews: Review[], policy: ApprovalPolicy, currentVersion: number, now?: number) => ApprovalResult
+```
+
+**Parameters**
+
+| Name             | Type             | Description                                                      |
+| ---------------- | ---------------- | ---------------------------------------------------------------- |
+| `reviews`        | `Review[]`       | All reviews submitted for the document.                          |
+| `policy`         | `ApprovalPolicy` | The approval policy to evaluate against.                         |
+| `currentVersion` | `number`         | Current document version (reviews for older versions are stale). |
+| `now`            | `: number`       | Current timestamp (ms since epoch). Defaults to `Date.now()`.    |
+
+**Returns** — The approval evaluation result.
+
+## markStaleReviews(reviews, currentVersion)
+
+Mark reviews as stale when a document version changes.  Returns a new array with updated review statuses. Does not mutate input.
+
+**Signature**
+
+```typescript
+(reviews: Review[], currentVersion: number) => Review[]
+```
+
+**Parameters**
+
+| Name             | Type       | Description               |
+| ---------------- | ---------- | ------------------------- |
+| `reviews`        | `Review[]` | Current reviews.          |
+| `currentVersion` | `number`   | The new document version. |
+
+**Returns** — Reviews with outdated entries marked as STALE.
+
+## inlineRef(contentHash, originalSize, compressedSize)
+
+Create a content reference for inline storage.
+
+**Signature**
+
+```typescript
+(contentHash: string, originalSize: number, compressedSize: number) => ContentRef
+```
+
+**Parameters**
+
+| Name             | Type     | Description                                |
+| ---------------- | -------- | ------------------------------------------ |
+| `contentHash`    | `string` | SHA-256 hash of the uncompressed content.  |
+| `originalSize`   | `number` | Size of the uncompressed content in bytes. |
+| `compressedSize` | `number` | Size of the compressed content in bytes.   |
+
+**Returns** — An inline content reference.
+
+## objectStoreRef(storageKey, contentHash, originalSize, compressedSize)
+
+Create a content reference for object-store storage.
+
+**Signature**
+
+```typescript
+(storageKey: string, contentHash: string, originalSize: number, compressedSize: number) => ContentRef
+```
+
+**Parameters**
+
+| Name             | Type     | Description                                |
+| ---------------- | -------- | ------------------------------------------ |
+| `storageKey`     | `string` | The object key in the store.               |
+| `contentHash`    | `string` | SHA-256 hash of the uncompressed content.  |
+| `originalSize`   | `number` | Size of the uncompressed content in bytes. |
+| `compressedSize` | `number` | Size of the compressed content in bytes.   |
+
+**Returns** — An object-store content reference.
+
+## versionStorageKey(slug, version)
+
+Generate a storage key for a document version.  Convention: `attachments/{slug}/v{version}.zlib`
+
+**Signature**
+
+```typescript
+(slug: string, version: number) => string
+```
+
+**Parameters**
+
+| Name      | Type     | Description     |
+| --------- | -------- | --------------- |
+| `slug`    | `string` | Document slug.  |
+| `version` | `number` | Version number. |
+
+**Returns** — The object storage key.
+
+## shouldUseObjectStore(compressedSize, threshold)
+
+Determine whether content should be stored in object-store vs inline.  Threshold: content larger than 64KB compressed goes to object-store.
+
+**Signature**
+
+```typescript
+(compressedSize: number, threshold?: number) => boolean
+```
+
+**Parameters**
+
+| Name             | Type       | Description                                        |
+| ---------------- | ---------- | -------------------------------------------------- |
+| `compressedSize` | `number`   | Size of the compressed content in bytes.           |
+| `threshold`      | `: number` | Size threshold in bytes. Defaults to 65536 (64KB). |
+
+**Returns** — `true` if the content should use object-store.
+
+## attributeVersion(contentBefore, contentAfter, authorId, entry)
+
+Compute attribution data for a single version change.
+
+**Signature**
+
+```typescript
+(contentBefore: string, contentAfter: string, authorId: string, entry: Pick<VersionEntry, "versionNumber" | "changelog" | "createdAt">) => VersionAttribution
+```
+
+**Parameters**
+
+| Name            | Type                | Description                         |
+| --------------- | ------------------- | ----------------------------------- |
+| `contentBefore` | `string`            | Document content before the change. |
+| `contentAfter`  | `string`            | Document content after the change.  |
+| `authorId`      | `string`            | Agent that made the change.         |
+| `entry`         | `Pick<VersionEntry` | The version entry metadata.         |
+
+**Returns** — Attribution data for this version.
+
+## buildContributorSummary(attributions)
+
+Build aggregated contributor summaries from version attributions.
+
+**Signature**
+
+```typescript
+(attributions: VersionAttribution[]) => ContributorSummary[]
+```
+
+**Parameters**
+
+| Name           | Type                   | Description                            |
+| -------------- | ---------------------- | -------------------------------------- |
+| `attributions` | `VersionAttribution[]` | Array of per-version attribution data. |
+
+**Returns** — Contributor summaries sorted by total versions authored (descending).
+
+## planRetrieval(overview, tokenBudget, query, options)
+
+Plan which sections to retrieve given a token budget.  When a query is provided, sections are ranked by text similarity to the query and packed greedily by descending score. Without a query, sections are packed in document order.
+
+**Signature**
+
+```typescript
+(overview: DocumentOverview, tokenBudget: number, query?: string, options?: RetrievalOptions) => RetrievalPlan
+```
+
+**Parameters**
+
+| Name          | Type                 | Description                                          |
+| ------------- | -------------------- | ---------------------------------------------------- |
+| `overview`    | `DocumentOverview`   | Structural overview from generateOverview().         |
+| `tokenBudget` | `number`             | Maximum tokens to use.                               |
+| `query`       | `: string`           | Optional search query to rank sections by relevance. |
+| `options`     | `: RetrievalOptions` | Planning options.                                    |
+
+**Returns** — A retrieval plan with selected sections and budget accounting.
+
+## estimateRetrievalCost(overview, sectionIndices)
+
+Estimate the token cost of fetching specific sections.
+
+**Signature**
+
+```typescript
+(overview: DocumentOverview, sectionIndices: number[]) => number
+```
+
+**Parameters**
+
+| Name             | Type               | Description                   |
+| ---------------- | ------------------ | ----------------------------- |
+| `overview`       | `DocumentOverview` | Document overview.            |
+| `sectionIndices` | `number[]`         | Indices of sections to fetch. |
+
+**Returns** — Total token count for the requested sections.
+
+## LlmtxtDocument
+
+High-level document orchestration object.  Each instance wraps a single document slug and delegates all persistence to the provided StorageAdapter. All computation (diffing, hashing, disclosure, consensus) uses the pure SDK functions.
+
+**Signature**
+
+```typescript
+typeof LlmtxtDocument
+```
+
+**Methods**
+
+### getContent()
+
+Get document content at a specific version (defaults to latest).
+
+```typescript
+(version?: number) => Promise<string>
+```
+
+### reconstruct()
+
+Reconstruct content from base + patch stack at a specific version.
+
+```typescript
+(targetVersion?: number) => Promise<ReconstructionResult>
+```
+
+### overview()
+
+Generate structural overview of the current document.
+
+```typescript
+() => Promise<DocumentOverview>
+```
+
+### section()
+
+Extract a named section from the current document.
+
+```typescript
+(name: string, depthAll?: boolean) => Promise<{ content: string; tokenCount: number; totalTokens: number; tokensSaved: number; } | null>
+```
+
+### getVersions()
+
+Get all version entries.
+
+```typescript
+() => Promise<VersionEntry[]>
+```
+
+### createVersion()
+
+Create a new version from updated content.
+
+```typescript
+(newContent: string, options: CreateVersionOptions) => Promise<VersionEntry>
+```
+
+### diff()
+
+Compute a diff summary between two versions.
+
+```typescript
+(fromVersion: number, toVersion: number) => Promise<VersionDiffSummary>
+```
+
+### squash()
+
+Squash all patches into a single diff.
+
+```typescript
+() => Promise<{ patchText: string; contentHash: string; tokenCount: number; }>
+```
+
+### getState()
+
+Get current document state.
+
+```typescript
+() => Promise<DocumentState>
+```
+
+### transition()
+
+Transition document to a new state.
+
+```typescript
+(to: DocumentState, metadata: { changedBy: string; reason?: string; }) => Promise<void>
+```
+
+### checkApproval()
+
+Check current approval status against policy.
+
+```typescript
+() => Promise<ApprovalResult>
+```
+
+### approve()
+
+Submit an approval for the current version.
+
+```typescript
+(options: { reviewerId: string; reason?: string; }) => Promise<void>
+```
+
+### reject()
+
+Submit a rejection for the current version.
+
+```typescript
+(options: { reviewerId: string; reason: string; }) => Promise<void>
+```
+
+### getAttributions()
+
+Compute attribution for all versions.
+
+```typescript
+() => Promise<VersionAttribution[]>
+```
+
+### getContributors()
+
+Get aggregated contributor summaries.
+
+```typescript
+() => Promise<ContributorSummary[]>
+```
+
+### planRetrieval()
+
+Plan which sections to retrieve given a token budget.
+
+```typescript
+(tokenBudget: number, query?: string, options?: RetrievalOptions) => Promise<RetrievalPlan>
 ```

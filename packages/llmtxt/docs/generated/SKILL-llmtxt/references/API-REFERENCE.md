@@ -1,4 +1,4 @@
-# @codluv/llmtxt — API Reference
+# llmtxt — API Reference
 
 ## Table of Contents
 
@@ -9,149 +9,136 @@
 
 ## Functions
 
-### `encodeBase62`
-
-Encode a non-negative integer into a base62 string.
-
-```typescript
-(num: number) => string
-```
-
-**Parameters:**
-
-- `num` — The non-negative integer to encode.
-
-**Returns:** The base62-encoded string representation.
-
-```ts
-encodeBase62(0);   // "0"
-encodeBase62(61);  // "z"
-encodeBase62(62);  // "10"
-```
-
-### `decodeBase62`
-
-Decode a base62-encoded string back into a non-negative integer.
-
-```typescript
-(str: string) => number
-```
-
-**Parameters:**
-
-- `str` — The base62-encoded string to decode.
-
-**Returns:** The decoded non-negative integer.
-
-```ts
-decodeBase62("0");  // 0
-decodeBase62("z");  // 61
-decodeBase62("10"); // 62
-```
-
 ### `compress`
-
-Compress a UTF-8 string using deflate.
 
 ```typescript
 (data: string) => Promise<Buffer>
 ```
 
-**Parameters:**
-
-- `data` — The UTF-8 string to compress.
-
-**Returns:** A promise that resolves to the deflate-compressed buffer.
-
-```ts
-const compressed = await compress('Hello, world!');
-```
-
 ### `decompress`
-
-Decompress a deflate-compressed buffer back to a UTF-8 string.
 
 ```typescript
 (data: Buffer) => Promise<string>
 ```
 
-**Parameters:**
+### `encodeBase62`
 
-- `data` — The deflate-compressed buffer to decompress.
+```typescript
+(num: number) => string
+```
 
-**Returns:** A promise that resolves to the decompressed UTF-8 string.
+### `decodeBase62`
 
-```ts
-const original = await decompress(compressedBuffer);
+```typescript
+(str: string) => number
 ```
 
 ### `generateId`
-
-Generate a base62-encoded 8-character ID from a UUID.
 
 ```typescript
 () => string
 ```
 
-**Returns:** An 8-character base62-encoded identifier string.
-
-```ts
-const id = generateId(); // e.g. "xK9mP2nQ"
-```
-
 ### `hashContent`
-
-Compute the SHA-256 hash of a string, returned as a hex digest.
 
 ```typescript
 (data: string) => string
 ```
 
-**Parameters:**
-
-- `data` — The UTF-8 string to hash.
-
-**Returns:** The lowercase hex-encoded SHA-256 digest.
-
-```ts
-hashContent('hello'); // "2cf24dba5fb0a30e..."
-```
-
 ### `calculateTokens`
-
-Estimate the token count of a string using the ~4 chars/token heuristic.
 
 ```typescript
 (text: string) => number
 ```
 
-**Parameters:**
-
-- `text` — The text whose token count is to be estimated.
-
-**Returns:** The estimated number of tokens (rounded up).
-
-```ts
-calculateTokens('Hello, world!'); // 4
-```
-
 ### `calculateCompressionRatio`
-
-Calculate the compression ratio between original and compressed sizes.
 
 ```typescript
 (originalSize: number, compressedSize: number) => number
 ```
 
-**Parameters:**
+### `computeSignature`
 
-- `originalSize` — The size of the original content in bytes.
-- `compressedSize` — The size of the compressed content in bytes.
+```typescript
+(slug: string, agentId: string, conversationId: string, expiresAt: number, secret: string) => string
+```
 
-**Returns:** The compression ratio (original / compressed), rounded to two decimals.
+### `computeSignatureWithLength`
 
-```ts
-calculateCompressionRatio(1000, 400); // 2.5
+```typescript
+(slug: string, agentId: string, conversationId: string, expiresAt: number, secret: string, sigLength: number) => string
+```
+
+### `computeOrgSignature`
+
+```typescript
+(slug: string, agentId: string, conversationId: string, orgId: string, expiresAt: number, secret: string) => string
+```
+
+### `computeOrgSignatureWithLength`
+
+```typescript
+(slug: string, agentId: string, conversationId: string, orgId: string, expiresAt: number, secret: string, sigLength: number) => string
+```
+
+### `deriveSigningKey`
+
+```typescript
+(apiKey: string) => string
+```
+
+### `createPatch`
+
+```typescript
+(original: string, modified: string) => string
+```
+
+### `applyPatch`
+
+```typescript
+(original: string, patchText: string) => string
+```
+
+### `reconstructVersion`
+
+```typescript
+(base: string, patchesJson: string, target: number) => string
+```
+
+### `squashPatchesWasm`
+
+```typescript
+(base: string, patchesJson: string) => string
+```
+
+### `wasmTextSimilarity`
+
+```typescript
+(a: string, b: string) => number
+```
+
+### `wasmTextSimilarityNgram`
+
+```typescript
+(a: string, b: string, n: number) => number
+```
+
+### `isExpired`
+
+```typescript
+(expiresAtMs: number) => boolean
+```
+
+### `computeDiff`
+
+```typescript
+(oldText: string, newText: string) => DiffResult
+```
+
+### `createClient`
+
+```typescript
+(config: LlmtxtClientConfig) => { upload(conversationId: string, content: string, options?: { format?: string; title?: string; expiresIn?: number; }): Promise<UploadResult>; fetch(signedUrl: string): Promise<FetchResult>; fetchFromConversation(slug: string, conversationId: string): Promise<FetchResult>; fetchOwned(slug: string): Promise<FetchResult>; reshare(slug: string, options?: AttachmentReshareOptions): Promise<ReshareResult>; resign(slug: string, options?: AttachmentReshareOptions): Promise<ResignResult>; createVersionPatch(original: string, updated: string): string; addVersion(slug: string, patchText: string, options?: AttachmentVersionOptions): Promise<AttachmentVersionResult>; addVersionFromContent(slug: string, original: string, updated: string, options?: AttachmentVersionOptions): Promise<AttachmentVersionResult>; isValid(signedUrl: string): boolean; }
 ```
 
 ### `getLineRange`
@@ -274,6 +261,54 @@ const section = getSection(doc, 'Installation', true);
 if (section) console.log(section.content);
 ```
 
+### `extractMentions`
+
+Extract  from message content.
+
+```typescript
+(content: string) => string[]
+```
+
+### `extractTags`
+
+Extract #tags from message content.
+
+```typescript
+(content: string) => string[]
+```
+
+### `extractDirectives`
+
+Extract /directives from message content.
+
+```typescript
+(content: string) => string[]
+```
+
+### `buildGraph`
+
+Build a knowledge graph from an array of messages.  Nodes: agents (from fromAgentId + mentions), topics (#tags), decisions (/decision messages) Edges: mentions (agent→agent), discusses (agent→topic), decides (agent→decision), participates (agent→agent in same conversation)
+
+```typescript
+(messages: MessageInput[]) => KnowledgeGraph
+```
+
+### `topTopics`
+
+Find the most connected topics in the graph. Returns topics sorted by number of discussing agents.
+
+```typescript
+(graph: KnowledgeGraph, limit?: number) => Array<{ topic: string; agents: number; }>
+```
+
+### `topAgents`
+
+Find the most active agents in the graph. Returns agents sorted by total edge weight (mentions + discussions + decisions).
+
+```typescript
+(graph: KnowledgeGraph, limit?: number) => Array<{ agent: string; activity: number; }>
+```
+
 ### `isPredefinedSchema`
 
 Type-guard that checks whether a string is a registered predefined schema name.
@@ -353,7 +388,7 @@ const result = validateText('# Hello');
 
 ### `detectFormat`
 
-Auto-detect whether a string is JSON or text.
+Auto-detect whether a string is JSON, markdown, or plain text.
 
 ```typescript
 (content: string) => "json" | "text" | "markdown"
@@ -363,31 +398,33 @@ Auto-detect whether a string is JSON or text.
 
 - `content` — The string to inspect.
 
-**Returns:** The detected format: `"json"` or `"text"`.
+**Returns:** The detected format: `"json"`, `"markdown"`, or `"text"`.
 
 ```ts
-detectFormat('{"a":1}'); // "json"
-detectFormat('Hello');   // "text"
+detectFormat('{"a":1}');                    // "json"
+detectFormat('# Title\n- item');            // "markdown"
+detectFormat('Hello');                      // "text"
 ```
 
 ### `validateContent`
 
-Validate content for a given format, with optional schema enforcement.
+Validate content for a given format, with optional schema enforcement and content size limits.
 
 ```typescript
-(content: unknown, format: "json" | "text" | "markdown", schemaName?: string) => ValidationResult
+(content: unknown, format: "json" | "text" | "markdown", schemaNameOrOptions?: string | ValidateContentOptions) => ValidationResult
 ```
 
 **Parameters:**
 
 - `content` — The raw content to validate.
 - `format` — The expected content format.
-- `schemaName` — Optional predefined schema name for JSON validation.
+- `schemaNameOrOptions` — A schema name string (backward compat) or options object.
 
 **Returns:** A `ValidationResult` indicating success or listing errors.
 
 ```ts
-const result = validateContent(payload, 'json', 'prompt-v1');
+validateContent(payload, 'json', 'prompt-v1');
+validateContent(payload, 'text', { maxBytes: 10 * 1024 * 1024 });
 ```
 
 ### `autoValidate`
@@ -411,25 +448,18 @@ const result = autoValidate('{"messages":[{"role":"user","content":"hi"}]}', 'pr
 
 ### `computeSignature`
 
-Compute the HMAC-SHA256 signature for a set of signed URL parameters.
+Compute the HMAC-SHA256 signature for signed URL parameters. Delegates to the Rust WASM module.
 
 ```typescript
 (params: SignedUrlParams, secret: string) => string
 ```
 
-**Parameters:**
+### `computeSignatureWithLength`
 
-- `params` — The signed URL parameters to include in the signature payload.
-- `secret` — The shared HMAC secret.
+Compute signature with configurable length. Use 16 for short-lived URLs (default), 32 for long-lived URLs (128 bits).
 
-**Returns:** A 16-character hex string representing the truncated HMAC signature.
-
-```ts
-const sig = computeSignature(
-  { slug: 'xK9mP2nQ', agentId: 'agent-1', conversationId: 'conv_1', expiresAt: 1711234567890 },
-  'my-secret',
-);
-// sig.length === 16
+```typescript
+(params: SignedUrlParams, secret: string, sigLength: number) => string
 ```
 
 ### `generateSignedUrl`
@@ -440,39 +470,44 @@ Generate a signed URL for accessing a document.
 (params: SignedUrlParams, config: SignedUrlConfig) => string
 ```
 
-**Parameters:**
-
-- `params` — The signed URL parameters (slug, agent, conversation, expiry).
-- `config` — The HMAC secret and base URL for URL construction.
-
-**Returns:** The fully-qualified signed URL string.
-
-```ts
-const url = generateSignedUrl(
-  { slug: 'xK9mP2nQ', agentId: 'my-agent', conversationId: 'conv_123', expiresAt: Date.now() + 3600000 },
-  { secret: 'shared-secret', baseUrl: 'https://llmtxt.my' },
-);
-// => "https://llmtxt.my/xK9mP2nQ?agent=my-agent&conv=conv_123&exp=1711234567890&sig=a1b2c3d4e5f6a7b8"
-```
-
 ### `verifySignedUrl`
 
-Verify a signed URL's signature and expiration.
+Verify a signed URL's signature and expiration. Uses timing-safe comparison to prevent timing attacks.
 
 ```typescript
 (url: string | URL, secret: string) => VerifyResult
 ```
 
-**Parameters:**
+### `computeOrgSignature`
 
-- `url` — The signed URL to verify (string or `URL` instance).
-- `secret` — The shared HMAC secret used when the URL was generated.
+Compute the HMAC-SHA256 signature for org-scoped signed URL parameters. Includes orgId in the HMAC payload for organization-level access control. Returns 32 hex characters (128 bits) by default.
 
-**Returns:** A `VerifyResult` with `valid`, optional `reason`, and optional `params`.
+```typescript
+(params: OrgSignedUrlParams, secret: string) => string
+```
 
-```ts
-const result = verifySignedUrl('https://llmtxt.my/xK9mP2nQ?agent=a&conv=c&exp=9999999999999&sig=abc123', 'secret');
-if (result.valid) console.log(result.params);
+### `computeOrgSignatureWithLength`
+
+Compute org-scoped signature with configurable length.
+
+```typescript
+(params: OrgSignedUrlParams, secret: string, sigLength: number) => string
+```
+
+### `generateOrgSignedUrl`
+
+Generate an org-scoped signed URL for accessing a document. The URL includes the org parameter for organization-level access verification.
+
+```typescript
+(params: OrgSignedUrlParams, config: SignedUrlConfig) => string
+```
+
+### `verifyOrgSignedUrl`
+
+Verify an org-scoped signed URL's signature and expiration.
+
+```typescript
+(url: string | URL, secret: string) => VerifyResult & { orgId?: string; }
 ```
 
 ### `generateTimedUrl`
@@ -483,21 +518,419 @@ Generate a signed URL that expires after the given duration.
 (params: Omit<SignedUrlParams, "expiresAt">, config: SignedUrlConfig, ttlMs?: number) => string
 ```
 
+### `deriveSigningKey`
+
+Derive a per-agent signing key from their API key. Delegates to the Rust WASM module.
+
+```typescript
+(apiKey: string) => string
+```
+
+### `isExpired`
+
+Check whether a timestamp has expired. Returns false for null/undefined (no expiration set).
+
+```typescript
+(expiresAt: number | null | undefined) => boolean
+```
+
+### `compressSnapshot`
+
+Compress a session snapshot JSON string. Returns compressed data + metadata for storage/retrieval.
+
+```typescript
+(jsonStr: string, sessionId: string, agentId: string) => Promise<CompressedSnapshot>
+```
+
+### `decompressSnapshot`
+
+Decompress a snapshot back to JSON string. Verifies integrity via content hash if provided.
+
+```typescript
+(data: Buffer, expectedHash?: string) => Promise<string>
+```
+
+### `compressSessionData`
+
+Compress a session snapshot object directly. Serializes to JSON, then compresses.
+
+```typescript
+(sessionData: Record<string, unknown>, sessionId: string, agentId: string, options?: SnapshotOptions) => Promise<CompressedSnapshot>
+```
+
+### `decompressSessionData`
+
+Decompress and parse a snapshot back to an object.
+
+```typescript
+<T = Record<string, unknown>>(data: Buffer, expectedHash?: string) => Promise<T>
+```
+
+### `snapshotSummary`
+
+Generate a human-readable summary of a snapshot for handoff messages. Useful for agents posting session summaries to ClawMsgr.
+
+```typescript
+(meta: SnapshotMeta) => string
+```
+
+### `extractNgrams`
+
+Extract character-level n-grams from text. Normalizes whitespace and lowercases before extraction.
+
+```typescript
+(text: string, n?: number) => Set<string>
+```
+
+### `extractWordShingles`
+
+Extract word-level n-grams (shingles) from text. Better for longer content where word order matters.
+
+```typescript
+(text: string, n?: number) => Set<string>
+```
+
+### `jaccardSimilarity`
+
+Jaccard similarity: |A ∩ B| / |A ∪ B|. Returns 0.0 (no overlap) to 1.0 (identical).
+
+```typescript
+(a: Set<string>, b: Set<string>) => number
+```
+
+### `textSimilarity`
+
+Compute similarity between two texts using character n-grams. Returns 0.0 to 1.0.
+
+```typescript
+(a: string, b: string, ngramSize?: number) => number
+```
+
+### `contentSimilarity`
+
+Compute similarity using word shingles. Better for comparing messages or documents where word choice matters more than character patterns.
+
+```typescript
+(a: string, b: string, shingleSize?: number) => number
+```
+
+### `minHashFingerprint`
+
+Generate a compact fingerprint for content using MinHash. The fingerprint is an array of hash values that can be compared for approximate similarity without storing the full n-gram set.  Two fingerprints with many matching values indicate similar content.
+
+```typescript
+(text: string, numHashes?: number, ngramSize?: number) => number[]
+```
+
+### `fingerprintSimilarity`
+
+Estimate similarity between two MinHash fingerprints. Returns approximate Jaccard similarity (0.0 to 1.0).
+
+```typescript
+(a: number[], b: number[]) => number
+```
+
+### `rankBySimilarity`
+
+Rank a list of texts by similarity to a query. Returns indices sorted by descending similarity, with scores.
+
+```typescript
+(query: string, candidates: string[], options?: { method?: "ngram" | "shingle"; threshold?: number; }) => Array<{ index: number; score: number; }>
+```
+
+### `isValidTransition`
+
+Check whether a state transition is allowed.
+
+```typescript
+(from: DocumentState, to: DocumentState) => boolean
+```
+
 **Parameters:**
 
-- `params` — Slug, agentId, and conversationId (expiresAt is calculated automatically).
-- `config` — The HMAC secret and base URL for URL construction.
-- `ttlMs` — Time to live in milliseconds (default: 1 hour / 3 600 000 ms).
+- `from` — Current document state.
+- `to` — Target document state.
 
-**Returns:** The fully-qualified signed URL string with a computed expiration.
+**Returns:** `true` if the transition is permitted by the lifecycle rules.
 
-```ts
-const url = generateTimedUrl(
-  { slug: 'xK9mP2nQ', agentId: 'agent-1', conversationId: 'conv_1' },
-  { secret: 'secret', baseUrl: 'https://llmtxt.my' },
-  300_000, // 5 minutes
-);
+### `validateTransition`
+
+Validate a proposed state transition with a detailed result.
+
+```typescript
+(from: DocumentState, to: DocumentState) => TransitionResult
 ```
+
+**Parameters:**
+
+- `from` — Current document state.
+- `to` — Target document state.
+
+**Returns:** A result object indicating validity and allowed alternatives.
+
+### `isEditable`
+
+Check whether a document state allows content modifications.
+
+```typescript
+(state: DocumentState) => boolean
+```
+
+**Parameters:**
+
+- `state` — Current document state.
+
+**Returns:** `true` if new versions can be created in this state.
+
+### `isTerminal`
+
+Check whether a document state is terminal (no further transitions).
+
+```typescript
+(state: DocumentState) => boolean
+```
+
+**Parameters:**
+
+- `state` — Current document state.
+
+**Returns:** `true` if the state has no outgoing transitions.
+
+### `reconstructVersion`
+
+Reconstruct a document at a specific version by applying patches sequentially from the base content.
+
+```typescript
+(baseContent: string, patches: VersionEntry[], targetVersion?: number) => ReconstructionResult
+```
+
+**Parameters:**
+
+- `baseContent` — The original document content (version 0).
+- `patches` — Ordered array of version entries.
+- `targetVersion` — The version to reconstruct. Defaults to latest.
+
+**Returns:** The reconstructed document content and metadata.
+
+### `validatePatchApplies`
+
+Check whether a patch applies cleanly to the given content.
+
+```typescript
+(content: string, patchText: string) => PatchValidationResult
+```
+
+**Parameters:**
+
+- `content` — The current document content.
+- `patchText` — The unified diff to test.
+
+**Returns:** Whether the patch applies and the resulting content.
+
+### `squashPatches`
+
+Squash a sequence of patches into a single unified diff.  Applies all patches sequentially to the base content, then produces one diff from base to final state.
+
+```typescript
+(baseContent: string, patches: VersionEntry[]) => { patchText: string; contentHash: string; tokenCount: number; }
+```
+
+**Parameters:**
+
+- `baseContent` — The content before the first patch.
+- `patches` — Ordered array of version entries to squash.
+
+**Returns:** A single patch text and the final content hash.
+
+### `computeReversePatch`
+
+Compute a reverse patch that undoes a version's changes.
+
+```typescript
+(contentBefore: string, contentAfter: string) => string
+```
+
+**Parameters:**
+
+- `contentBefore` — Document content before the patch was applied.
+- `contentAfter` — Document content after the patch was applied.
+
+**Returns:** A unified diff that reverts `contentAfter` back to `contentBefore`.
+
+### `diffVersions`
+
+Compute a diff summary between two versions of a document.
+
+```typescript
+(baseContent: string, patches: VersionEntry[], fromVersion: number, toVersion: number) => VersionDiffSummary
+```
+
+**Parameters:**
+
+- `baseContent` — The original document content (version 0).
+- `patches` — Full ordered patch stack.
+- `fromVersion` — Start version.
+- `toVersion` — End version.
+
+**Returns:** Diff statistics and patch text between the two versions.
+
+### `evaluateApprovals`
+
+Evaluate reviews against an approval policy.  Filters out stale and timed-out reviews, then checks whether the remaining approvals meet the policy threshold.
+
+```typescript
+(reviews: Review[], policy: ApprovalPolicy, currentVersion: number, now?: number) => ApprovalResult
+```
+
+**Parameters:**
+
+- `reviews` — All reviews submitted for the document.
+- `policy` — The approval policy to evaluate against.
+- `currentVersion` — Current document version (reviews for older versions are stale).
+- `now` — Current timestamp (ms since epoch). Defaults to `Date.now()`.
+
+**Returns:** The approval evaluation result.
+
+### `markStaleReviews`
+
+Mark reviews as stale when a document version changes.  Returns a new array with updated review statuses. Does not mutate input.
+
+```typescript
+(reviews: Review[], currentVersion: number) => Review[]
+```
+
+**Parameters:**
+
+- `reviews` — Current reviews.
+- `currentVersion` — The new document version.
+
+**Returns:** Reviews with outdated entries marked as STALE.
+
+### `inlineRef`
+
+Create a content reference for inline storage.
+
+```typescript
+(contentHash: string, originalSize: number, compressedSize: number) => ContentRef
+```
+
+**Parameters:**
+
+- `contentHash` — SHA-256 hash of the uncompressed content.
+- `originalSize` — Size of the uncompressed content in bytes.
+- `compressedSize` — Size of the compressed content in bytes.
+
+**Returns:** An inline content reference.
+
+### `objectStoreRef`
+
+Create a content reference for object-store storage.
+
+```typescript
+(storageKey: string, contentHash: string, originalSize: number, compressedSize: number) => ContentRef
+```
+
+**Parameters:**
+
+- `storageKey` — The object key in the store.
+- `contentHash` — SHA-256 hash of the uncompressed content.
+- `originalSize` — Size of the uncompressed content in bytes.
+- `compressedSize` — Size of the compressed content in bytes.
+
+**Returns:** An object-store content reference.
+
+### `versionStorageKey`
+
+Generate a storage key for a document version.  Convention: `attachments/{slug}/v{version}.zlib`
+
+```typescript
+(slug: string, version: number) => string
+```
+
+**Parameters:**
+
+- `slug` — Document slug.
+- `version` — Version number.
+
+**Returns:** The object storage key.
+
+### `shouldUseObjectStore`
+
+Determine whether content should be stored in object-store vs inline.  Threshold: content larger than 64KB compressed goes to object-store.
+
+```typescript
+(compressedSize: number, threshold?: number) => boolean
+```
+
+**Parameters:**
+
+- `compressedSize` — Size of the compressed content in bytes.
+- `threshold` — Size threshold in bytes. Defaults to 65536 (64KB).
+
+**Returns:** `true` if the content should use object-store.
+
+### `attributeVersion`
+
+Compute attribution data for a single version change.
+
+```typescript
+(contentBefore: string, contentAfter: string, authorId: string, entry: Pick<VersionEntry, "versionNumber" | "changelog" | "createdAt">) => VersionAttribution
+```
+
+**Parameters:**
+
+- `contentBefore` — Document content before the change.
+- `contentAfter` — Document content after the change.
+- `authorId` — Agent that made the change.
+- `entry` — The version entry metadata.
+
+**Returns:** Attribution data for this version.
+
+### `buildContributorSummary`
+
+Build aggregated contributor summaries from version attributions.
+
+```typescript
+(attributions: VersionAttribution[]) => ContributorSummary[]
+```
+
+**Parameters:**
+
+- `attributions` — Array of per-version attribution data.
+
+**Returns:** Contributor summaries sorted by total versions authored (descending).
+
+### `planRetrieval`
+
+Plan which sections to retrieve given a token budget.  When a query is provided, sections are ranked by text similarity to the query and packed greedily by descending score. Without a query, sections are packed in document order.
+
+```typescript
+(overview: DocumentOverview, tokenBudget: number, query?: string, options?: RetrievalOptions) => RetrievalPlan
+```
+
+**Parameters:**
+
+- `overview` — Structural overview from generateOverview().
+- `tokenBudget` — Maximum tokens to use.
+- `query` — Optional search query to rank sections by relevance.
+- `options` — Planning options.
+
+**Returns:** A retrieval plan with selected sections and budget accounting.
+
+### `estimateRetrievalCost`
+
+Estimate the token cost of fetching specific sections.
+
+```typescript
+(overview: DocumentOverview, sectionIndices: number[]) => number
+```
+
+**Parameters:**
+
+- `overview` — Document overview.
+- `sectionIndices` — Indices of sections to fetch.
+
+**Returns:** Total token count for the requested sections.
 
 ## Types
 
@@ -529,6 +962,270 @@ LRUCacheOptions
 
 - `maxSize` — Maximum number of entries before the least-recently-used entry is evicted (default: 1000).
 - `ttl` — Default time-to-live in milliseconds for new entries (default: 24 hours).
+
+### `DiffResult`
+
+```typescript
+DiffResult
+```
+
+**Members:**
+
+- `addedLines`
+- `removedLines`
+- `addedTokens`
+- `removedTokens`
+
+### `ContentFormat`
+
+Supported content formats.
+
+```typescript
+ContentFormat
+```
+
+### `DocumentMode`
+
+Lifecycle state for collaborative documents.
+
+```typescript
+DocumentMode
+```
+
+### `DocumentMeta`
+
+Metadata for a stored document.
+
+```typescript
+DocumentMeta
+```
+
+**Members:**
+
+- `id`
+- `slug`
+- `format`
+- `contentHash`
+- `originalSize`
+- `compressedSize`
+- `tokenCount`
+- `createdAt`
+- `expiresAt`
+- `accessCount`
+- `lastAccessedAt`
+- `mode` — Lifecycle state (collaborative documents).
+- `versionCount` — Total number of versions.
+- `currentVersion` — Current version number.
+- `storageKey` — Object storage key when content lives in S3 instead of inline.
+
+### `VersionMeta`
+
+Metadata for a single document version.
+
+```typescript
+VersionMeta
+```
+
+**Members:**
+
+- `id`
+- `documentId`
+- `versionNumber`
+- `contentHash`
+- `tokenCount`
+- `createdAt`
+- `createdBy`
+- `changelog`
+
+### `VersionSummary`
+
+Summary of a version for listing (no content).
+
+```typescript
+VersionSummary
+```
+
+**Members:**
+
+- `versionNumber`
+- `tokenCount`
+- `createdAt`
+- `createdBy`
+- `changelog`
+
+### `VersionDiff`
+
+Result of comparing two versions.
+
+```typescript
+VersionDiff
+```
+
+**Members:**
+
+- `documentId`
+- `fromVersion`
+- `toVersion`
+- `addedTokens`
+- `removedTokens`
+- `addedLines`
+- `removedLines`
+
+### `LlmtxtRef`
+
+Reference to an llmtxt document shared in a message.
+
+```typescript
+LlmtxtRef
+```
+
+**Members:**
+
+- `slug`
+- `url`
+- `format`
+- `tokenCount`
+- `preview`
+
+### `AttachmentOptions`
+
+Options for creating an attachment via the bridge.
+
+```typescript
+AttachmentOptions
+```
+
+**Members:**
+
+- `content`
+- `format`
+- `conversationId`
+- `fromAgentId`
+- `expiresInMs`
+
+### `AttachmentAccessMode`
+
+Attachment fetch mode supported by the bridge/API layer.
+
+```typescript
+AttachmentAccessMode
+```
+
+### `AttachmentSharingMode`
+
+Share state persisted by the API layer for an attachment.
+
+```typescript
+AttachmentSharingMode
+```
+
+### `AttachmentReshareOptions`
+
+Options for re-sharing an existing attachment.
+
+```typescript
+AttachmentReshareOptions
+```
+
+**Members:**
+
+- `expiresIn`
+- `mode`
+
+### `AttachmentVersionOptions`
+
+Options for appending a version to an existing attachment slug.
+
+```typescript
+AttachmentVersionOptions
+```
+
+**Members:**
+
+- `baseVersion`
+- `changelog`
+
+### `LlmtxtClientConfig`
+
+```typescript
+LlmtxtClientConfig
+```
+
+**Members:**
+
+- `apiBase`
+- `apiKey`
+- `agentId`
+
+### `UploadResult`
+
+```typescript
+UploadResult
+```
+
+**Members:**
+
+- `slug`
+- `contentHash`
+- `originalSize`
+- `compressedSize`
+- `compressionRatio`
+- `tokens`
+- `signedUrl`
+- `expiresAt`
+
+### `FetchResult`
+
+```typescript
+FetchResult
+```
+
+**Members:**
+
+- `slug`
+- `content`
+- `format`
+- `title`
+- `contentHash`
+- `originalSize`
+- `tokens`
+
+### `ReshareResult`
+
+```typescript
+ReshareResult
+```
+
+**Members:**
+
+- `slug`
+- `mode`
+- `signedUrl`
+- `expiresAt`
+
+### `ResignResult`
+
+Backward-compatible alias. Prefer `ReshareResult`.
+
+```typescript
+ReshareResult
+```
+
+### `AttachmentVersionResult`
+
+```typescript
+AttachmentVersionResult
+```
+
+**Members:**
+
+- `slug`
+- `versionNumber`
+- `patchText`
+- `contentHash`
+- `createdAt`
+- `createdBy`
+- `changelog`
 
 ### `Section`
 
@@ -597,6 +1294,58 @@ LineRangeResult
 - `totalTokens` — Estimated total token count for the full document.
 - `tokensSaved` — Number of tokens saved by extracting only this range.
 
+### `GraphNode`
+
+```typescript
+GraphNode
+```
+
+**Members:**
+
+- `id`
+- `type`
+- `label`
+- `weight`
+
+### `GraphEdge`
+
+```typescript
+GraphEdge
+```
+
+**Members:**
+
+- `source`
+- `target`
+- `type`
+- `weight`
+
+### `KnowledgeGraph`
+
+```typescript
+KnowledgeGraph
+```
+
+**Members:**
+
+- `nodes`
+- `edges`
+- `stats`
+
+### `MessageInput`
+
+```typescript
+MessageInput
+```
+
+**Members:**
+
+- `id`
+- `fromAgentId`
+- `content`
+- `metadata`
+- `createdAt`
+
 ### `PredefinedSchemaName`
 
 Union of all registered predefined schema name strings.
@@ -650,7 +1399,7 @@ Inferred TypeScript type for a single prompt message with role and content.
 Inferred TypeScript type for content compression request payloads.
 
 ```typescript
-{ content: string; format: "json" | "markdown" | "text"; schema?: string | undefined; metadata?: Record<string, unknown> | undefined; }
+{ content: string; format: "json" | "text" | "markdown"; schema?: string | undefined; metadata?: Record<string, unknown> | undefined; }
 ```
 
 ### `DecompressRequest`
@@ -698,6 +1447,21 @@ ValidationError
 - `message` — Human-readable description of the validation failure.
 - `code` — Machine-readable error code (e.g. `"invalid_json"`, `"unknown_schema"`).
 
+### `ValidateContentOptions`
+
+Options for content validation.
+
+```typescript
+ValidateContentOptions
+```
+
+**Members:**
+
+- `schemaName` — Optional predefined schema name for JSON validation.
+- `maxBytes` — Maximum content size in bytes. Set to 0 to disable. Default: 5 MB.
+- `maxLineBytes` — Maximum line length in bytes. Set to 0 to disable. Default: 64 KB.
+- `rejectBinary` — Reject content with binary control characters (0x00-0x08). Default: true.
+
 ### `SignedUrlParams`
 
 Parameters that uniquely identify a signed URL access grant.
@@ -708,10 +1472,10 @@ SignedUrlParams
 
 **Members:**
 
-- `slug` — Short base62-encoded document identifier (e.g. `"xK9mP2nQ"`).
-- `agentId` — Unique identifier of the agent requesting access.
-- `conversationId` — Conversation scope that this access grant is bound to.
-- `expiresAt` — Absolute expiration time as a Unix timestamp in milliseconds.
+- `slug`
+- `agentId`
+- `conversationId`
+- `expiresAt`
 
 ### `SignedUrlConfig`
 
@@ -723,12 +1487,14 @@ SignedUrlConfig
 
 **Members:**
 
-- `secret` — Shared HMAC-SHA256 secret used to sign and verify URLs.
-- `baseUrl` — Base URL for document access (e.g. `"https://llmtxt.my"`).
+- `secret`
+- `baseUrl`
+- `pathPrefix` — Optional path prefix like `/attachments`. Default: root path.
+- `signatureLength` — Signature length in hex chars. Default: 16.
 
 ### `VerifyResult`
 
-Outcome of verifying a signed URL via `verifySignedUrl`.
+Outcome of verifying a signed URL.
 
 ```typescript
 VerifyResult
@@ -736,9 +1502,400 @@ VerifyResult
 
 **Members:**
 
-- `valid` — Whether the signature is valid and the URL has not expired.
-- `reason` — Machine-readable failure reason, present only when `valid` is `false`.
-- `params` — Reconstructed request parameters, present only when `valid` is `true`.
+- `valid`
+- `reason`
+- `params`
+
+### `OrgSignedUrlParams`
+
+Parameters for org-scoped signed URLs (Phase 5 enterprise). Extends conversation-scoped params with an organization ID.
+
+```typescript
+OrgSignedUrlParams
+```
+
+**Members:**
+
+- `orgId`
+
+### `SnapshotMeta`
+
+```typescript
+SnapshotMeta
+```
+
+**Members:**
+
+- `sessionId`
+- `agentId`
+- `createdAt`
+- `originalSize`
+- `compressedSize`
+- `compressionRatio`
+- `tokens`
+- `contentHash`
+
+### `CompressedSnapshot`
+
+```typescript
+CompressedSnapshot
+```
+
+**Members:**
+
+- `meta`
+- `data`
+
+### `SnapshotOptions`
+
+```typescript
+SnapshotOptions
+```
+
+**Members:**
+
+- `includeDecisions` — Include full decision log (default: true)
+- `includeObservations` — Include brain observations (default: true)
+- `maxSize` — Max content size before compression in bytes (default: 5MB)
+
+### `DocumentState`
+
+Lifecycle state of a collaborative document.
+
+```typescript
+DocumentState
+```
+
+### `StateTransition`
+
+Record of a lifecycle state change.
+
+```typescript
+StateTransition
+```
+
+**Members:**
+
+- `from` — State before the transition.
+- `to` — State after the transition.
+- `changedBy` — Agent that initiated the transition.
+- `changedAt` — Timestamp of the transition (ms since epoch).
+- `reason` — Human-readable reason for the transition.
+- `atVersion` — Document version number at the time of transition.
+
+### `TransitionResult`
+
+Result of attempting a state transition.
+
+```typescript
+TransitionResult
+```
+
+**Members:**
+
+- `valid` — Whether the transition is allowed.
+- `reason` — Human-readable explanation when invalid.
+- `allowedTargets` — The allowed targets from the current state (for error context).
+
+### `VersionEntry`
+
+A single version entry in a document's patch stack.
+
+```typescript
+VersionEntry
+```
+
+**Members:**
+
+- `versionNumber` — Sequential version number (1-based).
+- `patchText` — Unified diff patch text.
+- `createdBy` — Agent that authored this version.
+- `changelog` — One-line description of the change.
+- `contentHash` — SHA-256 hash of the resulting content after applying this patch.
+- `createdAt` — Timestamp of creation (ms since epoch).
+
+### `ReconstructionResult`
+
+Result of reconstructing a document at a specific version.
+
+```typescript
+ReconstructionResult
+```
+
+**Members:**
+
+- `content` — The document content at the requested version.
+- `version` — The version number that was reconstructed.
+- `patchesApplied` — Number of patches applied to reach this version.
+- `contentHash` — SHA-256 hash of the reconstructed content.
+- `tokenCount` — Token count of the reconstructed content.
+
+### `PatchValidationResult`
+
+Result of validating whether a patch applies cleanly.
+
+```typescript
+PatchValidationResult
+```
+
+**Members:**
+
+- `applies` — Whether the patch can be applied without conflicts.
+- `error` — Error message if the patch does not apply.
+- `resultContent` — The content that would result if the patch applies.
+
+### `VersionDiffSummary`
+
+Summary of changes between two versions.
+
+```typescript
+VersionDiffSummary
+```
+
+**Members:**
+
+- `fromVersion` — Source version number.
+- `toVersion` — Target version number.
+- `addedLines` — Lines added between versions.
+- `removedLines` — Lines removed between versions.
+- `addedTokens` — Tokens added between versions.
+- `removedTokens` — Tokens removed between versions.
+- `patchText` — Unified diff text.
+
+### `ApprovalStatus`
+
+Status of an individual review.
+
+```typescript
+ApprovalStatus
+```
+
+### `Review`
+
+A single review from an agent.
+
+```typescript
+Review
+```
+
+**Members:**
+
+- `reviewerId` — Agent that submitted the review.
+- `status` — Current status of this review.
+- `timestamp` — Timestamp of the review action (ms since epoch).
+- `reason` — Reason or comment provided with the review.
+- `atVersion` — Version number the review applies to (`STALE` if document changed since).
+
+### `ApprovalPolicy`
+
+Policy governing how approvals are evaluated.
+
+```typescript
+ApprovalPolicy
+```
+
+**Members:**
+
+- `requiredCount` — Minimum number of approvals required (absolute count).  Ignored when `requiredPercentage` is set ( 0).
+- `requireUnanimous` — If true, all allowed reviewers must approve (overrides count/percentage).
+- `allowedReviewerIds` — Agent IDs allowed to review. Empty means anyone can review.
+- `timeoutMs` — Auto-expire reviews older than this (ms). 0 means no timeout.
+- `requiredPercentage` — Percentage of effective reviewers required (0-100). 0 means use requiredCount.  When  0, threshold = ceil(percentage * effectiveReviewerCount / 100).
+
+### `ApprovalResult`
+
+Result of evaluating reviews against a policy.
+
+```typescript
+ApprovalResult
+```
+
+**Members:**
+
+- `approved` — Whether the approval threshold is met.
+- `approvedBy` — Reviewers that have approved.
+- `rejectedBy` — Reviewers that have rejected.
+- `pendingFrom` — Reviewers that are still pending.
+- `staleFrom` — Reviewers whose reviews are stale (document changed since).
+- `reason` — Human-readable summary of the evaluation.
+
+### `StorageType`
+
+How document content is stored.
+
+```typescript
+StorageType
+```
+
+### `CompressionMethod`
+
+Compression method used for stored content.
+
+```typescript
+CompressionMethod
+```
+
+### `ContentRef`
+
+Reference to where a document's compressed content lives.  Inline: content is stored directly in the database (small documents). Object-store: content is stored in S3-compatible storage, referenced by key.
+
+```typescript
+ContentRef
+```
+
+**Members:**
+
+- `type` — Storage backend type.
+- `storageKey` — Location of the content. - For `inline`: not used (content is in the database row). - For `object-store`: the object key (e.g. `attachments/xK9mP2nQ/v3.zlib`).
+- `contentHash` — SHA-256 hash of the uncompressed content for integrity verification.
+- `originalSize` — Size of the uncompressed content in bytes.
+- `compressedSize` — Size of the compressed content in bytes.
+- `compression` — Compression method used.
+
+### `StorageMetadata`
+
+Metadata about a stored document blob.
+
+```typescript
+StorageMetadata
+```
+
+**Members:**
+
+- `ref` — Content reference.
+- `createdAt` — When the content was first stored (ms since epoch).
+- `lastAccessedAt` — When the content was last accessed (ms since epoch).
+- `accessCount` — Number of times the content has been accessed.
+
+### `StorageAdapter`
+
+Storage adapter that platforms implement.
+
+```typescript
+StorageAdapter
+```
+
+**Members:**
+
+- `getContent` — Retrieve document content at a specific version. When version is omitted, returns the latest version's content.
+- `putContent` — Store document content for a specific version. Returns a ContentRef indicating where the content was stored.
+- `getVersions` — Get the ordered list of version entries for a document.
+- `addVersion` — Append a new version entry to the document's version stack.
+- `getState` — Get the current lifecycle state of a document.
+- `setState` — Record a lifecycle state transition.
+- `getReviews` — Get all reviews for a document.
+- `addReview` — Add or update a review for a document.
+- `getApprovalPolicy` — Get the approval policy for a document.
+
+### `VersionAttribution`
+
+Attribution data for a single version.
+
+```typescript
+VersionAttribution
+```
+
+**Members:**
+
+- `versionNumber` — Version number this attribution describes.
+- `authorId` — Agent that authored the change.
+- `addedLines` — Lines added in this version.
+- `removedLines` — Lines removed in this version.
+- `addedTokens` — Tokens added in this version.
+- `removedTokens` — Tokens removed in this version.
+- `sectionsModified` — Section titles that were modified (detected via structural analysis).
+- `changelog` — One-line change description.
+- `createdAt` — Timestamp of the change.
+
+### `ContributorSummary`
+
+Aggregated contribution summary for a single agent.
+
+```typescript
+ContributorSummary
+```
+
+**Members:**
+
+- `agentId` — Agent identifier.
+- `versionsAuthored` — Number of versions this agent authored.
+- `totalTokensAdded` — Total tokens added across all versions.
+- `totalTokensRemoved` — Total tokens removed across all versions.
+- `netTokens` — Net token impact (added - removed).
+- `firstContribution` — Timestamp of first contribution.
+- `lastContribution` — Timestamp of most recent contribution.
+- `sectionsModified` — Unique section titles this agent modified.
+
+### `PlannedSection`
+
+A section selected for retrieval.
+
+```typescript
+PlannedSection
+```
+
+**Members:**
+
+- `sectionIndex` — Index into the overview's sections array.
+- `title` — Section title.
+- `tokenCount` — Estimated token cost for this section.
+- `reason` — Why this section was selected.
+- `score` — Relevance score (0-1) when selected by query match.
+
+### `RetrievalPlan`
+
+The output of retrieval planning.
+
+```typescript
+RetrievalPlan
+```
+
+**Members:**
+
+- `sections` — Sections selected for retrieval, ordered by relevance.
+- `totalTokens` — Total tokens across all selected sections.
+- `budgetRemaining` — Remaining token budget after selection.
+- `tokensSaved` — Tokens saved compared to fetching the full document.
+- `fullDocumentFits` — Whether the full document fits within budget (no planning needed).
+
+### `RetrievalOptions`
+
+Options for retrieval planning.
+
+```typescript
+RetrievalOptions
+```
+
+**Members:**
+
+- `minScore` — Minimum similarity score to include a section (0-1). Default: 0.1
+- `includeIntro` — Always include the first section (typically title/intro). Default: true
+
+### `CreateVersionOptions`
+
+Options for creating a new version.
+
+```typescript
+CreateVersionOptions
+```
+
+**Members:**
+
+- `agentId` — Agent creating this version.
+- `changelog` — One-line change description.
+
+### `LlmtxtDocumentOptions`
+
+Options for constructing an LlmtxtDocument.
+
+```typescript
+LlmtxtDocumentOptions
+```
+
+**Members:**
+
+- `slug` — Document slug.
+- `storage` — Storage adapter for persistence.
 
 ## Classes
 
@@ -770,6 +1927,35 @@ const cache = new LRUCache<string>({ maxSize: 100, ttl: 60_000 });
 cache.set('key', 'value');
 cache.get('key'); // "value"
 ```
+
+### `LlmtxtDocument`
+
+High-level document orchestration object.  Each instance wraps a single document slug and delegates all persistence to the provided StorageAdapter. All computation (diffing, hashing, disclosure, consensus) uses the pure SDK functions.
+
+```typescript
+typeof LlmtxtDocument
+```
+
+**Members:**
+
+- `slug`
+- `storage`
+- `getContent` — Get document content at a specific version (defaults to latest).
+- `reconstruct` — Reconstruct content from base + patch stack at a specific version.
+- `overview` — Generate structural overview of the current document.
+- `section` — Extract a named section from the current document.
+- `getVersions` — Get all version entries.
+- `createVersion` — Create a new version from updated content.
+- `diff` — Compute a diff summary between two versions.
+- `squash` — Squash all patches into a single diff.
+- `getState` — Get current document state.
+- `transition` — Transition document to a new state.
+- `checkApproval` — Check current approval status against policy.
+- `approve` — Submit an approval for the current version.
+- `reject` — Submit a rejection for the current version.
+- `getAttributions` — Compute attribution for all versions.
+- `getContributors` — Get aggregated contributor summaries.
+- `planRetrieval` — Plan which sections to retrieve given a token budget.
 
 ## Constants
 
@@ -826,7 +2012,7 @@ Registry of predefined content schemas keyed by name.
 Schema for incoming content compression requests.
 
 ```typescript
-z.ZodObject<{ content: z.ZodString; format: z.ZodDefault<z.ZodOptional<z.ZodEnum<["json", "text", "markdown"]>>>; schema: z.ZodOptional<z.ZodString>; metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>; }, "strip", z.ZodTypeAny, { content: string; format: "json" | "markdown" | "text"; schema?: string | undefined; metadata?: Record<string, unknown> | undefined; }, { content: string; format?: "json" | "markdown" | "text" | undefined; schema?: string | undefined; metadata?: Record<string, unknown> | undefined; }>
+z.ZodObject<{ content: z.ZodString; format: z.ZodDefault<z.ZodOptional<z.ZodEnum<["json", "text", "markdown"]>>>; schema: z.ZodOptional<z.ZodString>; metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>; }, "strip", z.ZodTypeAny, { content: string; format: "json" | "text" | "markdown"; schema?: string | undefined; metadata?: Record<string, unknown> | undefined; }, { content: string; format?: "json" | "text" | "markdown" | undefined; schema?: string | undefined; metadata?: Record<string, unknown> | undefined; }>
 ```
 
 ### `decompressRequestSchema`
@@ -843,4 +2029,36 @@ Schema for incoming content search requests.
 
 ```typescript
 z.ZodObject<{ query: z.ZodString; slugs: z.ZodArray<z.ZodString, "many">; }, "strip", z.ZodTypeAny, { query: string; slugs: string[]; }, { query: string; slugs: string[]; }>
+```
+
+### `DEFAULT_MAX_CONTENT_BYTES`
+
+Default maximum content size in bytes (5 MB).
+
+```typescript
+number
+```
+
+### `DEFAULT_MAX_LINE_BYTES`
+
+Default maximum line length in bytes (64 KB).
+
+```typescript
+number
+```
+
+### `DOCUMENT_STATES`
+
+All valid document states in lifecycle order.
+
+```typescript
+readonly DocumentState[]
+```
+
+### `DEFAULT_APPROVAL_POLICY`
+
+Default approval policy: 1 approval, no timeout.
+
+```typescript
+ApprovalPolicy
 ```

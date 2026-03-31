@@ -51,7 +51,9 @@ packages/llmtxt/            npm package (TypeScript SDK + WASM bridge)
     client.ts               HTTP client for attachment API
     validation.ts           Zod-based format validation
     wasm.ts                 WASM bridge layer
-apps/web/                   Demo web app (Fastify + SQLite)
+apps/backend/               API server (Fastify + SQLite + better-auth)
+apps/frontend/              SvelteKit web UI (www.llmtxt.my)
+apps/docs/                  Fumadocs documentation site (docs.llmtxt.my)
 docs/
   LLMTXT-REFERENCE.md      Canonical system reference
   VISION.md                 Design philosophy

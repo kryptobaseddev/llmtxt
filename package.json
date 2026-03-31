@@ -4,12 +4,12 @@
   "packageManager": "pnpm@10.30.0",
   "scripts": {
     "build": "pnpm -r build",
-    "dev": "pnpm --filter @llmtxt/web dev",
-    "start": "pnpm --filter @llmtxt/web start",
-    "db:generate": "pnpm --filter @llmtxt/web db:generate",
-    "db:migrate": "pnpm --filter @llmtxt/web db:migrate",
-    "db:push": "pnpm --filter @llmtxt/web db:push",
-    "db:studio": "pnpm --filter @llmtxt/web db:studio"
+    "dev": "pnpm --filter @llmtxt/backend dev",
+    "start": "pnpm --filter @llmtxt/backend start",
+    "db:generate": "pnpm --filter @llmtxt/backend db:generate",
+    "db:migrate": "pnpm --filter @llmtxt/backend db:migrate",
+    "db:push": "pnpm --filter @llmtxt/backend db:push",
+    "db:studio": "pnpm --filter @llmtxt/backend db:studio"
   },
   "engines": {
     "node": ">=24"

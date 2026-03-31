@@ -4,77 +4,208 @@ title: ''
 
 ## Functions & Classes
 
-| Symbol                                                                           | Kind     | Description                                                                      |
-| -------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------- |
-| [`LRUCache`](/packages/./api/index#lrucache)                                     | class    | Generic least-recently-used (LRU) cache with time-to-live support.               |
-| [`encodeBase62()`](/packages/./api/index#encodebase62)                           | function | Encode a non-negative integer into a base62 string.                              |
-| [`decodeBase62()`](/packages/./api/index#decodebase62)                           | function | Decode a base62-encoded string back into a non-negative integer.                 |
-| [`compress()`](/packages/./api/index#compress)                                   | function | Compress a UTF-8 string using deflate.                                           |
-| [`decompress()`](/packages/./api/index#decompress)                               | function | Decompress a deflate-compressed buffer back to a UTF-8 string.                   |
-| [`generateId()`](/packages/./api/index#generateid)                               | function | Generate a base62-encoded 8-character ID from a UUID.                            |
-| [`hashContent()`](/packages/./api/index#hashcontent)                             | function | Compute the SHA-256 hash of a string, returned as a hex digest.                  |
-| [`calculateTokens()`](/packages/./api/index#calculatetokens)                     | function | Estimate the token count of a string using the \~4 chars/token heuristic.        |
-| [`calculateCompressionRatio()`](/packages/./api/index#calculatecompressionratio) | function | Calculate the compression ratio between original and compressed sizes.           |
-| [`getLineRange()`](/packages/./api/index#getlinerange)                           | function | Extract a range of lines from a document, returning content and token statist... |
-| [`searchContent()`](/packages/./api/index#searchcontent)                         | function | Search document content for lines matching a query string or regex.              |
-| [`detectDocumentFormat()`](/packages/./api/index#detectdocumentformat)           | function | Detect the structural format of a document using content heuristics.             |
-| [`generateOverview()`](/packages/./api/index#generateoverview)                   | function | Generate a structural overview of a document for progressive disclosure.         |
-| [`queryJsonPath()`](/packages/./api/index#queryjsonpath)                         | function | Execute a JSONPath-style query against JSON content.                             |
-| [`getSection()`](/packages/./api/index#getsection)                               | function | Extract a named section from a document by title.                                |
-| [`isPredefinedSchema()`](/packages/./api/index#ispredefinedschema)               | function | Type-guard that checks whether a string is a registered predefined schema name.  |
-| [`getPredefinedSchema()`](/packages/./api/index#getpredefinedschema)             | function | Retrieve a predefined Zod schema by name.                                        |
-| [`validateJson()`](/packages/./api/index#validatejson)                           | function | Validate content as JSON, optionally against a predefined schema.                |
-| [`validateText()`](/packages/./api/index#validatetext)                           | function | Validate content as plain text or markdown.                                      |
-| [`detectFormat()`](/packages/./api/index#detectformat)                           | function | Auto-detect whether a string is JSON or text.                                    |
-| [`validateContent()`](/packages/./api/index#validatecontent)                     | function | Validate content for a given format, with optional schema enforcement.           |
-| [`autoValidate()`](/packages/./api/index#autovalidate)                           | function | Auto-detect the content format and then validate accordingly.                    |
-| [`computeSignature()`](/packages/./api/index#computesignature)                   | function | Compute the HMAC-SHA256 signature for a set of signed URL parameters.            |
-| [`generateSignedUrl()`](/packages/./api/index#generatesignedurl)                 | function | Generate a signed URL for accessing a document.                                  |
-| [`verifySignedUrl()`](/packages/./api/index#verifysignedurl)                     | function | Verify a signed URL's signature and expiration.                                  |
-| [`generateTimedUrl()`](/packages/./api/index#generatetimedurl)                   | function | Generate a signed URL that expires after the given duration.                     |
+| Symbol                                                                                   | Kind     | Description                                                                          |
+| ---------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------ |
+| [`LRUCache`](/packages/./api/index#lrucache)                                             | class    | Generic least-recently-used (LRU) cache with time-to-live support.                   |
+| [`compress()`](/packages/./api/index#compress)                                           | function |                                                                                      |
+| [`decompress()`](/packages/./api/index#decompress)                                       | function |                                                                                      |
+| [`encodeBase62()`](/packages/./api/index#encodebase62)                                   | function |                                                                                      |
+| [`decodeBase62()`](/packages/./api/index#decodebase62)                                   | function |                                                                                      |
+| [`generateId()`](/packages/./api/index#generateid)                                       | function |                                                                                      |
+| [`hashContent()`](/packages/./api/index#hashcontent)                                     | function |                                                                                      |
+| [`calculateTokens()`](/packages/./api/index#calculatetokens)                             | function |                                                                                      |
+| [`calculateCompressionRatio()`](/packages/./api/index#calculatecompressionratio)         | function |                                                                                      |
+| [`computeSignature()`](/packages/./api/index#computesignature)                           | function |                                                                                      |
+| [`computeSignatureWithLength()`](/packages/./api/index#computesignaturewithlength)       | function |                                                                                      |
+| [`computeOrgSignature()`](/packages/./api/index#computeorgsignature)                     | function |                                                                                      |
+| [`computeOrgSignatureWithLength()`](/packages/./api/index#computeorgsignaturewithlength) | function |                                                                                      |
+| [`deriveSigningKey()`](/packages/./api/index#derivesigningkey)                           | function |                                                                                      |
+| [`createPatch()`](/packages/./api/index#createpatch)                                     | function |                                                                                      |
+| [`applyPatch()`](/packages/./api/index#applypatch)                                       | function |                                                                                      |
+| [`reconstructVersion()`](/packages/./api/index#reconstructversion)                       | function |                                                                                      |
+| [`squashPatchesWasm()`](/packages/./api/index#squashpatcheswasm)                         | function |                                                                                      |
+| [`wasmTextSimilarity()`](/packages/./api/index#wasmtextsimilarity)                       | function |                                                                                      |
+| [`wasmTextSimilarityNgram()`](/packages/./api/index#wasmtextsimilarityngram)             | function |                                                                                      |
+| [`isExpired()`](/packages/./api/index#isexpired)                                         | function |                                                                                      |
+| [`computeDiff()`](/packages/./api/index#computediff)                                     | function |                                                                                      |
+| [`createClient()`](/packages/./api/index#createclient)                                   | function |                                                                                      |
+| [`getLineRange()`](/packages/./api/index#getlinerange)                                   | function | Extract a range of lines from a document, returning content and token statist...     |
+| [`searchContent()`](/packages/./api/index#searchcontent)                                 | function | Search document content for lines matching a query string or regex.                  |
+| [`detectDocumentFormat()`](/packages/./api/index#detectdocumentformat)                   | function | Detect the structural format of a document using content heuristics.                 |
+| [`generateOverview()`](/packages/./api/index#generateoverview)                           | function | Generate a structural overview of a document for progressive disclosure.             |
+| [`queryJsonPath()`](/packages/./api/index#queryjsonpath)                                 | function | Execute a JSONPath-style query against JSON content.                                 |
+| [`getSection()`](/packages/./api/index#getsection)                                       | function | Extract a named section from a document by title.                                    |
+| [`extractMentions()`](/packages/./api/index#extractmentions)                             | function | Extract  from message content.                                                       |
+| [`extractTags()`](/packages/./api/index#extracttags)                                     | function | Extract #tags from message content.                                                  |
+| [`extractDirectives()`](/packages/./api/index#extractdirectives)                         | function | Extract /directives from message content.                                            |
+| [`buildGraph()`](/packages/./api/index#buildgraph)                                       | function | Build a knowledge graph from an array of messages.  Nodes: agents (from fromA...     |
+| [`topTopics()`](/packages/./api/index#toptopics)                                         | function | Find the most connected topics in the graph. Returns topics sorted by number...      |
+| [`topAgents()`](/packages/./api/index#topagents)                                         | function | Find the most active agents in the graph. Returns agents sorted by total edge...     |
+| [`isPredefinedSchema()`](/packages/./api/index#ispredefinedschema)                       | function | Type-guard that checks whether a string is a registered predefined schema name.      |
+| [`getPredefinedSchema()`](/packages/./api/index#getpredefinedschema)                     | function | Retrieve a predefined Zod schema by name.                                            |
+| [`validateJson()`](/packages/./api/index#validatejson)                                   | function | Validate content as JSON, optionally against a predefined schema.                    |
+| [`validateText()`](/packages/./api/index#validatetext)                                   | function | Validate content as plain text or markdown.                                          |
+| [`detectFormat()`](/packages/./api/index#detectformat)                                   | function | Auto-detect whether a string is JSON, markdown, or plain text.                       |
+| [`validateContent()`](/packages/./api/index#validatecontent)                             | function | Validate content for a given format, with optional schema enforcement and con...     |
+| [`autoValidate()`](/packages/./api/index#autovalidate)                                   | function | Auto-detect the content format and then validate accordingly.                        |
+| [`computeSignature()`](/packages/./api/index#computesignature)                           | function | Compute the HMAC-SHA256 signature for signed URL parameters. Delegates to the...     |
+| [`computeSignatureWithLength()`](/packages/./api/index#computesignaturewithlength)       | function | Compute signature with configurable length. Use 16 for short-lived URLs (defa...     |
+| [`generateSignedUrl()`](/packages/./api/index#generatesignedurl)                         | function | Generate a signed URL for accessing a document.                                      |
+| [`verifySignedUrl()`](/packages/./api/index#verifysignedurl)                             | function | Verify a signed URL's signature and expiration. Uses timing-safe comparison t...     |
+| [`computeOrgSignature()`](/packages/./api/index#computeorgsignature)                     | function | Compute the HMAC-SHA256 signature for org-scoped signed URL parameters. Inclu...     |
+| [`computeOrgSignatureWithLength()`](/packages/./api/index#computeorgsignaturewithlength) | function | Compute org-scoped signature with configurable length.                               |
+| [`generateOrgSignedUrl()`](/packages/./api/index#generateorgsignedurl)                   | function | Generate an org-scoped signed URL for accessing a document. The URL includes...      |
+| [`verifyOrgSignedUrl()`](/packages/./api/index#verifyorgsignedurl)                       | function | Verify an org-scoped signed URL's signature and expiration.                          |
+| [`generateTimedUrl()`](/packages/./api/index#generatetimedurl)                           | function | Generate a signed URL that expires after the given duration.                         |
+| [`deriveSigningKey()`](/packages/./api/index#derivesigningkey)                           | function | Derive a per-agent signing key from their API key. Delegates to the Rust WASM...     |
+| [`isExpired()`](/packages/./api/index#isexpired)                                         | function | Check whether a timestamp has expired. Returns false for null/undefined (no e...     |
+| [`compressSnapshot()`](/packages/./api/index#compresssnapshot)                           | function | Compress a session snapshot JSON string. Returns compressed data + metadata f...     |
+| [`decompressSnapshot()`](/packages/./api/index#decompresssnapshot)                       | function | Decompress a snapshot back to JSON string. Verifies integrity via content has...     |
+| [`compressSessionData()`](/packages/./api/index#compresssessiondata)                     | function | Compress a session snapshot object directly. Serializes to JSON, then compres...     |
+| [`decompressSessionData()`](/packages/./api/index#decompresssessiondata)                 | function | Decompress and parse a snapshot back to an object.                                   |
+| [`snapshotSummary()`](/packages/./api/index#snapshotsummary)                             | function | Generate a human-readable summary of a snapshot for handoff messages. Useful...      |
+| [`extractNgrams()`](/packages/./api/index#extractngrams)                                 | function | Extract character-level n-grams from text. Normalizes whitespace and lowercas...     |
+| [`extractWordShingles()`](/packages/./api/index#extractwordshingles)                     | function | Extract word-level n-grams (shingles) from text. Better for longer content wh...     |
+| [`jaccardSimilarity()`](/packages/./api/index#jaccardsimilarity)                         | function | Jaccard similarity: \|A ∩ B\| / \|A ∪ B\|. Returns 0.0 (no overlap) to 1.0 (ident... |
+| [`textSimilarity()`](/packages/./api/index#textsimilarity)                               | function | Compute similarity between two texts using character n-grams. Returns 0.0 to...      |
+| [`contentSimilarity()`](/packages/./api/index#contentsimilarity)                         | function | Compute similarity using word shingles. Better for comparing messages or docu...     |
+| [`minHashFingerprint()`](/packages/./api/index#minhashfingerprint)                       | function | Generate a compact fingerprint for content using MinHash. The fingerprint is...      |
+| [`fingerprintSimilarity()`](/packages/./api/index#fingerprintsimilarity)                 | function | Estimate similarity between two MinHash fingerprints. Returns approximate Jac...     |
+| [`rankBySimilarity()`](/packages/./api/index#rankbysimilarity)                           | function | Rank a list of texts by similarity to a query. Returns indices sorted by desc...     |
+| [`isValidTransition()`](/packages/./api/index#isvalidtransition)                         | function | Check whether a state transition is allowed.                                         |
+| [`validateTransition()`](/packages/./api/index#validatetransition)                       | function | Validate a proposed state transition with a detailed result.                         |
+| [`isEditable()`](/packages/./api/index#iseditable)                                       | function | Check whether a document state allows content modifications.                         |
+| [`isTerminal()`](/packages/./api/index#isterminal)                                       | function | Check whether a document state is terminal (no further transitions).                 |
+| [`reconstructVersion()`](/packages/./api/index#reconstructversion)                       | function | Reconstruct a document at a specific version by applying patches sequentially...     |
+| [`validatePatchApplies()`](/packages/./api/index#validatepatchapplies)                   | function | Check whether a patch applies cleanly to the given content.                          |
+| [`squashPatches()`](/packages/./api/index#squashpatches)                                 | function | Squash a sequence of patches into a single unified diff.  Applies all patches...     |
+| [`computeReversePatch()`](/packages/./api/index#computereversepatch)                     | function | Compute a reverse patch that undoes a version's changes.                             |
+| [`diffVersions()`](/packages/./api/index#diffversions)                                   | function | Compute a diff summary between two versions of a document.                           |
+| [`evaluateApprovals()`](/packages/./api/index#evaluateapprovals)                         | function | Evaluate reviews against an approval policy.  Filters out stale and timed-out...     |
+| [`markStaleReviews()`](/packages/./api/index#markstalereviews)                           | function | Mark reviews as stale when a document version changes.  Returns a new array w\...    |
+| [`inlineRef()`](/packages/./api/index#inlineref)                                         | function | Create a content reference for inline storage.                                       |
+| [`objectStoreRef()`](/packages/./api/index#objectstoreref)                               | function | Create a content reference for object-store storage.                                 |
+| [`versionStorageKey()`](/packages/./api/index#versionstoragekey)                         | function | Generate a storage key for a document version.  Convention:...                       |
+| [`shouldUseObjectStore()`](/packages/./api/index#shoulduseobjectstore)                   | function | Determine whether content should be stored in object-store vs inline.  Thresh...     |
+| [`attributeVersion()`](/packages/./api/index#attributeversion)                           | function | Compute attribution data for a single version change.                                |
+| [`buildContributorSummary()`](/packages/./api/index#buildcontributorsummary)             | function | Build aggregated contributor summaries from version attributions.                    |
+| [`planRetrieval()`](/packages/./api/index#planretrieval)                                 | function | Plan which sections to retrieve given a token budget.  When a query is provid...     |
+| [`estimateRetrievalCost()`](/packages/./api/index#estimateretrievalcost)                 | function | Estimate the token cost of fetching specific sections.                               |
+| [`LlmtxtDocument`](/packages/./api/index#llmtxtdocument)                                 | class    | High-level document orchestration object.  Each instance wraps a single docum...     |
 
 ## Types & Interfaces
 
-| Symbol                                                               | Kind      | Description                                                                   |
-| -------------------------------------------------------------------- | --------- | ----------------------------------------------------------------------------- |
-| [`CacheStats`](/packages/./api/index#cachestats)                     | interface | Snapshot of cache performance statistics.                                     |
-| [`LRUCacheOptions`](/packages/./api/index#lrucacheoptions)           | interface | Configuration options for constructing an `LRUCache` instance.                |
-| [`Section`](/packages/./api/index#section)                           | interface | A logical section identified within a document.                               |
-| [`DocumentOverview`](/packages/./api/index#documentoverview)         | interface | High-level structural overview of a document.                                 |
-| [`SearchResult`](/packages/./api/index#searchresult)                 | interface | A single match returned by `searchContent`.                                   |
-| [`LineRangeResult`](/packages/./api/index#linerangeresult)           | interface | Result of extracting a line range from a document via `getLineRange`.         |
-| [`PredefinedSchemaName`](/packages/./api/index#predefinedschemaname) | type      | Union of all registered predefined schema name strings.                       |
-| [`JsonFormat`](/packages/./api/index#jsonformat)                     | type      | Inferred TypeScript type for any valid JSON value (object, array, primitive). |
-| [`TextFormat`](/packages/./api/index#textformat)                     | type      | Inferred TypeScript type for plain text content.                              |
-| [`MarkdownFormat`](/packages/./api/index#markdownformat)             | type      | Inferred TypeScript type for markdown content (string alias).                 |
-| [`PromptV1`](/packages/./api/index#promptv1)                         | type      | Inferred TypeScript type for the standard LLM prompt format.                  |
-| [`PromptMessage`](/packages/./api/index#promptmessage)               | type      | Inferred TypeScript type for a single prompt message with role and content.   |
-| [`CompressRequest`](/packages/./api/index#compressrequest)           | type      | Inferred TypeScript type for content compression request payloads.            |
-| [`DecompressRequest`](/packages/./api/index#decompressrequest)       | type      | Inferred TypeScript type for content decompression request payloads.          |
-| [`SearchRequest`](/packages/./api/index#searchrequest)               | type      | Inferred TypeScript type for content search request payloads.                 |
-| [`ValidationResult`](/packages/./api/index#validationresult)         | interface | Outcome of a content validation operation.                                    |
-| [`ValidationError`](/packages/./api/index#validationerror)           | interface | A single validation error with location, message, and error code.             |
-| [`SignedUrlParams`](/packages/./api/index#signedurlparams)           | interface | Parameters that uniquely identify a signed URL access grant.                  |
-| [`SignedUrlConfig`](/packages/./api/index#signedurlconfig)           | interface | Configuration for generating and verifying signed URLs.                       |
-| [`VerifyResult`](/packages/./api/index#verifyresult)                 | interface | Outcome of verifying a signed URL via `verifySignedUrl`.                      |
+| Symbol                                                                       | Kind      | Description                                                                      |
+| ---------------------------------------------------------------------------- | --------- | -------------------------------------------------------------------------------- |
+| [`CacheStats`](/packages/./api/index#cachestats)                             | interface | Snapshot of cache performance statistics.                                        |
+| [`LRUCacheOptions`](/packages/./api/index#lrucacheoptions)                   | interface | Configuration options for constructing an `LRUCache` instance.                   |
+| [`DiffResult`](/packages/./api/index#diffresult)                             | interface |                                                                                  |
+| [`ContentFormat`](/packages/./api/index#contentformat)                       | type      | Supported content formats.                                                       |
+| [`DocumentMode`](/packages/./api/index#documentmode)                         | type      | Lifecycle state for collaborative documents.                                     |
+| [`DocumentMeta`](/packages/./api/index#documentmeta)                         | interface | Metadata for a stored document.                                                  |
+| [`VersionMeta`](/packages/./api/index#versionmeta)                           | interface | Metadata for a single document version.                                          |
+| [`VersionSummary`](/packages/./api/index#versionsummary)                     | interface | Summary of a version for listing (no content).                                   |
+| [`VersionDiff`](/packages/./api/index#versiondiff)                           | interface | Result of comparing two versions.                                                |
+| [`LlmtxtRef`](/packages/./api/index#llmtxtref)                               | interface | Reference to an llmtxt document shared in a message.                             |
+| [`AttachmentOptions`](/packages/./api/index#attachmentoptions)               | interface | Options for creating an attachment via the bridge.                               |
+| [`AttachmentAccessMode`](/packages/./api/index#attachmentaccessmode)         | type      | Attachment fetch mode supported by the bridge/API layer.                         |
+| [`AttachmentSharingMode`](/packages/./api/index#attachmentsharingmode)       | type      | Share state persisted by the API layer for an attachment.                        |
+| [`AttachmentReshareOptions`](/packages/./api/index#attachmentreshareoptions) | interface | Options for re-sharing an existing attachment.                                   |
+| [`AttachmentVersionOptions`](/packages/./api/index#attachmentversionoptions) | interface | Options for appending a version to an existing attachment slug.                  |
+| [`LlmtxtClientConfig`](/packages/./api/index#llmtxtclientconfig)             | interface |                                                                                  |
+| [`UploadResult`](/packages/./api/index#uploadresult)                         | interface |                                                                                  |
+| [`FetchResult`](/packages/./api/index#fetchresult)                           | interface |                                                                                  |
+| [`ReshareResult`](/packages/./api/index#reshareresult)                       | interface |                                                                                  |
+| [`ResignResult`](/packages/./api/index#resignresult)                         | type      | Backward-compatible alias. Prefer `ReshareResult`.                               |
+| [`AttachmentVersionResult`](/packages/./api/index#attachmentversionresult)   | interface |                                                                                  |
+| [`Section`](/packages/./api/index#section)                                   | interface | A logical section identified within a document.                                  |
+| [`DocumentOverview`](/packages/./api/index#documentoverview)                 | interface | High-level structural overview of a document.                                    |
+| [`SearchResult`](/packages/./api/index#searchresult)                         | interface | A single match returned by `searchContent`.                                      |
+| [`LineRangeResult`](/packages/./api/index#linerangeresult)                   | interface | Result of extracting a line range from a document via `getLineRange`.            |
+| [`GraphNode`](/packages/./api/index#graphnode)                               | interface |                                                                                  |
+| [`GraphEdge`](/packages/./api/index#graphedge)                               | interface |                                                                                  |
+| [`KnowledgeGraph`](/packages/./api/index#knowledgegraph)                     | interface |                                                                                  |
+| [`MessageInput`](/packages/./api/index#messageinput)                         | interface |                                                                                  |
+| [`PredefinedSchemaName`](/packages/./api/index#predefinedschemaname)         | type      | Union of all registered predefined schema name strings.                          |
+| [`JsonFormat`](/packages/./api/index#jsonformat)                             | type      | Inferred TypeScript type for any valid JSON value (object, array, primitive).    |
+| [`TextFormat`](/packages/./api/index#textformat)                             | type      | Inferred TypeScript type for plain text content.                                 |
+| [`MarkdownFormat`](/packages/./api/index#markdownformat)                     | type      | Inferred TypeScript type for markdown content (string alias).                    |
+| [`PromptV1`](/packages/./api/index#promptv1)                                 | type      | Inferred TypeScript type for the standard LLM prompt format.                     |
+| [`PromptMessage`](/packages/./api/index#promptmessage)                       | type      | Inferred TypeScript type for a single prompt message with role and content.      |
+| [`CompressRequest`](/packages/./api/index#compressrequest)                   | type      | Inferred TypeScript type for content compression request payloads.               |
+| [`DecompressRequest`](/packages/./api/index#decompressrequest)               | type      | Inferred TypeScript type for content decompression request payloads.             |
+| [`SearchRequest`](/packages/./api/index#searchrequest)                       | type      | Inferred TypeScript type for content search request payloads.                    |
+| [`ValidationResult`](/packages/./api/index#validationresult)                 | interface | Outcome of a content validation operation.                                       |
+| [`ValidationError`](/packages/./api/index#validationerror)                   | interface | A single validation error with location, message, and error code.                |
+| [`ValidateContentOptions`](/packages/./api/index#validatecontentoptions)     | interface | Options for content validation.                                                  |
+| [`SignedUrlParams`](/packages/./api/index#signedurlparams)                   | interface | Parameters that uniquely identify a signed URL access grant.                     |
+| [`SignedUrlConfig`](/packages/./api/index#signedurlconfig)                   | interface | Configuration for generating and verifying signed URLs.                          |
+| [`VerifyResult`](/packages/./api/index#verifyresult)                         | interface | Outcome of verifying a signed URL.                                               |
+| [`OrgSignedUrlParams`](/packages/./api/index#orgsignedurlparams)             | interface | Parameters for org-scoped signed URLs (Phase 5 enterprise). Extends conversat... |
+| [`SnapshotMeta`](/packages/./api/index#snapshotmeta)                         | interface |                                                                                  |
+| [`CompressedSnapshot`](/packages/./api/index#compressedsnapshot)             | interface |                                                                                  |
+| [`SnapshotOptions`](/packages/./api/index#snapshotoptions)                   | interface |                                                                                  |
+| [`DocumentState`](/packages/./api/index#documentstate)                       | type      | Lifecycle state of a collaborative document.                                     |
+| [`StateTransition`](/packages/./api/index#statetransition)                   | interface | Record of a lifecycle state change.                                              |
+| [`TransitionResult`](/packages/./api/index#transitionresult)                 | interface | Result of attempting a state transition.                                         |
+| [`VersionEntry`](/packages/./api/index#versionentry)                         | interface | A single version entry in a document's patch stack.                              |
+| [`ReconstructionResult`](/packages/./api/index#reconstructionresult)         | interface | Result of reconstructing a document at a specific version.                       |
+| [`PatchValidationResult`](/packages/./api/index#patchvalidationresult)       | interface | Result of validating whether a patch applies cleanly.                            |
+| [`VersionDiffSummary`](/packages/./api/index#versiondiffsummary)             | interface | Summary of changes between two versions.                                         |
+| [`ApprovalStatus`](/packages/./api/index#approvalstatus)                     | type      | Status of an individual review.                                                  |
+| [`Review`](/packages/./api/index#review)                                     | interface | A single review from an agent.                                                   |
+| [`ApprovalPolicy`](/packages/./api/index#approvalpolicy)                     | interface | Policy governing how approvals are evaluated.                                    |
+| [`ApprovalResult`](/packages/./api/index#approvalresult)                     | interface | Result of evaluating reviews against a policy.                                   |
+| [`StorageType`](/packages/./api/index#storagetype)                           | type      | How document content is stored.                                                  |
+| [`CompressionMethod`](/packages/./api/index#compressionmethod)               | type      | Compression method used for stored content.                                      |
+| [`ContentRef`](/packages/./api/index#contentref)                             | interface | Reference to where a document's compressed content lives.  Inline: content is... |
+| [`StorageMetadata`](/packages/./api/index#storagemetadata)                   | interface | Metadata about a stored document blob.                                           |
+| [`StorageAdapter`](/packages/./api/index#storageadapter)                     | interface | Storage adapter that platforms implement.                                        |
+| [`VersionAttribution`](/packages/./api/index#versionattribution)             | interface | Attribution data for a single version.                                           |
+| [`ContributorSummary`](/packages/./api/index#contributorsummary)             | interface | Aggregated contribution summary for a single agent.                              |
+| [`PlannedSection`](/packages/./api/index#plannedsection)                     | interface | A section selected for retrieval.                                                |
+| [`RetrievalPlan`](/packages/./api/index#retrievalplan)                       | interface | The output of retrieval planning.                                                |
+| [`RetrievalOptions`](/packages/./api/index#retrievaloptions)                 | interface | Options for retrieval planning.                                                  |
+| [`CreateVersionOptions`](/packages/./api/index#createversionoptions)         | interface | Options for creating a new version.                                              |
+| [`LlmtxtDocumentOptions`](/packages/./api/index#llmtxtdocumentoptions)       | interface | Options for constructing an LlmtxtDocument.                                      |
 
 ## Other Exports
 
-| Symbol                                                                     | Kind     | Description                                                           |
-| -------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------- |
-| [`cache.ts`](/packages/./api/index#cachets)                                | file     |                                                                       |
-| [`compression.ts`](/packages/./api/index#compressionts)                    | file     |                                                                       |
-| [`disclosure.ts`](/packages/./api/index#disclosurets)                      | file     |                                                                       |
-| [`jsonFormatSchema`](/packages/./api/index#jsonformatschema)               | variable | Schema that accepts any valid JSON value.                             |
-| [`textFormatSchema`](/packages/./api/index#textformatschema)               | variable | Schema that accepts any string value (plain text or markdown).        |
-| [`markdownFormatSchema`](/packages/./api/index#markdownformatschema)       | variable | Schema for markdown content, stored as a plain string.                |
-| [`promptMessageSchema`](/packages/./api/index#promptmessageschema)         | variable | Schema for a single message within an LLM prompt conversation.        |
-| [`promptV1Schema`](/packages/./api/index#promptv1schema)                   | variable | Schema for the standard LLM prompt format (OpenAI / Anthropic style). |
-| [`predefinedSchemas`](/packages/./api/index#predefinedschemas)             | variable | Registry of predefined content schemas keyed by name.                 |
-| [`compressRequestSchema`](/packages/./api/index#compressrequestschema)     | variable | Schema for incoming content compression requests.                     |
-| [`decompressRequestSchema`](/packages/./api/index#decompressrequestschema) | variable | Schema for incoming content decompression requests.                   |
-| [`searchRequestSchema`](/packages/./api/index#searchrequestschema)         | variable | Schema for incoming content search requests.                          |
-| [`schemas.ts`](/packages/./api/index#schemasts)                            | file     |                                                                       |
-| [`validation.ts`](/packages/./api/index#validationts)                      | file     |                                                                       |
-| [`signed-url.ts`](/packages/./api/index#signed-urlts)                      | file     |                                                                       |
-| [`index.ts`](/packages/./api/index#indexts)                                | file     |                                                                       |
+| Symbol                                                                      | Kind     | Description                                                           |
+| --------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------- |
+| [`cache.ts`](/packages/./api/index#cachets)                                 | file     |                                                                       |
+| [`wasm.ts`](/packages/./api/index#wasmts)                                   | file     |                                                                       |
+| [`patch.ts`](/packages/./api/index#patchts)                                 | file     |                                                                       |
+| [`types.ts`](/packages/./api/index#typests)                                 | file     |                                                                       |
+| [`client.ts`](/packages/./api/index#clientts)                               | file     |                                                                       |
+| [`compression.ts`](/packages/./api/index#compressionts)                     | file     |                                                                       |
+| [`disclosure.ts`](/packages/./api/index#disclosurets)                       | file     |                                                                       |
+| [`graph.ts`](/packages/./api/index#graphts)                                 | file     |                                                                       |
+| [`jsonFormatSchema`](/packages/./api/index#jsonformatschema)                | variable | Schema that accepts any valid JSON value.                             |
+| [`textFormatSchema`](/packages/./api/index#textformatschema)                | variable | Schema that accepts any string value (plain text or markdown).        |
+| [`markdownFormatSchema`](/packages/./api/index#markdownformatschema)        | variable | Schema for markdown content, stored as a plain string.                |
+| [`promptMessageSchema`](/packages/./api/index#promptmessageschema)          | variable | Schema for a single message within an LLM prompt conversation.        |
+| [`promptV1Schema`](/packages/./api/index#promptv1schema)                    | variable | Schema for the standard LLM prompt format (OpenAI / Anthropic style). |
+| [`predefinedSchemas`](/packages/./api/index#predefinedschemas)              | variable | Registry of predefined content schemas keyed by name.                 |
+| [`compressRequestSchema`](/packages/./api/index#compressrequestschema)      | variable | Schema for incoming content compression requests.                     |
+| [`decompressRequestSchema`](/packages/./api/index#decompressrequestschema)  | variable | Schema for incoming content decompression requests.                   |
+| [`searchRequestSchema`](/packages/./api/index#searchrequestschema)          | variable | Schema for incoming content search requests.                          |
+| [`schemas.ts`](/packages/./api/index#schemasts)                             | file     |                                                                       |
+| [`DEFAULT_MAX_CONTENT_BYTES`](/packages/./api/index#defaultmaxcontentbytes) | variable | Default maximum content size in bytes (5 MB).                         |
+| [`DEFAULT_MAX_LINE_BYTES`](/packages/./api/index#defaultmaxlinebytes)       | variable | Default maximum line length in bytes (64 KB).                         |
+| [`validation.ts`](/packages/./api/index#validationts)                       | file     |                                                                       |
+| [`signed-url.ts`](/packages/./api/index#signed-urlts)                       | file     |                                                                       |
+| [`snapshot.ts`](/packages/./api/index#snapshotts)                           | file     |                                                                       |
+| [`similarity.ts`](/packages/./api/index#similarityts)                       | file     |                                                                       |
+| [`DOCUMENT_STATES`](/packages/./api/index#documentstates)                   | variable | All valid document states in lifecycle order.                         |
+| [`lifecycle.ts`](/packages/./api/index#lifecyclets)                         | file     |                                                                       |
+| [`versions.ts`](/packages/./api/index#versionsts)                           | file     |                                                                       |
+| [`DEFAULT_APPROVAL_POLICY`](/packages/./api/index#defaultapprovalpolicy)    | variable | Default approval policy: 1 approval, no timeout.                      |
+| [`consensus.ts`](/packages/./api/index#consensusts)                         | file     |                                                                       |
+| [`storage.ts`](/packages/./api/index#storagets)                             | file     |                                                                       |
+| [`storage-adapter.ts`](/packages/./api/index#storage-adapterts)             | file     |                                                                       |
+| [`attribution.ts`](/packages/./api/index#attributionts)                     | file     |                                                                       |
+| [`retrieval.ts`](/packages/./api/index#retrievalts)                         | file     |                                                                       |
+| [`document.ts`](/packages/./api/index#documentts)                           | file     |                                                                       |
+| [`index.ts`](/packages/./api/index#indexts)                                 | file     |                                                                       |
+| [`index.ts`](/packages/./api/index#indexts)                                 | file     |                                                                       |

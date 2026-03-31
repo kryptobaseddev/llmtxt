@@ -2,7 +2,7 @@
 title: ''
 ---
 
-**core** is a TypeScript documentation toolkit that performs a single AST traversal of your project and produces API docs, OpenAPI specs, executable doctests, and AI context files in one pass.
+**llmtxt** is a TypeScript documentation toolkit that performs a single AST traversal of your project and produces API docs, OpenAPI specs, executable doctests, and AI context files in one pass.
 
 ## Features
 
@@ -14,22 +14,21 @@ title: ''
 ## Installation
 
 ```bash
-npm install -D @codluv/llmtxt
+npm install -D llmtxt
 ```
 
 ## Quick Example
 
 ```ts
-encodeBase62(0);   // "0"
-encodeBase62(61);  // "z"
-encodeBase62(62);  // "10"
+const range = getLineRange(doc, 10, 25);
+console.log(`Saved ${range.tokensSaved} tokens`);
 ```
 
 ## Packages
 
-| Package                  | Description            |
-| ------------------------ | ---------------------- |
-| [`.`](/packages/./index) | 62 exported symbol(s). |
+| Package                  | Description             |
+| ------------------------ | ----------------------- |
+| [`.`](/packages/./index) | 193 exported symbol(s). |
 
 ## Next Steps
 

@@ -5,24 +5,24 @@ RUN npm i -g pnpm@10.30.0
 FROM base AS build
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-COPY apps/web/package.json apps/web/
+COPY apps/backend/package.json apps/backend/
 COPY packages/llmtxt/package.json packages/llmtxt/
 COPY apps/frontend/package.json apps/frontend/
 RUN pnpm install --no-frozen-lockfile
 COPY . .
-RUN pnpm --filter llmtxt --filter @llmtxt/web --filter frontend build
+RUN pnpm --filter llmtxt --filter @llmtxt/backend --filter frontend build
 
 FROM base AS runtime
 WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/packages/llmtxt ./packages/llmtxt
-COPY --from=build /app/apps/web/node_modules ./apps/web/node_modules
-COPY --from=build /app/apps/web/dist ./apps/web/dist
-COPY --from=build /app/apps/web/package.json ./apps/web/
-COPY --from=build /app/apps/web/public ./apps/web/public
-COPY --from=build /app/apps/web/src/db/migrations ./apps/web/src/db/migrations
-COPY --from=build /app/apps/web/drizzle.config.ts ./apps/web/
+COPY --from=build /app/apps/backend/node_modules ./apps/backend/node_modules
+COPY --from=build /app/apps/backend/dist ./apps/backend/dist
+COPY --from=build /app/apps/backend/package.json ./apps/backend/
+COPY --from=build /app/apps/backend/public ./apps/backend/public
+COPY --from=build /app/apps/backend/src/db/migrations ./apps/backend/src/db/migrations
+COPY --from=build /app/apps/backend/drizzle.config.ts ./apps/backend/
 
 EXPOSE 8080
 ENV PORT=8080
-CMD ["sh", "-c", "cd apps/web && npx drizzle-kit migrate && node dist/index.js"]
+CMD ["sh", "-c", "cd apps/backend && npx drizzle-kit migrate && node dist/index.js"]

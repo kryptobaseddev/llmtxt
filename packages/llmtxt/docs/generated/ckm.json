@@ -1,0 +1,1932 @@
+{
+  "$schema": "https://ckm.dev/schemas/v2.json",
+  "version": "2.0.0",
+  "meta": {
+    "project": "llmtxt",
+    "language": "typescript",
+    "generator": "forge-ts@2026.4.1",
+    "generated": "2026-03-31T04:06:02.378Z"
+  },
+  "concepts": [
+    {
+      "id": "concept-LRUCacheOptions",
+      "name": "LRUCacheOptions",
+      "slug": "lrucache",
+      "what": "Configuration options for constructing an `LRUCache` instance.",
+      "tags": [
+        "options"
+      ],
+      "properties": [
+        {
+          "name": "maxSize",
+          "type": {
+            "canonical": "string",
+            "original": "number | undefined"
+          },
+          "description": "Maximum number of entries before the least-recently-used entry is evicted (default: 1000).",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "ttl",
+          "type": {
+            "canonical": "string",
+            "original": "number | undefined"
+          },
+          "description": "Default time-to-live in milliseconds for new entries (default: 24 hours).",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-DiffResult",
+      "name": "DiffResult",
+      "slug": "diff",
+      "what": "",
+      "tags": [
+        "result"
+      ],
+      "properties": [
+        {
+          "name": "addedLines",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "removedLines",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "addedTokens",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "removedTokens",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-AttachmentOptions",
+      "name": "AttachmentOptions",
+      "slug": "attachment",
+      "what": "Options for creating an attachment via the bridge.",
+      "tags": [
+        "options"
+      ],
+      "properties": [
+        {
+          "name": "content",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "format",
+          "type": {
+            "canonical": "string",
+            "original": "ContentFormat | undefined"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "conversationId",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "fromAgentId",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "expiresInMs",
+          "type": {
+            "canonical": "string",
+            "original": "number | undefined"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-AttachmentReshareOptions",
+      "name": "AttachmentReshareOptions",
+      "slug": "attachmentreshare",
+      "what": "Options for re-sharing an existing attachment.",
+      "tags": [
+        "options"
+      ],
+      "properties": [
+        {
+          "name": "expiresIn",
+          "type": {
+            "canonical": "string",
+            "original": "number | undefined"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "mode",
+          "type": {
+            "canonical": "string",
+            "original": "AttachmentSharingMode | undefined"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-AttachmentVersionOptions",
+      "name": "AttachmentVersionOptions",
+      "slug": "attachmentversion",
+      "what": "Options for appending a version to an existing attachment slug.",
+      "tags": [
+        "options"
+      ],
+      "properties": [
+        {
+          "name": "baseVersion",
+          "type": {
+            "canonical": "string",
+            "original": "number | undefined"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "changelog",
+          "type": {
+            "canonical": "string",
+            "original": "string | undefined"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-LlmtxtClientConfig",
+      "name": "LlmtxtClientConfig",
+      "slug": "llmtxtclient",
+      "what": "",
+      "tags": [
+        "config"
+      ],
+      "properties": [
+        {
+          "name": "apiBase",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "apiKey",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "agentId",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-UploadResult",
+      "name": "UploadResult",
+      "slug": "upload",
+      "what": "",
+      "tags": [
+        "result"
+      ],
+      "properties": [
+        {
+          "name": "slug",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "contentHash",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "originalSize",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "compressedSize",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "compressionRatio",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "tokens",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "signedUrl",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "expiresAt",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-FetchResult",
+      "name": "FetchResult",
+      "slug": "fetch",
+      "what": "",
+      "tags": [
+        "result"
+      ],
+      "properties": [
+        {
+          "name": "slug",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "content",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "format",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "title",
+          "type": {
+            "canonical": "string",
+            "original": "string | undefined"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "contentHash",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "originalSize",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "tokens",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-ReshareResult",
+      "name": "ReshareResult",
+      "slug": "reshare",
+      "what": "",
+      "tags": [
+        "result"
+      ],
+      "properties": [
+        {
+          "name": "slug",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "mode",
+          "type": {
+            "canonical": "object",
+            "original": "AttachmentSharingMode"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "signedUrl",
+          "type": {
+            "canonical": "string",
+            "original": "string | undefined"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "expiresAt",
+          "type": {
+            "canonical": "string",
+            "original": "number | null | undefined"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-ResignResult",
+      "name": "ResignResult",
+      "slug": "resign",
+      "what": "Backward-compatible alias. Prefer `ReshareResult`.",
+      "tags": [
+        "result"
+      ]
+    },
+    {
+      "id": "concept-AttachmentVersionResult",
+      "name": "AttachmentVersionResult",
+      "slug": "attachmentversion",
+      "what": "",
+      "tags": [
+        "result"
+      ],
+      "properties": [
+        {
+          "name": "slug",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "versionNumber",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "patchText",
+          "type": {
+            "canonical": "string",
+            "original": "string | undefined"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "contentHash",
+          "type": {
+            "canonical": "string",
+            "original": "string | undefined"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "createdAt",
+          "type": {
+            "canonical": "string",
+            "original": "string | undefined"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "createdBy",
+          "type": {
+            "canonical": "string",
+            "original": "string | undefined"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "changelog",
+          "type": {
+            "canonical": "string",
+            "original": "string | undefined"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-SearchResult",
+      "name": "SearchResult",
+      "slug": "search",
+      "what": "A single match returned by `searchContent`.",
+      "tags": [
+        "result"
+      ],
+      "properties": [
+        {
+          "name": "line",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "1-based line number of the matching line.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "content",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "The full text of the matching line.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "contextBefore",
+          "type": {
+            "canonical": "array",
+            "original": "string[]"
+          },
+          "description": "Lines immediately preceding the match (up to `contextLines`).",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "contextAfter",
+          "type": {
+            "canonical": "array",
+            "original": "string[]"
+          },
+          "description": "Lines immediately following the match (up to `contextLines`).",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-LineRangeResult",
+      "name": "LineRangeResult",
+      "slug": "linerange",
+      "what": "Result of extracting a line range from a document via `getLineRange`.",
+      "tags": [
+        "result"
+      ],
+      "properties": [
+        {
+          "name": "startLine",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "1-based line number where the extracted range begins.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "endLine",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "1-based line number where the extracted range ends (inclusive).",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "content",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "The extracted text content for the requested line range.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "tokenCount",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "Estimated token count for the extracted content.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "totalLines",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "Total number of lines in the full document.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "totalTokens",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "Estimated total token count for the full document.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "tokensSaved",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "Number of tokens saved by extracting only this range.",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-ValidationResult",
+      "name": "ValidationResult",
+      "slug": "validation",
+      "what": "Outcome of a content validation operation.",
+      "tags": [
+        "result"
+      ],
+      "properties": [
+        {
+          "name": "success",
+          "type": {
+            "canonical": "boolean"
+          },
+          "description": "Whether the validation passed without errors.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "data",
+          "type": {
+            "canonical": "string",
+            "original": "T | undefined"
+          },
+          "description": "The parsed/validated data, present only when `success` is `true`.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "errors",
+          "type": {
+            "canonical": "array",
+            "original": "ValidationError[] | undefined"
+          },
+          "description": "List of validation errors, present only when `success` is `false`.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "format",
+          "type": {
+            "canonical": "string",
+            "original": "\"json\" | \"text\" | \"markdown\" | undefined"
+          },
+          "description": "The detected or requested content format, when determinable.",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-ValidateContentOptions",
+      "name": "ValidateContentOptions",
+      "slug": "validatecontent",
+      "what": "Options for content validation.",
+      "tags": [
+        "options"
+      ],
+      "properties": [
+        {
+          "name": "schemaName",
+          "type": {
+            "canonical": "string",
+            "original": "string | undefined"
+          },
+          "description": "Optional predefined schema name for JSON validation.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "maxBytes",
+          "type": {
+            "canonical": "string",
+            "original": "number | undefined"
+          },
+          "description": "Maximum content size in bytes. Set to 0 to disable. Default: 5 MB.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "maxLineBytes",
+          "type": {
+            "canonical": "string",
+            "original": "number | undefined"
+          },
+          "description": "Maximum line length in bytes. Set to 0 to disable. Default: 64 KB.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "rejectBinary",
+          "type": {
+            "canonical": "string",
+            "original": "boolean | undefined"
+          },
+          "description": "Reject content with binary control characters (0x00-0x08). Default: true.",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-SignedUrlConfig",
+      "name": "SignedUrlConfig",
+      "slug": "signedurl",
+      "what": "Configuration for generating and verifying signed URLs.",
+      "tags": [
+        "config"
+      ],
+      "properties": [
+        {
+          "name": "secret",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "baseUrl",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "pathPrefix",
+          "type": {
+            "canonical": "string",
+            "original": "string | undefined"
+          },
+          "description": "Optional path prefix like `/attachments`. Default: root path.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "signatureLength",
+          "type": {
+            "canonical": "string",
+            "original": "number | undefined"
+          },
+          "description": "Signature length in hex chars. Default: 16.",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-VerifyResult",
+      "name": "VerifyResult",
+      "slug": "verify",
+      "what": "Outcome of verifying a signed URL.",
+      "tags": [
+        "result"
+      ],
+      "properties": [
+        {
+          "name": "valid",
+          "type": {
+            "canonical": "boolean"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "reason",
+          "type": {
+            "canonical": "string",
+            "original": "\"missing_params\" | \"expired\" | \"invalid_signature\" | undefined"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "params",
+          "type": {
+            "canonical": "string",
+            "original": "SignedUrlParams | undefined"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-SnapshotOptions",
+      "name": "SnapshotOptions",
+      "slug": "snapshot",
+      "what": "",
+      "tags": [
+        "options"
+      ],
+      "properties": [
+        {
+          "name": "includeDecisions",
+          "type": {
+            "canonical": "string",
+            "original": "boolean | undefined"
+          },
+          "description": "Include full decision log (default: true)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "includeObservations",
+          "type": {
+            "canonical": "string",
+            "original": "boolean | undefined"
+          },
+          "description": "Include brain observations (default: true)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "maxSize",
+          "type": {
+            "canonical": "string",
+            "original": "number | undefined"
+          },
+          "description": "Max content size before compression in bytes (default: 5MB)",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-DocumentState",
+      "name": "DocumentState",
+      "slug": "documentstate",
+      "what": "Lifecycle state of a collaborative document.",
+      "tags": [
+        "state"
+      ]
+    },
+    {
+      "id": "concept-StateTransition",
+      "name": "StateTransition",
+      "slug": "statetransition",
+      "what": "Record of a lifecycle state change.",
+      "tags": [
+        "domain"
+      ],
+      "properties": [
+        {
+          "name": "from",
+          "type": {
+            "canonical": "object",
+            "original": "DocumentState"
+          },
+          "description": "State before the transition.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "to",
+          "type": {
+            "canonical": "object",
+            "original": "DocumentState"
+          },
+          "description": "State after the transition.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "changedBy",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "Agent that initiated the transition.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "changedAt",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "Timestamp of the transition (ms since epoch).",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "reason",
+          "type": {
+            "canonical": "string",
+            "original": "string | undefined"
+          },
+          "description": "Human-readable reason for the transition.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "atVersion",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "Document version number at the time of transition.",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-TransitionResult",
+      "name": "TransitionResult",
+      "slug": "transition",
+      "what": "Result of attempting a state transition.",
+      "tags": [
+        "result"
+      ],
+      "properties": [
+        {
+          "name": "valid",
+          "type": {
+            "canonical": "boolean"
+          },
+          "description": "Whether the transition is allowed.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "reason",
+          "type": {
+            "canonical": "string",
+            "original": "string | undefined"
+          },
+          "description": "Human-readable explanation when invalid.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "allowedTargets",
+          "type": {
+            "canonical": "array",
+            "original": "readonly DocumentState[]"
+          },
+          "description": "The allowed targets from the current state (for error context).",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-VersionEntry",
+      "name": "VersionEntry",
+      "slug": "versionentry",
+      "what": "A single version entry in a document's patch stack.",
+      "tags": [
+        "data"
+      ],
+      "properties": [
+        {
+          "name": "versionNumber",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "Sequential version number (1-based).",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "patchText",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "Unified diff patch text.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "createdBy",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "Agent that authored this version.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "changelog",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "One-line description of the change.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "contentHash",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "SHA-256 hash of the resulting content after applying this patch.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "createdAt",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "Timestamp of creation (ms since epoch).",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-ReconstructionResult",
+      "name": "ReconstructionResult",
+      "slug": "reconstruction",
+      "what": "Result of reconstructing a document at a specific version.",
+      "tags": [
+        "result"
+      ],
+      "properties": [
+        {
+          "name": "content",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "The document content at the requested version.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "version",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "The version number that was reconstructed.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "patchesApplied",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "Number of patches applied to reach this version.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "contentHash",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "SHA-256 hash of the reconstructed content.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "tokenCount",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "Token count of the reconstructed content.",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-PatchValidationResult",
+      "name": "PatchValidationResult",
+      "slug": "patchvalidation",
+      "what": "Result of validating whether a patch applies cleanly.",
+      "tags": [
+        "result"
+      ],
+      "properties": [
+        {
+          "name": "applies",
+          "type": {
+            "canonical": "boolean"
+          },
+          "description": "Whether the patch can be applied without conflicts.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "error",
+          "type": {
+            "canonical": "string",
+            "original": "string | undefined"
+          },
+          "description": "Error message if the patch does not apply.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "resultContent",
+          "type": {
+            "canonical": "string",
+            "original": "string | undefined"
+          },
+          "description": "The content that would result if the patch applies.",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-ApprovalStatus",
+      "name": "ApprovalStatus",
+      "slug": "approvalstatus",
+      "what": "Status of an individual review.",
+      "tags": [
+        "state"
+      ]
+    },
+    {
+      "id": "concept-ApprovalResult",
+      "name": "ApprovalResult",
+      "slug": "approval",
+      "what": "Result of evaluating reviews against a policy.",
+      "tags": [
+        "result"
+      ],
+      "properties": [
+        {
+          "name": "approved",
+          "type": {
+            "canonical": "boolean"
+          },
+          "description": "Whether the approval threshold is met.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "approvedBy",
+          "type": {
+            "canonical": "array",
+            "original": "string[]"
+          },
+          "description": "Reviewers that have approved.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "rejectedBy",
+          "type": {
+            "canonical": "array",
+            "original": "string[]"
+          },
+          "description": "Reviewers that have rejected.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "pendingFrom",
+          "type": {
+            "canonical": "array",
+            "original": "string[]"
+          },
+          "description": "Reviewers that are still pending.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "staleFrom",
+          "type": {
+            "canonical": "array",
+            "original": "string[]"
+          },
+          "description": "Reviewers whose reviews are stale (document changed since).",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "reason",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "Human-readable summary of the evaluation.",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-RetrievalOptions",
+      "name": "RetrievalOptions",
+      "slug": "retrieval",
+      "what": "Options for retrieval planning.",
+      "tags": [
+        "options"
+      ],
+      "properties": [
+        {
+          "name": "minScore",
+          "type": {
+            "canonical": "string",
+            "original": "number | undefined"
+          },
+          "description": "Minimum similarity score to include a section (0-1). Default: 0.1",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "includeIntro",
+          "type": {
+            "canonical": "string",
+            "original": "boolean | undefined"
+          },
+          "description": "Always include the first section (typically title/intro). Default: true",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-CreateVersionOptions",
+      "name": "CreateVersionOptions",
+      "slug": "createversion",
+      "what": "Options for creating a new version.",
+      "tags": [
+        "options"
+      ],
+      "properties": [
+        {
+          "name": "agentId",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "Agent creating this version.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "changelog",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "One-line change description.",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-LlmtxtDocumentOptions",
+      "name": "LlmtxtDocumentOptions",
+      "slug": "llmtxtdocument",
+      "what": "Options for constructing an LlmtxtDocument.",
+      "tags": [
+        "options"
+      ],
+      "properties": [
+        {
+          "name": "slug",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "Document slug.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "storage",
+          "type": {
+            "canonical": "object",
+            "original": "StorageAdapter"
+          },
+          "description": "Storage adapter for persistence.",
+          "required": true,
+          "default": null
+        }
+      ]
+    }
+  ],
+  "operations": [
+    {
+      "id": "op-generateId",
+      "name": "generateId",
+      "what": "",
+      "tags": [],
+      "inputs": []
+    },
+    {
+      "id": "op-createPatch",
+      "name": "createPatch",
+      "what": "",
+      "tags": [],
+      "inputs": []
+    },
+    {
+      "id": "op-createClient",
+      "name": "createClient",
+      "what": "",
+      "tags": [],
+      "inputs": []
+    },
+    {
+      "id": "op-generateOverview",
+      "name": "generateOverview",
+      "what": "Generate a structural overview of a document for progressive disclosure.",
+      "tags": [],
+      "inputs": [
+        {
+          "name": "content",
+          "type": {
+            "canonical": "any",
+            "original": "unknown"
+          },
+          "required": true,
+          "description": "The full document content to analyze."
+        }
+      ],
+      "outputs": {
+        "type": {
+          "canonical": "object",
+          "original": "A `DocumentOverview` with format, sections, and token counts."
+        },
+        "description": "A `DocumentOverview` with format, sections, and token counts."
+      }
+    },
+    {
+      "id": "op-buildGraph",
+      "name": "buildGraph",
+      "what": "Build a knowledge graph from an array of messages.  Nodes: agents (from fromAgentId + mentions), topics (#tags), decisions (/decision messages) Edges: mentions (agent→agent), discusses (agent→topic), decides (agent→decision), participates (agent→agent in same conversation)",
+      "tags": [],
+      "inputs": []
+    },
+    {
+      "id": "op-validateJson",
+      "name": "validateJson",
+      "what": "Validate content as JSON, optionally against a predefined schema.",
+      "tags": [],
+      "inputs": [
+        {
+          "name": "content",
+          "type": {
+            "canonical": "any",
+            "original": "unknown"
+          },
+          "required": true,
+          "description": "The raw content to validate (string or pre-parsed value)."
+        },
+        {
+          "name": "schemaName",
+          "type": {
+            "canonical": "any",
+            "original": "unknown"
+          },
+          "required": true,
+          "description": "Optional name of a predefined schema to enforce."
+        }
+      ],
+      "outputs": {
+        "type": {
+          "canonical": "object",
+          "original": "A `ValidationResult` indicating success or listing errors."
+        },
+        "description": "A `ValidationResult` indicating success or listing errors."
+      }
+    },
+    {
+      "id": "op-validateText",
+      "name": "validateText",
+      "what": "Validate content as plain text or markdown.",
+      "tags": [],
+      "inputs": [
+        {
+          "name": "content",
+          "type": {
+            "canonical": "any",
+            "original": "unknown"
+          },
+          "required": true,
+          "description": "The value to validate as text."
+        }
+      ],
+      "outputs": {
+        "type": {
+          "canonical": "object",
+          "original": "A `ValidationResult` with `format` set to `\"text\"` on success."
+        },
+        "description": "A `ValidationResult` with `format` set to `\"text\"` on success."
+      }
+    },
+    {
+      "id": "op-validateContent",
+      "name": "validateContent",
+      "what": "Validate content for a given format, with optional schema enforcement and content size limits.",
+      "tags": [
+        "validatecontent"
+      ],
+      "inputs": [
+        {
+          "name": "content",
+          "type": {
+            "canonical": "any",
+            "original": "unknown"
+          },
+          "required": true,
+          "description": "The raw content to validate."
+        },
+        {
+          "name": "format",
+          "type": {
+            "canonical": "any",
+            "original": "unknown"
+          },
+          "required": true,
+          "description": "The expected content format."
+        },
+        {
+          "name": "schemaNameOrOptions",
+          "type": {
+            "canonical": "any",
+            "original": "unknown"
+          },
+          "required": true,
+          "description": "A schema name string (backward compat) or options object."
+        }
+      ],
+      "outputs": {
+        "type": {
+          "canonical": "object",
+          "original": "A `ValidationResult` indicating success or listing errors."
+        },
+        "description": "A `ValidationResult` indicating success or listing errors."
+      }
+    },
+    {
+      "id": "op-generateSignedUrl",
+      "name": "generateSignedUrl",
+      "what": "Generate a signed URL for accessing a document.",
+      "tags": [
+        "signedurl"
+      ],
+      "inputs": []
+    },
+    {
+      "id": "op-generateOrgSignedUrl",
+      "name": "generateOrgSignedUrl",
+      "what": "Generate an org-scoped signed URL for accessing a document. The URL includes the org parameter for organization-level access verification.",
+      "tags": [
+        "signedurl"
+      ],
+      "inputs": []
+    },
+    {
+      "id": "op-generateTimedUrl",
+      "name": "generateTimedUrl",
+      "what": "Generate a signed URL that expires after the given duration.",
+      "tags": [],
+      "inputs": []
+    },
+    {
+      "id": "op-validateTransition",
+      "name": "validateTransition",
+      "what": "Validate a proposed state transition with a detailed result.",
+      "tags": [
+        "transition"
+      ],
+      "inputs": [
+        {
+          "name": "from",
+          "type": {
+            "canonical": "any",
+            "original": "unknown"
+          },
+          "required": true,
+          "description": "Current document state."
+        },
+        {
+          "name": "to",
+          "type": {
+            "canonical": "any",
+            "original": "unknown"
+          },
+          "required": true,
+          "description": "Target document state."
+        }
+      ],
+      "outputs": {
+        "type": {
+          "canonical": "object",
+          "original": "A result object indicating validity and allowed alternatives."
+        },
+        "description": "A result object indicating validity and allowed alternatives."
+      }
+    },
+    {
+      "id": "op-validatePatchApplies",
+      "name": "validatePatchApplies",
+      "what": "Check whether a patch applies cleanly to the given content.",
+      "tags": [],
+      "inputs": [
+        {
+          "name": "content",
+          "type": {
+            "canonical": "any",
+            "original": "unknown"
+          },
+          "required": true,
+          "description": "The current document content."
+        },
+        {
+          "name": "patchText",
+          "type": {
+            "canonical": "any",
+            "original": "unknown"
+          },
+          "required": true,
+          "description": "The unified diff to test."
+        }
+      ],
+      "outputs": {
+        "type": {
+          "canonical": "object",
+          "original": "Whether the patch applies and the resulting content."
+        },
+        "description": "Whether the patch applies and the resulting content."
+      }
+    },
+    {
+      "id": "op-buildContributorSummary",
+      "name": "buildContributorSummary",
+      "what": "Build aggregated contributor summaries from version attributions.",
+      "tags": [],
+      "inputs": [
+        {
+          "name": "attributions",
+          "type": {
+            "canonical": "any",
+            "original": "unknown"
+          },
+          "required": true,
+          "description": "Array of per-version attribution data."
+        }
+      ],
+      "outputs": {
+        "type": {
+          "canonical": "object",
+          "original": "Contributor summaries sorted by total versions authored (descending)."
+        },
+        "description": "Contributor summaries sorted by total versions authored (descending)."
+      }
+    }
+  ],
+  "constraints": [
+    {
+      "id": "constraint-queryJsonPath-Error-if-the-JSON-is-invalid-o",
+      "rule": "Error if the JSON is invalid or the path cannot be resolved.",
+      "enforcedBy": "queryJsonPath",
+      "severity": "error"
+    },
+    {
+      "id": "constraint-reconstructVersion-If-a-patch-in-the-sequence-fai",
+      "rule": "If a patch in the sequence fails to apply.",
+      "enforcedBy": "reconstructVersion",
+      "severity": "error"
+    }
+  ],
+  "workflows": [],
+  "configSchema": [
+    {
+      "key": "lrucache.maxSize",
+      "type": {
+        "canonical": "string",
+        "original": "number | undefined"
+      },
+      "description": "Maximum number of entries before the least-recently-used entry is evicted (default: 1000).",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "lrucache.ttl",
+      "type": {
+        "canonical": "string",
+        "original": "number | undefined"
+      },
+      "description": "Default time-to-live in milliseconds for new entries (default: 24 hours).",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "attachment.content",
+      "type": {
+        "canonical": "string"
+      },
+      "description": "",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "attachment.format",
+      "type": {
+        "canonical": "string",
+        "original": "ContentFormat | undefined"
+      },
+      "description": "",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "attachment.conversationId",
+      "type": {
+        "canonical": "string"
+      },
+      "description": "",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "attachment.fromAgentId",
+      "type": {
+        "canonical": "string"
+      },
+      "description": "",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "attachment.expiresInMs",
+      "type": {
+        "canonical": "string",
+        "original": "number | undefined"
+      },
+      "description": "",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "attachmentreshare.expiresIn",
+      "type": {
+        "canonical": "string",
+        "original": "number | undefined"
+      },
+      "description": "",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "attachmentreshare.mode",
+      "type": {
+        "canonical": "string",
+        "original": "AttachmentSharingMode | undefined"
+      },
+      "description": "",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "attachmentversion.baseVersion",
+      "type": {
+        "canonical": "string",
+        "original": "number | undefined"
+      },
+      "description": "",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "attachmentversion.changelog",
+      "type": {
+        "canonical": "string",
+        "original": "string | undefined"
+      },
+      "description": "",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "llmtxtclient.apiBase",
+      "type": {
+        "canonical": "string"
+      },
+      "description": "",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "llmtxtclient.apiKey",
+      "type": {
+        "canonical": "string"
+      },
+      "description": "",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "llmtxtclient.agentId",
+      "type": {
+        "canonical": "string"
+      },
+      "description": "",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "validatecontent.schemaName",
+      "type": {
+        "canonical": "string",
+        "original": "string | undefined"
+      },
+      "description": "Optional predefined schema name for JSON validation.",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "validatecontent.maxBytes",
+      "type": {
+        "canonical": "string",
+        "original": "number | undefined"
+      },
+      "description": "Maximum content size in bytes. Set to 0 to disable. Default: 5 MB.",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "validatecontent.maxLineBytes",
+      "type": {
+        "canonical": "string",
+        "original": "number | undefined"
+      },
+      "description": "Maximum line length in bytes. Set to 0 to disable. Default: 64 KB.",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "validatecontent.rejectBinary",
+      "type": {
+        "canonical": "string",
+        "original": "boolean | undefined"
+      },
+      "description": "Reject content with binary control characters (0x00-0x08). Default: true.",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "signedurl.secret",
+      "type": {
+        "canonical": "string"
+      },
+      "description": "",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "signedurl.baseUrl",
+      "type": {
+        "canonical": "string"
+      },
+      "description": "",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "signedurl.pathPrefix",
+      "type": {
+        "canonical": "string",
+        "original": "string | undefined"
+      },
+      "description": "Optional path prefix like `/attachments`. Default: root path.",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "signedurl.signatureLength",
+      "type": {
+        "canonical": "string",
+        "original": "number | undefined"
+      },
+      "description": "Signature length in hex chars. Default: 16.",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "snapshot.includeDecisions",
+      "type": {
+        "canonical": "string",
+        "original": "boolean | undefined"
+      },
+      "description": "Include full decision log (default: true)",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "snapshot.includeObservations",
+      "type": {
+        "canonical": "string",
+        "original": "boolean | undefined"
+      },
+      "description": "Include brain observations (default: true)",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "snapshot.maxSize",
+      "type": {
+        "canonical": "string",
+        "original": "number | undefined"
+      },
+      "description": "Max content size before compression in bytes (default: 5MB)",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "retrieval.minScore",
+      "type": {
+        "canonical": "string",
+        "original": "number | undefined"
+      },
+      "description": "Minimum similarity score to include a section (0-1). Default: 0.1",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "retrieval.includeIntro",
+      "type": {
+        "canonical": "string",
+        "original": "boolean | undefined"
+      },
+      "description": "Always include the first section (typically title/intro). Default: true",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "createversion.agentId",
+      "type": {
+        "canonical": "string"
+      },
+      "description": "Agent creating this version.",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "createversion.changelog",
+      "type": {
+        "canonical": "string"
+      },
+      "description": "One-line change description.",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "llmtxtdocument.slug",
+      "type": {
+        "canonical": "string"
+      },
+      "description": "Document slug.",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "llmtxtdocument.storage",
+      "type": {
+        "canonical": "object",
+        "original": "StorageAdapter"
+      },
+      "description": "Storage adapter for persistence.",
+      "required": true,
+      "default": null
+    }
+  ]
+}

@@ -12,7 +12,7 @@ This page explains the core concepts behind **core**.
 
 ## How It Works
 
-core processes your TypeScript source with a single AST traversal, extracting TSDoc comments and type information to generate documentation.
+llmtxt processes your TypeScript source with a single AST traversal, extracting TSDoc comments and type information to generate documentation.
 
 {/* FORGE:AUTO-END how-it-works */}
 
@@ -22,10 +22,33 @@ core processes your TypeScript source with a single AST traversal, extracting TS
 
 - **`CacheStats`** — Snapshot of cache performance statistics.
 - **`LRUCacheOptions`** — Configuration options for constructing an `LRUCache` instance.
+- **`DiffResult`** — The `DiffResult` interface.
+- **`ContentFormat`** — Supported content formats.
+- **`DocumentMode`** — Lifecycle state for collaborative documents.
+- **`DocumentMeta`** — Metadata for a stored document.
+- **`VersionMeta`** — Metadata for a single document version.
+- **`VersionSummary`** — Summary of a version for listing (no content).
+- **`VersionDiff`** — Result of comparing two versions.
+- **`LlmtxtRef`** — Reference to an llmtxt document shared in a message.
+- **`AttachmentOptions`** — Options for creating an attachment via the bridge.
+- **`AttachmentAccessMode`** — Attachment fetch mode supported by the bridge/API layer.
+- **`AttachmentSharingMode`** — Share state persisted by the API layer for an attachment.
+- **`AttachmentReshareOptions`** — Options for re-sharing an existing attachment.
+- **`AttachmentVersionOptions`** — Options for appending a version to an existing attachment slug.
+- **`LlmtxtClientConfig`** — The `LlmtxtClientConfig` interface.
+- **`UploadResult`** — The `UploadResult` interface.
+- **`FetchResult`** — The `FetchResult` interface.
+- **`ReshareResult`** — The `ReshareResult` interface.
+- **`ResignResult`** — Backward-compatible alias. Prefer `ReshareResult`.
+- **`AttachmentVersionResult`** — The `AttachmentVersionResult` interface.
 - **`Section`** — A logical section identified within a document.
 - **`DocumentOverview`** — High-level structural overview of a document.
 - **`SearchResult`** — A single match returned by `searchContent`.
 - **`LineRangeResult`** — Result of extracting a line range from a document via `getLineRange`.
+- **`GraphNode`** — The `GraphNode` interface.
+- **`GraphEdge`** — The `GraphEdge` interface.
+- **`KnowledgeGraph`** — The `KnowledgeGraph` interface.
+- **`MessageInput`** — The `MessageInput` interface.
 - **`PredefinedSchemaName`** — Union of all registered predefined schema name strings.
 - **`JsonFormat`** — Inferred TypeScript type for any valid JSON value (object, array, primitive).
 - **`TextFormat`** — Inferred TypeScript type for plain text content.
@@ -37,8 +60,36 @@ core processes your TypeScript source with a single AST traversal, extracting TS
 - **`SearchRequest`** — Inferred TypeScript type for content search request payloads.
 - **`ValidationResult`** — Outcome of a content validation operation.
 - **`ValidationError`** — A single validation error with location, message, and error code.
+- **`ValidateContentOptions`** — Options for content validation.
 - **`SignedUrlParams`** — Parameters that uniquely identify a signed URL access grant.
 - **`SignedUrlConfig`** — Configuration for generating and verifying signed URLs.
-- **`VerifyResult`** — Outcome of verifying a signed URL via `verifySignedUrl`.
+- **`VerifyResult`** — Outcome of verifying a signed URL.
+- **`OrgSignedUrlParams`** — Parameters for org-scoped signed URLs (Phase 5 enterprise). Extends conversation-scoped params with an organization ID.
+- **`SnapshotMeta`** — The `SnapshotMeta` interface.
+- **`CompressedSnapshot`** — The `CompressedSnapshot` interface.
+- **`SnapshotOptions`** — The `SnapshotOptions` interface.
+- **`DocumentState`** — Lifecycle state of a collaborative document.
+- **`StateTransition`** — Record of a lifecycle state change.
+- **`TransitionResult`** — Result of attempting a state transition.
+- **`VersionEntry`** — A single version entry in a document's patch stack.
+- **`ReconstructionResult`** — Result of reconstructing a document at a specific version.
+- **`PatchValidationResult`** — Result of validating whether a patch applies cleanly.
+- **`VersionDiffSummary`** — Summary of changes between two versions.
+- **`ApprovalStatus`** — Status of an individual review.
+- **`Review`** — A single review from an agent.
+- **`ApprovalPolicy`** — Policy governing how approvals are evaluated.
+- **`ApprovalResult`** — Result of evaluating reviews against a policy.
+- **`StorageType`** — How document content is stored.
+- **`CompressionMethod`** — Compression method used for stored content.
+- **`ContentRef`** — Reference to where a document's compressed content lives.  Inline: content is stored directly in the database (small documents). Object-store: content is stored in S3-compatible storage, referenced by key.
+- **`StorageMetadata`** — Metadata about a stored document blob.
+- **`StorageAdapter`** — Storage adapter that platforms implement.
+- **`VersionAttribution`** — Attribution data for a single version.
+- **`ContributorSummary`** — Aggregated contribution summary for a single agent.
+- **`PlannedSection`** — A section selected for retrieval.
+- **`RetrievalPlan`** — The output of retrieval planning.
+- **`RetrievalOptions`** — Options for retrieval planning.
+- **`CreateVersionOptions`** — Options for creating a new version.
+- **`LlmtxtDocumentOptions`** — Options for constructing an LlmtxtDocument.
 
 {/* FORGE:AUTO-END key-abstractions */}

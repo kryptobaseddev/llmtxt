@@ -19,13 +19,99 @@ Configuration options for constructing an `LRUCache` instance.
 | `maxSize` | `number \| undefined` | Maximum number of entries before the least-recently-used entry is evicted (default: 1000). |
 | `ttl`     | `number \| undefined` | Default time-to-live in milliseconds for new entries (default: 24 hours).                  |
 
+### `AttachmentOptions`
+
+Options for creating an attachment via the bridge.
+
+| Property         | Type                         | Description    |
+| ---------------- | ---------------------------- | -------------- |
+| `content`        | `string`                     | content        |
+| `format`         | `ContentFormat \| undefined` | format         |
+| `conversationId` | `string`                     | conversationId |
+| `fromAgentId`    | `string`                     | fromAgentId    |
+| `expiresInMs`    | `number \| undefined`        | expiresInMs    |
+
+### `AttachmentReshareOptions`
+
+Options for re-sharing an existing attachment.
+
+| Property    | Type                                 | Description |
+| ----------- | ------------------------------------ | ----------- |
+| `expiresIn` | `number \| undefined`                | expiresIn   |
+| `mode`      | `AttachmentSharingMode \| undefined` | mode        |
+
+### `AttachmentVersionOptions`
+
+Options for appending a version to an existing attachment slug.
+
+| Property      | Type                  | Description |
+| ------------- | --------------------- | ----------- |
+| `baseVersion` | `number \| undefined` | baseVersion |
+| `changelog`   | `string \| undefined` | changelog   |
+
+### `LlmtxtClientConfig`
+
+| Property  | Type     | Description |
+| --------- | -------- | ----------- |
+| `apiBase` | `string` | apiBase     |
+| `apiKey`  | `string` | apiKey      |
+| `agentId` | `string` | agentId     |
+
+### `ValidateContentOptions`
+
+Options for content validation.
+
+| Property       | Type                   | Description                                                               |
+| -------------- | ---------------------- | ------------------------------------------------------------------------- |
+| `schemaName`   | `string \| undefined`  | Optional predefined schema name for JSON validation.                      |
+| `maxBytes`     | `number \| undefined`  | Maximum content size in bytes. Set to 0 to disable. Default: 5 MB.        |
+| `maxLineBytes` | `number \| undefined`  | Maximum line length in bytes. Set to 0 to disable. Default: 64 KB.        |
+| `rejectBinary` | `boolean \| undefined` | Reject content with binary control characters (0x00-0x08). Default: true. |
+
 ### `SignedUrlConfig`
 
 Configuration for generating and verifying signed URLs.
 
-| Property  | Type     | Description                                                |
-| --------- | -------- | ---------------------------------------------------------- |
-| `secret`  | `string` | Shared HMAC-SHA256 secret used to sign and verify URLs.    |
-| `baseUrl` | `string` | Base URL for document access (e.g. `"https://llmtxt.my"`). |
+| Property          | Type                  | Description                                                   |
+| ----------------- | --------------------- | ------------------------------------------------------------- |
+| `secret`          | `string`              | secret                                                        |
+| `baseUrl`         | `string`              | baseUrl                                                       |
+| `pathPrefix`      | `string \| undefined` | Optional path prefix like `/attachments`. Default: root path. |
+| `signatureLength` | `number \| undefined` | Signature length in hex chars. Default: 16.                   |
+
+### `SnapshotOptions`
+
+| Property              | Type                   | Description                                                 |
+| --------------------- | ---------------------- | ----------------------------------------------------------- |
+| `includeDecisions`    | `boolean \| undefined` | Include full decision log (default: true)                   |
+| `includeObservations` | `boolean \| undefined` | Include brain observations (default: true)                  |
+| `maxSize`             | `number \| undefined`  | Max content size before compression in bytes (default: 5MB) |
+
+### `RetrievalOptions`
+
+Options for retrieval planning.
+
+| Property       | Type                   | Description                                                             |
+| -------------- | ---------------------- | ----------------------------------------------------------------------- |
+| `minScore`     | `number \| undefined`  | Minimum similarity score to include a section (0-1). Default: 0.1       |
+| `includeIntro` | `boolean \| undefined` | Always include the first section (typically title/intro). Default: true |
+
+### `CreateVersionOptions`
+
+Options for creating a new version.
+
+| Property    | Type     | Description                  |
+| ----------- | -------- | ---------------------------- |
+| `agentId`   | `string` | Agent creating this version. |
+| `changelog` | `string` | One-line change description. |
+
+### `LlmtxtDocumentOptions`
+
+Options for constructing an LlmtxtDocument.
+
+| Property  | Type             | Description                      |
+| --------- | ---------------- | -------------------------------- |
+| `slug`    | `string`         | Document slug.                   |
+| `storage` | `StorageAdapter` | Storage adapter for persistence. |
 
 {/* FORGE:AUTO-END guide-configuration */}

@@ -68,9 +68,9 @@
 | WASM Bridge | wasm-pack + wasm-bindgen | packages/llmtxt/wasm/ |
 | npm Package | TypeScript 5.9 (ESM) | packages/llmtxt/ |
 | Validation | Zod 3.x | packages/llmtxt/src/validation.ts |
-| Web App | Node.js + Fastify 5.x | apps/web/ |
-| Web ORM | Drizzle 1.0 beta | apps/web/ |
-| Web DB | SQLite (better-sqlite3, WAL) | apps/web/ |
+| Web App | Node.js + Fastify 5.x | apps/backend/ |
+| Web ORM | Drizzle 1.0 beta | apps/backend/ |
+| Web DB | SQLite (better-sqlite3, WAL) | apps/backend/ |
 | API Server | Rust + Axum 0.8 | SignalDock repo |
 | API DB | PostgreSQL (sqlx) | Railway |
 | Blob Storage | S3-compatible (Railway) | signaldock-bucket |

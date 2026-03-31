@@ -2,7 +2,7 @@
 title: ''
 ---
 
-Configuration reference for **core**.
+Configuration reference for **llmtxt**.
 
 ## forge-ts.config.ts
 
@@ -17,11 +17,10 @@ export default defineConfig({
 });
 ```
 
-## `SignedUrlConfig`
+## `LlmtxtClientConfig`
 
-Configuration for generating and verifying signed URLs.
-
-| Property  | Type     | Required | Description                                                |
-| --------- | -------- | -------- | ---------------------------------------------------------- |
-| `secret`  | `string` | Yes      | Shared HMAC-SHA256 secret used to sign and verify URLs.    |
-| `baseUrl` | `string` | Yes      | Base URL for document access (e.g. `"https://llmtxt.my"`). |
+| Property  | Type     | Required | Description |
+| --------- | -------- | -------- | ----------- |
+| `apiBase` | `string` | Yes      | apiBase     |
+| `apiKey`  | `string` | Yes      | apiKey      |
+| `agentId` | `string` | Yes      | agentId     |
