@@ -17,6 +17,7 @@ import {
   calculateCompressionRatio,
   computeDiff,
 } from '../utils/compression.js';
+import { createPatch } from 'llmtxt';
 import { invalidateDocumentCache } from '../middleware/cache.js';
 
 const slugParamsSchema = z.object({
@@ -317,16 +318,28 @@ export async function versionRoutes(fastify: FastifyInstance) {
 
       // Use the portable Rust diff primitive
       const diff = computeDiff(fromContent, toContent);
+      const patchText = createPatch(fromContent, toContent);
+
+      // Compute actual added/removed line content from the two versions
+      const fromLines = fromContent.split('\n');
+      const toLines = toContent.split('\n');
+      const fromSet = new Set(fromLines);
+      const toSet = new Set(toLines);
+      const removedLineContent = fromLines.filter(l => !toSet.has(l));
+      const addedLineContent = toLines.filter(l => !fromSet.has(l));
 
       return reply.send({
         documentId: doc.id,
         slug,
         fromVersion: from,
         toVersion: to,
-        addedLines: diff.addedLines,
-        removedLines: diff.removedLines,
+        addedLines: addedLineContent,
+        removedLines: removedLineContent,
+        addedLineCount: diff.addedLines,
+        removedLineCount: diff.removedLines,
         addedTokens: diff.addedTokens,
         removedTokens: diff.removedTokens,
+        patchText,
       });
     } catch (error) {
       fastify.log.error(error);

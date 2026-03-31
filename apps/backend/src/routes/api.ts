@@ -8,7 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { db } from '../db/index.js';
-import { documents } from '../db/schema.js';
+import { documents, contributors } from '../db/schema.js';
 import { eq, desc } from 'drizzle-orm';
 import { auth } from '../auth.js';
 import {
@@ -223,6 +223,21 @@ export async function apiRoutes(fastify: FastifyInstance) {
         ownerId: user?.id ?? null,
         isAnonymous: user ? ((user as Record<string, unknown>).isAnonymous === true) : false,
       });
+
+      // Create initial contributor record if user is authenticated
+      if (user?.id) {
+        await db.insert(contributors).values({
+          id: generateId(),
+          documentId: id,
+          agentId: user.id,
+          versionsAuthored: 1,
+          totalTokensAdded: tokenCount,
+          totalTokensRemoved: 0,
+          netTokens: tokenCount,
+          firstContribution: now,
+          lastContribution: now,
+        });
+      }
 
       // Build URL - use /documents/:slug for API host, /api/documents/:slug otherwise
       const host = request.hostname.split(':')[0];

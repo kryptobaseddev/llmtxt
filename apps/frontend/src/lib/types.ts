@@ -75,8 +75,11 @@ export interface DiffResult {
   toVersion: number;
   addedLines: string[];
   removedLines: string[];
+  addedLineCount: number;
+  removedLineCount: number;
   addedTokens: number;
   removedTokens: number;
+  patchText: string;
 }
 
 export interface Review {
