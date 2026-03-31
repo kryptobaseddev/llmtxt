@@ -86,6 +86,9 @@ export const api = {
       body: JSON.stringify({ tokenBudget, query }),
     }),
 
+  // Dashboard
+  getMyDocuments: () => request<any>('/documents/mine'),
+
   // Auth
   getSession: () => request<any>('/auth/get-session').catch(() => null),
   signInAnonymous: () => request<any>('/auth/sign-in/anonymous', { method: 'POST', body: '{}' }),

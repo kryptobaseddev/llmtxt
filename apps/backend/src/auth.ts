@@ -11,8 +11,10 @@
 import { betterAuth } from 'better-auth';
 import { anonymous } from 'better-auth/plugins';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { eq } from 'drizzle-orm';
 import { db } from './db/index.js';
 import * as schema from './db/schema.js';
+import { documents, contributors, versions } from './db/schema.js';
 
 /** Better-auth instance with email/password + anonymous authentication, cookie-based sessions, and 24hr anonymous user TTL. */
 export const auth = betterAuth({
@@ -43,6 +45,22 @@ export const auth = betterAuth({
   plugins: [
     anonymous({
       emailDomainName: 'anon.llmtxt.my',
+      onLinkAccount: async ({ anonymousUser, newUser }) => {
+        const anonId = anonymousUser.user.id;
+        const realId = newUser.user.id;
+        // Transfer all documents from anonymous user to the new registered user
+        await db.update(documents)
+          .set({ ownerId: realId, isAnonymous: false })
+          .where(eq(documents.ownerId, anonId));
+        // Transfer contributor records (uses agentId field)
+        await db.update(contributors)
+          .set({ agentId: realId })
+          .where(eq(contributors.agentId, anonId));
+        // Transfer version authorship
+        await db.update(versions)
+          .set({ createdBy: realId })
+          .where(eq(versions.createdBy, anonId));
+      },
     }),
   ],
   trustedOrigins: [

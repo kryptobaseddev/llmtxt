@@ -9,7 +9,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { db } from '../db/index.js';
 import { documents } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
+import { auth } from '../auth.js';
 import {
   compress,
   decompress,
@@ -61,6 +62,20 @@ function formatValidationErrors(errors: Array<{ path: string; message: string; c
   };
 }
 
+/** Try to get the authenticated user from session cookies. Returns null if no session. */
+async function getOptionalUser(request: FastifyRequest) {
+  try {
+    const headers = new Headers();
+    for (const [key, value] of Object.entries(request.headers)) {
+      if (value) headers.append(key, String(value));
+    }
+    const session = await auth.api.getSession({ headers });
+    return session?.user ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** Register core document API routes: compress, decompress, validate, search, schemas, and cache management. */
 export async function apiRoutes(fastify: FastifyInstance) {
   // Serve llms.txt at API root for agent auto-discovery
@@ -78,6 +93,32 @@ export async function apiRoutes(fastify: FastifyInstance) {
     uptime: process.uptime(),
     version: '1.0.0',
   }));
+
+  /** GET /api/documents/mine - List documents owned by the authenticated user. */
+  fastify.get('/documents/mine', async (request, reply) => {
+    const user = await getOptionalUser(request);
+    if (!user) {
+      return reply.status(401).send({ error: 'Authentication required' });
+    }
+
+    const docs = await db.select({
+      id: documents.id,
+      slug: documents.slug,
+      format: documents.format,
+      tokenCount: documents.tokenCount,
+      originalSize: documents.originalSize,
+      compressedSize: documents.compressedSize,
+      createdAt: documents.createdAt,
+      accessCount: documents.accessCount,
+      state: documents.state,
+      isAnonymous: documents.isAnonymous,
+    })
+      .from(documents)
+      .where(eq(documents.ownerId, user.id))
+      .orderBy(desc(documents.createdAt));
+
+    return { documents: docs, total: docs.length };
+  });
 
   /**
    * POST /api/compress - Compress and store document with format validation
@@ -163,7 +204,10 @@ export async function apiRoutes(fastify: FastifyInstance) {
       const tokenCount = calculateTokens(content);
       const compressionRatio = calculateCompressionRatio(originalSize, compressedSize);
 
-      // Save to database with format field
+      // Get optional user from session for ownership
+      const user = await getOptionalUser(request);
+
+      // Save to database with format field and ownership
       const now = Date.now();
       await db.insert(documents).values({
         id,
@@ -176,6 +220,8 @@ export async function apiRoutes(fastify: FastifyInstance) {
         tokenCount,
         createdAt: now,
         accessCount: 0,
+        ownerId: user?.id ?? null,
+        isAnonymous: user ? ((user as Record<string, unknown>).isAnonymous === true) : false,
       });
 
       // Build URL - use /documents/:slug for API host, /api/documents/:slug otherwise
