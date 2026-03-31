@@ -1,6 +1,6 @@
 <script lang="ts">
   import { api } from '$lib/api/client';
-  import { goto } from '$app/navigation';
+  import { goto, beforeNavigate } from '$app/navigation';
   import { onMount } from 'svelte';
   import { getAuth } from '$lib/stores/auth.svelte';
 
@@ -9,15 +9,17 @@
 
   let content = $state('');
   let submitting = $state(false);
+  let saving = $state(false);
   let menuOpen = $state(false);
   let sharedSlug = $state('');
   let copyFeedback = $state('');
   let shareError = $state('');
   let showAbout = $state(false);
-  let barCopyFeedback = $state('');
+  let savedSlug = $state('');
 
   let shared = $derived(sharedSlug !== '');
   let shareUrl = $derived(sharedSlug ? `${window.location.origin}/doc/${sharedSlug}` : '');
+  let hasUnsavedContent = $derived(content.trim().length > 0 && !sharedSlug && !savedSlug);
 
   // Live stats
   let chars = $derived(content.length);
@@ -40,6 +42,26 @@
     }
   });
 
+  // Navigation guard: warn when leaving with unsaved content
+  beforeNavigate(({ cancel }) => {
+    if (hasUnsavedContent) {
+      if (!confirm('You have unsaved content. Leave without saving?')) {
+        cancel();
+      }
+    }
+  });
+
+  // Browser close/refresh guard
+  $effect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (hasUnsavedContent) {
+        e.preventDefault();
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  });
+
   function detectFormat(text: string): string {
     if (!text.trim()) return 'text';
     try { JSON.parse(text); return 'json'; } catch {}
@@ -54,13 +76,32 @@
     return `${(b / 1024).toFixed(1)} KB`;
   }
 
+  async function save() {
+    if (!content.trim()) return;
+    saving = true;
+    shareError = '';
+    try {
+      const result = await api.createDocument(content, format);
+      savedSlug = result.slug;
+      localStorage.removeItem(DRAFT_KEY);
+    } catch (e) {
+      shareError = e instanceof Error ? e.message : 'Failed to save document';
+    } finally {
+      saving = false;
+    }
+  }
+
   async function share() {
     if (!content.trim()) return;
     submitting = true;
     shareError = '';
     try {
-      const result = await api.createDocument(content, format);
+      const result = savedSlug
+        ? { slug: savedSlug }
+        : await api.createDocument(content, format);
       sharedSlug = result.slug;
+      savedSlug = result.slug;
+      localStorage.removeItem(DRAFT_KEY);
       await copyToClipboard(`${window.location.origin}/doc/${result.slug}`);
     } catch (e) {
       shareError = e instanceof Error ? e.message : 'Failed to create document';
@@ -82,6 +123,7 @@
   function newDoc() {
     content = '';
     sharedSlug = '';
+    savedSlug = '';
     shareError = '';
     menuOpen = false;
     localStorage.removeItem(DRAFT_KEY);
@@ -184,6 +226,25 @@
         <span class="text-base-content/60">{format}</span>
       </div>
       {#if content.trim()}
+        {#if savedSlug}
+          <span class="shrink-0 text-success/50 flex items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <span class="hidden md:inline uppercase tracking-wider">Saved</span>
+          </span>
+        {:else}
+          <button
+            class="shrink-0 text-base-content/30 hover:text-primary transition-colors flex items-center gap-1"
+            onclick={save}
+            disabled={saving}
+          >
+            {#if saving}
+              <span class="loading loading-spinner loading-xs"></span>
+            {:else}
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+              <span class="hidden md:inline uppercase tracking-wider">Save</span>
+            {/if}
+          </button>
+        {/if}
         <button
           class="shrink-0 text-base-content/30 hover:text-primary transition-colors flex items-center gap-1"
           onclick={share}
