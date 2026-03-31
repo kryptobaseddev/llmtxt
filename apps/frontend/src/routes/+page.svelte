@@ -162,8 +162,8 @@
   </div>
 
   <!-- Stats bar — pinned to bottom -->
-  <div class="flex items-center justify-between px-4 md:px-6 py-3 border-t border-base-content/10 text-xs font-display text-base-content/40 select-none">
-    <div class="flex gap-3 md:gap-6 overflow-x-auto">
+  <div class="flex items-center px-4 md:px-6 py-3 border-t border-base-content/10 text-xs font-display text-base-content/40 select-none">
+    <div class="flex gap-3 md:gap-6 items-center">
       <div class="shrink-0">
         <span class="uppercase tracking-wider text-base-content/25 mr-1 hidden md:inline">Characters</span>
         <span class="uppercase tracking-wider text-base-content/25 mr-1 md:hidden">Chr</span>
@@ -183,21 +183,17 @@
         <span class="uppercase tracking-wider text-base-content/25 mr-1 md:hidden">Fmt</span>
         <span class="text-base-content/60">{format}</span>
       </div>
-    </div>
-    {#if content.trim()}
-      <button
-        class="btn btn-ghost btn-xs font-display text-base-content/40 hover:text-primary gap-1 shrink-0 ml-2"
-        onclick={share}
-        disabled={submitting}
-      >
-        {#if barCopyFeedback}
-          <span class="text-success">{barCopyFeedback}</span>
-        {:else}
+      {#if content.trim()}
+        <button
+          class="shrink-0 text-base-content/30 hover:text-primary transition-colors flex items-center gap-1"
+          onclick={share}
+          disabled={submitting}
+        >
           <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
-          <span class="hidden md:inline">Share</span>
-        {/if}
-      </button>
-    {/if}
+          <span class="hidden md:inline uppercase tracking-wider">Share</span>
+        </button>
+      {/if}
+    </div>
   </div>
 
   <!-- FAB menu -->
