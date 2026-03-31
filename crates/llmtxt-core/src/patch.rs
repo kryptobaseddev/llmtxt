@@ -137,6 +137,50 @@ pub fn diff_versions_native(
     Ok((diff, patch_text))
 }
 
+/// Compare multiple versions against a base version in a single call.
+///
+/// `version_numbers` is a JSON array of version numbers to compare: `[1, 3, 5, 8]`.
+/// Each is reconstructed from the patch chain and diffed against `base_version`.
+/// Returns a JSON array of diff results.
+///
+/// This avoids N separate WASM calls and parses the patches JSON once.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn batch_diff_versions(
+    base: &str,
+    patches_json: &str,
+    base_version: u32,
+    version_numbers_json: &str,
+) -> Result<String, String> {
+    let patches: Vec<String> =
+        serde_json::from_str(patches_json).map_err(|e| format!("Invalid patches JSON: {e}"))?;
+    let version_numbers: Vec<u32> =
+        serde_json::from_str(version_numbers_json).map_err(|e| format!("Invalid version numbers JSON: {e}"))?;
+
+    let base_content = reconstruct_version_native(base, &patches, base_version as usize)?;
+    let mut results = Vec::new();
+
+    for &ver in &version_numbers {
+        if ver == base_version {
+            continue;
+        }
+        let ver_content = reconstruct_version_native(base, &patches, ver as usize)?;
+        let diff = compute_diff(&base_content, &ver_content);
+        let patch_text = create_patch(&base_content, &ver_content);
+
+        results.push(serde_json::json!({
+            "fromVersion": base_version,
+            "toVersion": ver,
+            "addedLines": diff.added_lines(),
+            "removedLines": diff.removed_lines(),
+            "addedTokens": diff.added_tokens(),
+            "removedTokens": diff.removed_tokens(),
+            "patchText": patch_text,
+        }));
+    }
+
+    serde_json::to_string(&results).map_err(|e| format!("Serialization failed: {e}"))
+}
+
 // ── Section Change Detection ──────────────────────────────────
 
 /// Split content into sections keyed by their heading name.

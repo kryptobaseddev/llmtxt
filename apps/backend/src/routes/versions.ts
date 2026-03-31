@@ -346,4 +346,64 @@ export async function versionRoutes(fastify: FastifyInstance) {
       return reply.status(500).send({ error: 'Internal server error' });
     }
   });
+
+  /**
+   * POST /api/documents/:slug/batch-versions
+   * Get content for multiple selected versions in one call.
+   * Body: { versions: number[] } (max 10)
+   * Returns array of { versionNumber, content, contentHash, tokenCount }
+   */
+  fastify.post('/documents/:slug/batch-versions', async (
+    request: FastifyRequest<{
+      Params: { slug: string };
+      Body: { versions: number[] };
+    }>,
+    reply: FastifyReply
+  ) => {
+    try {
+      const { slug } = request.params;
+      const { versions: requestedVersions } = request.body;
+
+      if (!Array.isArray(requestedVersions) || requestedVersions.length === 0) {
+        return reply.status(400).send({ error: 'versions array required' });
+      }
+      if (requestedVersions.length > 10) {
+        return reply.status(400).send({ error: 'Maximum 10 versions per request' });
+      }
+
+      const [doc] = await db.select().from(documents).where(eq(documents.slug, slug));
+      if (!doc) return reply.status(404).send({ error: 'Document not found' });
+
+      const versionRows = await db.select()
+        .from(versions)
+        .where(eq(versions.documentId, doc.id))
+        .orderBy(versions.versionNumber);
+
+      const results = [];
+      for (const num of requestedVersions) {
+        const ver = versionRows.find(v => v.versionNumber === num);
+        if (!ver) continue;
+
+        const buffer = ver.compressedData instanceof Buffer
+          ? ver.compressedData
+          : Buffer.from(ver.compressedData as ArrayBuffer);
+        const content = await decompress(buffer);
+
+        results.push({
+          versionNumber: ver.versionNumber,
+          content,
+          contentHash: ver.contentHash,
+          tokenCount: ver.tokenCount,
+          createdAt: ver.createdAt,
+          createdBy: ver.createdBy,
+          changelog: ver.changelog,
+        });
+      }
+
+      return { slug, versions: results };
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.status(500).send({ error: 'Internal server error' });
+    }
+  });
 }

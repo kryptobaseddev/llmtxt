@@ -31,9 +31,9 @@ pub use native_signed_url::{
 
 mod patch;
 pub use patch::{
-    apply_patch, compute_sections_modified, compute_sections_modified_native, create_patch,
-    diff_versions, diff_versions_native, reconstruct_version, reconstruct_version_native,
-    squash_patches, squash_patches_native,
+    apply_patch, batch_diff_versions, compute_sections_modified,
+    compute_sections_modified_native, create_patch, diff_versions, diff_versions_native,
+    reconstruct_version, reconstruct_version_native, squash_patches, squash_patches_native,
 };
 
 mod lifecycle;

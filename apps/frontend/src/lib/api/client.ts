@@ -53,6 +53,11 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ content, changelog }),
     }),
+  getBatchVersions: (slug: string, versionNumbers: number[]) =>
+    request<any>(`/documents/${slug}/batch-versions`, {
+      method: 'POST',
+      body: JSON.stringify({ versions: versionNumbers }),
+    }),
 
   // Lifecycle
   transition: (slug: string, state: string, reason?: string) =>

@@ -22,6 +22,37 @@
   let diffTo = $state(2);
   let loadingDiff = $state(false);
 
+  // Multi-version comparison
+  let selectedVersions = $state<Set<number>>(new Set());
+  let comparisonData = $state<Array<{ versionNumber: number; content: string; changelog: string | null }>>([]);
+  let loadingComparison = $state(false);
+  let comparisonBase = $state(1);
+
+  function toggleVersion(num: number) {
+    const next = new Set(selectedVersions);
+    if (next.has(num)) {
+      next.delete(num);
+    } else if (next.size < 5) {
+      next.add(num);
+    }
+    selectedVersions = next;
+  }
+
+  async function loadComparison() {
+    const nums = [...selectedVersions].sort((a, b) => a - b);
+    if (nums.length < 2) return;
+    loadingComparison = true;
+    try {
+      const result = await api.getBatchVersions(data.slug, nums);
+      comparisonData = result.versions ?? [];
+      comparisonBase = nums[0];
+    } catch {
+      comparisonData = [];
+    } finally {
+      loadingComparison = false;
+    }
+  }
+
   let doc = $derived(data.doc);
   let overview = $derived(data.overview);
   let versions = $derived(data.versions);
@@ -371,49 +402,81 @@
           {:else if activeTab === 'versions'}
             <div class="space-y-6">
               {#if versions?.versions?.length}
-                <VersionTimeline
-                  versions={versions.versions}
-                  onSelect={handleSelectVersion}
-                />
+                <!-- Version list with selection checkboxes -->
+                <div>
+                  <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-display text-xs text-base-content/30 uppercase tracking-wider">
+                      Select versions to compare (max 5)
+                    </h3>
+                    {#if selectedVersions.size >= 2}
+                      <button class="btn btn-sm btn-primary font-display" onclick={loadComparison} disabled={loadingComparison}>
+                        {#if loadingComparison}
+                          <span class="loading loading-spinner loading-xs"></span>
+                        {:else}
+                          Compare ({selectedVersions.size})
+                        {/if}
+                      </button>
+                    {/if}
+                  </div>
+                  <div class="space-y-1">
+                    {#each versions.versions as ver (ver.versionNumber)}
+                      <button
+                        class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-base-200/50 transition-colors text-left {selectedVersions.has(ver.versionNumber) ? 'bg-primary/10 border border-primary/20' : 'border border-transparent'}"
+                        onclick={() => toggleVersion(ver.versionNumber)}
+                      >
+                        <input type="checkbox" class="checkbox checkbox-xs checkbox-primary" checked={selectedVersions.has(ver.versionNumber)} />
+                        <span class="font-display text-sm text-primary font-bold">v{ver.versionNumber}</span>
+                        <span class="text-xs text-base-content/50 flex-1 truncate">{ver.changelog ?? ''}</span>
+                        <span class="text-xs text-base-content/30 font-display shrink-0">{ver.tokenCount} tok</span>
+                      </button>
+                    {/each}
+                  </div>
+                </div>
 
-                <!-- Diff tool -->
+                <!-- Multi-version comparison view -->
+                {#if comparisonData.length >= 2}
+                  <div class="border-t border-base-content/5 pt-6">
+                    <h3 class="font-display text-xs text-base-content/30 uppercase tracking-wider mb-4">
+                      Side-by-side comparison (base: v{comparisonBase})
+                    </h3>
+                    <div class="grid gap-4" style="grid-template-columns: repeat({Math.min(comparisonData.length, 3)}, 1fr);">
+                      {#each comparisonData as ver (ver.versionNumber)}
+                        <div class="rounded-lg border {ver.versionNumber === comparisonBase ? 'border-primary/30 bg-primary/5' : 'border-base-content/10'}">
+                          <div class="px-3 py-2 border-b border-base-content/10 flex items-center justify-between">
+                            <span class="font-display text-xs font-bold {ver.versionNumber === comparisonBase ? 'text-primary' : ''}">
+                              v{ver.versionNumber}
+                              {#if ver.versionNumber === comparisonBase}
+                                <span class="text-base-content/30 font-normal">(base)</span>
+                              {/if}
+                            </span>
+                            <span class="text-xs text-base-content/30">{ver.changelog}</span>
+                          </div>
+                          <pre class="p-3 text-xs font-display leading-relaxed whitespace-pre-wrap break-words max-h-[400px] overflow-y-auto">{ver.content}</pre>
+                        </div>
+                      {/each}
+                    </div>
+                  </div>
+                {/if}
+
+                <!-- Pairwise diff tool -->
                 <div class="border-t border-base-content/5 pt-6">
                   <h3 class="font-display text-xs text-base-content/30 uppercase tracking-wider mb-4">
-                    Compare versions
+                    Pairwise diff
                   </h3>
                   <div class="flex items-center gap-3 mb-4">
                     <label class="flex items-center gap-2">
                       <span class="font-display text-xs text-base-content/50">from</span>
-                      <input
-                        type="number"
-                        class="input input-bordered input-sm w-20 font-display text-sm"
-                        bind:value={diffFrom}
-                        min={1}
-                      />
+                      <input type="number" class="input input-bordered input-sm w-20 font-display text-sm" bind:value={diffFrom} min={1} />
                     </label>
                     <span class="text-base-content/20">&rarr;</span>
                     <label class="flex items-center gap-2">
                       <span class="font-display text-xs text-base-content/50">to</span>
-                      <input
-                        type="number"
-                        class="input input-bordered input-sm w-20 font-display text-sm"
-                        bind:value={diffTo}
-                        min={1}
-                      />
+                      <input type="number" class="input input-bordered input-sm w-20 font-display text-sm" bind:value={diffTo} min={1} />
                     </label>
-                    <button
-                      class="btn btn-sm btn-primary font-display"
-                      onclick={loadDiff}
-                      disabled={loadingDiff || diffFrom === diffTo}
-                    >
-                      {#if loadingDiff}
-                        <span class="loading loading-spinner loading-xs"></span>
-                      {:else}
-                        Diff
-                      {/if}
+                    <button class="btn btn-sm btn-primary font-display" onclick={loadDiff} disabled={loadingDiff || diffFrom === diffTo}>
+                      {#if loadingDiff}<span class="loading loading-spinner loading-xs"></span>{:else}Diff{/if}
                     </button>
                   </div>
-
                   {#if diffResult}
                     <DiffViewer diff={diffResult} />
                   {/if}
