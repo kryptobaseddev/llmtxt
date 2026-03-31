@@ -4,9 +4,13 @@
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.llmtxt.my';
 
 async function request<T>(path: string, options?: RequestInit, responseType: 'json' | 'text' = 'json'): Promise<T> {
+  const headers: Record<string, string> = { ...options?.headers as Record<string, string> };
+  if (options?.body) {
+    headers['Content-Type'] ??= 'application/json';
+  }
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers,
     ...options,
   });
   if (!res.ok) {
@@ -84,7 +88,7 @@ export const api = {
 
   // Auth
   getSession: () => request<any>('/auth/get-session').catch(() => null),
-  signInAnonymous: () => request<any>('/auth/sign-in/anonymous', { method: 'POST' }),
+  signInAnonymous: () => request<any>('/auth/sign-in/anonymous', { method: 'POST', body: '{}' }),
   signUp: (email: string, password: string, name?: string) =>
     request<any>('/auth/sign-up/email', {
       method: 'POST',

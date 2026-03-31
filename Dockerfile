@@ -15,6 +15,9 @@ RUN pnpm -r build
 FROM base AS runtime
 WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/packages/llmtxt/package.json ./packages/llmtxt/
+COPY --from=build /app/packages/llmtxt/dist ./packages/llmtxt/dist
+COPY --from=build /app/packages/llmtxt/wasm ./packages/llmtxt/wasm
 COPY --from=build /app/apps/web/node_modules ./apps/web/node_modules
 COPY --from=build /app/apps/web/dist ./apps/web/dist
 COPY --from=build /app/apps/web/package.json ./apps/web/
