@@ -4,9 +4,14 @@ import { appName, gitConfig } from './shared';
 export function baseOptions(): BaseLayoutProps {
   return {
     nav: {
-      // JSX supported
       title: appName,
     },
     githubUrl: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,
+    links: [
+      {
+        text: 'llmtxt.my',
+        url: 'https://www.llmtxt.my',
+      },
+    ],
   };
 }
