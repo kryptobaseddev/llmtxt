@@ -10,7 +10,7 @@ COPY packages/llmtxt/package.json packages/llmtxt/
 COPY apps/frontend/package.json apps/frontend/
 RUN pnpm install --no-frozen-lockfile
 COPY . .
-RUN pnpm -r build
+RUN pnpm --filter llmtxt --filter @llmtxt/web --filter frontend build
 
 FROM base AS runtime
 WORKDIR /app
