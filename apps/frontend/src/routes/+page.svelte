@@ -16,6 +16,8 @@
   let shareError = $state('');
   let showAbout = $state(false);
   let savedSlug = $state('');
+  let showUnsavedModal = $state(false);
+  let pendingNavigation = $state<(() => void) | null>(null);
 
   let shared = $derived(sharedSlug !== '');
   let shareUrl = $derived(sharedSlug ? `${window.location.origin}/doc/${sharedSlug}` : '');
@@ -42,25 +44,38 @@
     }
   });
 
-  // Navigation guard: warn when leaving with unsaved content
-  beforeNavigate(({ cancel }) => {
-    if (hasUnsavedContent) {
-      if (!confirm('You have unsaved content. Leave without saving?')) {
-        cancel();
-      }
+  // Navigation guard: show in-app modal when leaving with unsaved content
+  beforeNavigate(({ cancel, to }) => {
+    if (hasUnsavedContent && !showUnsavedModal) {
+      cancel();
+      pendingNavigation = () => {
+        if (to?.url) goto(to.url.pathname + to.url.search);
+      };
+      showUnsavedModal = true;
     }
   });
 
-  // Browser close/refresh guard
-  $effect(() => {
-    function handleBeforeUnload(e: BeforeUnloadEvent) {
-      if (hasUnsavedContent) {
-        e.preventDefault();
-      }
-    }
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  });
+  function dismissUnsavedModal() {
+    showUnsavedModal = false;
+    pendingNavigation = null;
+  }
+
+  function discardAndNavigate() {
+    const nav = pendingNavigation;
+    showUnsavedModal = false;
+    pendingNavigation = null;
+    content = '';
+    localStorage.removeItem(DRAFT_KEY);
+    if (nav) nav();
+  }
+
+  async function saveAndNavigate() {
+    await save();
+    const nav = pendingNavigation;
+    showUnsavedModal = false;
+    pendingNavigation = null;
+    if (nav) nav();
+  }
 
   function detectFormat(text: string): string {
     if (!text.trim()) return 'text';
@@ -329,6 +344,36 @@
       {/if}
     </button>
   </div>
+
+  <!-- Unsaved content modal -->
+  {#if showUnsavedModal}
+    <div class="fixed inset-0 z-[70] bg-base-100/90 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" role="dialog">
+      <div class="bg-base-200 rounded-xl border border-base-content/10 shadow-2xl max-w-sm w-full p-6 space-y-4">
+        <div class="flex items-center gap-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-warning shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
+          <h3 class="font-display text-sm font-bold">Unsaved content</h3>
+        </div>
+        <p class="text-sm text-base-content/60 font-display leading-relaxed">
+          You have content that hasn't been saved yet. Would you like to save it before leaving?
+        </p>
+        <div class="flex gap-2 justify-end pt-2">
+          <button class="btn btn-ghost btn-sm font-display" onclick={dismissUnsavedModal}>
+            Cancel
+          </button>
+          <button class="btn btn-error btn-sm btn-outline font-display" onclick={discardAndNavigate}>
+            Discard
+          </button>
+          <button class="btn btn-primary btn-sm font-display" onclick={saveAndNavigate} disabled={saving}>
+            {#if saving}
+              <span class="loading loading-spinner loading-xs"></span>
+            {:else}
+              Save & go
+            {/if}
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 
   <!-- About overlay -->
   {#if showAbout}
