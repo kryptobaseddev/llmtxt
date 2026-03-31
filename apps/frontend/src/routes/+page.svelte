@@ -1,6 +1,9 @@
 <script lang="ts">
   import { api } from '$lib/api/client';
   import { goto } from '$app/navigation';
+  import { getAuth } from '$lib/stores/auth.svelte';
+
+  const auth = getAuth();
 
   let content = $state('');
   let submitting = $state(false);
@@ -8,6 +11,7 @@
   let sharedSlug = $state('');
   let copyFeedback = $state('');
   let shareError = $state('');
+  let showAbout = $state(false);
 
   let shared = $derived(sharedSlug !== '');
   let shareUrl = $derived(sharedSlug ? `${window.location.origin}/doc/${sharedSlug}` : '');
@@ -164,7 +168,7 @@
   <div class="fixed bottom-6 right-6 z-50">
     {#if menuOpen}
       <div class="mb-2 bg-base-200 rounded-lg border border-base-content/10 shadow-xl overflow-hidden animate-fade-in">
-        <ul class="menu menu-sm w-52 font-display text-sm">
+        <ul class="menu menu-sm w-56 font-display text-sm">
           <li><button onclick={newDoc}>
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
             New document
@@ -180,6 +184,35 @@
             </button></li>
           {/if}
           <div class="divider my-0"></div>
+          <!-- User profile -->
+          {#if auth.isAuthenticated && !auth.isAnonymous}
+            <li class="disabled">
+              <span class="flex items-center gap-2 opacity-60">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                <span class="truncate">{auth.session.user?.email ?? 'User'}</span>
+              </span>
+            </li>
+            <li><button onclick={() => { auth.signOut(); menuOpen = false; }}>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+              Sign out
+            </button></li>
+          {:else}
+            <li class="disabled">
+              <span class="flex items-center gap-2 opacity-60">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                Anonymous (24h)
+              </span>
+            </li>
+            <li><a href="/auth" onclick={() => menuOpen = false}>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
+              Create account
+            </a></li>
+          {/if}
+          <div class="divider my-0"></div>
+          <li><button onclick={() => { showAbout = true; menuOpen = false; }}>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            About LLMtxt
+          </button></li>
           <li><a href="https://github.com/kryptobaseddev/llmtxt" target="_blank" rel="noopener">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
             GitHub
@@ -200,4 +233,39 @@
       {/if}
     </button>
   </div>
+
+  <!-- About overlay -->
+  {#if showAbout}
+    <div class="fixed inset-0 z-[60] bg-base-100/90 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" onclick={() => showAbout = false} role="dialog">
+      <div class="bg-base-200 rounded-xl border border-base-content/10 shadow-2xl max-w-md w-full p-8 space-y-4" onclick={(e) => e.stopPropagation()}>
+        <div class="flex items-center justify-between">
+          <h2 class="font-display text-xl font-bold"><span class="text-primary">LLM</span>txt</h2>
+          <button class="btn btn-ghost btn-sm btn-square" onclick={() => showAbout = false}>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <p class="text-sm text-base-content/60 leading-relaxed font-display">
+          Context sharing for AI agents and humans. Create, version, and collaboratively edit text documents with built-in compression, diffing, and consensus workflows.
+        </p>
+        <div class="space-y-2 text-xs text-base-content/40 font-display">
+          <div class="flex items-start gap-2">
+            <span class="text-primary mt-0.5">*</span>
+            <span><strong class="text-base-content/60">Anonymous users</strong> get 24-hour document retention. No sign-up required.</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="text-primary mt-0.5">*</span>
+            <span><strong class="text-base-content/60">Registered users</strong> get extended storage and collaboration features. Create a free account to keep your documents.</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="text-primary mt-0.5">*</span>
+            <span><strong class="text-base-content/60">For agents</strong>: API at api.llmtxt.my with progressive disclosure, versioning, consensus, and signed URLs.</span>
+          </div>
+        </div>
+        <div class="pt-2 flex gap-2">
+          <a href="https://github.com/kryptobaseddev/llmtxt" target="_blank" rel="noopener" class="btn btn-ghost btn-sm font-display text-xs">GitHub</a>
+          <a href="https://api.llmtxt.my/llms.txt" target="_blank" rel="noopener" class="btn btn-ghost btn-sm font-display text-xs">API Docs</a>
+        </div>
+      </div>
+    </div>
+  {/if}
 </div>
