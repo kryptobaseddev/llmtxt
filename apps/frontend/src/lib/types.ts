@@ -90,11 +90,11 @@ export interface Review {
 
 export interface Consensus {
   approved: boolean;
-  rejected: boolean;
-  pending: boolean;
-  approvedCount: number;
-  rejectedCount: number;
-  requiredCount: number;
+  approvedBy: string[];
+  rejectedBy: string[];
+  pendingFrom: string[];
+  staleFrom: string[];
+  reason: string;
 }
 
 export interface ApprovalsResponse {

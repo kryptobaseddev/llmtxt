@@ -13,6 +13,10 @@
   let submitting = $state(false);
 
   let canVote = $derived(docState === 'REVIEW');
+  let approvedCount = $derived(consensus?.approvedBy.length ?? 0);
+  let rejectedCount = $derived(consensus?.rejectedBy.length ?? 0);
+  let pendingCount = $derived(consensus?.pendingFrom.length ?? 0);
+  let totalReviews = $derived(reviews.length);
 
   function formatDate(ts: number): string {
     return new Date(ts).toLocaleDateString('en-US', {
@@ -46,36 +50,28 @@
 </script>
 
 <div class="space-y-4">
-  <!-- Consensus status -->
   {#if consensus}
     <div class="flex items-center gap-4 p-4 rounded-lg bg-base-200/50">
       <div class="flex-1">
         <div class="flex items-center gap-2 mb-2">
           {#if consensus.approved}
             <span class="badge badge-success badge-sm font-display">APPROVED</span>
-          {:else if consensus.rejected}
+          {:else if rejectedCount > 0}
             <span class="badge badge-error badge-sm font-display">REJECTED</span>
           {:else}
             <span class="badge badge-warning badge-sm font-display">PENDING</span>
           {/if}
         </div>
+        <p class="text-xs font-display text-base-content/50 mb-2">{consensus.reason}</p>
         <div class="flex gap-4 text-xs font-display text-base-content/50">
-          <span class="text-success">{consensus.approvedCount} approved</span>
-          <span class="text-error">{consensus.rejectedCount} rejected</span>
-          <span>{consensus.requiredCount} required</span>
+          <span class="text-success">{approvedCount} approved</span>
+          <span class="text-error">{rejectedCount} rejected</span>
+          <span>{pendingCount} pending</span>
         </div>
-      </div>
-
-      <!-- Progress ring -->
-      <div class="radial-progress text-primary text-xs font-display"
-           style="--value:{Math.min(Math.round((consensus.approvedCount / Math.max(consensus.requiredCount, 1)) * 100), 100)}; --size:3rem; --thickness:3px;"
-           role="progressbar">
-        {consensus.approvedCount}/{consensus.requiredCount}
       </div>
     </div>
   {/if}
 
-  <!-- Vote form -->
   {#if canVote}
     <div class="space-y-3">
       <textarea
@@ -103,10 +99,9 @@
     </div>
   {/if}
 
-  <!-- Review history -->
   <div class="space-y-2">
     <h4 class="font-display text-xs text-base-content/40 uppercase tracking-wider">
-      Reviews
+      Reviews ({totalReviews})
     </h4>
     {#each reviews as review (review.id)}
       <div class="flex items-start gap-3 py-2 border-b border-base-content/5 last:border-0">
