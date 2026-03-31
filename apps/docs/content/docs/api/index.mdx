@@ -1,0 +1,114 @@
+---
+title: API Reference
+description: REST API at api.llmtxt.my for document management, progressive disclosure, and collaboration
+---
+
+# LLMtxt API Reference
+
+Base URL: `https://api.llmtxt.my`
+
+## Quick Start
+
+```bash
+# Store a document
+curl -X POST https://api.llmtxt.my/compress \
+  -H "Content-Type: application/json" \
+  -d '{"content": "Hello, world!"}'
+
+# Get overview (token-efficient)
+curl https://api.llmtxt.my/documents/SLUG/overview
+
+# Get raw content
+curl https://api.llmtxt.my/documents/SLUG/raw
+```
+
+## Document Management
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/compress` | Create and store a document |
+| GET | `/documents/:slug` | Get document metadata |
+| POST | `/decompress` | Retrieve full document content |
+| POST | `/validate` | Validate content without storing |
+| POST | `/search` | Search across multiple documents |
+
+## Progressive Disclosure
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/documents/:slug/overview` | Document structure and sections |
+| GET | `/documents/:slug/sections` | List all sections |
+| GET | `/documents/:slug/sections/:name` | Get specific section |
+| GET | `/documents/:slug/toc` | Table of contents |
+| GET | `/documents/:slug/lines?start=N&end=M` | Line range extraction |
+| GET | `/documents/:slug/search?q=query` | Search within document |
+| GET | `/documents/:slug/query?path=$.key` | JSONPath query |
+| GET | `/documents/:slug/raw` | Raw plaintext content |
+| POST | `/documents/:slug/batch` | Batch section query |
+
+## Versioning
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| PUT | `/documents/:slug` | Update document (creates version) |
+| GET | `/documents/:slug/versions` | List all versions |
+| GET | `/documents/:slug/versions/:num` | Get specific version |
+| GET | `/documents/:slug/diff?from=N&to=M` | Diff between versions |
+| POST | `/documents/:slug/patch` | Apply unified diff patch |
+
+## Lifecycle and Consensus
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/documents/:slug/transition` | Owner | Change document state |
+| POST | `/documents/:slug/approve` | Registered | Approve document |
+| POST | `/documents/:slug/reject` | Registered | Reject with reason |
+| GET | `/documents/:slug/approvals` | None | List approval votes |
+| GET | `/documents/:slug/contributors` | None | Attribution summary |
+
+### Document States
+
+```
+DRAFT -> REVIEW -> LOCKED -> ARCHIVED
+  |                  ^
+  +------------------+  (skip review)
+```
+
+Only DRAFT and REVIEW documents accept patches. ARCHIVED is terminal.
+
+## Analysis
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/documents/:slug/similar?q=query` | Find similar sections |
+| GET | `/documents/:slug/graph` | Extract mentions, tags, directives |
+| POST | `/documents/:slug/plan-retrieval` | Token-budget-aware retrieval |
+
+## Authentication
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/auth/sign-up/email` | Register with email and password |
+| POST | `/auth/sign-in/email` | Sign in |
+| POST | `/auth/sign-in/anonymous` | Create anonymous session (24h) |
+| GET | `/auth/get-session` | Get current session |
+| POST | `/auth/sign-out` | Sign out |
+
+## Signed URLs
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/signed-urls` | Owner | Generate time-limited access token |
+
+## Token Savings Headers
+
+All progressive disclosure endpoints return:
+- `X-Token-Count` - tokens in the returned content
+- `X-Total-Tokens` - tokens in the full document
+- `X-Tokens-Saved` - tokens you did NOT need to read
+
+## Error Responses
+
+All errors return JSON with `error` and optionally `message` and `details` fields.
+
+Status codes: 200, 201, 400, 401, 403, 404, 500

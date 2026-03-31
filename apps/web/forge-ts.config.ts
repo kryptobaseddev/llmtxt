@@ -5,7 +5,7 @@ export default {
   outDir: "docs/generated",
   enforce: {
     rules: {
-      'require-summary': 'off',
+      'require-summary': 'warn',
       'require-param': 'off',
       'require-returns': 'off',
       'require-example': 'off',

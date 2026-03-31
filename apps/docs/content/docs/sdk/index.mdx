@@ -1,0 +1,90 @@
+---
+title: SDK Reference
+description: TypeScript SDK for llmtxt - compression, patching, versioning, lifecycle, consensus, and retrieval
+---
+
+# llmtxt SDK Reference
+
+The `llmtxt` npm package provides TypeScript primitives and an SDK for LLM agent content workflows.
+
+```bash
+npm install llmtxt
+```
+
+## Subpath Exports
+
+| Import | Description |
+|--------|-------------|
+| `llmtxt` | Core primitives: compress, decompress, hash, patch, diff, sign |
+| `llmtxt/sdk` | Collaborative document SDK: lifecycle, versions, consensus, attribution, storage, retrieval |
+| `llmtxt/disclosure` | Progressive disclosure: overview, sections, search, line range |
+| `llmtxt/similarity` | Text similarity: n-gram and shingle matching |
+| `llmtxt/graph` | Knowledge graph: mentions, tags, directives extraction |
+
+## Core Primitives
+
+### Compression
+- `compress(data)` - Zlib-compress a UTF-8 string
+- `decompress(data)` - Decompress zlib bytes back to string
+
+### Hashing and IDs
+- `hashContent(data)` - SHA-256 hex hash
+- `generateId()` - 8-character base62 ID from UUID v4
+- `calculateTokens(text)` - Estimate token count (4 chars per token)
+
+### Patching
+- `createPatch(original, modified)` - Create unified diff
+- `applyPatch(original, patchText)` - Apply unified diff
+- `reconstructVersion(base, patchesJson, target)` - Rebuild version N from patch chain (single WASM call)
+- `squashPatches(base, patchesJson)` - Compact N patches into one diff
+
+### Diff
+- `computeDiff(oldText, newText)` - Line-based diff with token impact stats
+- `diffVersions(base, patchesJson, from, to)` - Diff between arbitrary versions
+- `computeSectionsModified(old, new)` - Detect which markdown sections changed
+
+### Signing
+- `computeSignature(slug, agentId, conversationId, expiresAt, secret)` - HMAC-SHA256 for signed URLs
+- `deriveSigningKey(apiKey)` - Derive per-agent signing key
+
+## SDK Modules
+
+### Lifecycle (llmtxt/sdk)
+- `DocumentState` type: DRAFT, REVIEW, LOCKED, ARCHIVED
+- `isValidTransition(from, to)` - Check if state transition is allowed
+- `isEditable(state)` - Check if document accepts modifications
+- `isTerminal(state)` - Check if state has no outgoing transitions
+
+### Versions (llmtxt/sdk)
+- `reconstructVersion(base, patches, targetVersion?)` - Rebuild any version
+- `squashPatches(base, patches)` - Compact patch chain
+- `diffVersions(base, patches, from, to)` - Diff stats between versions
+- `computeReversePatch(before, after)` - Create rollback patch
+- `validatePatchApplies(content, patchText)` - Pre-flight conflict check
+
+### Consensus (llmtxt/sdk)
+- `evaluateApprovals(reviews, policy, currentVersion)` - Check review threshold
+- `markStaleReviews(reviews, currentVersion)` - Mark outdated reviews as STALE
+- `ApprovalPolicy` supports requiredCount, requireUnanimous, requiredPercentage (0-100), allowedReviewerIds, and timeoutMs
+
+### Attribution (llmtxt/sdk)
+- `attributeVersion(version, diff)` - Compute per-version attribution
+- `buildContributorSummary(attributions)` - Aggregate contributor stats
+
+### Retrieval (llmtxt/sdk)
+- `planRetrieval(overview, budget, query?)` - Token-budget-aware section selection
+
+### Progressive Disclosure (llmtxt/disclosure)
+- `generateOverview(content)` - Document structure with sections and token counts
+- `getSection(content, name)` - Extract named section
+- `searchContent(content, query)` - Search with context lines
+- `getLineRange(content, start, end)` - Extract line range with token stats
+- `queryJsonPath(content, path)` - JSONPath query for JSON documents
+
+### Similarity (llmtxt/similarity)
+- `rankBySimilarity(sections, query, method?)` - Rank sections by query relevance
+
+### Knowledge Graph (llmtxt/graph)
+- `buildGraph(content)` - Extract mentions, tags, directives
+- `topTopics(graph, limit)` - Most referenced topics
+- `topAgents(graph, limit)` - Most mentioned agents
