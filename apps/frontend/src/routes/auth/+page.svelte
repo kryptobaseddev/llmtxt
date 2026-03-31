@@ -1,10 +1,11 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { page } from '$app/state';
   import { getAuth } from '$lib/stores/auth.svelte';
 
   const auth = getAuth();
 
-  let mode = $state<'signin' | 'signup'>('signin');
+  let mode = $state<'signin' | 'signup'>(page.url.searchParams.get('mode') === 'signup' ? 'signup' : 'signin');
   let email = $state('');
   let password = $state('');
   let name = $state('');
@@ -147,8 +148,8 @@
       Continue anonymously
     </button>
 
-    <div class="mt-4 p-3 rounded-lg bg-base-200/30 border border-base-content/5">
-      <p class="text-xs text-base-content/40 font-display leading-relaxed">
+    <div class="mt-4 p-3 rounded-lg bg-warning/5 border border-warning/20">
+      <p class="text-xs text-warning/70 font-display leading-relaxed">
         Anonymous sessions expire after 24 hours. Documents created anonymously will be deleted.
         Register to keep your documents permanently.
       </p>
