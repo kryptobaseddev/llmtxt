@@ -30,7 +30,7 @@
   async function handleApprove() {
     submitting = true;
     try {
-      onApprove?.(comment);
+      await onApprove?.(comment);
       comment = '';
     } finally {
       submitting = false;
@@ -41,7 +41,7 @@
     if (!comment.trim()) return;
     submitting = true;
     try {
-      onReject?.(comment);
+      await onReject?.(comment);
       comment = '';
     } finally {
       submitting = false;
@@ -67,6 +67,9 @@
           <span class="text-success">{approvedCount} approved</span>
           <span class="text-error">{rejectedCount} rejected</span>
           <span>{pendingCount} pending</span>
+          {#if (consensus?.staleFrom?.length ?? 0) > 0}
+            <span class="text-warning">{consensus?.staleFrom?.length} stale</span>
+          {/if}
         </div>
       </div>
     </div>
@@ -86,7 +89,7 @@
           onclick={handleApprove}
           disabled={submitting}
         >
-          Approve
+          {#if submitting}<span class="loading loading-spinner loading-xs"></span>{:else}Approve{/if}
         </button>
         <button
           class="btn btn-error btn-sm btn-outline font-display"
@@ -96,6 +99,18 @@
           Reject
         </button>
       </div>
+    </div>
+  {:else if docState === 'DRAFT'}
+    <div class="p-3 rounded-lg bg-base-200/30 border border-base-content/5">
+      <p class="text-xs font-display text-base-content/40">
+        Voting is available when the document is in <span class="text-warning font-bold">REVIEW</span> state. Transition from DRAFT to REVIEW to enable approvals.
+      </p>
+    </div>
+  {:else if docState === 'LOCKED' || docState === 'ARCHIVED'}
+    <div class="p-3 rounded-lg bg-base-200/30 border border-base-content/5">
+      <p class="text-xs font-display text-base-content/40">
+        This document is <span class="font-bold">{docState}</span> and no longer accepting votes.
+      </p>
     </div>
   {/if}
 

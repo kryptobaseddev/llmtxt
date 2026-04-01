@@ -8,7 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { db } from '../db/index.js';
-import { documents, contributors } from '../db/schema.js';
+import { documents, contributors, versions } from '../db/schema.js';
 import { eq, desc } from 'drizzle-orm';
 import { auth } from '../auth.js';
 import {
@@ -222,6 +222,19 @@ export async function apiRoutes(fastify: FastifyInstance) {
         accessCount: 0,
         ownerId: user?.id ?? null,
         isAnonymous: user ? ((user as Record<string, unknown>).isAnonymous === true) : false,
+      });
+
+      // Create version 1 so the versions tab shows the initial version
+      await db.insert(versions).values({
+        id: generateId(),
+        documentId: id,
+        versionNumber: 1,
+        compressedData,
+        contentHash,
+        tokenCount,
+        createdAt: now,
+        createdBy: user?.id ?? null,
+        changelog: 'Initial version',
       });
 
       // Create initial contributor record if user is authenticated

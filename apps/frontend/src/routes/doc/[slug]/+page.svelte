@@ -167,6 +167,19 @@
     }
   }
 
+  // Version detail panel
+  let detailVersion = $state<Version | null>(null);
+
+  function showVersionDetail(ver: Version, event: MouseEvent) {
+    event.stopPropagation();
+    detailVersion = detailVersion?.versionNumber === ver.versionNumber ? null : ver;
+  }
+
+  function truncate(text: string | null, max: number): string {
+    if (!text) return '';
+    return text.length > max ? text.slice(0, max) + '...' : text;
+  }
+
   function handleSelectVersion(version: Version) {
     diffTo = version.versionNumber;
     if (version.versionNumber > 1) {
@@ -461,6 +474,7 @@
                           <th class="w-20 text-right">tokens</th>
                           <th class="w-28 text-right hidden md:table-cell">contributor</th>
                           <th class="w-36 text-right hidden md:table-cell">date</th>
+                          <th class="w-8"></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -473,18 +487,61 @@
                               <input type="checkbox" class="checkbox checkbox-xs checkbox-primary" checked={selectedVersions.has(ver.versionNumber)} />
                             </td>
                             <td class="font-display text-sm text-primary font-bold">v{ver.versionNumber}</td>
-                            <td class="text-xs text-base-content/50 truncate max-w-[200px] lg:max-w-none">{ver.changelog ?? ''}</td>
+                            <td class="text-xs text-base-content/50">{truncate(ver.changelog, 40)}</td>
                             <td class="text-right font-display text-xs text-base-content/30">{ver.tokenCount}</td>
                             <td class="text-right text-xs text-base-content/30 hidden md:table-cell truncate max-w-[100px]">{ver.createdBy ?? '—'}</td>
                             <td class="text-right font-display text-xs text-base-content/20 hidden md:table-cell">{formatDate(ver.createdAt)}</td>
+                            <td>
+                              <button
+                                class="btn btn-ghost btn-xs btn-square"
+                                onclick={(e) => showVersionDetail(ver, e)}
+                                aria-label="View version details"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 {detailVersion?.versionNumber === ver.versionNumber ? 'text-primary' : 'text-base-content/30'}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                              </button>
+                            </td>
                           </tr>
+                          {#if detailVersion?.versionNumber === ver.versionNumber}
+                            <tr>
+                              <td colspan="7" class="p-0">
+                                <div class="p-4 bg-base-200/30 border-t border-base-content/5 animate-fade-in">
+                                  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                                    <div>
+                                      <p class="text-xs text-base-content/30 font-display">version</p>
+                                      <p class="font-display text-sm text-primary font-bold">v{ver.versionNumber}</p>
+                                    </div>
+                                    <div>
+                                      <p class="text-xs text-base-content/30 font-display">tokens</p>
+                                      <p class="font-display text-sm">{ver.tokenCount}</p>
+                                    </div>
+                                    <div>
+                                      <p class="text-xs text-base-content/30 font-display">contributor</p>
+                                      <p class="font-display text-sm">{ver.createdBy ?? 'anonymous'}</p>
+                                    </div>
+                                    <div>
+                                      <p class="text-xs text-base-content/30 font-display">date</p>
+                                      <p class="font-display text-sm">{formatDate(ver.createdAt)}</p>
+                                    </div>
+                                  </div>
+                                  <div class="mb-2">
+                                    <p class="text-xs text-base-content/30 font-display mb-1">content hash</p>
+                                    <code class="text-xs text-base-content/40 font-display">{ver.contentHash}</code>
+                                  </div>
+                                  <div>
+                                    <p class="text-xs text-base-content/30 font-display mb-1">changelog</p>
+                                    <p class="text-sm text-base-content/70 whitespace-pre-wrap">{ver.changelog ?? 'No changelog'}</p>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          {/if}
                         {/each}
                       </tbody>
                     </table>
                   </div>
                 </div>
 
-                <!-- Multi-version comparison view with diff highlighting -->
+                <!-- Multi-version comparison view with diff highlighting + line numbers -->
                 {#if comparisonData.length >= 2}
                   <div class="border-t border-base-content/5 pt-6">
                     <h3 class="font-display text-xs text-base-content/30 uppercase tracking-wider mb-4">
@@ -493,7 +550,7 @@
                     <div class="grid gap-4" style="grid-template-columns: repeat({Math.min(comparisonData.length, 3)}, 1fr);">
                       {#each comparisonData as ver (ver.versionNumber)}
                         {@const annotated = comparisonAnnotated().get(ver.versionNumber)}
-                        <div class="rounded-lg border {ver.versionNumber === comparisonBase ? 'border-primary/30 bg-primary/5' : 'border-base-content/10'}">
+                        <div class="rounded-lg border {ver.versionNumber === comparisonBase ? 'border-primary/30 bg-primary/5' : 'border-base-content/10'} overflow-hidden">
                           <div class="px-3 py-2 border-b border-base-content/10 flex items-center justify-between">
                             <span class="font-display text-xs font-bold {ver.versionNumber === comparisonBase ? 'text-primary' : ''}">
                               v{ver.versionNumber}
@@ -501,13 +558,21 @@
                                 <span class="text-base-content/30 font-normal">(base)</span>
                               {/if}
                             </span>
-                            <span class="text-xs text-base-content/30">{ver.changelog}</span>
+                            <span class="text-xs text-base-content/30">{truncate(ver.changelog, 40)}</span>
                           </div>
-                          <div class="max-h-[400px] overflow-y-auto">
+                          <div class="max-h-[400px] overflow-y-auto overflow-x-auto">
                             {#if annotated}
-                              {#each annotated as line}
-                                <div class="px-3 py-0 text-xs font-display leading-relaxed whitespace-pre-wrap break-words {line.type === 'added' ? 'bg-success/10 text-success/80' : line.type === 'removed' ? 'bg-error/10 text-error/80 line-through' : ''}">{line.content}</div>
-                              {/each}
+                              <table class="w-full text-xs font-display leading-relaxed border-collapse">
+                                <tbody>
+                                  {#each annotated as line, i}
+                                    <tr class="{line.type === 'added' ? 'bg-success/10' : line.type === 'removed' ? 'bg-error/10' : ''}">
+                                      <td class="select-none text-right pr-2 pl-1 text-xs text-base-content/15 border-r border-base-content/5 w-0 whitespace-nowrap" style="min-width: 3ch">{i + 1}</td>
+                                      <td class="select-none w-3 text-center {line.type === 'added' ? 'text-success/50' : line.type === 'removed' ? 'text-error/50' : 'text-base-content/10'}">{line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' '}</td>
+                                      <td class="whitespace-pre-wrap break-all pr-2 {line.type === 'added' ? 'text-success/80' : line.type === 'removed' ? 'text-error/80 line-through' : ''}">{line.content}</td>
+                                    </tr>
+                                  {/each}
+                                </tbody>
+                              </table>
                             {:else}
                               <pre class="p-3 text-xs font-display leading-relaxed whitespace-pre-wrap break-words">{ver.content}</pre>
                             {/if}

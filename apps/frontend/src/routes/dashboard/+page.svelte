@@ -11,6 +11,42 @@
   let docs = $state<any[]>([]);
   let loading = $state(true);
   let error = $state('');
+  let searchQuery = $state('');
+  let sortField = $state<'slug' | 'createdAt' | 'tokenCount' | 'accessCount'>('createdAt');
+  let sortAsc = $state(false);
+
+  let filteredDocs = $derived(() => {
+    let result = docs;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(d =>
+        d.slug.toLowerCase().includes(q) ||
+        (d.format || '').toLowerCase().includes(q) ||
+        (d.state || '').toLowerCase().includes(q)
+      );
+    }
+    result = [...result].sort((a, b) => {
+      const av = a[sortField] ?? 0;
+      const bv = b[sortField] ?? 0;
+      if (typeof av === 'string') return sortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
+      return sortAsc ? av - bv : bv - av;
+    });
+    return result;
+  });
+
+  function toggleSort(field: typeof sortField) {
+    if (sortField === field) {
+      sortAsc = !sortAsc;
+    } else {
+      sortField = field;
+      sortAsc = false;
+    }
+  }
+
+  function sortIndicator(field: typeof sortField): string {
+    if (sortField !== field) return '';
+    return sortAsc ? ' ↑' : ' ↓';
+  }
 
   onMount(async () => {
     if (!auth.isAuthenticated || auth.isAnonymous) {
@@ -66,21 +102,31 @@
         <a href="/" class="btn btn-primary btn-sm font-display mt-4">Create your first document</a>
       </div>
     {:else}
+      <!-- Search -->
+      <div class="mb-4">
+        <input
+          type="text"
+          class="input input-bordered input-sm w-full max-w-xs font-display text-sm"
+          placeholder="Search by slug, format, state..."
+          bind:value={searchQuery}
+        />
+      </div>
+
       <div class="overflow-x-auto">
         <table class="table table-sm">
           <thead>
             <tr class="font-display text-xs text-base-content/40 uppercase tracking-wider">
-              <th>slug</th>
+              <th class="cursor-pointer select-none" onclick={() => toggleSort('slug')}>slug{sortIndicator('slug')}</th>
               <th>format</th>
-              <th>tokens</th>
+              <th class="cursor-pointer select-none" onclick={() => toggleSort('tokenCount')}>tokens{sortIndicator('tokenCount')}</th>
               <th>size</th>
               <th class="hidden md:table-cell">state</th>
-              <th class="hidden md:table-cell">created</th>
-              <th class="hidden md:table-cell">views</th>
+              <th class="hidden md:table-cell cursor-pointer select-none" onclick={() => toggleSort('createdAt')}>created{sortIndicator('createdAt')}</th>
+              <th class="hidden md:table-cell cursor-pointer select-none" onclick={() => toggleSort('accessCount')}>views{sortIndicator('accessCount')}</th>
             </tr>
           </thead>
           <tbody>
-            {#each docs as doc (doc.id)}
+            {#each filteredDocs() as doc (doc.id)}
               <tr class="hover cursor-pointer" onclick={() => goto(`/doc/${doc.slug}`)}>
                 <td class="font-display text-sm text-primary">{doc.slug}</td>
                 <td><FormatBadge format={doc.format || 'text'} /></td>
@@ -94,7 +140,9 @@
           </tbody>
         </table>
       </div>
-      <p class="text-xs text-base-content/30 font-display mt-4">{docs.length} document{docs.length === 1 ? '' : 's'}</p>
+      <p class="text-xs text-base-content/30 font-display mt-4">
+        {filteredDocs().length}{filteredDocs().length !== docs.length ? ` of ${docs.length}` : ''} document{docs.length === 1 ? '' : 's'}
+      </p>
     {/if}
   {:else}
     <div class="text-center py-16">
