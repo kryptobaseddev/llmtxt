@@ -223,7 +223,12 @@ export function detectDocumentFormat(content: string): 'json' | 'markdown' | 'co
     try {
       JSON.parse(trimmed);
       return 'json';
-    } catch { /* not JSON */ }
+    } catch {
+      // Content looks like JSON (starts with { or [) but has parse errors.
+      // Still treat as JSON for section parsing — better than falling to "text".
+      const jsonSignals = [/"[^"]*"\s*:/, /^\s*[{[]/m, /[}\]]\s*$/m];
+      if (jsonSignals.filter(r => r.test(trimmed)).length >= 2) return 'json';
+    }
   }
 
   const markdownSignals = [
@@ -473,7 +478,44 @@ function parseJsonSections(content: string, lines: string[]): Section[] {
         }
       }
     }
-  } catch { /* not valid JSON */ }
+  } catch {
+    // JSON.parse failed — use regex fallback to find top-level keys.
+    // Match lines like `  "keyName": ...` at indent level 2 (top-level in pretty-printed JSON).
+    const topLevelKeyPattern = /^  "[^"]+"\s*:/;
+    let sectionStart = -1;
+    let sectionTitle = '';
+
+    for (let i = 0; i < lines.length; i++) {
+      const match = lines[i].match(/^  "([^"]+)"\s*:/);
+      if (match) {
+        if (sectionStart >= 0) {
+          const sectionContent = lines.slice(sectionStart, i).join('\n');
+          sections.push({
+            title: sectionTitle,
+            depth: 0,
+            startLine: sectionStart + 1,
+            endLine: i,
+            tokenCount: calculateTokens(sectionContent),
+            type: 'json-key',
+          });
+        }
+        sectionStart = i;
+        sectionTitle = match[1];
+      }
+    }
+    // Push final section
+    if (sectionStart >= 0) {
+      const sectionContent = lines.slice(sectionStart, lines.length).join('\n');
+      sections.push({
+        title: sectionTitle,
+        depth: 0,
+        startLine: sectionStart + 1,
+        endLine: lines.length,
+        tokenCount: calculateTokens(sectionContent),
+        type: 'json-key',
+      });
+    }
+  }
   return sections;
 }
 
@@ -580,6 +622,24 @@ function parseTextSections(lines: string[]): Section[] {
       });
     }
     if (isBlank) currentStart = i + 1;
+  }
+
+  // If the entire document is one paragraph (no blank lines), chunk by ~50 lines
+  if (sections.length <= 1 && lines.length > 50) {
+    const chunkSize = 50;
+    sections.length = 0;
+    for (let i = 0; i < lines.length; i += chunkSize) {
+      const end = Math.min(i + chunkSize, lines.length);
+      const sectionContent = lines.slice(i, end).join('\n');
+      sections.push({
+        title: `Lines ${i + 1}-${end}`,
+        depth: 0,
+        startLine: i + 1,
+        endLine: end,
+        tokenCount: calculateTokens(sectionContent),
+        type: 'heading',
+      });
+    }
   }
 
   return sections;

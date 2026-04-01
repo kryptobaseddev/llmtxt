@@ -86,12 +86,13 @@
     return result;
   });
 
-  let doc = $derived(data.doc);
-  let overview = $derived(data.overview);
-  let versions = $derived(data.versions);
-  let approvalsData = $derived(data.approvals);
-  let contributorsData = $derived(data.contributors);
-  let state = $derived<DocumentState>((doc?.state as DocumentState) || 'DRAFT');
+  // Local reactive state that can be updated after mutations
+  let doc: any = $state(data.doc);
+  let overview = $state<any>(data.overview);
+  let versions = $state<any>(data.versions);
+  let approvalsData = $state<any>(data.approvals);
+  let contributorsData = $state<any>(data.contributors);
+  let state: DocumentState = $derived((doc?.state as DocumentState) || 'DRAFT');
   let isEditable = $derived(state === 'DRAFT' || state === 'REVIEW');
   let docShareUrl = $derived(`${window.location.origin}/doc/${data.slug}`);
 
@@ -137,8 +138,7 @@
   async function handleApprove(comment: string) {
     try {
       await api.approve(data.slug, comment || undefined);
-      const updated = await api.getApprovals(data.slug);
-      data.approvals = updated;
+      approvalsData = await api.getApprovals(data.slug);
     } catch (e) {
       console.error('Approve failed:', e);
     }
@@ -147,8 +147,7 @@
   async function handleReject(comment: string) {
     try {
       await api.reject(data.slug, comment);
-      const updated = await api.getApprovals(data.slug);
-      data.approvals = updated;
+      approvalsData = await api.getApprovals(data.slug);
     } catch (e) {
       console.error('Reject failed:', e);
     }
@@ -183,8 +182,7 @@
     try {
       await api.transition(data.slug, target, transitionReason || undefined);
       // Reload document data to reflect new state
-      const updated = await api.getDocument(data.slug);
-      data.doc = updated;
+      doc = await api.getDocument(data.slug);
       showTransitionConfirm = null;
       transitionReason = '';
     } catch (e) {
@@ -701,9 +699,7 @@
               onReject={handleReject}
               onTransition={async (target, reason) => {
                 await executeTransition(target);
-                // Refresh approvals data after transition
-                const updated = await api.getApprovals(data.slug);
-                data.approvals = updated;
+                approvalsData = await api.getApprovals(data.slug);
               }}
             />
           {/if}
