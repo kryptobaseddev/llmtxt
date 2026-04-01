@@ -33,7 +33,7 @@
     newLine: number | null;
   }
 
-  let diffLines = $derived(() => {
+  let diffLines = $derived.by(() => {
     if (!hasChanges) return [];
 
     const oldLines = originalContent.split('\n');
@@ -143,7 +143,7 @@
         <div class="rounded-lg border border-base-content/10 overflow-hidden max-h-[300px] overflow-y-auto">
           <table class="w-full text-sm leading-relaxed font-display border-collapse">
             <tbody>
-              {#each diffLines() as line}
+              {#each diffLines as line}
                 <tr class="{line.type === 'removed' ? 'bg-error/8' : line.type === 'added' ? 'bg-success/8' : ''}">
                   <td class="select-none text-right pr-1 pl-2 text-xs text-base-content/20 border-r border-base-content/5 w-0 whitespace-nowrap" style="min-width: 3ch">
                     {#if line.oldLine !== null}{line.oldLine}{/if}

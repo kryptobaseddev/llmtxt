@@ -15,7 +15,7 @@
   let sortField = $state<'slug' | 'createdAt' | 'tokenCount' | 'accessCount'>('createdAt');
   let sortAsc = $state(false);
 
-  let filteredDocs = $derived(() => {
+  let filteredDocs = $derived.by(() => {
     let result = docs;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -126,7 +126,7 @@
             </tr>
           </thead>
           <tbody>
-            {#each filteredDocs() as doc (doc.id)}
+            {#each filteredDocs as doc (doc.id)}
               <tr class="hover cursor-pointer" onclick={() => goto(`/doc/${doc.slug}`)}>
                 <td class="font-display text-sm text-primary">{doc.slug}</td>
                 <td><FormatBadge format={doc.format || 'text'} /></td>
@@ -141,7 +141,7 @@
         </table>
       </div>
       <p class="text-xs text-base-content/30 font-display mt-4">
-        {filteredDocs().length}{filteredDocs().length !== docs.length ? ` of ${docs.length}` : ''} document{docs.length === 1 ? '' : 's'}
+        {filteredDocs.length}{filteredDocs.length !== docs.length ? ` of ${docs.length}` : ''} document{docs.length === 1 ? '' : 's'}
       </p>
     {/if}
   {:else}

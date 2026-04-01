@@ -55,23 +55,23 @@
 
   // Compute line-level diff highlights for each compared version vs base
   type AnnotatedLine = { content: string; type: 'context' | 'added' | 'removed' };
-  let comparisonAnnotated = $derived<Map<number, AnnotatedLine[]>>(() => {
+  let comparisonAnnotated = $derived.by((): Map<number, AnnotatedLine[]> => {
     if (comparisonData.length < 2) return new Map();
-    const baseVer = comparisonData.find(v => v.versionNumber === comparisonBase);
+    const baseVer = comparisonData.find((v: { versionNumber: number }) => v.versionNumber === comparisonBase);
     if (!baseVer) return new Map();
     const baseLines = baseVer.content.split('\n');
     const result = new Map<number, AnnotatedLine[]>();
 
     for (const ver of comparisonData) {
       if (ver.versionNumber === comparisonBase) {
-        result.set(ver.versionNumber, baseLines.map(l => ({ content: l, type: 'context' as const })));
+        result.set(ver.versionNumber, baseLines.map((l: string) => ({ content: l, type: 'context' as const })));
         continue;
       }
       const verLines = ver.content.split('\n');
       const baseSet = new Set(baseLines);
       const verSet = new Set(verLines);
       // Annotate each line in this version
-      const annotated: AnnotatedLine[] = verLines.map(line => ({
+      const annotated: AnnotatedLine[] = verLines.map((line: string) => ({
         content: line,
         type: baseSet.has(line) ? 'context' as const : 'added' as const,
       }));
@@ -154,6 +154,46 @@
     }
   }
 
+  // State transitions
+  let transitioning = $state(false);
+  let transitionError = $state('');
+  let showTransitionConfirm = $state<string | null>(null); // target state or null
+  let transitionReason = $state('');
+
+  // Allowed transitions from current state
+  let allowedTransitions = $derived.by(() => {
+    switch (state) {
+      case 'DRAFT': return [
+        { target: 'REVIEW' as DocumentState, label: 'Submit for Review', style: 'btn-warning' },
+      ];
+      case 'REVIEW': return [
+        { target: 'DRAFT' as DocumentState, label: 'Back to Draft', style: 'btn-ghost' },
+        { target: 'LOCKED' as DocumentState, label: 'Lock', style: 'btn-info' },
+      ];
+      case 'LOCKED': return [
+        { target: 'ARCHIVED' as DocumentState, label: 'Archive', style: 'btn-error btn-outline' },
+      ];
+      default: return [];
+    }
+  });
+
+  async function executeTransition(target: string) {
+    transitioning = true;
+    transitionError = '';
+    try {
+      await api.transition(data.slug, target, transitionReason || undefined);
+      // Reload document data to reflect new state
+      const updated = await api.getDocument(data.slug);
+      data.doc = updated;
+      showTransitionConfirm = null;
+      transitionReason = '';
+    } catch (e) {
+      transitionError = e instanceof Error ? e.message : 'Transition failed';
+    } finally {
+      transitioning = false;
+    }
+  }
+
   let showSharePanel = $state(false);
 
   async function copySlug() {
@@ -226,6 +266,14 @@
           <StateBadge {state} />
         </div>
         <div class="flex items-center gap-2">
+          {#each allowedTransitions as t}
+            <button
+              class="btn btn-sm font-display text-xs {t.style}"
+              onclick={() => { showTransitionConfirm = t.target; transitionReason = ''; transitionError = ''; }}
+            >
+              {t.label}
+            </button>
+          {/each}
           <button class="btn btn-ghost btn-sm font-display text-xs" onclick={copySlug}>
             {copied ? 'Copied!' : 'Copy link'}
           </button>
@@ -297,6 +345,34 @@
                 class="rounded"
               />
             </div>
+          </div>
+        </div>
+      {/if}
+
+      <!-- State transition confirmation -->
+      {#if showTransitionConfirm}
+        <div class="mb-6 p-4 rounded-lg bg-base-200/30 border border-base-content/10 animate-fade-in">
+          <h3 class="font-display text-sm font-bold mb-2">
+            Transition to <span class="text-primary">{showTransitionConfirm}</span>
+          </h3>
+          <input
+            type="text"
+            class="input input-bordered input-sm w-full font-display text-sm mb-3"
+            placeholder="Reason (optional)"
+            bind:value={transitionReason}
+          />
+          {#if transitionError}
+            <div class="alert alert-error text-xs font-display mb-3">{transitionError}</div>
+          {/if}
+          <div class="flex gap-2">
+            <button
+              class="btn btn-primary btn-sm font-display"
+              onclick={() => executeTransition(showTransitionConfirm!)}
+              disabled={transitioning}
+            >
+              {#if transitioning}<span class="loading loading-spinner loading-xs"></span>{:else}Confirm{/if}
+            </button>
+            <button class="btn btn-ghost btn-sm font-display" onclick={() => showTransitionConfirm = null}>Cancel</button>
           </div>
         </div>
       {/if}
@@ -549,7 +625,7 @@
                     </h3>
                     <div class="grid gap-4" style="grid-template-columns: repeat({Math.min(comparisonData.length, 3)}, 1fr);">
                       {#each comparisonData as ver (ver.versionNumber)}
-                        {@const annotated = comparisonAnnotated().get(ver.versionNumber)}
+                        {@const annotated = comparisonAnnotated.get(ver.versionNumber)}
                         <div class="rounded-lg border {ver.versionNumber === comparisonBase ? 'border-primary/30 bg-primary/5' : 'border-base-content/10'} overflow-hidden">
                           <div class="px-3 py-2 border-b border-base-content/10 flex items-center justify-between">
                             <span class="font-display text-xs font-bold {ver.versionNumber === comparisonBase ? 'text-primary' : ''}">
@@ -623,6 +699,12 @@
               docState={state}
               onApprove={handleApprove}
               onReject={handleReject}
+              onTransition={async (target, reason) => {
+                await executeTransition(target);
+                // Refresh approvals data after transition
+                const updated = await api.getApprovals(data.slug);
+                data.approvals = updated;
+              }}
             />
           {/if}
         </div>
