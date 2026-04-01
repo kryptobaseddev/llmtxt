@@ -17,9 +17,10 @@ export {
   calculateTokens,
   calculateCompressionRatio,
   computeDiff,
+  structuredDiff,
 } from './compression.js';
 
-export type { DiffResult } from './compression.js';
+export type { DiffResult, StructuredDiffLine, StructuredDiffResult } from './compression.js';
 
 // ── Validation ──────────────────────────────────────────────────
 export {

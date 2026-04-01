@@ -14,6 +14,7 @@ export {
   calculateTokens,
   calculateCompressionRatio,
   computeDiff,
+  structuredDiff,
 } from './wasm.js';
 
-export type { DiffResult } from './wasm.js';
+export type { DiffResult, StructuredDiffLine, StructuredDiffResult } from './wasm.js';

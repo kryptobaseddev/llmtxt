@@ -53,6 +53,39 @@
     }
   }
 
+  // Compute line-level diff highlights for each compared version vs base
+  type AnnotatedLine = { content: string; type: 'context' | 'added' | 'removed' };
+  let comparisonAnnotated = $derived<Map<number, AnnotatedLine[]>>(() => {
+    if (comparisonData.length < 2) return new Map();
+    const baseVer = comparisonData.find(v => v.versionNumber === comparisonBase);
+    if (!baseVer) return new Map();
+    const baseLines = baseVer.content.split('\n');
+    const result = new Map<number, AnnotatedLine[]>();
+
+    for (const ver of comparisonData) {
+      if (ver.versionNumber === comparisonBase) {
+        result.set(ver.versionNumber, baseLines.map(l => ({ content: l, type: 'context' as const })));
+        continue;
+      }
+      const verLines = ver.content.split('\n');
+      const baseSet = new Set(baseLines);
+      const verSet = new Set(verLines);
+      // Annotate each line in this version
+      const annotated: AnnotatedLine[] = verLines.map(line => ({
+        content: line,
+        type: baseSet.has(line) ? 'context' as const : 'added' as const,
+      }));
+      // Append removed lines (in base but not in this version)
+      for (const line of baseLines) {
+        if (!verSet.has(line)) {
+          annotated.push({ content: line, type: 'removed' as const });
+        }
+      }
+      result.set(ver.versionNumber, annotated);
+    }
+    return result;
+  });
+
   let doc = $derived(data.doc);
   let overview = $derived(data.overview);
   let versions = $derived(data.versions);
@@ -402,7 +435,7 @@
           {:else if activeTab === 'versions'}
             <div class="space-y-6">
               {#if versions?.versions?.length}
-                <!-- Version list with selection checkboxes -->
+                <!-- Version list — compact table rows -->
                 <div>
                   <div class="flex items-center justify-between mb-3">
                     <h3 class="font-display text-xs text-base-content/30 uppercase tracking-wider">
@@ -418,22 +451,40 @@
                       </button>
                     {/if}
                   </div>
-                  <div class="space-y-1">
-                    {#each versions.versions as ver (ver.versionNumber)}
-                      <button
-                        class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-base-200/50 transition-colors text-left {selectedVersions.has(ver.versionNumber) ? 'bg-primary/10 border border-primary/20' : 'border border-transparent'}"
-                        onclick={() => toggleVersion(ver.versionNumber)}
-                      >
-                        <input type="checkbox" class="checkbox checkbox-xs checkbox-primary" checked={selectedVersions.has(ver.versionNumber)} />
-                        <span class="font-display text-sm text-primary font-bold">v{ver.versionNumber}</span>
-                        <span class="text-xs text-base-content/50 flex-1 truncate">{ver.changelog ?? ''}</span>
-                        <span class="text-xs text-base-content/30 font-display shrink-0">{ver.tokenCount} tok</span>
-                      </button>
-                    {/each}
+                  <div class="overflow-x-auto rounded-lg border border-base-content/10">
+                    <table class="table table-xs w-full">
+                      <thead>
+                        <tr class="font-display text-xs text-base-content/30 uppercase tracking-wider">
+                          <th class="w-8"></th>
+                          <th class="w-12">ver</th>
+                          <th>changelog</th>
+                          <th class="w-20 text-right">tokens</th>
+                          <th class="w-28 text-right hidden md:table-cell">contributor</th>
+                          <th class="w-36 text-right hidden md:table-cell">date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {#each versions.versions as ver (ver.versionNumber)}
+                          <tr
+                            class="hover cursor-pointer {selectedVersions.has(ver.versionNumber) ? 'bg-primary/10' : ''}"
+                            onclick={() => toggleVersion(ver.versionNumber)}
+                          >
+                            <td>
+                              <input type="checkbox" class="checkbox checkbox-xs checkbox-primary" checked={selectedVersions.has(ver.versionNumber)} />
+                            </td>
+                            <td class="font-display text-sm text-primary font-bold">v{ver.versionNumber}</td>
+                            <td class="text-xs text-base-content/50 truncate max-w-[200px] lg:max-w-none">{ver.changelog ?? ''}</td>
+                            <td class="text-right font-display text-xs text-base-content/30">{ver.tokenCount}</td>
+                            <td class="text-right text-xs text-base-content/30 hidden md:table-cell truncate max-w-[100px]">{ver.createdBy ?? '—'}</td>
+                            <td class="text-right font-display text-xs text-base-content/20 hidden md:table-cell">{formatDate(ver.createdAt)}</td>
+                          </tr>
+                        {/each}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
 
-                <!-- Multi-version comparison view -->
+                <!-- Multi-version comparison view with diff highlighting -->
                 {#if comparisonData.length >= 2}
                   <div class="border-t border-base-content/5 pt-6">
                     <h3 class="font-display text-xs text-base-content/30 uppercase tracking-wider mb-4">
@@ -441,6 +492,7 @@
                     </h3>
                     <div class="grid gap-4" style="grid-template-columns: repeat({Math.min(comparisonData.length, 3)}, 1fr);">
                       {#each comparisonData as ver (ver.versionNumber)}
+                        {@const annotated = comparisonAnnotated().get(ver.versionNumber)}
                         <div class="rounded-lg border {ver.versionNumber === comparisonBase ? 'border-primary/30 bg-primary/5' : 'border-base-content/10'}">
                           <div class="px-3 py-2 border-b border-base-content/10 flex items-center justify-between">
                             <span class="font-display text-xs font-bold {ver.versionNumber === comparisonBase ? 'text-primary' : ''}">
@@ -451,7 +503,15 @@
                             </span>
                             <span class="text-xs text-base-content/30">{ver.changelog}</span>
                           </div>
-                          <pre class="p-3 text-xs font-display leading-relaxed whitespace-pre-wrap break-words max-h-[400px] overflow-y-auto">{ver.content}</pre>
+                          <div class="max-h-[400px] overflow-y-auto">
+                            {#if annotated}
+                              {#each annotated as line}
+                                <div class="px-3 py-0 text-xs font-display leading-relaxed whitespace-pre-wrap break-words {line.type === 'added' ? 'bg-success/10 text-success/80' : line.type === 'removed' ? 'bg-error/10 text-error/80 line-through' : ''}">{line.content}</div>
+                              {/each}
+                            {:else}
+                              <pre class="p-3 text-xs font-display leading-relaxed whitespace-pre-wrap break-words">{ver.content}</pre>
+                            {/if}
+                          </div>
                         </div>
                       {/each}
                     </div>

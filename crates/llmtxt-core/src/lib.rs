@@ -29,11 +29,17 @@ pub use native_signed_url::{
     SignedUrlBuildRequest, SignedUrlParams, VerifyError, generate_signed_url, verify_signed_url,
 };
 
+mod diff;
+pub use diff::{
+    DiffResult, StructuredDiffLine, StructuredDiffResult, compute_diff, structured_diff,
+    structured_diff_native,
+};
+
 mod patch;
 pub use patch::{
-    apply_patch, batch_diff_versions, compute_sections_modified,
-    compute_sections_modified_native, create_patch, diff_versions, diff_versions_native,
-    reconstruct_version, reconstruct_version_native, squash_patches, squash_patches_native,
+    apply_patch, batch_diff_versions, compute_sections_modified, compute_sections_modified_native,
+    create_patch, diff_versions, diff_versions_native, reconstruct_version,
+    reconstruct_version_native, squash_patches, squash_patches_native,
 };
 
 mod lifecycle;
@@ -344,97 +350,6 @@ pub fn text_similarity_ngram(a: &str, b: &str, n: usize) -> f64 {
     }
 }
 
-// ── Diff ────────────────────────────────────────────────────────
-
-/// Result of computing a line-based diff between two texts.
-#[cfg_attr(feature = "wasm", wasm_bindgen)]
-#[derive(Debug, Clone)]
-pub struct DiffResult {
-    added_lines: u32,
-    removed_lines: u32,
-    added_tokens: u32,
-    removed_tokens: u32,
-}
-
-#[cfg_attr(feature = "wasm", wasm_bindgen)]
-impl DiffResult {
-    /// Number of lines added in the new text.
-    #[cfg_attr(feature = "wasm", wasm_bindgen(getter))]
-    pub fn added_lines(&self) -> u32 {
-        self.added_lines
-    }
-    /// Number of lines removed from the old text.
-    #[cfg_attr(feature = "wasm", wasm_bindgen(getter))]
-    pub fn removed_lines(&self) -> u32 {
-        self.removed_lines
-    }
-    /// Estimated tokens added.
-    #[cfg_attr(feature = "wasm", wasm_bindgen(getter))]
-    pub fn added_tokens(&self) -> u32 {
-        self.added_tokens
-    }
-    /// Estimated tokens removed.
-    #[cfg_attr(feature = "wasm", wasm_bindgen(getter))]
-    pub fn removed_tokens(&self) -> u32 {
-        self.removed_tokens
-    }
-}
-
-/// Compute a line-based diff between two texts.
-///
-/// Uses a hash-based LCS (Longest Common Subsequence) approach for
-/// O(n*m) comparison where n and m are line counts. Returns counts
-/// of added/removed lines and estimated token impact.
-#[cfg_attr(feature = "wasm", wasm_bindgen)]
-pub fn compute_diff(old_text: &str, new_text: &str) -> DiffResult {
-    let old_lines: Vec<&str> = old_text.lines().collect();
-    let new_lines: Vec<&str> = new_text.lines().collect();
-
-    let n = old_lines.len();
-    let m = new_lines.len();
-
-    // Build LCS table
-    let mut dp = vec![vec![0u32; m + 1]; n + 1];
-    for i in 1..=n {
-        for j in 1..=m {
-            if old_lines[i - 1] == new_lines[j - 1] {
-                dp[i][j] = dp[i - 1][j - 1] + 1;
-            } else {
-                dp[i][j] = dp[i - 1][j].max(dp[i][j - 1]);
-            }
-        }
-    }
-
-    // Backtrack to find which lines were removed and which were added
-    let mut removed = Vec::new();
-    let mut added = Vec::new();
-    let mut i = n;
-    let mut j = m;
-
-    while i > 0 || j > 0 {
-        if i > 0 && j > 0 && old_lines[i - 1] == new_lines[j - 1] {
-            i -= 1;
-            j -= 1;
-        } else if j > 0 && (i == 0 || dp[i][j - 1] >= dp[i - 1][j]) {
-            added.push(new_lines[j - 1]);
-            j -= 1;
-        } else {
-            removed.push(old_lines[i - 1]);
-            i -= 1;
-        }
-    }
-
-    let added_tokens: u32 = added.iter().map(|l| calculate_tokens(l)).sum();
-    let removed_tokens: u32 = removed.iter().map(|l| calculate_tokens(l)).sum();
-
-    DiffResult {
-        added_lines: added.len() as u32,
-        removed_lines: removed.len() as u32,
-        added_tokens,
-        removed_tokens,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -544,7 +459,7 @@ mod tests {
         assert_eq!(sig16, "650eb9dd6c396a45");
         assert_eq!(sig16.len(), 16);
         assert_eq!(sig32.len(), 32);
-        assert!(sig32.starts_with(&sig16)); // longer sig is a prefix extension
+        assert!(sig32.starts_with(&sig16));
     }
 
     #[test]
@@ -598,8 +513,7 @@ mod tests {
             1_700_000_000_000.0,
             "test-secret",
         );
-        assert_eq!(sig.len(), 32); // default 32 chars for org sigs
-        // Org sig must differ from non-org sig (different payload)
+        assert_eq!(sig.len(), 32);
         let non_org_sig = compute_signature_with_length(
             "xK9mP2nQ",
             "test-agent",
@@ -639,8 +553,8 @@ mod tests {
     #[test]
     fn test_is_expired() {
         assert!(!is_expired(0.0));
-        assert!(is_expired(1.0)); // 1ms after epoch = definitely expired
-        assert!(!is_expired(f64::MAX)); // far future
+        assert!(is_expired(1.0));
+        assert!(!is_expired(f64::MAX));
     }
 
     #[test]
@@ -680,55 +594,5 @@ mod tests {
         let params = verify_signed_url(&url, "test-secret").expect("exp=0 should never expire");
         assert_eq!(params.slug, "xK9mP2nQ");
         assert_eq!(params.expires_at, 0);
-    }
-
-    #[test]
-    fn test_compute_diff_identical() {
-        let text = "line 1\nline 2\nline 3";
-        let result = compute_diff(text, text);
-        assert_eq!(result.added_lines(), 0);
-        assert_eq!(result.removed_lines(), 0);
-        assert_eq!(result.added_tokens(), 0);
-        assert_eq!(result.removed_tokens(), 0);
-    }
-
-    #[test]
-    fn test_compute_diff_empty_to_content() {
-        let result = compute_diff("", "line 1\nline 2");
-        assert_eq!(result.added_lines(), 2);
-        assert_eq!(result.removed_lines(), 0);
-    }
-
-    #[test]
-    fn test_compute_diff_content_to_empty() {
-        let result = compute_diff("line 1\nline 2", "");
-        assert_eq!(result.added_lines(), 0);
-        assert_eq!(result.removed_lines(), 2);
-    }
-
-    #[test]
-    fn test_compute_diff_mixed_changes() {
-        let old = "line 1\nline 2\nline 3\nline 4";
-        let new = "line 1\nmodified 2\nline 3\nline 5\nline 6";
-        let result = compute_diff(old, new);
-        // "line 2" and "line 4" removed; "modified 2", "line 5", "line 6" added
-        assert_eq!(result.removed_lines(), 2);
-        assert_eq!(result.added_lines(), 3);
-        assert!(result.added_tokens() > 0);
-        assert!(result.removed_tokens() > 0);
-    }
-
-    #[test]
-    fn test_compute_diff_tokens() {
-        let old = "short";
-        let new = "this is a much longer replacement line";
-        let result = compute_diff(old, new);
-        assert_eq!(result.removed_lines(), 1);
-        assert_eq!(result.added_lines(), 1);
-        assert_eq!(result.removed_tokens(), calculate_tokens("short"));
-        assert_eq!(
-            result.added_tokens(),
-            calculate_tokens("this is a much longer replacement line")
-        );
     }
 }

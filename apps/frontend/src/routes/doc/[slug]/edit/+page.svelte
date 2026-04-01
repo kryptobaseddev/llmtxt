@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
+  import { goto, invalidateAll } from '$app/navigation';
   import { api } from '$lib/api/client';
   import StateBadge from '$lib/components/StateBadge.svelte';
   import type { DocumentState } from '$lib/types';
@@ -25,27 +25,40 @@
 
   let hasChanges = $derived(modified !== originalContent);
 
-  // Compute a simple line diff for preview
+  // Compute a line diff for preview with line numbers
+  interface PreviewDiffLine {
+    type: 'added' | 'removed' | 'context';
+    content: string;
+    oldLine: number | null;
+    newLine: number | null;
+  }
+
   let diffLines = $derived(() => {
     if (!hasChanges) return [];
 
     const oldLines = originalContent.split('\n');
     const newLines = modified.split('\n');
-    const result: Array<{ type: 'added' | 'removed' | 'context'; content: string }> = [];
+    const result: PreviewDiffLine[] = [];
 
     const maxLen = Math.max(oldLines.length, newLines.length);
+    let oldNum = 1;
+    let newNum = 1;
     for (let i = 0; i < maxLen; i++) {
       const oldLine = i < oldLines.length ? oldLines[i] : undefined;
       const newLine = i < newLines.length ? newLines[i] : undefined;
 
       if (oldLine === newLine) {
-        result.push({ type: 'context', content: oldLine ?? '' });
+        result.push({ type: 'context', content: oldLine ?? '', oldLine: oldNum, newLine: newNum });
+        oldNum++;
+        newNum++;
       } else {
         if (oldLine !== undefined) {
-          result.push({ type: 'removed', content: oldLine });
+          result.push({ type: 'removed', content: oldLine, oldLine: oldNum, newLine: null });
+          oldNum++;
         }
         if (newLine !== undefined) {
-          result.push({ type: 'added', content: newLine });
+          result.push({ type: 'added', content: newLine, oldLine: null, newLine: newNum });
+          newNum++;
         }
       }
     }
@@ -60,6 +73,7 @@
 
     try {
       await api.updateDocument(data.slug, modified, changelog);
+      await invalidateAll();
       goto(`/doc/${data.slug}`);
     } catch (e) {
       error = e instanceof Error ? e.message : 'Update failed';
@@ -127,7 +141,26 @@
       <div class="mb-6">
         <h3 class="font-display text-xs text-base-content/30 uppercase tracking-wider mb-2">Diff preview</h3>
         <div class="rounded-lg border border-base-content/10 overflow-hidden max-h-[300px] overflow-y-auto">
-          <pre class="text-sm leading-relaxed"><code>{#each diffLines() as line}<div class="{line.type === 'added' ? 'diff-added' : line.type === 'removed' ? 'diff-removed' : 'diff-context'} px-4 py-0.5"><span class="inline-block w-4 text-right text-base-content/20 select-none mr-3 font-display text-xs">{line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' '}</span><span class="{line.type === 'added' ? 'text-success/80' : line.type === 'removed' ? 'text-error/80' : ''}">{line.content}</span></div>{/each}</code></pre>
+          <table class="w-full text-sm leading-relaxed font-display border-collapse">
+            <tbody>
+              {#each diffLines() as line}
+                <tr class="{line.type === 'removed' ? 'bg-error/8' : line.type === 'added' ? 'bg-success/8' : ''}">
+                  <td class="select-none text-right pr-1 pl-2 text-xs text-base-content/20 border-r border-base-content/5 w-0 whitespace-nowrap" style="min-width: 3ch">
+                    {#if line.oldLine !== null}{line.oldLine}{/if}
+                  </td>
+                  <td class="select-none text-right pr-2 pl-1 text-xs text-base-content/20 border-r border-base-content/5 w-0 whitespace-nowrap" style="min-width: 3ch">
+                    {#if line.newLine !== null}{line.newLine}{/if}
+                  </td>
+                  <td class="select-none w-4 text-center text-xs {line.type === 'removed' ? 'text-error/60' : line.type === 'added' ? 'text-success/60' : 'text-base-content/10'}">
+                    {line.type === 'removed' ? '-' : line.type === 'added' ? '+' : ' '}
+                  </td>
+                  <td class="whitespace-pre-wrap break-all pr-4 {line.type === 'removed' ? 'text-error/80' : line.type === 'added' ? 'text-success/80' : 'text-base-content/70'}">
+                    {line.content}
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
         </div>
       </div>
     {/if}

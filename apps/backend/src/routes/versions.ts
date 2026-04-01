@@ -6,8 +6,8 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { db } from '../db/index.js';
-import { documents, versions } from '../db/schema.js';
-import { eq, and, desc } from 'drizzle-orm';
+import { documents, versions, contributors } from '../db/schema.js';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import {
   compress,
   decompress,
@@ -15,10 +15,25 @@ import {
   hashContent,
   calculateTokens,
   calculateCompressionRatio,
-  computeDiff,
+  structuredDiff,
 } from '../utils/compression.js';
 import { createPatch } from 'llmtxt';
 import { invalidateDocumentCache } from '../middleware/cache.js';
+import { auth } from '../auth.js';
+
+/** Try to get the authenticated user from session cookies. */
+async function getOptionalUser(request: FastifyRequest) {
+  try {
+    const headers = new Headers();
+    for (const [key, value] of Object.entries(request.headers)) {
+      if (value) headers.append(key, String(value));
+    }
+    const session = await auth.api.getSession({ headers });
+    return session?.user ?? null;
+  } catch {
+    return null;
+  }
+}
 
 const slugParamsSchema = z.object({
   slug: z.string().min(1).max(20),
@@ -130,6 +145,48 @@ export async function versionRoutes(fastify: FastifyInstance) {
           tokenCount,
         })
         .where(eq(documents.id, doc.id));
+
+      // Upsert contributor record for the editing user
+      const user = await getOptionalUser(request);
+      const userId = createdBy || user?.id;
+      if (userId) {
+        // Compute diff stats from old content
+        const oldBuffer = doc.compressedData instanceof Buffer
+          ? doc.compressedData
+          : Buffer.from(doc.compressedData as ArrayBuffer);
+        const oldContent = await decompress(oldBuffer);
+        const diff = structuredDiff(oldContent, content);
+        const tokensAdded = diff.addedTokens;
+        const tokensRemoved = diff.removedTokens;
+
+        const [existing] = await db.select()
+          .from(contributors)
+          .where(and(eq(contributors.documentId, doc.id), eq(contributors.agentId, userId)));
+
+        if (existing) {
+          await db.update(contributors)
+            .set({
+              versionsAuthored: existing.versionsAuthored + 1,
+              totalTokensAdded: existing.totalTokensAdded + tokensAdded,
+              totalTokensRemoved: existing.totalTokensRemoved + tokensRemoved,
+              netTokens: existing.netTokens + tokensAdded - tokensRemoved,
+              lastContribution: now,
+            })
+            .where(eq(contributors.id, existing.id));
+        } else {
+          await db.insert(contributors).values({
+            id: generateId(),
+            documentId: doc.id,
+            agentId: userId,
+            versionsAuthored: 1,
+            totalTokensAdded: tokensAdded,
+            totalTokensRemoved: tokensRemoved,
+            netTokens: tokensAdded - tokensRemoved,
+            firstContribution: now,
+            lastContribution: now,
+          });
+        }
+      }
 
       // Invalidate cache for this document
       invalidateDocumentCache(slug);
@@ -316,27 +373,18 @@ export async function versionRoutes(fastify: FastifyInstance) {
       const fromContent = await decompress(fromBuffer);
       const toContent = await decompress(toBuffer);
 
-      // Use the portable Rust diff primitive
-      const diff = computeDiff(fromContent, toContent);
+      // Use the portable Rust structured diff primitive
+      const diff = structuredDiff(fromContent, toContent);
       const patchText = createPatch(fromContent, toContent);
-
-      // Compute actual added/removed line content from the two versions
-      const fromLines = fromContent.split('\n');
-      const toLines = toContent.split('\n');
-      const fromSet = new Set(fromLines);
-      const toSet = new Set(toLines);
-      const removedLineContent = fromLines.filter(l => !toSet.has(l));
-      const addedLineContent = toLines.filter(l => !fromSet.has(l));
 
       return reply.send({
         documentId: doc.id,
         slug,
         fromVersion: from,
         toVersion: to,
-        addedLines: addedLineContent,
-        removedLines: removedLineContent,
-        addedLineCount: diff.addedLines,
-        removedLineCount: diff.removedLines,
+        lines: diff.lines,
+        addedLineCount: diff.addedLineCount,
+        removedLineCount: diff.removedLineCount,
         addedTokens: diff.addedTokens,
         removedTokens: diff.removedTokens,
         patchText,

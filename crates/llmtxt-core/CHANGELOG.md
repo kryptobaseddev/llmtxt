@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026.4.2] - 2026-04-01
+
+### Added
+- `diff` module — extracted diff logic from `lib.rs` into dedicated `diff.rs` module for maintainability
+- `structured_diff()` / `structured_diff_native()` — line-level LCS diff returning interleaved context/added/removed lines with old and new line numbers, summary counts, and token impact. Single source of truth for diff display across all consumers
+- `StructuredDiffLine` and `StructuredDiffResult` structs with serde JSON serialization (camelCase keys for JS compatibility)
+- 8 new tests covering identical, additions, removals, mixed changes, empty-to-content, content-to-empty, and JSON serialization
+
+### Changed
+- Refactored `build_lcs_table()` into a shared helper used by both `compute_diff()` and `structured_diff_native()`
+
 ## [2026.4.1] - 2026-03-31
 
 ### Added

@@ -9,6 +9,7 @@ export {
   calculateTokens,
   calculateCompressionRatio,
   computeDiff,
+  structuredDiff,
 } from 'llmtxt';
 
-export type { DiffResult } from 'llmtxt';
+export type { DiffResult, StructuredDiffLine, StructuredDiffResult } from 'llmtxt';

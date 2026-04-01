@@ -153,8 +153,8 @@ pub fn batch_diff_versions(
 ) -> Result<String, String> {
     let patches: Vec<String> =
         serde_json::from_str(patches_json).map_err(|e| format!("Invalid patches JSON: {e}"))?;
-    let version_numbers: Vec<u32> =
-        serde_json::from_str(version_numbers_json).map_err(|e| format!("Invalid version numbers JSON: {e}"))?;
+    let version_numbers: Vec<u32> = serde_json::from_str(version_numbers_json)
+        .map_err(|e| format!("Invalid version numbers JSON: {e}"))?;
 
     let base_content = reconstruct_version_native(base, &patches, base_version as usize)?;
     let mut results = Vec::new();

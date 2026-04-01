@@ -161,3 +161,28 @@ export function computeDiff(oldText: string, newText: string): DiffResult {
   result.free();
   return out;
 }
+
+// ── Structured Diff ────────────────────────────────────────────
+
+/** A single line in a structured diff with type annotation and line numbers. */
+export interface StructuredDiffLine {
+  type: 'context' | 'added' | 'removed';
+  content: string;
+  oldLine: number | null;
+  newLine: number | null;
+}
+
+/** Full structured diff result with interleaved lines and summary counts. */
+export interface StructuredDiffResult {
+  lines: StructuredDiffLine[];
+  addedLineCount: number;
+  removedLineCount: number;
+  addedTokens: number;
+  removedTokens: number;
+}
+
+/** Compute a structured line-level diff between two texts via the Rust LCS algorithm. */
+export function structuredDiff(oldText: string, newText: string): StructuredDiffResult {
+  const json = wasmModule.structured_diff(oldText, newText);
+  return JSON.parse(json) as StructuredDiffResult;
+}

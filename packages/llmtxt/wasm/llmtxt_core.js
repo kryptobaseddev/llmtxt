@@ -58,6 +58,20 @@ if (Symbol.dispose) DiffResult.prototype[Symbol.dispose] = DiffResult.prototype.
 exports.DiffResult = DiffResult;
 
 /**
+ * Lifecycle state of a collaborative document.
+ *
+ * Matches the TypeScript `DocumentState` type exactly.
+ * @enum {0 | 1 | 2 | 3}
+ */
+const DocumentState = Object.freeze({
+    Draft: 0, "0": "Draft",
+    Review: 1, "1": "Review",
+    Locked: 2, "2": "Locked",
+    Archived: 3, "3": "Archived",
+});
+exports.DocumentState = DocumentState;
+
+/**
  * Apply a unified diff patch to an original string.
  * Returns the updated string on success, or an error if the patch is invalid
  * or fails to apply cleanly.
@@ -88,6 +102,46 @@ function apply_patch(original, patch_text) {
     }
 }
 exports.apply_patch = apply_patch;
+
+/**
+ * Compare multiple versions against a base version in a single call.
+ *
+ * `version_numbers` is a JSON array of version numbers to compare: `[1, 3, 5, 8]`.
+ * Each is reconstructed from the patch chain and diffed against `base_version`.
+ * Returns a JSON array of diff results.
+ *
+ * This avoids N separate WASM calls and parses the patches JSON once.
+ * @param {string} base
+ * @param {string} patches_json
+ * @param {number} base_version
+ * @param {string} version_numbers_json
+ * @returns {string}
+ */
+function batch_diff_versions(base, patches_json, base_version, version_numbers_json) {
+    let deferred5_0;
+    let deferred5_1;
+    try {
+        const ptr0 = passStringToWasm0(base, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(patches_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(version_numbers_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.batch_diff_versions(ptr0, len0, ptr1, len1, base_version, ptr2, len2);
+        var ptr4 = ret[0];
+        var len4 = ret[1];
+        if (ret[3]) {
+            ptr4 = 0; len4 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred5_0 = ptr4;
+        deferred5_1 = len4;
+        return getStringFromWasm0(ptr4, len4);
+    } finally {
+        wasm.__wbindgen_free(deferred5_0, deferred5_1, 1);
+    }
+}
+exports.batch_diff_versions = batch_diff_versions;
 
 /**
  * Calculate the compression ratio (original / compressed), rounded to 2 decimals.
@@ -229,6 +283,33 @@ function compute_org_signature_with_length(slug, agent_id, conversation_id, org_
     }
 }
 exports.compute_org_signature_with_length = compute_org_signature_with_length;
+
+/**
+ * Compute which markdown sections were modified between two document versions.
+ *
+ * Returns a JSON array of section heading names that changed.
+ * Detects added, removed, and modified sections.
+ * @param {string} old_content
+ * @param {string} new_content
+ * @returns {string}
+ */
+function compute_sections_modified(old_content, new_content) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(old_content, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(new_content, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.compute_sections_modified(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+exports.compute_sections_modified = compute_sections_modified;
 
 /**
  * Compute the HMAC-SHA256 signature for signed URL parameters.
@@ -391,6 +472,42 @@ function derive_signing_key(api_key) {
 exports.derive_signing_key = derive_signing_key;
 
 /**
+ * Reconstruct two versions and compute a diff between them.
+ *
+ * Returns a JSON string with `fromVersion`, `toVersion`, `addedLines`,
+ * `removedLines`, `addedTokens`, `removedTokens`, and `patchText` fields.
+ * Matches the TypeScript `VersionDiffSummary` interface.
+ * @param {string} base
+ * @param {string} patches_json
+ * @param {number} from_version
+ * @param {number} to_version
+ * @returns {string}
+ */
+function diff_versions(base, patches_json, from_version, to_version) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(base, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(patches_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.diff_versions(ptr0, len0, ptr1, len1, from_version, to_version);
+        var ptr3 = ret[0];
+        var len3 = ret[1];
+        if (ret[3]) {
+            ptr3 = 0; len3 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred4_0 = ptr3;
+        deferred4_1 = len3;
+        return getStringFromWasm0(ptr3, len3);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+exports.diff_versions = diff_versions;
+
+/**
  * Encode a non-negative integer into a base62 string.
  *
  * Uses the alphabet `0-9A-Za-z`. Zero encodes to `"0"`.
@@ -410,6 +527,43 @@ function encode_base62(num) {
     }
 }
 exports.encode_base62 = encode_base62;
+
+/**
+ * Evaluate reviews against a policy. All inputs and output are JSON strings.
+ *
+ * Input `reviews_json`: `[{"reviewerId":"...","status":"APPROVED","timestamp":123,"atVersion":1}]`
+ * Input `policy_json`: `{"requiredCount":1,"requireUnanimous":false,"allowedReviewerIds":[],"timeoutMs":0}`
+ *
+ * Returns a JSON string matching the TypeScript `ApprovalResult` interface.
+ * @param {string} reviews_json
+ * @param {string} policy_json
+ * @param {number} current_version
+ * @param {number} now_ms
+ * @returns {string}
+ */
+function evaluate_approvals(reviews_json, policy_json, current_version, now_ms) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(reviews_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(policy_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.evaluate_approvals(ptr0, len0, ptr1, len1, current_version, now_ms);
+        var ptr3 = ret[0];
+        var len3 = ret[1];
+        if (ret[3]) {
+            ptr3 = 0; len3 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred4_0 = ptr3;
+        deferred4_1 = len3;
+        return getStringFromWasm0(ptr3, len3);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+exports.evaluate_approvals = evaluate_approvals;
 
 /**
  * Generate an 8-character base62 ID from a UUID v4.
@@ -451,6 +605,33 @@ function hash_content(data) {
 exports.hash_content = hash_content;
 
 /**
+ * Check whether a document state allows content modifications.
+ *
+ * Only DRAFT and REVIEW states accept new versions/patches.
+ * @param {DocumentState} state
+ * @returns {boolean}
+ */
+function is_editable(state) {
+    const ret = wasm.is_editable(state);
+    return ret !== 0;
+}
+exports.is_editable = is_editable;
+
+/**
+ * Parse a state string and check if it's editable.
+ * Returns false for unrecognized state names.
+ * @param {string} state
+ * @returns {boolean}
+ */
+function is_editable_str(state) {
+    const ptr0 = passStringToWasm0(state, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.is_editable_str(ptr0, len0);
+    return ret !== 0;
+}
+exports.is_editable_str = is_editable_str;
+
+/**
  * Check whether a timestamp (milliseconds) has expired.
  * Returns false for 0 (no expiration).
  *
@@ -463,6 +644,91 @@ function is_expired(expires_at_ms) {
     return ret !== 0;
 }
 exports.is_expired = is_expired;
+
+/**
+ * Check whether a document state is terminal (no further transitions).
+ * @param {DocumentState} state
+ * @returns {boolean}
+ */
+function is_terminal(state) {
+    const ret = wasm.is_terminal(state);
+    return ret !== 0;
+}
+exports.is_terminal = is_terminal;
+
+/**
+ * Parse a state string and check if it's terminal.
+ * Returns false for unrecognized state names.
+ * @param {string} state
+ * @returns {boolean}
+ */
+function is_terminal_str(state) {
+    const ptr0 = passStringToWasm0(state, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.is_terminal_str(ptr0, len0);
+    return ret !== 0;
+}
+exports.is_terminal_str = is_terminal_str;
+
+/**
+ * Check whether a state transition is allowed.
+ * @param {DocumentState} from
+ * @param {DocumentState} to
+ * @returns {boolean}
+ */
+function is_valid_transition(from, to) {
+    const ret = wasm.is_valid_transition(from, to);
+    return ret !== 0;
+}
+exports.is_valid_transition = is_valid_transition;
+
+/**
+ * Parse a state string and check if the transition is valid.
+ * Accepts uppercase state names ("DRAFT", "REVIEW", etc.).
+ * Returns false for unrecognized state names.
+ * @param {string} from
+ * @param {string} to
+ * @returns {boolean}
+ */
+function is_valid_transition_str(from, to) {
+    const ptr0 = passStringToWasm0(from, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(to, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.is_valid_transition_str(ptr0, len0, ptr1, len1);
+    return ret !== 0;
+}
+exports.is_valid_transition_str = is_valid_transition_str;
+
+/**
+ * Mark reviews as stale for the given version. JSON I/O for WASM.
+ *
+ * Returns a JSON array of updated reviews.
+ * @param {string} reviews_json
+ * @param {number} current_version
+ * @returns {string}
+ */
+function mark_stale_reviews(reviews_json, current_version) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(reviews_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.mark_stale_reviews(ptr0, len0, current_version);
+        var ptr2 = ret[0];
+        var len2 = ret[1];
+        if (ret[3]) {
+            ptr2 = 0; len2 = 0;
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred3_0 = ptr2;
+        deferred3_1 = len2;
+        return getStringFromWasm0(ptr2, len2);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+exports.mark_stale_reviews = mark_stale_reviews;
 
 /**
  * Apply a sequence of patches to base content, returning the content at the
@@ -535,6 +801,37 @@ function squash_patches(base, patches_json) {
 exports.squash_patches = squash_patches;
 
 /**
+ * Compute a structured line-level diff between two texts.
+ *
+ * Returns a JSON-serialized [`StructuredDiffResult`] with interleaved
+ * context, added, and removed lines including line numbers for both
+ * old and new text. This is the single source of truth for diff display.
+ *
+ * Uses the same LCS algorithm as [`compute_diff`] but produces full
+ * line-by-line output instead of just counts.
+ * @param {string} old_text
+ * @param {string} new_text
+ * @returns {string}
+ */
+function structured_diff(old_text, new_text) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(old_text, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(new_text, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.structured_diff(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+exports.structured_diff = structured_diff;
+
+/**
  * Compute character-level n-gram Jaccard similarity between two texts.
  * Returns 0.0 (no overlap) to 1.0 (identical). Default n=3.
  *
@@ -569,6 +866,33 @@ function text_similarity_ngram(a, b, n) {
     return ret;
 }
 exports.text_similarity_ngram = text_similarity_ngram;
+
+/**
+ * Validate a proposed transition and return a JSON result.
+ *
+ * Returns a JSON object with `valid`, `reason`, and `allowedTargets` fields.
+ * Matches the TypeScript `TransitionResult` interface.
+ * @param {string} from
+ * @param {string} to
+ * @returns {string}
+ */
+function validate_transition(from, to) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(from, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(to, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.validate_transition(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+exports.validate_transition = validate_transition;
 
 function __wbg_get_imports() {
     const import0 = {

@@ -39,10 +39,10 @@
       {#each contributors as contributor (contributor.id)}
         <tr class="hover">
           <td class="font-display text-sm">
-            {contributor.userId.slice(0, 8)}
+            {contributor.agentId.slice(0, 8)}
           </td>
           <td class="font-display text-sm text-base-content/60">
-            {contributor.patchCount}
+            {contributor.versionsAuthored}
           </td>
           <td>
             <div class="flex items-center gap-2">
@@ -53,7 +53,7 @@
             {contributor.netTokens >= 0 ? '+' : '-'}{formatTokens(contributor.netTokens)}
           </td>
           <td class="text-xs text-base-content/40">
-            {formatDate(contributor.lastContributedAt)}
+            {formatDate(contributor.lastContribution)}
           </td>
         </tr>
       {/each}

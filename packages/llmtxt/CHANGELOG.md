@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026.4.2] - 2026-04-01
+
+### Added
+- **diff**: `structuredDiff()` — WASM-backed structured line-level diff returning interleaved `{type, content, oldLine, newLine}` lines with summary counts. Replaces client-side patch parsing and backend set-based diff computation
+- **types**: `StructuredDiffLine` and `StructuredDiffResult` interfaces exported from `llmtxt`
+
+### Changed
+- **diff**: Backend `/documents/:slug/diff` endpoint now returns `lines` array (structured diff) instead of `addedLines`/`removedLines` string arrays
+- **diff**: Frontend `DiffViewer` consumes structured diff lines directly from API — no more client-side unified diff parsing
+- **backend**: PUT `/documents/:slug` now upserts contributor records with accurate token stats via `structuredDiff()`
+- **frontend**: `Contributor` type aligned to actual DB schema fields (`agentId`, `versionsAuthored`, `lastContribution`)
+- **frontend**: Version list redesigned as compact table rows with columns for version, changelog, tokens, contributor, and date
+- **frontend**: Side-by-side comparison view now highlights added/removed lines vs base version
+- **frontend**: Edit page uses `invalidateAll()` before navigation to prevent stale data
+
 ## [2026.4.1] - 2026-03-31
 
 ### Added

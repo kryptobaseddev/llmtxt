@@ -68,13 +68,19 @@ export interface VersionList {
   versions: Version[];
 }
 
+export interface DiffLine {
+  type: 'context' | 'added' | 'removed';
+  content: string;
+  oldLine: number | null;
+  newLine: number | null;
+}
+
 export interface DiffResult {
   documentId: string;
   slug: string;
   fromVersion: number;
   toVersion: number;
-  addedLines: string[];
-  removedLines: string[];
+  lines: DiffLine[];
   addedLineCount: number;
   removedLineCount: number;
   addedTokens: number;
@@ -109,14 +115,14 @@ export interface ApprovalsResponse {
 
 export interface Contributor {
   id: string;
-  userId: string;
+  agentId: string;
   documentId: string;
-  addedTokens: number;
-  removedTokens: number;
+  versionsAuthored: number;
+  totalTokensAdded: number;
+  totalTokensRemoved: number;
   netTokens: number;
-  patchCount: number;
-  firstContributedAt: number;
-  lastContributedAt: number;
+  firstContribution: number;
+  lastContribution: number;
 }
 
 export interface ContributorsResponse {
