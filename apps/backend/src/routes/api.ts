@@ -453,6 +453,8 @@ export async function apiRoutes(fastify: FastifyInstance) {
           expiresAt: documents.expiresAt,
           accessCount: documents.accessCount,
           lastAccessedAt: documents.lastAccessedAt,
+          state: documents.state,
+          ownerId: documents.ownerId,
         })
         .from(documents)
         .where(eq(documents.slug, slug));

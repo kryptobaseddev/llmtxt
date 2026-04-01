@@ -14,6 +14,7 @@ import {
 } from 'llmtxt/sdk';
 import type { DocumentState, Review, ApprovalPolicy } from 'llmtxt/sdk';
 import { generateId } from 'llmtxt';
+import { invalidateDocumentCache } from '../middleware/cache.js';
 
 function buildPolicy(doc: {
   approvalRequiredCount: number;
@@ -84,6 +85,7 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
         atVersion: doc[0].currentVersion,
       });
 
+      invalidateDocumentCache(slug);
       return { slug, previousState: currentState, currentState: targetState, reason, changedAt: now };
     },
   );
@@ -131,6 +133,7 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
         autoLocked = true;
       }
 
+      invalidateDocumentCache(slug);
       return { slug, status: 'APPROVED', consensus, autoLocked };
     },
   );
@@ -162,6 +165,7 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
       const policy = buildPolicy(doc[0]);
       const consensus = evaluateApprovals(toSdkReviews(allReviews), policy, doc[0].currentVersion);
 
+      invalidateDocumentCache(slug);
       return { slug, status: 'REJECTED', consensus };
     },
   );
