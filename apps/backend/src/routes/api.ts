@@ -220,6 +220,7 @@ export async function apiRoutes(fastify: FastifyInstance) {
         tokenCount,
         createdAt: now,
         accessCount: 0,
+        currentVersion: 1,
         ownerId: user?.id ?? null,
         isAnonymous: user ? ((user as Record<string, unknown>).isAnonymous === true) : false,
       });
@@ -454,6 +455,7 @@ export async function apiRoutes(fastify: FastifyInstance) {
           accessCount: documents.accessCount,
           lastAccessedAt: documents.lastAccessedAt,
           state: documents.state,
+          currentVersion: documents.currentVersion,
           ownerId: documents.ownerId,
         })
         .from(documents)

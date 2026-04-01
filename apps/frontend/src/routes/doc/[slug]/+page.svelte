@@ -138,7 +138,11 @@
   async function handleApprove(comment: string) {
     try {
       await api.approve(data.slug, comment || undefined);
-      approvalsData = await api.getApprovals(data.slug);
+      // Refresh both approvals and doc state (auto-lock may have occurred)
+      [approvalsData, doc] = await Promise.all([
+        api.getApprovals(data.slug),
+        api.getDocument(data.slug),
+      ]);
     } catch (e) {
       console.error('Approve failed:', e);
     }
@@ -147,7 +151,10 @@
   async function handleReject(comment: string) {
     try {
       await api.reject(data.slug, comment);
-      approvalsData = await api.getApprovals(data.slug);
+      [approvalsData, doc] = await Promise.all([
+        api.getApprovals(data.slug),
+        api.getDocument(data.slug),
+      ]);
     } catch (e) {
       console.error('Reject failed:', e);
     }
@@ -695,6 +702,7 @@
               reviews={approvalsData?.reviews ?? []}
               consensus={approvalsData?.consensus ?? null}
               docState={state}
+              currentVersion={doc?.currentVersion ?? 0}
               onApprove={handleApprove}
               onReject={handleReject}
               onTransition={async (target, reason) => {

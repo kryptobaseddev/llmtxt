@@ -143,6 +143,7 @@ export async function versionRoutes(fastify: FastifyInstance) {
           originalSize,
           compressedSize,
           tokenCount,
+          currentVersion: nextVersionNumber,
         })
         .where(eq(documents.id, doc.id));
 

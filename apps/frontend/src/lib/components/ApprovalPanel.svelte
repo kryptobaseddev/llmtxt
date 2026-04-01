@@ -1,10 +1,11 @@
 <script lang="ts">
   import type { Review, Consensus, DocumentState } from '$lib/types';
 
-  let { reviews, consensus, docState, onApprove, onReject, onTransition }: {
+  let { reviews, consensus, docState, currentVersion, onApprove, onReject, onTransition }: {
     reviews: Review[];
     consensus: Consensus | null;
     docState: DocumentState;
+    currentVersion: number;
     onApprove?: (comment: string) => void;
     onReject?: (comment: string) => void;
     onTransition?: (target: DocumentState, reason?: string) => Promise<void>;
@@ -120,6 +121,9 @@
   {:else if canVote}
     <!-- Voting UI -->
     <div class="space-y-3">
+      <p class="text-xs font-display text-base-content/40">
+        Reviewing <span class="text-primary font-bold">v{currentVersion}</span> — your vote applies to this version. If the document is edited, your vote becomes stale.
+      </p>
       <textarea
         class="textarea textarea-bordered w-full font-display text-sm"
         placeholder="Comment (required for rejection)"
@@ -132,7 +136,7 @@
           onclick={handleApprove}
           disabled={submitting}
         >
-          {#if submitting}<span class="loading loading-spinner loading-xs"></span>{:else}Approve{/if}
+          {#if submitting}<span class="loading loading-spinner loading-xs"></span>{:else}Approve v{currentVersion}{/if}
         </button>
         <button
           class="btn btn-error btn-sm btn-outline font-display"
