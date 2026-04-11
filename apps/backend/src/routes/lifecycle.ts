@@ -51,18 +51,26 @@ function toSdkReviews(rows: Array<{
 /** Register lifecycle and consensus routes: state transitions, approve/reject voting, approval listing, and contributor attribution. */
 export async function lifecycleRoutes(fastify: FastifyInstance) {
   // POST /documents/:slug/transition
-  fastify.post<{ Params: { slug: string }; Body: { state: string; reason?: string } }>(
+  fastify.post<{ Params: { slug: string }; Body: { state?: string; targetState?: string; reason?: string } }>(
     '/documents/:slug/transition',
     { preHandler: [requireOwnerAllowAnonParams] },
     async (request, reply) => {
       const { slug } = request.params;
-      const { state: targetState, reason } = request.body;
+      const { state, targetState, reason } = request.body;
+
+      const effectiveState = state || targetState;
+      if (!effectiveState) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: "Either 'state' or 'targetState' is required",
+        });
+      }
 
       const doc = await db.select().from(documents).where(eq(documents.slug, slug)).limit(1);
       if (!doc.length) return reply.status(404).send({ error: 'Not Found' });
 
       const currentState = doc[0].state as DocumentState;
-      const result = validateTransition(currentState, targetState as DocumentState);
+      const result = validateTransition(currentState, effectiveState as DocumentState);
 
       if (!result.valid) {
         return reply.status(409).send({
@@ -73,12 +81,12 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
       }
 
       const now = Date.now();
-      await db.update(documents).set({ state: targetState }).where(eq(documents.slug, slug));
+      await db.update(documents).set({ state: effectiveState }).where(eq(documents.slug, slug));
       await db.insert(stateTransitions).values({
         id: generateId(),
         documentId: doc[0].id,
         fromState: currentState,
-        toState: targetState,
+        toState: effectiveState,
         changedBy: request.user!.id,
         changedAt: now,
         reason: reason ?? null,
@@ -86,7 +94,7 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
       });
 
       invalidateDocumentCache(slug);
-      return { slug, previousState: currentState, currentState: targetState, reason, changedAt: now };
+      return { slug, previousState: currentState, currentState: effectiveState, reason, changedAt: now };
     },
   );
 

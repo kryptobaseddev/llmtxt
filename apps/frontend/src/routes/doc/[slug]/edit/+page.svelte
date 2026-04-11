@@ -20,8 +20,8 @@
   let submitting = $state(false);
   let error = $state('');
 
-  let state = $derived<DocumentState>((data.doc?.state as DocumentState) || 'DRAFT');
-  let isEditable = $derived(state === 'DRAFT' || state === 'REVIEW');
+  let docState = $derived<DocumentState>((data.doc?.state as DocumentState) || 'DRAFT');
+  let isEditable = $derived(docState === 'DRAFT' || docState === 'REVIEW');
 
   let hasChanges = $derived(modified !== originalContent);
 
@@ -97,7 +97,7 @@
     <div class="text-center py-16">
       <h1 class="font-display text-xl text-base-content/40 mb-2">Document is not editable</h1>
       <p class="text-sm text-base-content/30 mb-4">
-        This document is in <StateBadge {state} /> state and cannot be modified.
+        This document is in <StateBadge state={docState} /> state and cannot be modified.
       </p>
       <a href="/doc/{data.slug}" class="btn btn-primary btn-sm font-display">View document</a>
     </div>
@@ -111,7 +111,7 @@
           </svg>
         </a>
         <h1 class="font-display text-lg">Editing <span class="text-primary">{data.slug}</span></h1>
-        <StateBadge {state} />
+        <StateBadge state={docState} />
       </div>
     </div>
 

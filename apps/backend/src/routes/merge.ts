@@ -230,7 +230,21 @@ export async function mergeRoutes(fastify: FastifyInstance) {
           });
         }
 
-        const { content: mergedContent, provenance, stats } = mergeResult;
+        const { content: mergedContent, provenance: rawProvenance, stats } = mergeResult;
+
+        // ── Translate provenance indices back to DB version numbers ──────────
+        // cherryPickMerge returns 0-based indices in provenance.fromVersion.
+        // Build the inverse of versionToIndex so consumers see real version
+        // numbers (e.g. 2, 3, 4) instead of opaque indices (0, 1, 2).
+        const indexToVersion = new Map<number, number>();
+        for (const [vNum, idx] of versionToIndex.entries()) {
+          indexToVersion.set(idx, vNum);
+        }
+
+        const provenance = rawProvenance.map((entry) => ({
+          ...entry,
+          fromVersion: indexToVersion.get(entry.fromVersion) ?? entry.fromVersion,
+        }));
 
         // ── Determine new version number ────────────────────────────────────
         const [latestVersion] = await db

@@ -32,8 +32,8 @@
   let versions = $state<any>(data.versions);
   let approvalsData = $state<any>(data.approvals);
   let contributorsData = $state<any>(data.contributors);
-  let state: DocumentState = $derived((doc?.state as DocumentState) || 'DRAFT');
-  let isEditable = $derived(state === 'DRAFT' || state === 'REVIEW');
+  let docState: DocumentState = $derived((doc?.state as DocumentState) || 'DRAFT');
+  let isEditable = $derived(docState === 'DRAFT' || docState === 'REVIEW');
   let docShareUrl = $derived(`${window.location.origin}/doc/${data.slug}`);
 
   async function loadContent() {
@@ -41,7 +41,7 @@
     loadingContent = true;
     try {
       const raw = await api.getRawContent(data.slug);
-      rawContent = typeof raw === 'string' ? raw : raw?.content ?? JSON.stringify(raw, null, 2);
+      rawContent = raw;
     } catch {
       rawContent = '// Failed to load content';
     } finally {
@@ -108,7 +108,7 @@
 
   // Allowed transitions from current state
   let allowedTransitions = $derived.by(() => {
-    switch (state) {
+    switch (docState) {
       case 'DRAFT': return [
         { target: 'REVIEW' as DocumentState, label: 'Submit for Review', style: 'btn-warning' },
       ];
@@ -222,7 +222,7 @@
         <div class="flex items-center gap-3">
           <h1 class="font-display text-xl tracking-tight">{data.slug}</h1>
           <FormatBadge format={doc.format || 'text'} />
-          <StateBadge {state} />
+          <StateBadge state={docState} />
         </div>
         <div class="flex items-center gap-2">
           {#each allowedTransitions as t}
@@ -604,7 +604,7 @@
                   {#if showMergeBuilder}
                     <div class="animate-fade-in">
                       <MergeBuilder
-                        {slug}
+                        slug={data.slug}
                         versions={versions.versions ?? []}
                         onMergeComplete={handleMergeComplete}
                       />
@@ -625,7 +625,7 @@
             <ApprovalPanel
               reviews={approvalsData?.reviews ?? []}
               consensus={approvalsData?.consensus ?? null}
-              docState={state}
+              docState={docState}
               currentVersion={doc?.currentVersion ?? 0}
               onApprove={handleApprove}
               onReject={handleReject}

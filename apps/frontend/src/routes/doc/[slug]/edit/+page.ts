@@ -11,9 +11,7 @@ export const load: PageLoad = async ({ params }) => {
     api.getRawContent(slug),
   ]);
 
-  const rawContent = raw.status === 'fulfilled'
-    ? (typeof raw.value === 'string' ? raw.value : raw.value?.content ?? '')
-    : '';
+  const rawContent = raw.status === 'fulfilled' ? raw.value : '';
 
   return {
     slug,
