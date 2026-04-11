@@ -5,7 +5,7 @@ import type { FastifyInstance } from 'fastify';
 import { eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { documents, signedUrlTokens } from '../db/schema.js';
-import { requireOwner } from '../middleware/auth.js';
+import { requireOwnerAllowAnon } from '../middleware/auth.js';
 import {
   generateSignedUrl, deriveSigningKey, generateId,
 } from 'llmtxt';
@@ -24,7 +24,7 @@ export async function signedUrlRoutes(fastify: FastifyInstance) {
     };
   }>(
     '/signed-urls',
-    { preHandler: [requireOwner] },
+    { preHandler: [requireOwnerAllowAnon] },
     async (request, reply) => {
       const { slug, agentId, conversationId, expiresIn = 3600000 } = request.body;
 

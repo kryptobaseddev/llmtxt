@@ -8,7 +8,10 @@
   import ContributorTable from '$lib/components/ContributorTable.svelte';
   import ApprovalPanel from '$lib/components/ApprovalPanel.svelte';
   import DiffViewer from '$lib/components/DiffViewer.svelte';
+  import MergeBuilder from '$lib/components/MergeBuilder.svelte';
+  import MultiDiffViewer from '$lib/components/MultiDiffViewer.svelte';
   import type { DocumentState, DiffResult, OverviewSection, Version } from '$lib/types';
+  import type { MergeResult } from '$lib/api/client';
 
   let { data } = $props();
 
@@ -22,69 +25,6 @@
   let diffTo = $state(2);
   let loadingDiff = $state(false);
 
-  // Multi-version comparison
-  let selectedVersions = $state<Set<number>>(new Set());
-  let comparisonData = $state<Array<{ versionNumber: number; content: string; changelog: string | null }>>([]);
-  let loadingComparison = $state(false);
-  let comparisonBase = $state(1);
-
-  function toggleVersion(num: number) {
-    const next = new Set(selectedVersions);
-    if (next.has(num)) {
-      next.delete(num);
-    } else if (next.size < 5) {
-      next.add(num);
-    }
-    selectedVersions = next;
-  }
-
-  async function loadComparison() {
-    const nums = [...selectedVersions].sort((a, b) => a - b);
-    if (nums.length < 2) return;
-    loadingComparison = true;
-    try {
-      const result = await api.getBatchVersions(data.slug, nums);
-      comparisonData = result.versions ?? [];
-      comparisonBase = nums[0];
-    } catch {
-      comparisonData = [];
-    } finally {
-      loadingComparison = false;
-    }
-  }
-
-  // Compute line-level diff highlights for each compared version vs base
-  type AnnotatedLine = { content: string; type: 'context' | 'added' | 'removed' };
-  let comparisonAnnotated = $derived.by((): Map<number, AnnotatedLine[]> => {
-    if (comparisonData.length < 2) return new Map();
-    const baseVer = comparisonData.find((v: { versionNumber: number }) => v.versionNumber === comparisonBase);
-    if (!baseVer) return new Map();
-    const baseLines = baseVer.content.split('\n');
-    const result = new Map<number, AnnotatedLine[]>();
-
-    for (const ver of comparisonData) {
-      if (ver.versionNumber === comparisonBase) {
-        result.set(ver.versionNumber, baseLines.map((l: string) => ({ content: l, type: 'context' as const })));
-        continue;
-      }
-      const verLines = ver.content.split('\n');
-      const baseSet = new Set(baseLines);
-      const verSet = new Set(verLines);
-      // Annotate each line in this version
-      const annotated: AnnotatedLine[] = verLines.map((line: string) => ({
-        content: line,
-        type: baseSet.has(line) ? 'context' as const : 'added' as const,
-      }));
-      // Append removed lines (in base but not in this version)
-      for (const line of baseLines) {
-        if (!verSet.has(line)) {
-          annotated.push({ content: line, type: 'removed' as const });
-        }
-      }
-      result.set(ver.versionNumber, annotated);
-    }
-    return result;
-  });
 
   // Local reactive state that can be updated after mutations
   let doc: any = $state(data.doc);
@@ -229,6 +169,20 @@
     diffTo = version.versionNumber;
     if (version.versionNumber > 1) {
       diffFrom = version.versionNumber - 1;
+    }
+  }
+
+  let showMergeBuilder = $state(false);
+
+  async function handleMergeComplete(result: MergeResult) {
+    // Reload versions list and document so new version appears
+    try {
+      [versions, doc] = await Promise.all([
+        api.getVersions(data.slug),
+        api.getDocument(data.slug),
+      ]);
+    } catch {
+      // Silently ignore — the success banner in MergeBuilder is sufficient feedback
     }
   }
 
@@ -531,25 +485,13 @@
               {#if versions?.versions?.length}
                 <!-- Version list — compact table rows -->
                 <div>
-                  <div class="flex items-center justify-between mb-3">
-                    <h3 class="font-display text-xs text-base-content/30 uppercase tracking-wider">
-                      Select versions to compare (max 5)
-                    </h3>
-                    {#if selectedVersions.size >= 2}
-                      <button class="btn btn-sm btn-primary font-display" onclick={loadComparison} disabled={loadingComparison}>
-                        {#if loadingComparison}
-                          <span class="loading loading-spinner loading-xs"></span>
-                        {:else}
-                          Compare ({selectedVersions.size})
-                        {/if}
-                      </button>
-                    {/if}
-                  </div>
+                  <h3 class="font-display text-xs text-base-content/30 uppercase tracking-wider mb-3">
+                    Version history
+                  </h3>
                   <div class="overflow-x-auto rounded-lg border border-base-content/10">
                     <table class="table table-xs w-full">
                       <thead>
                         <tr class="font-display text-xs text-base-content/30 uppercase tracking-wider">
-                          <th class="w-8"></th>
                           <th class="w-12">ver</th>
                           <th>changelog</th>
                           <th class="w-20 text-right">tokens</th>
@@ -560,13 +502,7 @@
                       </thead>
                       <tbody>
                         {#each versions.versions as ver (ver.versionNumber)}
-                          <tr
-                            class="hover cursor-pointer {selectedVersions.has(ver.versionNumber) ? 'bg-primary/10' : ''}"
-                            onclick={() => toggleVersion(ver.versionNumber)}
-                          >
-                            <td>
-                              <input type="checkbox" class="checkbox checkbox-xs checkbox-primary" checked={selectedVersions.has(ver.versionNumber)} />
-                            </td>
+                          <tr class="hover">
                             <td class="font-display text-sm text-primary font-bold">v{ver.versionNumber}</td>
                             <td class="text-xs text-base-content/50">{truncate(ver.changelog, 40)}</td>
                             <td class="text-right font-display text-xs text-base-content/30">{ver.tokenCount}</td>
@@ -584,7 +520,7 @@
                           </tr>
                           {#if detailVersion?.versionNumber === ver.versionNumber}
                             <tr>
-                              <td colspan="7" class="p-0">
+                              <td colspan="6" class="p-0">
                                 <div class="p-4 bg-base-200/30 border-t border-base-content/5 animate-fade-in">
                                   <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
                                     <div>
@@ -622,47 +558,10 @@
                   </div>
                 </div>
 
-                <!-- Multi-version comparison view with diff highlighting + line numbers -->
-                {#if comparisonData.length >= 2}
-                  <div class="border-t border-base-content/5 pt-6">
-                    <h3 class="font-display text-xs text-base-content/30 uppercase tracking-wider mb-4">
-                      Side-by-side comparison (base: v{comparisonBase})
-                    </h3>
-                    <div class="grid gap-4" style="grid-template-columns: repeat({Math.min(comparisonData.length, 3)}, 1fr);">
-                      {#each comparisonData as ver (ver.versionNumber)}
-                        {@const annotated = comparisonAnnotated.get(ver.versionNumber)}
-                        <div class="rounded-lg border {ver.versionNumber === comparisonBase ? 'border-primary/30 bg-primary/5' : 'border-base-content/10'} overflow-hidden">
-                          <div class="px-3 py-2 border-b border-base-content/10 flex items-center justify-between">
-                            <span class="font-display text-xs font-bold {ver.versionNumber === comparisonBase ? 'text-primary' : ''}">
-                              v{ver.versionNumber}
-                              {#if ver.versionNumber === comparisonBase}
-                                <span class="text-base-content/30 font-normal">(base)</span>
-                              {/if}
-                            </span>
-                            <span class="text-xs text-base-content/30">{truncate(ver.changelog, 40)}</span>
-                          </div>
-                          <div class="max-h-[400px] overflow-y-auto overflow-x-auto">
-                            {#if annotated}
-                              <table class="w-full text-xs font-display leading-relaxed border-collapse">
-                                <tbody>
-                                  {#each annotated as line, i}
-                                    <tr class="{line.type === 'added' ? 'bg-success/10' : line.type === 'removed' ? 'bg-error/10' : ''}">
-                                      <td class="select-none text-right pr-2 pl-1 text-xs text-base-content/15 border-r border-base-content/5 w-0 whitespace-nowrap" style="min-width: 3ch">{i + 1}</td>
-                                      <td class="select-none w-3 text-center {line.type === 'added' ? 'text-success/50' : line.type === 'removed' ? 'text-error/50' : 'text-base-content/10'}">{line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' '}</td>
-                                      <td class="whitespace-pre-wrap break-all pr-2 {line.type === 'added' ? 'text-success/80' : line.type === 'removed' ? 'text-error/80 line-through' : ''}">{line.content}</td>
-                                    </tr>
-                                  {/each}
-                                </tbody>
-                              </table>
-                            {:else}
-                              <pre class="p-3 text-xs font-display leading-relaxed whitespace-pre-wrap break-words">{ver.content}</pre>
-                            {/if}
-                          </div>
-                        </div>
-                      {/each}
-                    </div>
-                  </div>
-                {/if}
+                <!-- Multi-version consensus diff -->
+                <div class="border-t border-base-content/5 pt-6">
+                  <MultiDiffViewer slug={data.slug} versions={versions.versions ?? []} />
+                </div>
 
                 <!-- Pairwise diff tool -->
                 <div class="border-t border-base-content/5 pt-6">
@@ -685,6 +584,31 @@
                   </div>
                   {#if diffResult}
                     <DiffViewer diff={diffResult} />
+                  {/if}
+                </div>
+
+                <!-- Cherry-pick merge -->
+                <div class="border-t border-base-content/5 pt-6">
+                  <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-display text-xs text-base-content/30 uppercase tracking-wider">
+                      Cherry-Pick Merge
+                    </h3>
+                    <button
+                      class="btn btn-ghost btn-xs font-display text-xs"
+                      onclick={() => showMergeBuilder = !showMergeBuilder}
+                      type="button"
+                    >
+                      {showMergeBuilder ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                  {#if showMergeBuilder}
+                    <div class="animate-fade-in">
+                      <MergeBuilder
+                        {slug}
+                        versions={versions.versions ?? []}
+                        onMergeComplete={handleMergeComplete}
+                      />
+                    </div>
                   {/if}
                 </div>
               {:else}

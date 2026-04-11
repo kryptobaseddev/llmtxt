@@ -186,3 +186,105 @@ export function structuredDiff(oldText: string, newText: string): StructuredDiff
   const json = wasmModule.structured_diff(oldText, newText);
   return JSON.parse(json) as StructuredDiffResult;
 }
+
+// ── Multi-way Diff ──────────────────────────────────────────────
+
+/** A single version variant at a divergent line position. */
+export interface MultiDiffVariant {
+  versionIndex: number;
+  content: string;
+}
+
+/** One line entry in a multi-way diff result. */
+export interface MultiDiffLine {
+  lineNumber: number;
+  /** "consensus" when all versions agree, "divergent" otherwise. */
+  type: 'consensus' | 'divergent';
+  content: string;
+  /** How many versions have `content` at this position. */
+  agreement: number;
+  /** Total number of versions (including the base). */
+  total: number;
+  /** Per-version contents when type is "divergent"; empty for "consensus". */
+  variants: MultiDiffVariant[];
+}
+
+/** Aggregate statistics for a multi-way diff. */
+export interface MultiDiffStats {
+  totalLines: number;
+  consensusLines: number;
+  divergentLines: number;
+  consensusPercentage: number;
+}
+
+/** Full result of a multi-way diff. */
+export interface MultiDiffResult {
+  baseVersion: number;
+  versionCount: number;
+  lines: MultiDiffLine[];
+  stats: MultiDiffStats;
+}
+
+/**
+ * Compute a multi-way diff across a base version and up to 4 additional versions.
+ *
+ * @param base - Base version content (typically v1).
+ * @param versionsJson - JSON array of strings, one per additional version.
+ * @returns Parsed MultiDiffResult.
+ * @throws Error if the Rust core returns an error object.
+ */
+export function multiWayDiff(base: string, versionsJson: string): MultiDiffResult {
+  const json = wasmModule.multi_way_diff_wasm(base, versionsJson);
+  const parsed = JSON.parse(json) as MultiDiffResult & { error?: string };
+  if (parsed.error) {
+    throw new Error(`multiWayDiff failed: ${parsed.error}`);
+  }
+  return parsed;
+}
+
+// ── Cherry-Pick Merge ───────────────────────────────────────────
+
+/** A single provenance entry in the cherry-pick merged output. */
+export interface CherryPickProvenance {
+  lineStart: number;
+  lineEnd: number;
+  fromVersion: number;
+  fillFrom?: boolean;
+}
+
+/** Statistics for a cherry-pick merge operation. */
+export interface CherryPickStats {
+  totalLines: number;
+  sourcesUsed: number;
+  sectionsExtracted: number;
+  lineRangesExtracted: number;
+}
+
+/** Return value of a cherry-pick merge operation. */
+export interface CherryPickResult {
+  content: string;
+  provenance: CherryPickProvenance[];
+  stats: CherryPickStats;
+}
+
+/**
+ * Assemble document content from line ranges and sections across multiple versions.
+ *
+ * @param base - Base version content (index 0 if not supplied in versionsJson).
+ * @param versionsJson - JSON object mapping version index strings to content strings.
+ * @param selectionJson - JSON selection spec `{ sources: [...], fillFrom?: number }`.
+ * @returns Parsed CherryPickResult.
+ * @throws Error if the Rust core returns an error object.
+ */
+export function cherryPickMerge(
+  base: string,
+  versionsJson: string,
+  selectionJson: string,
+): CherryPickResult {
+  const json = wasmModule.cherry_pick_merge_wasm(base, versionsJson, selectionJson);
+  const parsed = JSON.parse(json) as CherryPickResult & { error?: string };
+  if (parsed.error) {
+    throw new Error(`cherryPickMerge failed: ${parsed.error}`);
+  }
+  return parsed;
+}

@@ -150,7 +150,7 @@ export async function apiRoutes(fastify: FastifyInstance) {
    * }
    */
   fastify.post('/compress', async (
-    request: FastifyRequest<{ Body: { content: string; format?: 'json' | 'text' | 'markdown'; schema?: string } }>,
+    request: FastifyRequest<{ Body: { content: string; format?: 'json' | 'text' | 'markdown'; schema?: string; createdBy?: string; agentId?: string } }>,
     reply: FastifyReply
   ) => {
     try {
@@ -168,6 +168,11 @@ export async function apiRoutes(fastify: FastifyInstance) {
       }
 
       const { content, format, schema } = bodyResult.data;
+
+      // Read agentId / createdBy alias from the raw body (not in the shared schema).
+      const rawBody = request.body as Record<string, unknown>;
+      const bodyCreatedBy = typeof rawBody.createdBy === 'string' ? rawBody.createdBy : null;
+      const bodyAgentId = typeof rawBody.agentId === 'string' ? rawBody.agentId : null;
 
       // Step 2: Validate schema parameter if provided
       if (schema && !isPredefinedSchema(schema)) {
@@ -207,6 +212,10 @@ export async function apiRoutes(fastify: FastifyInstance) {
       // Get optional user from session for ownership
       const user = await getOptionalUser(request);
 
+      // Resolve effective author: body-supplied createdBy wins, then agentId alias,
+      // then session user ID.
+      const effectiveCreatedBy = bodyCreatedBy || bodyAgentId || user?.id || null;
+
       // Save to database with format field and ownership
       const now = Date.now();
       await db.insert(documents).values({
@@ -234,16 +243,16 @@ export async function apiRoutes(fastify: FastifyInstance) {
         contentHash,
         tokenCount,
         createdAt: now,
-        createdBy: user?.id ?? null,
+        createdBy: effectiveCreatedBy,
         changelog: 'Initial version',
       });
 
-      // Create initial contributor record if user is authenticated
-      if (user?.id) {
+      // Create initial contributor record if we have an effective author
+      if (effectiveCreatedBy) {
         await db.insert(contributors).values({
           id: generateId(),
           documentId: id,
-          agentId: user.id,
+          agentId: effectiveCreatedBy,
           versionsAuthored: 1,
           totalTokensAdded: tokenCount,
           totalTokensRemoved: 0,

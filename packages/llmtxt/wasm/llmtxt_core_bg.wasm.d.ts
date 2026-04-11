@@ -2,6 +2,7 @@
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
 export const calculate_tokens: (a: number, b: number) => number;
+export const cherry_pick_merge_wasm: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
 export const compress: (a: number, b: number) => [number, number, number, number];
 export const compute_org_signature: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => [number, number];
 export const compute_org_signature_with_length: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => [number, number];
@@ -14,6 +15,7 @@ export const encode_base62: (a: bigint) => [number, number];
 export const generate_id: () => [number, number];
 export const hash_content: (a: number, b: number) => [number, number];
 export const is_expired: (a: number) => number;
+export const multi_way_diff_wasm: (a: number, b: number, c: number, d: number) => [number, number];
 export const text_similarity: (a: number, b: number, c: number, d: number) => number;
 export const text_similarity_ngram: (a: number, b: number, c: number, d: number, e: number) => number;
 export const calculate_compression_ratio: (a: number, b: number) => number;

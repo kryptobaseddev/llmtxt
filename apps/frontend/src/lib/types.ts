@@ -139,3 +139,35 @@ export interface Session {
     isAnonymous?: boolean;
   } | null;
 }
+
+// Multi-diff types
+
+export interface MultiDiffVariant {
+  versionIndex: number;
+  content: string;
+}
+
+export interface MultiDiffLine {
+  lineNumber: number;
+  type: 'consensus' | 'divergent';
+  content: string;
+  agreement: number;
+  total: number;
+  variants: MultiDiffVariant[];
+}
+
+export interface MultiDiffStats {
+  totalLines: number;
+  consensusLines: number;
+  divergentLines: number;
+  consensusPercentage: number;
+}
+
+export interface MultiDiffResult {
+  slug: string;
+  versions: number[];
+  baseVersion: number;
+  versionCount: number;
+  lines: MultiDiffLine[];
+  stats: MultiDiffStats;
+}

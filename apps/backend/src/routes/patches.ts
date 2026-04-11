@@ -5,7 +5,7 @@ import type { FastifyInstance } from 'fastify';
 import { eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { documents, versions } from '../db/schema.js';
-import { requireRegistered } from '../middleware/auth.js';
+import { requireAuth } from '../middleware/auth.js';
 import { isEditable } from 'llmtxt/sdk';
 import type { DocumentState } from 'llmtxt/sdk';
 import {
@@ -20,7 +20,7 @@ export async function patchRoutes(fastify: FastifyInstance) {
     Body: { patchText: string; changelog: string };
   }>(
     '/documents/:slug/patch',
-    { preHandler: [requireRegistered] },
+    { preHandler: [requireAuth] },
     async (request, reply) => {
       const { slug } = request.params;
       const { patchText, changelog } = request.body;

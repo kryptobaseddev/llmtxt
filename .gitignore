@@ -17,3 +17,4 @@ clawmsgr-agent.json
 crates/*/target/
 # WASM build output — the .gitignore inside wasm/ is managed by wasm-pack
 # The wasm/ directory IS committed (needed for npm package consumers)
+.gitnexus

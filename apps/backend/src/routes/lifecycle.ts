@@ -5,7 +5,7 @@ import type { FastifyInstance } from 'fastify';
 import { eq, desc } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { documents, stateTransitions, approvals, versions, contributors } from '../db/schema.js';
-import { requireRegistered, requireOwner } from '../middleware/auth.js';
+import { requireAuth, requireOwner, requireOwnerAllowAnonParams } from '../middleware/auth.js';
 import {
   validateTransition,
   isEditable,
@@ -53,7 +53,7 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
   // POST /documents/:slug/transition
   fastify.post<{ Params: { slug: string }; Body: { state: string; reason?: string } }>(
     '/documents/:slug/transition',
-    { preHandler: [requireOwner] },
+    { preHandler: [requireOwnerAllowAnonParams] },
     async (request, reply) => {
       const { slug } = request.params;
       const { state: targetState, reason } = request.body;
@@ -93,7 +93,7 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
   // POST /documents/:slug/approve
   fastify.post<{ Params: { slug: string }; Body: { comment?: string } }>(
     '/documents/:slug/approve',
-    { preHandler: [requireRegistered] },
+    { preHandler: [requireAuth] },
     async (request, reply) => {
       const { slug } = request.params;
       const doc = await db.select().from(documents).where(eq(documents.slug, slug)).limit(1);
@@ -141,7 +141,7 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
   // POST /documents/:slug/reject
   fastify.post<{ Params: { slug: string }; Body: { comment: string } }>(
     '/documents/:slug/reject',
-    { preHandler: [requireRegistered] },
+    { preHandler: [requireAuth] },
     async (request, reply) => {
       const { slug } = request.params;
       const doc = await db.select().from(documents).where(eq(documents.slug, slug)).limit(1);

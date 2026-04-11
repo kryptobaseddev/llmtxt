@@ -20,6 +20,37 @@ async function request<T>(path: string, options?: RequestInit, responseType: 'js
   return responseType === 'text' ? res.text() as Promise<T> : res.json();
 }
 
+// Merge types
+export interface MergeSource {
+  version: number;
+  lineRanges?: Array<[number, number]>;
+  sections?: string[];
+}
+
+export interface MergeRequest {
+  sources: MergeSource[];
+  fillFrom: number;
+  changelog?: string;
+  createdBy?: string;
+  preview?: boolean;
+}
+
+export interface MergeProvenanceLine {
+  lineStart: number;
+  lineEnd: number;
+  fromVersion: number;
+  fillFrom?: boolean;
+}
+
+export interface MergeResult {
+  slug: string;
+  version?: number;
+  content: string;
+  provenance: MergeProvenanceLine[];
+  stats: { totalLines: number; sourcesUsed: number };
+  preview?: boolean;
+}
+
 // Documents
 export const api = {
   // Core
@@ -58,6 +89,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ versions: versionNumbers }),
     }),
+  getMultiDiff: (slug: string, versions: number[]) =>
+    request<any>(`/documents/${slug}/multi-diff?versions=${versions.join(',')}`),
 
   // Lifecycle
   transition: (slug: string, state: string, reason?: string) =>
@@ -94,6 +127,18 @@ export const api = {
     request<any>(`/documents/${slug}/plan-retrieval`, {
       method: 'POST',
       body: JSON.stringify({ tokenBudget, query }),
+    }),
+
+  // Merge (cherry-pick)
+  previewMerge: (slug: string, body: MergeRequest) =>
+    request<MergeResult>(`/documents/${slug}/merge`, {
+      method: 'POST',
+      body: JSON.stringify({ ...body, preview: true }),
+    }),
+  createMerge: (slug: string, body: MergeRequest) =>
+    request<MergeResult>(`/documents/${slug}/merge`, {
+      method: 'POST',
+      body: JSON.stringify(body),
     }),
 
   // Dashboard

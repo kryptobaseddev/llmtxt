@@ -68,6 +68,15 @@ export function calculate_compression_ratio(original_size: number, compressed_si
 export function calculate_tokens(text: string): number;
 
 /**
+ * WASM binding for [`cherry_pick_merge`].
+ *
+ * Takes base content, a JSON versions map, and a JSON selection spec.
+ * Returns a JSON-serialised `CherryPickResult` on success, or
+ * `{"error": "<message>"}` on failure.
+ */
+export function cherry_pick_merge_wasm(base: string, versions_json: string, selection_json: string): string;
+
+/**
  * Compress a UTF-8 string using zlib-wrapped deflate (RFC 1950).
  *
  * Matches Node.js `zlib.deflate` output for backward compatibility
@@ -235,6 +244,15 @@ export function is_valid_transition_str(from: string, to: string): boolean;
  * Returns a JSON array of updated reviews.
  */
 export function mark_stale_reviews(reviews_json: string, current_version: number): string;
+
+/**
+ * WASM binding for [`multi_way_diff`].
+ *
+ * Takes base content and a JSON array of version strings.
+ * Returns a JSON-serialised `MultiDiffResult` on success, or
+ * `{"error": "<message>"}` on failure.
+ */
+export function multi_way_diff_wasm(base: string, versions_json: string): string;
 
 /**
  * Apply a sequence of patches to base content, returning the content at the

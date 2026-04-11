@@ -77,3 +77,71 @@ export async function requireOwner(request: FastifyRequest, reply: FastifyReply)
     return reply;
   }
 }
+
+/**
+ * Require the authenticated user (anonymous OK) to be the document owner.
+ * Reads slug from request body (for routes like POST /signed-urls where slug is a body field).
+ * Does NOT call requireRegistered — anonymous owners are permitted.
+ * Returns 403 if not owner, 404 if document not found.
+ */
+export async function requireOwnerAllowAnon(request: FastifyRequest, reply: FastifyReply) {
+  await requireAuth(request, reply);
+  if (reply.sent) return;
+
+  const body = request.body as { slug?: string } | null;
+  const slug = body?.slug;
+
+  if (!slug) {
+    reply.status(400).send({ error: 'Bad Request', message: 'slug is required' });
+    return reply;
+  }
+
+  const doc = await db.select({ ownerId: documents.ownerId })
+    .from(documents)
+    .where(eq(documents.slug, slug))
+    .limit(1);
+
+  if (doc.length === 0) {
+    reply.status(404).send({ error: 'Not Found', message: 'Document not found' });
+    return reply;
+  }
+
+  if (doc[0].ownerId !== request.user?.id) {
+    reply.status(403).send({ error: 'Forbidden', message: 'You are not the owner of this document' });
+    return reply;
+  }
+}
+
+/**
+ * Require the authenticated user (anonymous OK) to be the document owner.
+ * Reads slug from route params (for routes like POST /documents/:slug/transition).
+ * Does NOT call requireRegistered — anonymous owners are permitted.
+ * Returns 403 if not owner, 404 if document not found.
+ */
+export async function requireOwnerAllowAnonParams(request: FastifyRequest, reply: FastifyReply) {
+  await requireAuth(request, reply);
+  if (reply.sent) return;
+
+  const params = request.params as { slug?: string };
+  const slug = params.slug;
+
+  if (!slug) {
+    reply.status(400).send({ error: 'Bad Request', message: 'slug param is required' });
+    return reply;
+  }
+
+  const doc = await db.select({ ownerId: documents.ownerId })
+    .from(documents)
+    .where(eq(documents.slug, slug))
+    .limit(1);
+
+  if (doc.length === 0) {
+    reply.status(404).send({ error: 'Not Found', message: 'Document not found' });
+    return reply;
+  }
+
+  if (doc[0].ownerId !== request.user?.id) {
+    reply.status(403).send({ error: 'Forbidden', message: 'You are not the owner of this document' });
+    return reply;
+  }
+}

@@ -170,6 +170,37 @@ function calculate_tokens(text) {
 exports.calculate_tokens = calculate_tokens;
 
 /**
+ * WASM binding for [`cherry_pick_merge`].
+ *
+ * Takes base content, a JSON versions map, and a JSON selection spec.
+ * Returns a JSON-serialised `CherryPickResult` on success, or
+ * `{"error": "<message>"}` on failure.
+ * @param {string} base
+ * @param {string} versions_json
+ * @param {string} selection_json
+ * @returns {string}
+ */
+function cherry_pick_merge_wasm(base, versions_json, selection_json) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(base, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(versions_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(selection_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.cherry_pick_merge_wasm(ptr0, len0, ptr1, len1, ptr2, len2);
+        deferred4_0 = ret[0];
+        deferred4_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+exports.cherry_pick_merge_wasm = cherry_pick_merge_wasm;
+
+/**
  * Compress a UTF-8 string using zlib-wrapped deflate (RFC 1950).
  *
  * Matches Node.js `zlib.deflate` output for backward compatibility
@@ -729,6 +760,34 @@ function mark_stale_reviews(reviews_json, current_version) {
     }
 }
 exports.mark_stale_reviews = mark_stale_reviews;
+
+/**
+ * WASM binding for [`multi_way_diff`].
+ *
+ * Takes base content and a JSON array of version strings.
+ * Returns a JSON-serialised `MultiDiffResult` on success, or
+ * `{"error": "<message>"}` on failure.
+ * @param {string} base
+ * @param {string} versions_json
+ * @returns {string}
+ */
+function multi_way_diff_wasm(base, versions_json) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(base, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(versions_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.multi_way_diff_wasm(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+exports.multi_way_diff_wasm = multi_way_diff_wasm;
 
 /**
  * Apply a sequence of patches to base content, returning the content at the

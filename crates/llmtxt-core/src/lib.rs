@@ -31,8 +31,9 @@ pub use native_signed_url::{
 
 mod diff;
 pub use diff::{
-    DiffResult, StructuredDiffLine, StructuredDiffResult, compute_diff, structured_diff,
-    structured_diff_native,
+    DiffResult, MultiDiffLine, MultiDiffResult, MultiDiffStats, MultiDiffVariant,
+    StructuredDiffLine, StructuredDiffResult, compute_diff, multi_way_diff, multi_way_diff_native,
+    structured_diff, structured_diff_native,
 };
 
 mod patch;
@@ -41,6 +42,36 @@ pub use patch::{
     create_patch, diff_versions, diff_versions_native, reconstruct_version,
     reconstruct_version_native, squash_patches, squash_patches_native,
 };
+
+mod cherry_pick;
+pub use cherry_pick::cherry_pick_merge;
+
+// ── Multi-way Diff (WASM) ────────────────────────────────────────
+
+/// WASM binding for [`multi_way_diff`].
+///
+/// Takes base content and a JSON array of version strings.
+/// Returns a JSON-serialised `MultiDiffResult` on success, or
+/// `{"error": "<message>"}` on failure.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn multi_way_diff_wasm(base: &str, versions_json: &str) -> String {
+    multi_way_diff(base, versions_json)
+}
+
+// ── Cherry-Pick Merge (WASM) ─────────────────────────────────────
+
+/// WASM binding for [`cherry_pick_merge`].
+///
+/// Takes base content, a JSON versions map, and a JSON selection spec.
+/// Returns a JSON-serialised `CherryPickResult` on success, or
+/// `{"error": "<message>"}` on failure.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn cherry_pick_merge_wasm(base: &str, versions_json: &str, selection_json: &str) -> String {
+    match cherry_pick_merge(base, versions_json, selection_json) {
+        Ok(json) => json,
+        Err(e) => format!(r#"{{"error":{}}}"#, serde_json::json!(e)),
+    }
+}
 
 mod lifecycle;
 pub use lifecycle::{

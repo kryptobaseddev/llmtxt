@@ -48,7 +48,7 @@ export async function similarityRoutes(fastify: FastifyInstance) {
         query: q,
         resultCount: ranked.length,
         results: ranked.map(r => ({
-          sectionTitle: overview.sections[r.index]?.title ?? '',
+          title: overview.sections[r.index]?.title ?? '',
           sectionIndex: r.index,
           startLine: overview.sections[r.index]?.startLine ?? 0,
           endLine: overview.sections[r.index]?.endLine ?? 0,

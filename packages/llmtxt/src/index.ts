@@ -116,6 +116,18 @@ export type {
 // ── Patching ───────────────────────────────────────────────────
 export { createPatch, applyPatch, reconstructVersion, squashPatchesWasm } from './patch.js';
 
+// ── Multi-way Diff & Cherry-Pick Merge ─────────────────────────
+export { multiWayDiff, cherryPickMerge } from './patch.js';
+export type {
+  MultiDiffVariant,
+  MultiDiffLine,
+  MultiDiffStats,
+  MultiDiffResult,
+  CherryPickProvenance,
+  CherryPickStats,
+  CherryPickResult,
+} from './patch.js';
+
 // ── Snapshot Compression ───────────────────────────────────────
 export {
   compressSnapshot,
