@@ -129,6 +129,13 @@ export async function versionRoutes(fastify: FastifyInstance) {
         return reply.status(404).send({ error: 'Document not found' });
       }
 
+      if (doc.state === 'LOCKED' || doc.state === 'ARCHIVED') {
+        return reply.status(423).send({
+          error: 'Locked',
+          message: `Document is ${doc.state.toLowerCase()} and cannot be modified. Transition to DRAFT to enable editing.`,
+        });
+      }
+
       // Compress and hash the new content outside the transaction — these are
       // pure CPU/memory operations and do not touch the DB.
       const compressedData = await compress(content);

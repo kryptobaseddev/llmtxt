@@ -197,7 +197,11 @@ fn collect_line_ranges(
 // ── Assembly strategies ───────────────────────────────────────────────────────
 
 /// Section-based assembly: walk the fillFrom document in heading order.
-/// Appends any line-range blocks after the section content.
+///
+/// Claimed headings emit their full content (including descendant sub-sections).
+/// Sub-headings at deeper nesting levels are skipped until the claimed parent
+/// scope ends (i.e., a sibling or ancestor heading is encountered), preventing
+/// duplication.  Appends any line-range blocks after the section content.
 fn assemble_section_blocks(
     fill_lines: &[&str],
     fill_version_idx: usize,
@@ -224,13 +228,35 @@ fn assemble_section_blocks(
         None => {}
     }
 
+    // Level of the most recently consumed claimed heading.  Sub-headings at a
+    // deeper level than this are skipped because they are already embedded in
+    // the claimed section content.  Resets to `None` when we see a heading at
+    // the same or higher level.
+    let mut claimed_parent_level: Option<usize> = None;
+
     for heading in &collect_section_headings(fill_lines) {
+        let level = heading.trim().chars().take_while(|&c| c == '#').count();
+
+        // If we are inside a claimed parent, skip children that are already
+        // contained in the emitted block.
+        if let Some(parent_level) = claimed_parent_level {
+            if level > parent_level {
+                // This heading is a sub-heading of the claimed section — skip.
+                continue;
+            }
+            // Same or higher level: the claimed parent scope has ended.
+            claimed_parent_level = None;
+        }
+
         if let Some((ver_idx, content)) = section_claims.get(heading) {
             blocks.push(ContentBlock {
                 lines: content.lines().map(str::to_string).collect(),
                 from_version: *ver_idx,
                 is_fill: false,
             });
+            // Record this level so we skip its sub-headings in subsequent
+            // iterations.
+            claimed_parent_level = Some(level);
         } else if has_fill {
             let (sec_start, sec_end) =
                 find_section_line_range(fill_lines, heading).ok_or_else(|| {
@@ -524,23 +550,6 @@ mod tests {
     // ── Section tests ─────────────────────────────────────────────
 
     #[test]
-    fn test_section_names() {
-        let v0 = "# Intro\nOriginal intro\n# Sec1\nOriginal sec1\n# Sec2\nOriginal sec2\n";
-        let v1 = "# Intro\nUpdated intro\n# Sec1\nUpdated sec1\n# Sec2\nUpdated sec2\n";
-        let vj = make_versions_json(&[(0, v0), (1, v1)]);
-        let sel = make_selection(
-            &[serde_json::json!({ "versionIndex": 1, "sections": ["# Sec1"] })],
-            Some(0),
-        );
-        let r = parse(&cherry_pick_merge(v0, &vj, &sel).unwrap());
-        let c = r["content"].as_str().unwrap();
-        assert!(c.contains("Updated sec1"));
-        assert!(c.contains("Original intro"));
-        assert!(c.contains("Original sec2"));
-        assert_eq!(r["stats"]["sectionsExtracted"], 1);
-    }
-
-    #[test]
     fn test_multiple_sections_from_different_versions() {
         let v0 = "# Alpha\nalpha v0\n# Beta\nbeta v0\n# Gamma\ngamma v0\n";
         let v1 = "# Alpha\nalpha v1\n# Beta\nbeta v1\n# Gamma\ngamma v1\n";
@@ -555,9 +564,7 @@ mod tests {
         );
         let r = parse(&cherry_pick_merge(v0, &vj, &sel).unwrap());
         let c = r["content"].as_str().unwrap();
-        assert!(c.contains("alpha v0"));
-        assert!(c.contains("beta v1"));
-        assert!(c.contains("gamma v2"));
+        assert!(c.contains("alpha v0") && c.contains("beta v1") && c.contains("gamma v2"));
         assert_eq!(r["stats"]["sectionsExtracted"], 2);
         assert_eq!(r["stats"]["sourcesUsed"], 2);
     }
@@ -602,8 +609,11 @@ mod tests {
             ],
             None,
         );
-        let err = cherry_pick_merge(v0, &vj, &sel).unwrap_err();
-        assert!(err.contains("Overlapping line ranges"), "{err}");
+        assert!(
+            cherry_pick_merge(v0, &vj, &sel)
+                .unwrap_err()
+                .contains("Overlapping line ranges")
+        );
     }
 
     #[test]
@@ -614,8 +624,11 @@ mod tests {
             &[serde_json::json!({ "versionIndex": 99, "lineRanges": [[1, 2]] })],
             None,
         );
-        let err = cherry_pick_merge(v0, &vj, &sel).unwrap_err();
-        assert!(err.contains("Version index 99 not found"), "{err}");
+        assert!(
+            cherry_pick_merge(v0, &vj, &sel)
+                .unwrap_err()
+                .contains("Version index 99 not found")
+        );
     }
 
     #[test]
@@ -626,22 +639,22 @@ mod tests {
             &[serde_json::json!({ "versionIndex": 0, "sections": ["# Nonexistent"] })],
             None,
         );
-        let err = cherry_pick_merge(v0, &vj, &sel).unwrap_err();
-        assert!(err.contains("Section '# Nonexistent' not found"), "{err}");
+        assert!(
+            cherry_pick_merge(v0, &vj, &sel)
+                .unwrap_err()
+                .contains("Section '# Nonexistent' not found")
+        );
     }
 
     // ── New tests: per-version coordinate spaces ──────────────────
 
-    /// Core regression: v2 expands Section 1, v3 expands Section 2 so their
-    /// sections share overlapping per-version line numbers.  Merge must succeed.
+    /// Core regression: v2 expands Section 1, v3 expands Section 2 — different
+    /// line counts across versions must not cause overlap errors or wrong fills.
     #[test]
     fn test_multi_version_sections_different_line_counts() {
         let base = "# Section 1\nbase s1\n# Section 2\nbase s2\n# Section 3\nbase s3\n";
-        let v2 = "# Section 1\nv2 s1 line1\nv2 s1 line2\nv2 s1 line3\n\
-                  # Section 2\nv2 s2\n# Section 3\nv2 s3\n";
-        let v3 = "# Section 1\nv3 s1\n\
-                  # Section 2\nv3 s2 line1\nv3 s2 line2\n\
-                  # Section 3\nv3 s3\n";
+        let v2 = "# Section 1\nv2 s1 line1\nv2 s1 line2\nv2 s1 line3\n# Section 2\nv2 s2\n# Section 3\nv2 s3\n";
+        let v3 = "# Section 1\nv3 s1\n# Section 2\nv3 s2 line1\nv3 s2 line2\n# Section 3\nv3 s3\n";
         let vj = make_versions_json(&[(0, base), (2, v2), (3, v3)]);
         let sel = make_selection(
             &[
@@ -652,17 +665,12 @@ mod tests {
         );
         let r = parse(&cherry_pick_merge(base, &vj, &sel).expect("merge must succeed"));
         let c = r["content"].as_str().unwrap();
-        assert!(c.contains("v2 s1 line1"), "s1 line1 from v2");
-        assert!(c.contains("v2 s1 line3"), "s1 line3 from v2");
-        assert!(c.contains("v3 s2 line1"), "s2 line1 from v3");
-        assert!(c.contains("v3 s2 line2"), "s2 line2 from v3");
-        assert!(c.contains("base s3"), "s3 filled from base");
-        assert!(!c.contains("v3 s1"), "s1 must not come from v3");
-        assert!(!c.contains("v2 s2"), "s2 must not come from v2");
+        assert!(c.contains("v2 s1 line1") && c.contains("v2 s1 line3"));
+        assert!(c.contains("v3 s2 line1") && c.contains("v3 s2 line2"));
+        assert!(c.contains("base s3") && !c.contains("v3 s1") && !c.contains("v2 s2"));
         assert_eq!(r["stats"]["sectionsExtracted"], 2);
     }
 
-    /// Same section claimed by two sources must error.
     #[test]
     fn test_duplicate_section_claim_error() {
         let v0 = "# Alpha\nalpha v0\n# Beta\nbeta v0\n";
@@ -676,11 +684,13 @@ mod tests {
             ],
             Some(0),
         );
-        let err = cherry_pick_merge(v0, &vj, &sel).unwrap_err();
-        assert!(err.contains("claimed by multiple sources"), "{err}");
+        assert!(
+            cherry_pick_merge(v0, &vj, &sel)
+                .unwrap_err()
+                .contains("claimed by multiple sources")
+        );
     }
 
-    /// Line ranges work correctly within a single version's coordinate space.
     #[test]
     fn test_line_ranges_per_version_coordinate_space() {
         let v0 = "line1\nline2\nline3\nline4\nline5\n";
@@ -695,25 +705,68 @@ mod tests {
         assert_eq!(lines, ["line1", "line2", "LINE3", "LINE4", "line5"]);
     }
 
-    /// fillFrom fills unclaimed sections in document order.
+    /// 5-section merge: B from v2, D from v4, fill from v1.
+    /// Output must be A(v1) B(v2) C(v1) D(v4) E(v1) — no duplication.
     #[test]
-    fn test_fill_from_fills_unclaimed_sections() {
-        let base = "# Header\nheader base\n# Content\ncontent base\n# Footer\nfooter base\n";
-        let v1 = "# Header\nheader v1\n# Content\ncontent v1\n# Footer\nfooter v1\n";
+    fn test_five_section_no_duplication() {
+        let v1 = "# A\nA v1\n# B\nB v1\n# C\nC v1\n# D\nD v1\n# E\nE v1\n";
+        let v2 = "# A\nA v2\n# B\nB v2\n# C\nC v2\n# D\nD v2\n# E\nE v2\n";
+        let v4 = "# A\nA v4\n# B\nB v4\n# C\nC v4\n# D\nD v4\n# E\nE v4\n";
+        let vj = make_versions_json(&[(1, v1), (2, v2), (4, v4)]);
+        let sel = make_selection(
+            &[
+                serde_json::json!({ "versionIndex": 2, "sections": ["# B"] }),
+                serde_json::json!({ "versionIndex": 4, "sections": ["# D"] }),
+            ],
+            Some(1),
+        );
+        let r = parse(&cherry_pick_merge(v1, &vj, &sel).unwrap());
+        let c = r["content"].as_str().unwrap();
+        let hdrs: Vec<&str> = c.lines().filter(|l| l.starts_with('#')).collect();
+        assert_eq!(hdrs, ["# A", "# B", "# C", "# D", "# E"]);
+        assert!(c.contains("A v1") && c.contains("B v2") && c.contains("C v1"));
+        assert!(c.contains("D v4") && c.contains("E v1"));
+        assert!(!c.contains("B v1") && !c.contains("D v1"));
+        let (pa, pb, pc, pd, pe) = (
+            c.find("A v1").unwrap(),
+            c.find("B v2").unwrap(),
+            c.find("C v1").unwrap(),
+            c.find("D v4").unwrap(),
+            c.find("E v1").unwrap(),
+        );
+        assert!(pa < pb && pb < pc && pc < pd && pd < pe);
+    }
+
+    /// Claiming a parent section must not also emit its child headings from fill.
+    /// Regression: ## Setup claimed from v1 must not repeat ### Install / ### Config
+    /// that are already inside the claimed block.
+    #[test]
+    fn test_claimed_parent_does_not_duplicate_children() {
+        let base =
+            "## Setup\n### Install\ninstall base\n### Config\nconfig base\n## Usage\nusage base\n";
+        let v1 = "## Setup\n### Install\ninstall v1\n### Config\nconfig v1\n## Usage\nusage v1\n";
         let vj = make_versions_json(&[(0, base), (1, v1)]);
         let sel = make_selection(
-            &[serde_json::json!({ "versionIndex": 1, "sections": ["# Content"] })],
+            &[serde_json::json!({ "versionIndex": 1, "sections": ["## Setup"] })],
             Some(0),
         );
         let r = parse(&cherry_pick_merge(base, &vj, &sel).unwrap());
         let c = r["content"].as_str().unwrap();
-        assert!(c.contains("header base"));
-        assert!(c.contains("content v1"));
-        assert!(c.contains("footer base"));
-        let hp = c.find("header base").unwrap();
-        let cp = c.find("content v1").unwrap();
-        let fp = c.find("footer base").unwrap();
-        assert!(hp < cp && cp < fp, "sections must appear in base order");
+        // Each heading must appear exactly once
+        let setup_count = c.matches("## Setup").count();
+        let install_count = c.matches("### Install").count();
+        let config_count = c.matches("### Config").count();
+        assert_eq!(setup_count, 1, "## Setup must appear exactly once");
+        assert_eq!(install_count, 1, "### Install must appear exactly once");
+        assert_eq!(config_count, 1, "### Config must appear exactly once");
+        // Content is correct version
+        assert!(c.contains("install v1"), "### Install content from v1");
+        assert!(c.contains("config v1"), "### Config content from v1");
+        assert!(c.contains("usage base"), "## Usage content from fill");
+        assert!(!c.contains("install base"), "fill install must not appear");
+        assert!(!c.contains("config base"), "fill config must not appear");
+        // Order: Setup before Usage
+        assert!(c.find("## Setup").unwrap() < c.find("## Usage").unwrap());
     }
 
     /// Mixed mode: section source + line-range source in the same selection.
@@ -732,12 +785,10 @@ mod tests {
         );
         let r = parse(&cherry_pick_merge(base, &vj, &sel).unwrap());
         let c = r["content"].as_str().unwrap();
-        assert!(c.contains("intro base"));
-        assert!(c.contains("body v1"));
-        assert!(c.contains("footer base"));
-        assert!(c.contains("EXTRA_LINE_1"));
-        assert!(c.contains("EXTRA_LINE_2"));
-        assert!(!c.contains("EXTRA_LINE_3"));
+        assert!(c.contains("intro base") && c.contains("body v1") && c.contains("footer base"));
+        assert!(
+            c.contains("EXTRA_LINE_1") && c.contains("EXTRA_LINE_2") && !c.contains("EXTRA_LINE_3")
+        );
         assert_eq!(r["stats"]["sectionsExtracted"], 1);
         assert_eq!(r["stats"]["lineRangesExtracted"], 1);
     }

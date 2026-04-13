@@ -6,10 +6,8 @@ import { eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { documents, versions } from '../db/schema.js';
 import { requireAuth } from '../middleware/auth.js';
-import { isEditable } from 'llmtxt/sdk';
-import type { DocumentState } from 'llmtxt/sdk';
 import {
-  applyPatch, hashContent, compress, calculateTokens, generateId, computeDiff,
+  applyPatch, hashContent, compress, calculateTokens, generateId,
 } from 'llmtxt';
 
 /** Register patch route: POST /documents/:slug/patch to apply a unified diff and create a new version. Requires authentication and editable document state. */
@@ -28,10 +26,10 @@ export async function patchRoutes(fastify: FastifyInstance) {
       const doc = await db.select().from(documents).where(eq(documents.slug, slug)).limit(1);
       if (!doc.length) return reply.status(404).send({ error: 'Not Found' });
 
-      if (!isEditable(doc[0].state as DocumentState)) {
-        return reply.status(409).send({
-          error: 'Document is not editable',
-          message: `Document is in ${doc[0].state} state. Only DRAFT and REVIEW documents accept patches.`,
+      if (doc[0].state === 'LOCKED' || doc[0].state === 'ARCHIVED') {
+        return reply.status(423).send({
+          error: 'Locked',
+          message: `Document is ${(doc[0].state as string).toLowerCase()} and cannot be modified. Transition to DRAFT to enable editing.`,
         });
       }
 

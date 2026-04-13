@@ -124,6 +124,13 @@ export async function mergeRoutes(fastify: FastifyInstance) {
           return reply.status(404).send({ error: 'Document not found' });
         }
 
+        if (doc.state === 'LOCKED' || doc.state === 'ARCHIVED') {
+          return reply.status(423).send({
+            error: 'Locked',
+            message: `Document is ${doc.state.toLowerCase()} and cannot be modified. Transition to DRAFT to enable editing.`,
+          });
+        }
+
         // ── Collect all version numbers needed ──────────────────────────────
         const requestedVersionNumbers = new Set<number>(sources.map((s) => s.version));
         if (fillFrom !== undefined) {
