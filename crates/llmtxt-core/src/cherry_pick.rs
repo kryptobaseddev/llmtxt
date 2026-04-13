@@ -126,10 +126,8 @@ fn collect_sources(
 
         for heading in &source.sections {
             let normalized = heading.trim().to_string();
-            let (sec_start, sec_end) =
-                find_section_line_range(&ver_lines, &normalized).ok_or_else(|| {
-                    format!("Section '{normalized}' not found in version {ver_idx}")
-                })?;
+            let (sec_start, sec_end) = find_section_line_range(&ver_lines, &normalized)
+                .ok_or_else(|| format!("Section '{normalized}' not found in version {ver_idx}"))?;
             if let Some((existing_ver, _)) = section_claims.get(&normalized) {
                 return Err(format!(
                     "Section '{normalized}' claimed by multiple sources: \
@@ -403,8 +401,8 @@ pub fn cherry_pick_merge(
 ) -> Result<String, String> {
     let versions_raw: HashMap<String, String> =
         serde_json::from_str(versions_json).map_err(|e| format!("Invalid versions JSON: {e}"))?;
-    let selection: SelectionSpec = serde_json::from_str(selection_json)
-        .map_err(|e| format!("Invalid selection JSON: {e}"))?;
+    let selection: SelectionSpec =
+        serde_json::from_str(selection_json).map_err(|e| format!("Invalid selection JSON: {e}"))?;
 
     let mut versions: HashMap<usize, String> = HashMap::new();
     for (k, v) in &versions_raw {
@@ -423,8 +421,12 @@ pub fn cherry_pick_merge(
 
     let mut section_claims: HashMap<String, (usize, String)> = HashMap::new();
     let mut line_range_blocks: Vec<ContentBlock> = Vec::new();
-    let (sections_extracted, line_ranges_extracted) =
-        collect_sources(&selection, &versions, &mut section_claims, &mut line_range_blocks)?;
+    let (sections_extracted, line_ranges_extracted) = collect_sources(
+        &selection,
+        &versions,
+        &mut section_claims,
+        &mut line_range_blocks,
+    )?;
 
     let has_sections =
         !section_claims.is_empty() || selection.sources.iter().any(|s| !s.sections.is_empty());
@@ -580,9 +582,10 @@ mod tests {
             && p["lineStart"] == 1
             && p["lineEnd"] == 2
             && p["fillFrom"].is_null()));
-        assert!(prov
-            .iter()
-            .any(|p| p["fromVersion"] == 0 && p["fillFrom"] == true));
+        assert!(
+            prov.iter()
+                .any(|p| p["fromVersion"] == 0 && p["fillFrom"] == true)
+        );
         assert!(prov.iter().any(|p| p["fromVersion"] == 1));
     }
 
