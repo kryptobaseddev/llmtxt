@@ -230,6 +230,12 @@
 
 <svelte:head>
   <title>{data.slug} - llmtxt.my</title>
+  <meta property="og:title" content="{data.slug} - llmtxt.my" />
+  <meta property="og:description" content="View document {data.slug} on llmtxt.my — {doc?.tokenCount ?? 0} tokens, {doc?.currentVersion ?? 1} versions" />
+  <meta property="og:url" content="https://www.llmtxt.my/doc/{data.slug}" />
+  <meta property="og:image" content="https://www.llmtxt.my/llmtxt-chroma-logo.png" />
+  <meta name="twitter:title" content="{data.slug} - llmtxt.my" />
+  <meta name="twitter:description" content="View document {data.slug} on llmtxt.my — {doc?.tokenCount ?? 0} tokens, {doc?.currentVersion ?? 1} versions" />
 </svelte:head>
 
 <div class="animate-fade-in">
