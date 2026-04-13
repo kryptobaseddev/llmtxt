@@ -299,10 +299,13 @@ pub struct MultiDiffResult {
 /// `versions_json` is a JSON array of strings (up to 4 entries) where each string
 /// is the full content of an additional version.
 ///
-/// Returns a JSON-serialised [`MultiDiffResult`].  On error (invalid JSON,
-/// too many versions, etc.) returns a JSON error object.
+/// Uses LCS-based alignment via [`structured_diff_native`] so that insertions and
+/// deletions in any version do not cause downstream lines to appear divergent.
+/// Each base line is an anchor row; lines inserted by versions get their own rows
+/// tagged as "insertion".
+///
+/// Returns a [`MultiDiffResult`] or an error string.
 pub fn multi_way_diff_native(base: &str, versions_json: &str) -> Result<MultiDiffResult, String> {
-    // Parse additional versions.
     let additional: Vec<String> =
         serde_json::from_str(versions_json).map_err(|e| format!("Invalid versions JSON: {e}"))?;
 
@@ -313,115 +316,36 @@ pub fn multi_way_diff_native(base: &str, versions_json: &str) -> Result<MultiDif
         ));
     }
 
-    // Build the full set: base is index 0, additional versions follow.
-    let mut all_versions: Vec<&str> = Vec::with_capacity(1 + additional.len());
-    all_versions.push(base);
-    for v in &additional {
-        all_versions.push(v.as_str());
-    }
+    let version_count = 1 + additional.len();
+    let base_lines: Vec<&str> = base.lines().collect();
 
-    let version_count = all_versions.len();
-
-    // Split each version into lines, collecting into a Vec<Vec<&str>>.
-    let split: Vec<Vec<&str>> = all_versions.iter().map(|v| v.lines().collect()).collect();
-
-    // The padded grid height is the max line count across all versions.
-    let max_lines = split.iter().map(|lines| lines.len()).max().unwrap_or(0);
-
-    if max_lines == 0 {
-        let stats = MultiDiffStats {
-            total_lines: 0,
-            consensus_lines: 0,
-            divergent_lines: 0,
-            consensus_percentage: 100.0,
-        };
+    if base_lines.is_empty() && additional.iter().all(|v| v.is_empty()) {
         return Ok(MultiDiffResult {
             base_version: 0,
             version_count,
             lines: vec![],
-            stats,
+            stats: MultiDiffStats {
+                total_lines: 0,
+                consensus_lines: 0,
+                divergent_lines: 0,
+                consensus_percentage: 100.0,
+            },
         });
     }
 
-    let mut result_lines: Vec<MultiDiffLine> = Vec::with_capacity(max_lines);
-    let mut consensus_count = 0usize;
-    let mut divergent_count = 0usize;
+    let n_base = base_lines.len();
+    let alignments: Vec<crate::diff_multi::VersionAlignment> = additional
+        .iter()
+        .map(|v| crate::diff_multi::align_version(base, v.as_str(), n_base))
+        .collect();
 
-    for pos in 0..max_lines {
-        // Collect each version's content at this line position.
-        // Versions shorter than `max_lines` contribute an empty string for
-        // positions beyond their last line (padding).
-        let contents: Vec<&str> = split
-            .iter()
-            .map(|lines| if pos < lines.len() { lines[pos] } else { "" })
-            .collect();
-
-        // Find the most common content via frequency counting.
-        // We avoid HashMap to keep this dependency-free; with at most 5
-        // versions this O(n^2) scan is trivially fast.
-        let mut best_content: &str = contents[0];
-        let mut best_count = 0usize;
-
-        for candidate in &contents {
-            let count = contents.iter().filter(|c| *c == candidate).count();
-            if count > best_count {
-                best_count = count;
-                best_content = candidate;
-            }
-        }
-
-        let all_agree = best_count == version_count;
-
-        if all_agree {
-            consensus_count += 1;
-            result_lines.push(MultiDiffLine {
-                line_number: pos + 1,
-                line_type: "consensus".to_string(),
-                content: best_content.to_string(),
-                agreement: version_count,
-                total: version_count,
-                variants: vec![],
-            });
-        } else {
-            divergent_count += 1;
-            let variants: Vec<MultiDiffVariant> = contents
-                .iter()
-                .enumerate()
-                .map(|(idx, c)| MultiDiffVariant {
-                    version_index: idx,
-                    content: c.to_string(),
-                })
-                .collect();
-            result_lines.push(MultiDiffLine {
-                line_number: pos + 1,
-                line_type: "divergent".to_string(),
-                content: best_content.to_string(),
-                agreement: best_count,
-                total: version_count,
-                variants,
-            });
-        }
-    }
-
-    let consensus_percentage = if max_lines == 0 {
-        100.0
-    } else {
-        let pct = (consensus_count as f64 / max_lines as f64) * 100.0;
-        // Round to one decimal place.
-        (pct * 10.0).round() / 10.0
-    };
-
-    let stats = MultiDiffStats {
-        total_lines: max_lines,
-        consensus_lines: consensus_count,
-        divergent_lines: divergent_count,
-        consensus_percentage,
-    };
+    let grid = crate::diff_multi::build_aligned_grid(&base_lines, &alignments, version_count);
+    let (lines, stats) = crate::diff_multi::score_grid(&grid, version_count);
 
     Ok(MultiDiffResult {
         base_version: 0,
         version_count,
-        lines: result_lines,
+        lines,
         stats,
     })
 }
@@ -576,8 +500,6 @@ mod tests {
     #[test]
     fn test_multi_way_diff_all_identical() {
         let base = "line 1\nline 2\nline 3";
-        let versions_json = r#"["line 1\nline 2\nline 3", "line 1\nline 2\nline 3"]"#;
-        // Use escaped newlines in JSON strings properly.
         let v1 = "line 1\nline 2\nline 3";
         let v2 = "line 1\nline 2\nline 3";
         let versions_json = serde_json::to_string(&vec![v1, v2]).unwrap();
@@ -598,6 +520,8 @@ mod tests {
 
     #[test]
     fn test_multi_way_diff_one_divergent_line() {
+        // Same line count in all versions — only line 2 differs by content.
+        // LCS alignment: "alpha" and "gamma" are context; "beta" vs "BETA" diverges.
         let base = "alpha\nbeta\ngamma";
         let v1 = "alpha\nBETA\ngamma";
         let v2 = "alpha\nBETA\ngamma";
@@ -605,29 +529,27 @@ mod tests {
         let result = multi_way_diff_native(base, &versions_json).unwrap();
 
         assert_eq!(result.version_count, 3);
-        assert_eq!(result.stats.total_lines, 3);
         assert_eq!(result.stats.consensus_lines, 2);
         assert_eq!(result.stats.divergent_lines, 1);
 
-        // Line 1 (alpha) and line 3 (gamma) are consensus.
+        // Line 1 (alpha) — consensus.
         let line1 = &result.lines[0];
         assert_eq!(line1.line_type, "consensus");
         assert_eq!(line1.content, "alpha");
         assert_eq!(line1.agreement, 3);
 
-        // Line 2 (beta / BETA) is divergent; majority (2 of 3) say "BETA".
+        // Line 2 (beta / BETA) — divergent; majority (2 of 3) say "BETA".
         let line2 = &result.lines[1];
         assert_eq!(line2.line_type, "divergent");
         assert_eq!(line2.content, "BETA");
         assert_eq!(line2.agreement, 2);
         assert_eq!(line2.total, 3);
-        // All three variants must be present.
         assert_eq!(line2.variants.len(), 3);
     }
 
     #[test]
     fn test_multi_way_diff_three_way_split() {
-        // Each version has a different line 2 — no majority, first encountered wins.
+        // Same line count; each version has a unique line 2 — no majority.
         let base = "same\nbase_line2\nsame";
         let v1 = "same\nv1_line2\nsame";
         let v2 = "same\nv2_line2\nsame";
@@ -642,22 +564,31 @@ mod tests {
     }
 
     #[test]
-    fn test_multi_way_diff_different_lengths() {
-        // base has 3 lines, v1 has 4, v2 has 2 — padded to 4.
+    fn test_multi_way_diff_different_lengths_lcs_aligned() {
+        // v1 appends "d", v2 removes "c"; LCS keeps a,b,c anchored.
         let base = "a\nb\nc";
         let v1 = "a\nb\nc\nd";
         let v2 = "a\nb";
         let versions_json = serde_json::to_string(&vec![v1, v2]).unwrap();
         let result = multi_way_diff_native(base, &versions_json).unwrap();
 
+        // 3 base-line rows + 1 insertion row = 4 total.
         assert_eq!(result.stats.total_lines, 4);
+        assert_eq!(result.stats.consensus_lines, 2);
+        assert_eq!(result.stats.divergent_lines, 1);
 
-        // Line 4: base="" (padded), v1="d", v2="" (padded) — divergent.
-        let line4 = &result.lines[3];
-        assert_eq!(line4.line_type, "divergent");
-        // Two out of three say "" (base and v2), so "" is the majority content.
-        assert_eq!(line4.content, "");
-        assert_eq!(line4.agreement, 2);
+        assert_eq!(result.lines[0].line_type, "consensus");
+        assert_eq!(result.lines[0].content, "a");
+        assert_eq!(result.lines[1].line_type, "consensus");
+        assert_eq!(result.lines[1].content, "b");
+
+        // c: base+v1 have it, v2 removed it.
+        assert_eq!(result.lines[2].line_type, "divergent");
+        assert_eq!(result.lines[2].content, "c");
+
+        // "d" inserted by v1.
+        assert_eq!(result.lines[3].line_type, "insertion");
+        assert_eq!(result.lines[3].content, "d");
     }
 
     #[test]
@@ -678,9 +609,7 @@ mod tests {
 
         assert_eq!(result.version_count, 2);
         assert_eq!(result.stats.total_lines, 2);
-        // line 1: both "hello" → consensus
         assert_eq!(result.lines[0].line_type, "consensus");
-        // line 2: "world" vs "earth" → divergent
         assert_eq!(result.lines[1].line_type, "divergent");
         assert_eq!(result.lines[1].agreement, 1);
         assert_eq!(result.lines[1].variants.len(), 2);
@@ -734,11 +663,114 @@ mod tests {
 
     #[test]
     fn test_multi_way_diff_consensus_percentage_rounding() {
-        // 2 consensus lines out of 3 = 66.666...% → rounds to 66.7.
+        // 2 consensus lines out of 3 base lines = 66.666...% → rounds to 66.7.
         let base = "a\nb\nc";
         let v1 = "a\nX\nc";
         let versions_json = serde_json::to_string(&vec![v1]).unwrap();
         let result = multi_way_diff_native(base, &versions_json).unwrap();
         assert_eq!(result.stats.consensus_percentage, 66.7);
+    }
+
+    // ── New LCS-alignment behavior tests ──────────────────────────
+
+    #[test]
+    fn test_multi_way_diff_insertion_after_first_line() {
+        // V1 inserts X,Y after A: positional diff wrongly marks B..E divergent;
+        // LCS-aligned diff correctly marks them consensus with X,Y as insertions.
+        let base = "A\nB\nC\nD\nE";
+        let v1 = "A\nX\nY\nB\nC\nD\nE";
+        let versions_json = serde_json::to_string(&vec![v1]).unwrap();
+        let result = multi_way_diff_native(base, &versions_json).unwrap();
+
+        assert_eq!(result.stats.total_lines, 7); // 5 base + 2 insertions
+        assert_eq!(result.stats.consensus_lines, 5);
+        assert_eq!(result.stats.divergent_lines, 0);
+        assert_eq!(result.stats.consensus_percentage, 100.0);
+        assert_eq!(result.lines[0].content, "A");
+        assert_eq!(result.lines[1].line_type, "insertion");
+        assert_eq!(result.lines[1].content, "X");
+        assert_eq!(result.lines[2].line_type, "insertion");
+        assert_eq!(result.lines[2].content, "Y");
+        for (i, expected) in ["B", "C", "D", "E"].iter().enumerate() {
+            assert_eq!(result.lines[3 + i].line_type, "consensus");
+            assert_eq!(result.lines[3 + i].content, *expected);
+        }
+    }
+
+    #[test]
+    fn test_multi_way_diff_deletion_aligned() {
+        // V1 removes C: A,B,D,E consensus; C is divergent (base has it, v1 removed it).
+        let base = "A\nB\nC\nD\nE";
+        let v1 = "A\nB\nD\nE";
+        let versions_json = serde_json::to_string(&vec![v1]).unwrap();
+        let result = multi_way_diff_native(base, &versions_json).unwrap();
+
+        assert_eq!(result.stats.total_lines, 5);
+        assert_eq!(result.stats.consensus_lines, 4);
+        assert_eq!(result.stats.divergent_lines, 1);
+        let row_c = result
+            .lines
+            .iter()
+            .find(|l| l.line_type == "divergent")
+            .expect("expected one divergent row for C");
+        assert_eq!(row_c.content, "C");
+        for line in result.lines.iter().filter(|l| l.line_type != "divergent") {
+            assert_eq!(line.line_type, "consensus");
+        }
+    }
+
+    #[test]
+    fn test_multi_way_diff_mixed_insertions_two_versions() {
+        // V1 inserts X after A; V2 inserts Y after B. A,B,C must be consensus.
+        let base = "A\nB\nC";
+        let v1 = "A\nX\nB\nC";
+        let v2 = "A\nB\nY\nC";
+        let versions_json = serde_json::to_string(&vec![v1, v2]).unwrap();
+        let result = multi_way_diff_native(base, &versions_json).unwrap();
+
+        assert_eq!(result.stats.total_lines, 5); // 3 base + 2 insertions
+        assert_eq!(result.stats.consensus_lines, 3);
+        assert_eq!(result.stats.divergent_lines, 0);
+        assert_eq!(result.stats.consensus_percentage, 100.0);
+
+        let insertions: Vec<&MultiDiffLine> = result
+            .lines
+            .iter()
+            .filter(|l| l.line_type == "insertion")
+            .collect();
+        assert_eq!(insertions.len(), 2);
+
+        let insertion_contents: std::collections::HashSet<&str> =
+            insertions.iter().map(|l| l.content.as_str()).collect();
+        assert!(insertion_contents.contains("X"));
+        assert!(insertion_contents.contains("Y"));
+
+        for line in result.lines.iter().filter(|l| l.line_type != "insertion") {
+            assert_eq!(line.line_type, "consensus");
+        }
+    }
+
+    #[test]
+    fn test_multi_way_diff_markdown_section_insertion() {
+        // V1 adds a new section in the middle; all 7 base lines stay consensus.
+        let base = "# Title\n\nFirst paragraph.\n\n# Conclusion\n\nEnd.";
+        let v1 = "# Title\n\nFirst paragraph.\n\n# New Section\n\nMiddle content.\n\n# Conclusion\n\nEnd.";
+        let versions_json = serde_json::to_string(&vec![v1]).unwrap();
+        let result = multi_way_diff_native(base, &versions_json).unwrap();
+
+        // Base has 7 lines; v1 inserts 4 lines between "First paragraph." and "# Conclusion":
+        // "# New Section", "" (blank), "Middle content.", "" (blank).
+        assert_eq!(result.stats.consensus_lines, 7);
+        assert_eq!(result.stats.divergent_lines, 0);
+        assert_eq!(result.stats.consensus_percentage, 100.0);
+        let insertion_lines: Vec<&MultiDiffLine> = result
+            .lines
+            .iter()
+            .filter(|l| l.line_type == "insertion")
+            .collect();
+        assert_eq!(insertion_lines.len(), 4);
+        let contents: Vec<&str> = insertion_lines.iter().map(|l| l.content.as_str()).collect();
+        assert!(contents.contains(&"# New Section"));
+        assert!(contents.contains(&"Middle content."));
     }
 }

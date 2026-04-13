@@ -149,7 +149,7 @@ export interface MultiDiffVariant {
 
 export interface MultiDiffLine {
   lineNumber: number;
-  type: 'consensus' | 'divergent';
+  type: 'consensus' | 'divergent' | 'insertion';
   content: string;
   agreement: number;
   total: number;

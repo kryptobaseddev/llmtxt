@@ -25,7 +25,6 @@
   let diffTo = $state(2);
   let loadingDiff = $state(false);
 
-
   // Local reactive state that can be updated after mutations
   let doc: any = $state(data.doc);
   let overview = $state<any>(data.overview);
@@ -36,17 +35,42 @@
   let isEditable = $derived(docState === 'DRAFT' || docState === 'REVIEW');
   let docShareUrl = $derived(`${window.location.origin}/doc/${data.slug}`);
 
-  async function loadContent() {
-    if (rawContent !== null) return;
+  // Derived token counts: original is stored in DB, compressed is calculated from compressedSize
+  let compressedTokenCount = $derived(Math.ceil((doc?.compressedSize ?? 0) / 4));
+
+  // Version selector for the Content tab
+  let latestVersionNum = $derived<number>(
+    versions?.versions?.[0]?.versionNumber ?? doc?.currentVersion ?? 1
+  );
+  let totalVersions = $derived<number>(versions?.totalVersions ?? 1);
+  let selectedVersionNum = $state<number>(
+    data.versions?.versions?.[0]?.versionNumber ?? data.doc?.currentVersion ?? 1
+  );
+
+  async function loadContent(versionNum?: number) {
+    const targetVersion = versionNum ?? selectedVersionNum;
+    const isLatest = targetVersion === latestVersionNum;
     loadingContent = true;
     try {
-      const raw = await api.getRawContent(data.slug);
-      rawContent = raw;
+      if (isLatest) {
+        const raw = await api.getRawContent(data.slug);
+        rawContent = raw;
+      } else {
+        const result = await api.getVersion(data.slug, targetVersion);
+        rawContent = result?.content ?? '// No content for this version';
+      }
     } catch {
       rawContent = '// Failed to load content';
     } finally {
       loadingContent = false;
     }
+  }
+
+  async function handleVersionChange(newVersionNum: number) {
+    selectedVersionNum = newVersionNum;
+    activeSection = undefined;
+    rawContent = null;
+    await loadContent(newVersionNum);
   }
 
   async function loadSection(section: OverviewSection) {
@@ -186,10 +210,10 @@
     }
   }
 
-  // Load content when tab becomes active
+  // Load content when tab becomes active (initial load uses selectedVersionNum)
   $effect(() => {
     if (activeTab === 'content' && rawContent === null) {
-      loadContent();
+      loadContent(selectedVersionNum);
     }
   });
 
@@ -252,19 +276,32 @@
 
       <!-- Stats bar — compact on mobile -->
       <div class="flex flex-wrap gap-3 md:gap-6 mb-6 px-3 md:px-4 py-2 md:py-3 rounded-lg bg-base-200/30 border border-base-content/5 text-xs font-display">
+        <!-- Original token count (pre-compression, stored in DB as ceil(originalSize/4)) -->
         <div>
-          <span class="text-base-content/30 hidden md:inline">tokens </span>
-          <span class="text-base-content/30 md:hidden">tok </span>
-          <span class="text-base-content/60">{doc.tokenCount}</span>
+          <span class="text-base-content/30">orig </span>
+          <span class="text-base-content/60">{doc.tokenCount.toLocaleString()} tok</span>
         </div>
+        <!-- Compressed token count: actual cost for an agent to fetch this document -->
         <div>
+          <span class="text-base-content/30">compressed </span>
+          <span class="text-primary/80">{compressedTokenCount.toLocaleString()} tok</span>
+        </div>
+        <!-- Size: original → compressed (desktop) -->
+        <div class="hidden md:flex items-center gap-1">
           <span class="text-base-content/30">size </span>
           <span class="text-base-content/60">{(doc.originalSize / 1024).toFixed(1)}KB</span>
+          <span class="text-base-content/20">&rarr;</span>
+          <span class="text-base-content/60">{(doc.compressedSize / 1024).toFixed(1)}KB</span>
         </div>
+        <!-- Size: compressed only (mobile) -->
+        <div class="md:hidden">
+          <span class="text-base-content/30">size </span>
+          <span class="text-base-content/60">{(doc.compressedSize / 1024).toFixed(1)}KB</span>
+        </div>
+        <!-- Compression ratio -->
         <div>
-          <span class="text-base-content/30 hidden md:inline">compression </span>
-          <span class="text-base-content/30 md:hidden">ratio </span>
           <span class="text-base-content/60">{doc.compressionRatio?.toFixed(1) ?? '-'}x</span>
+          <span class="text-base-content/30 hidden md:inline"> ratio</span>
         </div>
         <div class="hidden md:block">
           <span class="text-base-content/30">created </span>
@@ -407,6 +444,32 @@
 
           <!-- Tab panels -->
           {#if activeTab === 'content'}
+            <!-- Version selector bar -->
+            <div class="flex items-center gap-3 mb-3 px-1">
+              <label class="font-display text-xs text-base-content/40 shrink-0" for="version-select">
+                Version
+              </label>
+              {#if versions?.versions?.length}
+                <select
+                  id="version-select"
+                  class="select select-bordered select-xs font-display text-xs w-auto"
+                  value={selectedVersionNum}
+                  onchange={(e) => handleVersionChange(Number((e.target as HTMLSelectElement).value))}
+                >
+                  {#each versions.versions as ver (ver.versionNumber)}
+                    <option value={ver.versionNumber}>
+                      v{ver.versionNumber}{ver.versionNumber === latestVersionNum ? ' (latest)' : ''}{ver.changelog ? ` — ${ver.changelog.length > 40 ? ver.changelog.slice(0, 40) + '…' : ver.changelog}` : ''}
+                    </option>
+                  {/each}
+                </select>
+                <span class="font-display text-xs text-base-content/30">
+                  {selectedVersionNum} of {totalVersions}
+                </span>
+              {:else}
+                <span class="font-display text-xs text-base-content/30">v1</span>
+              {/if}
+            </div>
+
             <div class="rounded-lg border border-base-content/10 overflow-hidden">
               {#if loadingContent}
                 <div class="p-8 text-center">

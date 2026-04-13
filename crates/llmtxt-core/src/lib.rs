@@ -30,6 +30,7 @@ pub use native_signed_url::{
 };
 
 mod diff;
+mod diff_multi;
 pub use diff::{
     DiffResult, MultiDiffLine, MultiDiffResult, MultiDiffStats, MultiDiffVariant,
     StructuredDiffLine, StructuredDiffResult, compute_diff, multi_way_diff, multi_way_diff_native,

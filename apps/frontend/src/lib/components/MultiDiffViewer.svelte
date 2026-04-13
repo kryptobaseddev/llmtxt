@@ -176,6 +176,9 @@
         <div class="flex gap-3 font-display text-xs">
           <span class="text-base-content/50">{result.stats.consensusLines} consensus</span>
           <span class="text-warning/80">{result.stats.divergentLines} divergent</span>
+          {#if result.stats.totalLines - result.stats.consensusLines - result.stats.divergentLines > 0}
+            <span class="text-info/80">{result.stats.totalLines - result.stats.consensusLines - result.stats.divergentLines} inserted</span>
+          {/if}
         </div>
       </div>
 
@@ -194,10 +197,15 @@
             <tbody>
               {#each result.lines as line (line.lineNumber)}
                 {@const isDivergent = line.type === 'divergent'}
+                {@const isInsertion = line.type === 'insertion'}
                 {@const isOpen = expanded.has(line.lineNumber)}
                 <!-- Primary row -->
                 <tr
-                  class="group {isDivergent ? 'bg-warning/6 hover:bg-warning/10' : 'hover:bg-base-200/30'}"
+                  class="group {isDivergent
+                    ? 'bg-warning/6 hover:bg-warning/10'
+                    : isInsertion
+                      ? 'bg-info/6 hover:bg-info/10'
+                      : 'hover:bg-base-200/30'}"
                   onclick={isDivergent ? () => toggleExpanded(line.lineNumber) : undefined}
                   style={isDivergent ? 'cursor: pointer' : ''}
                 >
@@ -207,32 +215,53 @@
                     {line.lineNumber}
                   </td>
 
-                  <!-- Divergence indicator -->
-                  <td class="select-none w-5 text-center {isDivergent ? 'text-warning/60' : 'text-base-content/10'}">
+                  <!-- Line type indicator -->
+                  <td class="select-none w-5 text-center {isDivergent
+                    ? 'text-warning/60'
+                    : isInsertion
+                      ? 'text-info/60'
+                      : 'text-base-content/10'}">
                     {#if isDivergent}
+                      <!-- divergent: lightning bolt -->
                       <svg xmlns="http://www.w3.org/2000/svg" class="inline w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    {:else if isInsertion}
+                      <!-- insertion: plus icon -->
+                      <svg xmlns="http://www.w3.org/2000/svg" class="inline w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                       </svg>
                     {/if}
                   </td>
 
                   <!-- Content -->
                   <td class="whitespace-pre-wrap break-all pr-2 py-0.5
-                    {isDivergent ? 'text-warning/90' : 'text-base-content/70'}">
+                    {isDivergent
+                      ? 'text-warning/90'
+                      : isInsertion
+                        ? 'text-info/90'
+                        : 'text-base-content/70'}">
                     {line.content || ' '}
                   </td>
 
                   <!-- Agreement badge + expand toggle -->
                   <td class="select-none text-right pr-3 whitespace-nowrap w-0">
                     <div class="flex items-center justify-end gap-1.5">
-                      <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold
-                        {line.agreement === line.total
-                          ? 'bg-success/15 text-success/80'
-                          : line.agreement >= line.total / 2
-                            ? 'bg-warning/15 text-warning/80'
-                            : 'bg-error/15 text-error/70'}">
-                        {line.agreement}/{line.total}
-                      </span>
+                      {#if isInsertion}
+                        <!-- Insertion badge: show which version inserted this line -->
+                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold bg-info/15 text-info/80">
+                          {line.variants[0] ? versionLabel(result, line.variants[0].versionIndex) : '+'}
+                        </span>
+                      {:else}
+                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold
+                          {line.agreement === line.total
+                            ? 'bg-success/15 text-success/80'
+                            : line.agreement >= line.total / 2
+                              ? 'bg-warning/15 text-warning/80'
+                              : 'bg-error/15 text-error/70'}">
+                          {line.agreement}/{line.total}
+                        </span>
+                      {/if}
                       {#if isDivergent}
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
@@ -246,7 +275,7 @@
                   </td>
                 </tr>
 
-                <!-- Expanded variants row -->
+                <!-- Expanded variants row (divergent only) -->
                 {#if isDivergent && isOpen}
                   <tr>
                     <td colspan="4" class="p-0">

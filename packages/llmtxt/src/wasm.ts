@@ -198,8 +198,9 @@ export interface MultiDiffVariant {
 /** One line entry in a multi-way diff result. */
 export interface MultiDiffLine {
   lineNumber: number;
-  /** "consensus" when all versions agree, "divergent" otherwise. */
-  type: 'consensus' | 'divergent';
+  /** "consensus" when all versions agree, "divergent" when versions differ,
+   *  "insertion" when a version adds a line not present in the base. */
+  type: 'consensus' | 'divergent' | 'insertion';
   content: string;
   /** How many versions have `content` at this position. */
   agreement: number;
