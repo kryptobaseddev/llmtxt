@@ -85,14 +85,6 @@ fn extract_section_content(lines: &[&str], start: usize, end: usize) -> String {
     lines[(start - 1)..end].join("\n")
 }
 
-/// Return every markdown heading that appears in `lines`, in order.
-fn collect_section_headings(lines: &[&str]) -> Vec<String> {
-    lines
-        .iter()
-        .filter(|l| l.trim().starts_with('#'))
-        .map(|l| l.trim().to_string())
-        .collect()
-}
 
 /// A contiguous block of output lines plus provenance metadata.
 #[derive(Debug)]
@@ -198,10 +190,15 @@ fn collect_line_ranges(
 
 /// Section-based assembly: walk the fillFrom document in heading order.
 ///
-/// Both claimed and fill headings emit their full block content (including
-/// descendant sub-sections).  Sub-headings at deeper nesting levels are skipped
-/// after any emitted block until the scope ends (sibling/ancestor heading),
-/// preventing duplication.  Appends line-range blocks after section content.
+/// Claimed headings emit their full block content from the source version.
+/// Sub-headings inside a claimed block are skipped (`claimed_parent_level`).
+///
+/// Fill (unclaimed) headings emit only the lines from that heading up to the
+/// next heading at ANY level.  Sub-headings are processed individually so
+/// claimed sub-headings can still be emitted from their source versions.
+/// This prevents a broad fill heading from swallowing claimed sub-sections.
+///
+/// Appends line-range blocks after section content.
 fn assemble_section_blocks(
     fill_lines: &[&str],
     fill_version_idx: usize,
@@ -211,8 +208,13 @@ fn assemble_section_blocks(
 ) -> Result<Vec<ContentBlock>, String> {
     let mut blocks: Vec<ContentBlock> = Vec::new();
 
-    // Preamble: lines before the first heading in fillFrom
-    let first_heading_pos = fill_lines.iter().position(|l| l.trim().starts_with('#'));
+    let heading_positions: Vec<usize> = fill_lines
+        .iter()
+        .enumerate()
+        .filter(|(_, l)| l.trim().starts_with('#'))
+        .map(|(i, _)| i)
+        .collect();
+    let first_heading_pos = heading_positions.first().copied();
     match first_heading_pos {
         Some(0) => {}
         Some(pos) => blocks.push(ContentBlock {
@@ -228,24 +230,21 @@ fn assemble_section_blocks(
         None => {}
     }
 
-    // Level of the most recently emitted heading (claimed or fill).  Sub-headings
-    // at a deeper level are skipped because they are already embedded in the
-    // emitted block content.  Resets to `None` when we see a heading at the same
-    // or higher level.
-    let mut emitted_parent_level: Option<usize> = None;
+    // Tracks level of the last CLAIMED heading. Sub-headings already embedded
+    // inside the claimed block are skipped. Fill headings do NOT set this so
+    // their sub-headings remain eligible for individual claiming.
+    let mut claimed_parent_level: Option<usize> = None;
 
-    for heading in &collect_section_headings(fill_lines) {
-        let level = heading.trim().chars().take_while(|&c| c == '#').count();
+    for (pos_idx, &line_idx) in heading_positions.iter().enumerate() {
+        let heading = fill_lines[line_idx].trim();
+        let level = heading.chars().take_while(|&c| c == '#').count();
 
-        // If we are inside an already-emitted parent block, skip children that
-        // are already contained within it (avoids duplication).
-        if let Some(parent_level) = emitted_parent_level {
+        // Skip sub-headings already contained in an emitted claimed block.
+        if let Some(parent_level) = claimed_parent_level {
             if level > parent_level {
-                // This heading is a sub-heading of the last emitted section — skip.
                 continue;
             }
-            // Same or higher level: the parent scope has ended.
-            emitted_parent_level = None;
+            claimed_parent_level = None;
         }
 
         if let Some((ver_idx, content)) = section_claims.get(heading) {
@@ -254,29 +253,22 @@ fn assemble_section_blocks(
                 from_version: *ver_idx,
                 is_fill: false,
             });
-            // Record this level so we skip sub-headings already inside the
-            // claimed block content.
-            emitted_parent_level = Some(level);
+            claimed_parent_level = Some(level);
         } else if has_fill {
-            let (sec_start, sec_end) =
-                find_section_line_range(fill_lines, heading).ok_or_else(|| {
-                    format!(
-                        "Internal error: heading '{heading}' not found in \
-                         fillFrom version {fill_version_idx}"
-                    )
-                })?;
+            // Emit only lines from this heading to the next heading (any level).
+            // Sub-headings are processed individually so claimed ones still fire.
+            let next_heading_line = heading_positions
+                .get(pos_idx + 1)
+                .copied()
+                .unwrap_or(fill_lines.len());
             blocks.push(ContentBlock {
-                lines: extract_section_content(fill_lines, sec_start, sec_end)
-                    .lines()
-                    .map(str::to_string)
+                lines: fill_lines[line_idx..next_heading_line]
+                    .iter()
+                    .map(|l| l.to_string())
                     .collect(),
                 from_version: fill_version_idx,
                 is_fill: true,
             });
-            // Record this level so we skip sub-headings already embedded in
-            // the fill block (prevents duplication when fill section spans
-            // multiple deeper headings).
-            emitted_parent_level = Some(level);
         }
     }
 
