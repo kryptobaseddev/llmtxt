@@ -198,10 +198,10 @@ fn collect_line_ranges(
 
 /// Section-based assembly: walk the fillFrom document in heading order.
 ///
-/// Claimed headings emit their full content (including descendant sub-sections).
-/// Sub-headings at deeper nesting levels are skipped until the claimed parent
-/// scope ends (i.e., a sibling or ancestor heading is encountered), preventing
-/// duplication.  Appends any line-range blocks after the section content.
+/// Both claimed and fill headings emit their full block content (including
+/// descendant sub-sections).  Sub-headings at deeper nesting levels are skipped
+/// after any emitted block until the scope ends (sibling/ancestor heading),
+/// preventing duplication.  Appends line-range blocks after section content.
 fn assemble_section_blocks(
     fill_lines: &[&str],
     fill_version_idx: usize,
@@ -228,24 +228,24 @@ fn assemble_section_blocks(
         None => {}
     }
 
-    // Level of the most recently consumed claimed heading.  Sub-headings at a
-    // deeper level than this are skipped because they are already embedded in
-    // the claimed section content.  Resets to `None` when we see a heading at
-    // the same or higher level.
-    let mut claimed_parent_level: Option<usize> = None;
+    // Level of the most recently emitted heading (claimed or fill).  Sub-headings
+    // at a deeper level are skipped because they are already embedded in the
+    // emitted block content.  Resets to `None` when we see a heading at the same
+    // or higher level.
+    let mut emitted_parent_level: Option<usize> = None;
 
     for heading in &collect_section_headings(fill_lines) {
         let level = heading.trim().chars().take_while(|&c| c == '#').count();
 
-        // If we are inside a claimed parent, skip children that are already
-        // contained in the emitted block.
-        if let Some(parent_level) = claimed_parent_level {
+        // If we are inside an already-emitted parent block, skip children that
+        // are already contained within it (avoids duplication).
+        if let Some(parent_level) = emitted_parent_level {
             if level > parent_level {
-                // This heading is a sub-heading of the claimed section — skip.
+                // This heading is a sub-heading of the last emitted section — skip.
                 continue;
             }
-            // Same or higher level: the claimed parent scope has ended.
-            claimed_parent_level = None;
+            // Same or higher level: the parent scope has ended.
+            emitted_parent_level = None;
         }
 
         if let Some((ver_idx, content)) = section_claims.get(heading) {
@@ -254,9 +254,9 @@ fn assemble_section_blocks(
                 from_version: *ver_idx,
                 is_fill: false,
             });
-            // Record this level so we skip its sub-headings in subsequent
-            // iterations.
-            claimed_parent_level = Some(level);
+            // Record this level so we skip sub-headings already inside the
+            // claimed block content.
+            emitted_parent_level = Some(level);
         } else if has_fill {
             let (sec_start, sec_end) =
                 find_section_line_range(fill_lines, heading).ok_or_else(|| {
@@ -273,6 +273,10 @@ fn assemble_section_blocks(
                 from_version: fill_version_idx,
                 is_fill: true,
             });
+            // Record this level so we skip sub-headings already embedded in
+            // the fill block (prevents duplication when fill section spans
+            // multiple deeper headings).
+            emitted_parent_level = Some(level);
         }
     }
 
