@@ -23,6 +23,15 @@ llmtxt processes your TypeScript source with a single AST traversal, extracting 
 - **`CacheStats`** — Snapshot of cache performance statistics.
 - **`LRUCacheOptions`** — Configuration options for constructing an `LRUCache` instance.
 - **`DiffResult`** — The `DiffResult` interface.
+- **`StructuredDiffLine`** — A single line in a structured diff with type annotation and line numbers.
+- **`StructuredDiffResult`** — Full structured diff result with interleaved lines and summary counts.
+- **`MultiDiffVariant`** — A single version variant at a divergent line position.
+- **`MultiDiffLine`** — One line entry in a multi-way diff result.
+- **`MultiDiffStats`** — Aggregate statistics for a multi-way diff.
+- **`MultiDiffResult`** — Full result of a multi-way diff.
+- **`CherryPickProvenance`** — A single provenance entry in the cherry-pick merged output.
+- **`CherryPickStats`** — Statistics for a cherry-pick merge operation.
+- **`CherryPickResult`** — Return value of a cherry-pick merge operation.
 - **`ContentFormat`** — Supported content formats.
 - **`DocumentMode`** — Lifecycle state for collaborative documents.
 - **`DocumentMeta`** — Metadata for a stored document.

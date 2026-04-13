@@ -1,7 +1,7 @@
 ---
 name: SKILL-backend
 description: >
-  Users table - supports both anonymous (24hr TTL) and registered accounts.  Anonymous users get a generated ID and no credentials. They are auto-purged after `expiresAt`. Registered users provide email/password and persist indefinitely until explicitly deleted. Use when: (1) calling its 27 API functions, (2) understanding its 36 type definitions, (3) user mentions "@llmtxt/backend" or asks about its API.
+  Users table - supports both anonymous (24hr TTL) and registered accounts.  Anonymous users get a generated ID and no credentials. They are auto-purged after `expiresAt`. Registered users provide email/password and persist indefinitely until explicitly deleted. Use when: (1) calling its 30 API functions, (2) understanding its 36 type definitions, (3) user mentions "@llmtxt/backend" or asks about its API.
 ---
 
 # @llmtxt/backend
@@ -33,7 +33,7 @@ npm install @llmtxt/backend
 | `authRoutes()` | Register authentication routes by proxying all /auth/* requests to the better-auth handler. |
 | `requireAuth()` | Authenticate the request via session cookie. Populates request.user and request.session, or returns 401. |
 | `requireRegistered()` | Require an authenticated, non-anonymous user. Calls requireAuth first, then rejects anonymous sessions with 403. |
-| ... | 12 more — see API reference |
+| ... | 15 more — see API reference |
 
 ## Key Types
 

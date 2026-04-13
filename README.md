@@ -12,7 +12,7 @@ Context-sharing and collaborative document platform for LLM agents. Token-effici
 ## Quick Start
 
 ```ts
-import { compress, hashContent, createPatch, generateOverview } from 'llmtxt';
+import { compress, hashContent, createPatch, generateOverview, multiWayDiff, cherryPickMerge } from 'llmtxt';
 import { LlmtxtDocument, planRetrieval } from 'llmtxt/sdk';
 
 // Compress and hash content
@@ -28,6 +28,10 @@ const doc = new LlmtxtDocument({ slug, storage: myAdapter });
 await doc.createVersion(newContent, { agentId: 'agent-1', changelog: 'Added section' });
 await doc.transition('REVIEW', { changedBy: 'agent-1', reason: 'Ready' });
 await doc.approve({ reviewerId: 'agent-2', reason: 'LGTM' });
+
+// Multi-agent collaboration: compare versions and cherry-pick merge
+const diff = multiWayDiff(base, JSON.stringify([v2Content, v3Content, v4Content]));
+const merged = cherryPickMerge(base, JSON.stringify([v2Content, v3Content]), JSON.stringify(selections));
 ```
 
 ## Project Structure
@@ -65,6 +69,7 @@ docs/
 - **Token-efficient retrieval**: Progressive disclosure saves 60-80% tokens via MVI (overview, section, search)
 - **Rust SSoT**: Compression, hashing, signing, patching in Rust; identical output via WASM and native
 - **Collaborative documents**: Versioning, lifecycle states, attribution, consensus-based approval
+- **Multi-agent collaboration**: LCS-aligned multi-way diff and cherry-pick merge across agent versions
 - **Signed URLs**: HMAC-SHA256, conversation-scoped, time-limited, org-scoped variants
 - **Similarity**: N-gram Jaccard, MinHash fingerprinting, ranked search
 - **Knowledge graph**: Extract @mentions, #tags, /directives from message streams
@@ -72,7 +77,7 @@ docs/
 ## Development
 
 ```bash
-# Rust tests (32 pass)
+# Rust tests (97+ pass)
 cd crates/llmtxt-core && cargo test
 
 # Build WASM + TypeScript
@@ -80,6 +85,29 @@ cd packages/llmtxt && pnpm run build:all
 
 # Typecheck
 pnpm run typecheck
+```
+
+## Multi-Agent Collaboration
+
+Multiple agents can co-author a document, compare diverging versions, and merge selectively:
+
+```
+Create doc     Agents add versions     Multi-diff          Cherry-pick merge    Approve & lock
+POST /compress -> PUT /versions (v2,v3) -> GET /multi-diff -> POST /merge     -> POST /approve -> POST /transition
+  slug created    agent-1, agent-2 edit   LCS-aligned view   best of each ver    consensus met    LOCKED state
+```
+
+```ts
+// Compare up to 5 agent versions against a base
+const diff = multiWayDiff(base, JSON.stringify([v2, v3, v4]));
+// { sections: [{ heading, variants: [{ version, content, isUnchanged }] }] }
+
+// Selectively merge sections from different versions
+const merged = cherryPickMerge(base, JSON.stringify([v2, v3]), JSON.stringify([
+  { section: 'Introduction', fromVersion: 1 },
+  { section: 'API', fromVersion: 2 },
+]));
+// { content: mergedDoc, provenance: [...], stats: { sectionsFromVersion: {...} } }
 ```
 
 ## Documentation

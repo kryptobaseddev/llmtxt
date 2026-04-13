@@ -6,35 +6,38 @@ API reference for the `.` package.
 
 ## Functions & Classes
 
-| Symbol                                                                             | Kind     | Description                                                                       |
-| ---------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------- |
-| [`getDocumentCacheKey()`](/packages/./api/functions#getdocumentcachekey)           | function | Generate cache key for a document                                                 |
-| [`shouldSkipCache()`](/packages/./api/functions#shouldskipcache)                   | function | Check if cache should be skipped based on query params                            |
-| [`cacheDocumentContent()`](/packages/./api/functions#cachedocumentcontent)         | function | Middleware to cache document content Usage: app.get('/documents/:slug', cache...  |
-| [`cacheDocumentMetadata()`](/packages/./api/functions#cachedocumentmetadata)       | function | Middleware to cache document metadata                                             |
-| [`setCachedContent()`](/packages/./api/functions#setcachedcontent)                 | function | Store document content in cache                                                   |
-| [`setCachedMetadata()`](/packages/./api/functions#setcachedmetadata)               | function | Store document metadata in cache                                                  |
-| [`invalidateDocumentCache()`](/packages/./api/functions#invalidatedocumentcache)   | function | Invalidate cache for a document                                                   |
-| [`invalidateAllCache()`](/packages/./api/functions#invalidateallcache)             | function | Invalidate all cache                                                              |
-| [`getCacheStats()`](/packages/./api/functions#getcachestats)                       | function | Get cache stats for both caches                                                   |
-| [`apiRoutes()`](/packages/./api/functions#apiroutes)                               | function | Register core document API routes: compress, decompress, validate, search, sc...  |
-| [`disclosureRoutes()`](/packages/./api/functions#disclosureroutes)                 | function | Register progressive disclosure routes: overview, sections, toc, search, line...  |
-| [`versionRoutes()`](/packages/./api/functions#versionroutes)                       | function | Register version management routes: document update, version listing, version...  |
-| [`authRoutes()`](/packages/./api/functions#authroutes)                             | function | Register authentication routes by proxying all /auth/\* requests to the better... |
-| [`requireAuth()`](/packages/./api/functions#requireauth)                           | function | Authenticate the request via session cookie. Populates request.user and reque...  |
-| [`requireRegistered()`](/packages/./api/functions#requireregistered)               | function | Require an authenticated, non-anonymous user. Calls requireAuth first, then r...  |
-| [`requireOwner()`](/packages/./api/functions#requireowner)                         | function | Require the authenticated user to be the document owner. Checks slug from rou...  |
-| [`lifecycleRoutes()`](/packages/./api/functions#lifecycleroutes)                   | function | Register lifecycle and consensus routes: state transitions, approve/reject vo...  |
-| [`patchRoutes()`](/packages/./api/functions#patchroutes)                           | function | Register patch route: POST /documents/:slug/patch to apply a unified diff and...  |
-| [`similarityRoutes()`](/packages/./api/functions#similarityroutes)                 | function | Register similarity route: GET /documents/:slug/similar?q=query\&method=ngram&... |
-| [`graphRoutes()`](/packages/./api/functions#graphroutes)                           | function | Register knowledge graph route: GET /documents/:slug/graph to extract mention...  |
-| [`retrievalRoutes()`](/packages/./api/functions#retrievalroutes)                   | function | Register retrieval planning route: POST /documents/:slug/plan-retrieval for t...  |
-| [`signedUrlRoutes()`](/packages/./api/functions#signedurlroutes)                   | function | Register signed URL route: POST /signed-urls to generate time-limited HMAC-si...  |
-| [`getDocumentWithContent()`](/packages/./api/functions#getdocumentwithcontent)     | function | Fetch a document by slug, resolving content from cache or database with decom...  |
-| [`handleContentNegotiation()`](/packages/./api/functions#handlecontentnegotiation) | function | Handle content negotiation for slug requests. Returns true if the request was...  |
-| [`extractSlugWithExtension()`](/packages/./api/functions#extractslugwithextension) | function | Check if a URL path looks like a document slug with an explicit extension. Su...  |
-| [`extractSlug()`](/packages/./api/functions#extractslug)                           | function | Check if a URL path looks like a document slug. Slugs are short alphanumeric...   |
-| [`renderViewHtml()`](/packages/./api/functions#renderviewhtml)                     | function | Render the server-side HTML view template for a document page, including meta...  |
+| Symbol                                                                                   | Kind     | Description                                                                       |
+| ---------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------- |
+| [`getDocumentCacheKey()`](/packages/./api/functions#getdocumentcachekey)                 | function | Generate cache key for a document                                                 |
+| [`shouldSkipCache()`](/packages/./api/functions#shouldskipcache)                         | function | Check if cache should be skipped based on query params                            |
+| [`cacheDocumentContent()`](/packages/./api/functions#cachedocumentcontent)               | function | Middleware to cache document content Usage: app.get('/documents/:slug', cache...  |
+| [`cacheDocumentMetadata()`](/packages/./api/functions#cachedocumentmetadata)             | function | Middleware to cache document metadata                                             |
+| [`setCachedContent()`](/packages/./api/functions#setcachedcontent)                       | function | Store document content in cache                                                   |
+| [`setCachedMetadata()`](/packages/./api/functions#setcachedmetadata)                     | function | Store document metadata in cache                                                  |
+| [`invalidateDocumentCache()`](/packages/./api/functions#invalidatedocumentcache)         | function | Invalidate cache for a document                                                   |
+| [`invalidateAllCache()`](/packages/./api/functions#invalidateallcache)                   | function | Invalidate all cache                                                              |
+| [`getCacheStats()`](/packages/./api/functions#getcachestats)                             | function | Get cache stats for both caches                                                   |
+| [`apiRoutes()`](/packages/./api/functions#apiroutes)                                     | function | Register core document API routes: compress, decompress, validate, search, sc...  |
+| [`disclosureRoutes()`](/packages/./api/functions#disclosureroutes)                       | function | Register progressive disclosure routes: overview, sections, toc, search, line...  |
+| [`versionRoutes()`](/packages/./api/functions#versionroutes)                             | function | Register version management routes: document update, version listing, version...  |
+| [`authRoutes()`](/packages/./api/functions#authroutes)                                   | function | Register authentication routes by proxying all /auth/\* requests to the better... |
+| [`requireAuth()`](/packages/./api/functions#requireauth)                                 | function | Authenticate the request via session cookie. Populates request.user and reque...  |
+| [`requireRegistered()`](/packages/./api/functions#requireregistered)                     | function | Require an authenticated, non-anonymous user. Calls requireAuth first, then r...  |
+| [`requireOwner()`](/packages/./api/functions#requireowner)                               | function | Require the authenticated user to be the document owner. Checks slug from rou...  |
+| [`requireOwnerAllowAnon()`](/packages/./api/functions#requireownerallowanon)             | function | Require the authenticated user (anonymous OK) to be the document owner. Reads...  |
+| [`requireOwnerAllowAnonParams()`](/packages/./api/functions#requireownerallowanonparams) | function | Require the authenticated user (anonymous OK) to be the document owner. Reads...  |
+| [`lifecycleRoutes()`](/packages/./api/functions#lifecycleroutes)                         | function | Register lifecycle and consensus routes: state transitions, approve/reject vo...  |
+| [`patchRoutes()`](/packages/./api/functions#patchroutes)                                 | function | Register patch route: POST /documents/:slug/patch to apply a unified diff and...  |
+| [`similarityRoutes()`](/packages/./api/functions#similarityroutes)                       | function | Register similarity route: GET /documents/:slug/similar?q=query\&method=ngram&... |
+| [`graphRoutes()`](/packages/./api/functions#graphroutes)                                 | function | Register knowledge graph route: GET /documents/:slug/graph to extract mention...  |
+| [`retrievalRoutes()`](/packages/./api/functions#retrievalroutes)                         | function | Register retrieval planning route: POST /documents/:slug/plan-retrieval for t...  |
+| [`signedUrlRoutes()`](/packages/./api/functions#signedurlroutes)                         | function | Register signed URL route: POST /signed-urls to generate time-limited HMAC-si...  |
+| [`mergeRoutes()`](/packages/./api/functions#mergeroutes)                                 | function | Register the cherry-pick merge route.                                             |
+| [`getDocumentWithContent()`](/packages/./api/functions#getdocumentwithcontent)           | function | Fetch a document by slug, resolving content from cache or database with decom...  |
+| [`handleContentNegotiation()`](/packages/./api/functions#handlecontentnegotiation)       | function | Handle content negotiation for slug requests. Returns true if the request was...  |
+| [`extractSlugWithExtension()`](/packages/./api/functions#extractslugwithextension)       | function | Check if a URL path looks like a document slug with an explicit extension. Su...  |
+| [`extractSlug()`](/packages/./api/functions#extractslug)                                 | function | Check if a URL path looks like a document slug. Slugs are short alphanumeric...   |
+| [`renderViewHtml()`](/packages/./api/functions#renderviewhtml)                           | function | Render the server-side HTML view template for a document page, including meta...  |
 
 ## Types & Interfaces
 
@@ -134,6 +137,7 @@ API reference for the `.` package.
 | [`graph.ts`](/packages/./api/functions#graphts)                                              | file     |                                                                                  |
 | [`retrieval.ts`](/packages/./api/functions#retrievalts)                                      | file     |                                                                                  |
 | [`signed-urls.ts`](/packages/./api/functions#signed-urlsts)                                  | file     |                                                                                  |
+| [`merge.ts`](/packages/./api/functions#mergets)                                              | file     |                                                                                  |
 | [`publicDir`](/packages/./api/functions#publicdir)                                           | variable | Absolute path to the public assets directory for static file serving.            |
 | [`web.ts`](/packages/./api/functions#webts)                                                  | file     |                                                                                  |
 | [`viewTemplate.ts`](/packages/./api/functions#viewtemplatets)                                | file     |                                                                                  |

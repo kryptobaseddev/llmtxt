@@ -34,6 +34,105 @@ Configuration options for constructing an `LRUCache` instance.
 | `addedTokens`   | `number` | Yes      | addedTokens   |
 | `removedTokens` | `number` | Yes      | removedTokens |
 
+## StructuredDiffLine
+
+A single line in a structured diff with type annotation and line numbers.
+
+| Property  | Type                                | Required | Description |
+| --------- | ----------------------------------- | -------- | ----------- |
+| `type`    | `"context" \| "added" \| "removed"` | Yes      | type        |
+| `content` | `string`                            | Yes      | content     |
+| `oldLine` | `number \| null`                    | Yes      | oldLine     |
+| `newLine` | `number \| null`                    | Yes      | newLine     |
+
+## StructuredDiffResult
+
+Full structured diff result with interleaved lines and summary counts.
+
+| Property           | Type                   | Required | Description      |
+| ------------------ | ---------------------- | -------- | ---------------- |
+| `lines`            | `StructuredDiffLine[]` | Yes      | lines            |
+| `addedLineCount`   | `number`               | Yes      | addedLineCount   |
+| `removedLineCount` | `number`               | Yes      | removedLineCount |
+| `addedTokens`      | `number`               | Yes      | addedTokens      |
+| `removedTokens`    | `number`               | Yes      | removedTokens    |
+
+## MultiDiffVariant
+
+A single version variant at a divergent line position.
+
+| Property       | Type     | Required | Description  |
+| -------------- | -------- | -------- | ------------ |
+| `versionIndex` | `number` | Yes      | versionIndex |
+| `content`      | `string` | Yes      | content      |
+
+## MultiDiffLine
+
+One line entry in a multi-way diff result.
+
+| Property     | Type                                        | Required | Description                                                                                                                             |
+| ------------ | ------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `lineNumber` | `number`                                    | Yes      | lineNumber                                                                                                                              |
+| `type`       | `"consensus" \| "divergent" \| "insertion"` | Yes      | "consensus" when all versions agree, "divergent" when versions differ,  "insertion" when a version adds a line not present in the base. |
+| `content`    | `string`                                    | Yes      | content                                                                                                                                 |
+| `agreement`  | `number`                                    | Yes      | How many versions have `content` at this position.                                                                                      |
+| `total`      | `number`                                    | Yes      | Total number of versions (including the base).                                                                                          |
+| `variants`   | `MultiDiffVariant[]`                        | Yes      | Per-version contents when type is "divergent"; empty for "consensus".                                                                   |
+
+## MultiDiffStats
+
+Aggregate statistics for a multi-way diff.
+
+| Property              | Type     | Required | Description         |
+| --------------------- | -------- | -------- | ------------------- |
+| `totalLines`          | `number` | Yes      | totalLines          |
+| `consensusLines`      | `number` | Yes      | consensusLines      |
+| `divergentLines`      | `number` | Yes      | divergentLines      |
+| `consensusPercentage` | `number` | Yes      | consensusPercentage |
+
+## MultiDiffResult
+
+Full result of a multi-way diff.
+
+| Property       | Type              | Required | Description  |
+| -------------- | ----------------- | -------- | ------------ |
+| `baseVersion`  | `number`          | Yes      | baseVersion  |
+| `versionCount` | `number`          | Yes      | versionCount |
+| `lines`        | `MultiDiffLine[]` | Yes      | lines        |
+| `stats`        | `MultiDiffStats`  | Yes      | stats        |
+
+## CherryPickProvenance
+
+A single provenance entry in the cherry-pick merged output.
+
+| Property      | Type                   | Required | Description |
+| ------------- | ---------------------- | -------- | ----------- |
+| `lineStart`   | `number`               | Yes      | lineStart   |
+| `lineEnd`     | `number`               | Yes      | lineEnd     |
+| `fromVersion` | `number`               | Yes      | fromVersion |
+| `fillFrom`    | `boolean \| undefined` | No       | fillFrom    |
+
+## CherryPickStats
+
+Statistics for a cherry-pick merge operation.
+
+| Property              | Type     | Required | Description         |
+| --------------------- | -------- | -------- | ------------------- |
+| `totalLines`          | `number` | Yes      | totalLines          |
+| `sourcesUsed`         | `number` | Yes      | sourcesUsed         |
+| `sectionsExtracted`   | `number` | Yes      | sectionsExtracted   |
+| `lineRangesExtracted` | `number` | Yes      | lineRangesExtracted |
+
+## CherryPickResult
+
+Return value of a cherry-pick merge operation.
+
+| Property     | Type                     | Required | Description |
+| ------------ | ------------------------ | -------- | ----------- |
+| `content`    | `string`                 | Yes      | content     |
+| `provenance` | `CherryPickProvenance[]` | Yes      | provenance  |
+| `stats`      | `CherryPickStats`        | Yes      | stats       |
+
 ## ContentFormat
 
 Supported content formats.

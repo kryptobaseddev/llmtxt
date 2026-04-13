@@ -10,6 +10,30 @@ How to handle errors thrown by the library, including error types and recovery p
 
 ## Error Types
 
+### `multiWayDiff()`
+
+Compute a multi-way diff across a base version and up to 4 additional versions.
+
+```typescript
+(base: string, versionsJson: string) => MultiDiffResult
+```
+
+**Throws**
+
+- Error if the Rust core returns an error object.
+
+### `cherryPickMerge()`
+
+Assemble document content from line ranges and sections across multiple versions.
+
+```typescript
+(base: string, versionsJson: string, selectionJson: string) => CherryPickResult
+```
+
+**Throws**
+
+- Error if the Rust core returns an error object.
+
 ### `queryJsonPath()`
 
 Execute a JSONPath-style query against JSON content.

@@ -30,6 +30,9 @@ API reference for the `.` package.
 | [`wasmTextSimilarityNgram()`](/packages/./api/functions#wasmtextsimilarityngram)             | function |                                                                                      |
 | [`isExpired()`](/packages/./api/functions#isexpired)                                         | function |                                                                                      |
 | [`computeDiff()`](/packages/./api/functions#computediff)                                     | function |                                                                                      |
+| [`structuredDiff()`](/packages/./api/functions#structureddiff)                               | function | Compute a structured line-level diff between two texts via the Rust LCS algor...     |
+| [`multiWayDiff()`](/packages/./api/functions#multiwaydiff)                                   | function | Compute a multi-way diff across a base version and up to 4 additional versions.      |
+| [`cherryPickMerge()`](/packages/./api/functions#cherrypickmerge)                             | function | Assemble document content from line ranges and sections across multiple versi...     |
 | [`createClient()`](/packages/./api/functions#createclient)                                   | function |                                                                                      |
 | [`getLineRange()`](/packages/./api/functions#getlinerange)                                   | function | Extract a range of lines from a document, returning content and token statist...     |
 | [`searchContent()`](/packages/./api/functions#searchcontent)                                 | function | Search document content for lines matching a query string or regex.                  |
@@ -102,6 +105,15 @@ API reference for the `.` package.
 | [`CacheStats`](/packages/./api/types#cachestats)                             | interface | Snapshot of cache performance statistics.                                        |
 | [`LRUCacheOptions`](/packages/./api/types#lrucacheoptions)                   | interface | Configuration options for constructing an `LRUCache` instance.                   |
 | [`DiffResult`](/packages/./api/types#diffresult)                             | interface |                                                                                  |
+| [`StructuredDiffLine`](/packages/./api/types#structureddiffline)             | interface | A single line in a structured diff with type annotation and line numbers.        |
+| [`StructuredDiffResult`](/packages/./api/types#structureddiffresult)         | interface | Full structured diff result with interleaved lines and summary counts.           |
+| [`MultiDiffVariant`](/packages/./api/types#multidiffvariant)                 | interface | A single version variant at a divergent line position.                           |
+| [`MultiDiffLine`](/packages/./api/types#multidiffline)                       | interface | One line entry in a multi-way diff result.                                       |
+| [`MultiDiffStats`](/packages/./api/types#multidiffstats)                     | interface | Aggregate statistics for a multi-way diff.                                       |
+| [`MultiDiffResult`](/packages/./api/types#multidiffresult)                   | interface | Full result of a multi-way diff.                                                 |
+| [`CherryPickProvenance`](/packages/./api/types#cherrypickprovenance)         | interface | A single provenance entry in the cherry-pick merged output.                      |
+| [`CherryPickStats`](/packages/./api/types#cherrypickstats)                   | interface | Statistics for a cherry-pick merge operation.                                    |
+| [`CherryPickResult`](/packages/./api/types#cherrypickresult)                 | interface | Return value of a cherry-pick merge operation.                                   |
 | [`ContentFormat`](/packages/./api/types#contentformat)                       | type      | Supported content formats.                                                       |
 | [`DocumentMode`](/packages/./api/types#documentmode)                         | type      | Lifecycle state for collaborative documents.                                     |
 | [`DocumentMeta`](/packages/./api/types#documentmeta)                         | interface | Metadata for a stored document.                                                  |

@@ -1,7 +1,7 @@
 ---
 name: SKILL-llmtxt
 description: >
-  Primitives and SDK for LLM agent content workflows: compression, patching, progressive disclosure, signed URLs, collaborative document lifecycle, and retrieval planning Use when: (1) calling its 84 API functions, (2) configuring llmtxt, (3) understanding its 71 type definitions, (4) working with its 2 classes, (5) user mentions "llm", "agent", "compression", "content", "patch", (6) user mentions "llmtxt" or asks about its API.
+  Primitives and SDK for LLM agent content workflows: compression, patching, progressive disclosure, signed URLs, collaborative document lifecycle, and retrieval planning Use when: (1) calling its 87 API functions, (2) configuring llmtxt, (3) understanding its 80 type definitions, (4) working with its 2 classes, (5) user mentions "llm", "agent", "compression", "content", "patch", (6) user mentions "llmtxt" or asks about its API.
 ---
 
 # llmtxt
@@ -39,7 +39,7 @@ cache.get('key'); // "value"
 | `deriveSigningKey()` |  |
 | `createPatch()` |  |
 | `applyPatch()` |  |
-| ... | 69 more — see API reference |
+| ... | 72 more — see API reference |
 
 ## Configuration
 
@@ -57,6 +57,8 @@ See [references/CONFIGURATION.md](references/CONFIGURATION.md) for full details.
 
 ## Gotchas
 
+- `multiWayDiff()` throws: Error if the Rust core returns an error object.
+- `cherryPickMerge()` throws: Error if the Rust core returns an error object.
 - `queryJsonPath()` throws: Error if the JSON is invalid or the path cannot be resolved.
 - `reconstructVersion()` throws: If a patch in the sequence fails to apply.
 
@@ -66,12 +68,12 @@ See [references/CONFIGURATION.md](references/CONFIGURATION.md) for full details.
 - **`LRUCacheOptions`** — Configuration options for constructing an `LRUCache` instance.
 - **`LRUCache`** — Generic least-recently-used (LRU) cache with time-to-live support.
 - **`DiffResult`**
-- **`ContentFormat`** — Supported content formats.
-- **`DocumentMode`** — Lifecycle state for collaborative documents.
-- **`DocumentMeta`** — Metadata for a stored document.
-- **`VersionMeta`** — Metadata for a single document version.
-- **`VersionSummary`** — Summary of a version for listing (no content).
-- **`VersionDiff`** — Result of comparing two versions.
+- **`StructuredDiffLine`** — A single line in a structured diff with type annotation and line numbers.
+- **`StructuredDiffResult`** — Full structured diff result with interleaved lines and summary counts.
+- **`MultiDiffVariant`** — A single version variant at a divergent line position.
+- **`MultiDiffLine`** — One line entry in a multi-way diff result.
+- **`MultiDiffStats`** — Aggregate statistics for a multi-way diff.
+- **`MultiDiffResult`** — Full result of a multi-way diff.
 
 ## References
 

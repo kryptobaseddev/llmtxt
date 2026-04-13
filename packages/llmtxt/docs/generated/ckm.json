@@ -4,8 +4,8 @@
   "meta": {
     "project": "llmtxt",
     "language": "typescript",
-    "generator": "forge-ts@2026.4.1",
-    "generated": "2026-03-31T04:06:02.378Z"
+    "generator": "forge-ts@2026.4.2",
+    "generated": "2026-04-13T14:56:47.789Z"
   },
   "concepts": [
     {
@@ -79,6 +79,152 @@
           "name": "removedTokens",
           "type": {
             "canonical": "number"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-StructuredDiffResult",
+      "name": "StructuredDiffResult",
+      "slug": "structureddiff",
+      "what": "Full structured diff result with interleaved lines and summary counts.",
+      "tags": [
+        "result"
+      ],
+      "properties": [
+        {
+          "name": "lines",
+          "type": {
+            "canonical": "array",
+            "original": "StructuredDiffLine[]"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "addedLineCount",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "removedLineCount",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "addedTokens",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "removedTokens",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-MultiDiffResult",
+      "name": "MultiDiffResult",
+      "slug": "multidiff",
+      "what": "Full result of a multi-way diff.",
+      "tags": [
+        "result"
+      ],
+      "properties": [
+        {
+          "name": "baseVersion",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "versionCount",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "lines",
+          "type": {
+            "canonical": "array",
+            "original": "MultiDiffLine[]"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "stats",
+          "type": {
+            "canonical": "object",
+            "original": "MultiDiffStats"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-CherryPickResult",
+      "name": "CherryPickResult",
+      "slug": "cherrypick",
+      "what": "Return value of a cherry-pick merge operation.",
+      "tags": [
+        "result"
+      ],
+      "properties": [
+        {
+          "name": "content",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "provenance",
+          "type": {
+            "canonical": "array",
+            "original": "CherryPickProvenance[]"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "stats",
+          "type": {
+            "canonical": "object",
+            "original": "CherryPickStats"
           },
           "description": "",
           "required": true,
@@ -1614,6 +1760,18 @@
     }
   ],
   "constraints": [
+    {
+      "id": "constraint-multiWayDiff-Error-if-the-Rust-core-returns",
+      "rule": "Error if the Rust core returns an error object.",
+      "enforcedBy": "multiWayDiff",
+      "severity": "error"
+    },
+    {
+      "id": "constraint-cherryPickMerge-Error-if-the-Rust-core-returns",
+      "rule": "Error if the Rust core returns an error object.",
+      "enforcedBy": "cherryPickMerge",
+      "severity": "error"
+    },
     {
       "id": "constraint-queryJsonPath-Error-if-the-JSON-is-invalid-o",
       "rule": "Error if the JSON is invalid or the path cannot be resolved.",

@@ -98,13 +98,26 @@ All collaborative document operations go through the SignalDock API. See the Col
 
 ## Rust Crate (`llmtxt-core`)
 
-Single source of truth for all cryptographic and compression operations. 25 public functions + 4 types.
+Single source of truth for all cryptographic and compression operations. 30+ public functions + 4 types.
 
 Published: `crates.io/crates/llmtxt-core`
 
 Compiles two ways:
 - **WASM** (via `wasm-pack`): loaded by the `llmtxt` npm package
 - **Native** (via Cargo): consumed directly by Rust backends (SignalDock)
+
+### Modules
+
+| File | Responsibility |
+|------|---------------|
+| `lib.rs` | WASM exports, public API surface |
+| `patch.rs` | `create_patch`, `apply_patch`, `reconstruct_version`, `squash_patches` |
+| `diff.rs` | `compute_diff`, two-way unified diff |
+| `diff_multi.rs` | `multi_way_diff_wasm` — LCS-aligned comparison across up to 5 versions |
+| `cherry_pick.rs` | `cherry_pick_merge_wasm` — section-based merge from multiple versions |
+| `lifecycle.rs` | State machine validation (DRAFT/REVIEW/LOCKED/ARCHIVED) |
+| `consensus.rs` | Approval evaluation, stale review detection |
+| `native_signed_url.rs` | `generate_signed_url`, `verify_signed_url` (native-only) |
 
 See [PORTABLE_CORE_CONTRACT.md](../packages/llmtxt/PORTABLE_CORE_CONTRACT.md) for byte-identical guarantees.
 
@@ -147,7 +160,7 @@ Content (string)
   -> store via API
 ```
 
-## Web App (`apps/web`)
+## Web App (`apps/backend`)
 
 Utility/demo web application for direct content hosting.
 
@@ -188,6 +201,14 @@ A `versions` table exists in the schema for version tracking.
 | `GET /documents/:slug/search?q=` | Search with context | Variable |
 | `GET /documents/:slug/query?path=` | JSONPath extraction | Variable |
 | `GET /documents/:slug/raw` | Full content | Full |
+| `PUT /documents/:slug/versions` | Submit new version | — |
+| `GET /documents/:slug/versions` | Version history | Low |
+| `GET /documents/:slug/versions/:num` | Content at version N | Medium |
+| `GET /documents/:slug/multi-diff?versions=2,3,4` | LCS-aligned multi-version diff | Medium |
+| `POST /documents/:slug/merge` | Cherry-pick merge from multiple versions | — |
+| `POST /documents/:slug/transition` | Lifecycle state change (targetState alias) | — |
+| `POST /documents/:slug/approve` | Approve current version (anonymous ok) | — |
+| `POST /documents/:slug/reject` | Reject with reason (anonymous ok) | — |
 
 ## Security Model
 

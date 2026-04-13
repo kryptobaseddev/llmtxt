@@ -256,6 +256,63 @@ Reset the hit/miss counters to zero without clearing cached entries.
 (oldText: string, newText: string) => DiffResult
 ```
 
+## structuredDiff()
+
+Compute a structured line-level diff between two texts via the Rust LCS algorithm.
+
+**Signature**
+
+```typescript
+(oldText: string, newText: string) => StructuredDiffResult
+```
+
+## multiWayDiff(base, versionsJson)
+
+Compute a multi-way diff across a base version and up to 4 additional versions.
+
+**Signature**
+
+```typescript
+(base: string, versionsJson: string) => MultiDiffResult
+```
+
+**Parameters**
+
+| Name           | Type     | Description                                        |
+| -------------- | -------- | -------------------------------------------------- |
+| `base`         | `string` | Base version content (typically v1).               |
+| `versionsJson` | `string` | JSON array of strings, one per additional version. |
+
+**Returns** — Parsed MultiDiffResult.
+
+**Throws**
+
+- Error if the Rust core returns an error object.
+
+## cherryPickMerge(base, versionsJson, selectionJson)
+
+Assemble document content from line ranges and sections across multiple versions.
+
+**Signature**
+
+```typescript
+(base: string, versionsJson: string, selectionJson: string) => CherryPickResult
+```
+
+**Parameters**
+
+| Name            | Type     | Description                                                     |
+| --------------- | -------- | --------------------------------------------------------------- |
+| `base`          | `string` | Base version content (index 0 if not supplied in versionsJson). |
+| `versionsJson`  | `string` | JSON object mapping version index strings to content strings.   |
+| `selectionJson` | `string` | JSON selection spec `{ sources: [...], fillFrom?: number }`.    |
+
+**Returns** — Parsed CherryPickResult.
+
+**Throws**
+
+- Error if the Rust core returns an error object.
+
 ## createClient()
 
 **Signature**

@@ -1,6 +1,6 @@
 ---
 title: LLMtxt Canonical Reference
-version: 2026.4.0
+version: 2026.4.2
 status: ACTIVE
 type: SPECIFICATION
 author: claude-opus-llmtxt
@@ -286,7 +286,90 @@ interface ApprovalPolicy {
 | `POST /attachments/{slug}/reject` | Reject with reason |
 | `GET /attachments/{slug}/approvals` | List all votes |
 
-### 4.5 LlmtxtDocument (SDK Orchestration)
+### 4.5 Multi-Agent Comparison
+
+When multiple agents produce diverging versions, `multiWayDiff` aligns them section by section using LCS so reviewers can compare each section variant before deciding what to keep.
+
+**API endpoint:**
+
+```
+GET /documents/:slug/multi-diff?versions=2,3,4,5
+```
+
+Up to 5 comma-separated version numbers. Returns an LCS-aligned diff showing each section's content per version.
+
+**TypeScript:**
+
+```ts
+import { multiWayDiff, MultiDiffResult } from 'llmtxt';
+
+const result: MultiDiffResult = multiWayDiff(
+  base,
+  JSON.stringify([v2Content, v3Content, v4Content])
+);
+// result.sections — array of { heading, variants: [{ version, content, isUnchanged }] }
+// result.totalVersions — number of versions compared
+// result.baseTokenCount — token count of base version
+```
+
+**Rust (WASM-exported via `diff_multi.rs`):**
+
+```rust
+use llmtxt_core::multi_way_diff_wasm;
+
+let result_json = multi_way_diff_wasm(base, versions_json);
+```
+
+### 4.6 Cherry-Pick Merge
+
+After reviewing diverging versions with multi-diff, agents can assemble a new version by cherry-picking the best sections from each:
+
+**API endpoint:**
+
+```
+POST /documents/:slug/merge
+Content-Type: application/json
+
+{
+  "sources": [
+    { "version": 2, "sections": ["Introduction"] },
+    { "version": 3, "sections": ["API Reference"] }
+  ],
+  "fillFrom": 3,
+  "changelog": "Merged best sections from v2 and v3",
+  "createdBy": "agent-1"
+}
+```
+
+`agentId` is accepted as an alias for `createdBy`. Anonymous sessions work. Returns 423 if the document is `LOCKED` or `ARCHIVED`.
+
+**TypeScript:**
+
+```ts
+import { cherryPickMerge, CherryPickResult } from 'llmtxt';
+
+const result: CherryPickResult = cherryPickMerge(
+  base,
+  JSON.stringify([v2Content, v3Content]),
+  JSON.stringify([
+    { section: 'Introduction', fromVersion: 1 },
+    { section: 'API Reference', fromVersion: 2 },
+  ])
+);
+// result.content — merged document string
+// result.provenance — array of { section, fromVersion, lineStart, lineEnd }
+// result.stats — { sectionsFromVersion: { "1": 1, "2": 1 } }
+```
+
+**Rust (WASM-exported via `cherry_pick.rs`):**
+
+```rust
+use llmtxt_core::cherry_pick_merge_wasm;
+
+let result_json = cherry_pick_merge_wasm(base, versions_json, selection_json);
+```
+
+### 4.7 LlmtxtDocument (SDK Orchestration)
 
 The `LlmtxtDocument` class composes all SDK modules behind a single API:
 
@@ -479,9 +562,9 @@ import { buildGraph, topTopics } from 'llmtxt/graph';
 
 ---
 
-## 11. Rust Crate API (25 functions + 4 types)
+## 11. Rust Crate API (30+ functions + 4 types)
 
-### WASM + Native (19 functions)
+### WASM + Native (21 functions)
 
 | Category | Function | Output |
 |----------|----------|--------|
@@ -506,6 +589,8 @@ import { buildGraph, topTopics } from 'llmtxt/graph';
 | Patching | `apply_patch(&str, &str)` | Result of String |
 | Patching | `reconstruct_version(&str, &str, u32)` | Result of String |
 | Patching | `squash_patches(&str, &str)` | Result of String |
+| Multi-diff | `multi_way_diff_wasm(&str, &str)` | JSON String (MultiDiffResult) |
+| Cherry-pick | `cherry_pick_merge_wasm(&str, &str, &str)` | JSON String (CherryPickResult) |
 
 ### Native-Only (6 functions + 3 types)
 
@@ -524,8 +609,26 @@ Types: `SignedUrlBuildRequest`, `SignedUrlParams`, `VerifyError`
 
 | Registry | Package | Version | Install |
 |----------|---------|---------|---------|
-| npm | `llmtxt` | 2026.4.0 | `npm install llmtxt` |
-| crates.io | `llmtxt-core` | 2026.4.0 | `llmtxt-core = "2026.4"` |
+| npm | `llmtxt` | 2026.4.2 | `npm install llmtxt` |
+| crates.io | `llmtxt-core` | 2026.4.2 | `llmtxt-core = "2026.4"` |
+
+## API Aliases and Error Codes
+
+### Field Aliases
+
+| Canonical Field | Accepted Alias | Endpoints |
+|----------------|---------------|-----------|
+| `createdBy` | `agentId` | `PUT /versions`, `POST /merge`, `POST /compress` |
+| `state` | `targetState` | `POST /transition` |
+
+### HTTP 423 LOCKED
+
+Returned by `PUT /documents/:slug/versions` and `POST /documents/:slug/merge` when the document
+state is `LOCKED` or `ARCHIVED`. All write operations to locked documents are rejected.
+
+```json
+{ "error": "Document is locked", "state": "LOCKED" }
+```
 
 ## API Endpoints
 

@@ -135,6 +135,45 @@
 (oldText: string, newText: string) => DiffResult
 ```
 
+### `structuredDiff`
+
+Compute a structured line-level diff between two texts via the Rust LCS algorithm.
+
+```typescript
+(oldText: string, newText: string) => StructuredDiffResult
+```
+
+### `multiWayDiff`
+
+Compute a multi-way diff across a base version and up to 4 additional versions.
+
+```typescript
+(base: string, versionsJson: string) => MultiDiffResult
+```
+
+**Parameters:**
+
+- `base` — Base version content (typically v1).
+- `versionsJson` — JSON array of strings, one per additional version.
+
+**Returns:** Parsed MultiDiffResult.
+
+### `cherryPickMerge`
+
+Assemble document content from line ranges and sections across multiple versions.
+
+```typescript
+(base: string, versionsJson: string, selectionJson: string) => CherryPickResult
+```
+
+**Parameters:**
+
+- `base` — Base version content (index 0 if not supplied in versionsJson).
+- `versionsJson` — JSON object mapping version index strings to content strings.
+- `selectionJson` — JSON selection spec `{ sources: [...], fillFrom?: number }`.
+
+**Returns:** Parsed CherryPickResult.
+
 ### `createClient`
 
 ```typescript
@@ -975,6 +1014,141 @@ DiffResult
 - `removedLines`
 - `addedTokens`
 - `removedTokens`
+
+### `StructuredDiffLine`
+
+A single line in a structured diff with type annotation and line numbers.
+
+```typescript
+StructuredDiffLine
+```
+
+**Members:**
+
+- `type`
+- `content`
+- `oldLine`
+- `newLine`
+
+### `StructuredDiffResult`
+
+Full structured diff result with interleaved lines and summary counts.
+
+```typescript
+StructuredDiffResult
+```
+
+**Members:**
+
+- `lines`
+- `addedLineCount`
+- `removedLineCount`
+- `addedTokens`
+- `removedTokens`
+
+### `MultiDiffVariant`
+
+A single version variant at a divergent line position.
+
+```typescript
+MultiDiffVariant
+```
+
+**Members:**
+
+- `versionIndex`
+- `content`
+
+### `MultiDiffLine`
+
+One line entry in a multi-way diff result.
+
+```typescript
+MultiDiffLine
+```
+
+**Members:**
+
+- `lineNumber`
+- `type` — "consensus" when all versions agree, "divergent" when versions differ,  "insertion" when a version adds a line not present in the base.
+- `content`
+- `agreement` — How many versions have `content` at this position.
+- `total` — Total number of versions (including the base).
+- `variants` — Per-version contents when type is "divergent"; empty for "consensus".
+
+### `MultiDiffStats`
+
+Aggregate statistics for a multi-way diff.
+
+```typescript
+MultiDiffStats
+```
+
+**Members:**
+
+- `totalLines`
+- `consensusLines`
+- `divergentLines`
+- `consensusPercentage`
+
+### `MultiDiffResult`
+
+Full result of a multi-way diff.
+
+```typescript
+MultiDiffResult
+```
+
+**Members:**
+
+- `baseVersion`
+- `versionCount`
+- `lines`
+- `stats`
+
+### `CherryPickProvenance`
+
+A single provenance entry in the cherry-pick merged output.
+
+```typescript
+CherryPickProvenance
+```
+
+**Members:**
+
+- `lineStart`
+- `lineEnd`
+- `fromVersion`
+- `fillFrom`
+
+### `CherryPickStats`
+
+Statistics for a cherry-pick merge operation.
+
+```typescript
+CherryPickStats
+```
+
+**Members:**
+
+- `totalLines`
+- `sourcesUsed`
+- `sectionsExtracted`
+- `lineRangesExtracted`
+
+### `CherryPickResult`
+
+Return value of a cherry-pick merge operation.
+
+```typescript
+CherryPickResult
+```
+
+**Members:**
+
+- `content`
+- `provenance`
+- `stats`
 
 ### `ContentFormat`
 

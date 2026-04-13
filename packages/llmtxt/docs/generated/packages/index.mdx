@@ -28,6 +28,9 @@ title: ''
 | [`wasmTextSimilarityNgram()`](/packages/./api/index#wasmtextsimilarityngram)             | function |                                                                                      |
 | [`isExpired()`](/packages/./api/index#isexpired)                                         | function |                                                                                      |
 | [`computeDiff()`](/packages/./api/index#computediff)                                     | function |                                                                                      |
+| [`structuredDiff()`](/packages/./api/index#structureddiff)                               | function | Compute a structured line-level diff between two texts via the Rust LCS algor...     |
+| [`multiWayDiff()`](/packages/./api/index#multiwaydiff)                                   | function | Compute a multi-way diff across a base version and up to 4 additional versions.      |
+| [`cherryPickMerge()`](/packages/./api/index#cherrypickmerge)                             | function | Assemble document content from line ranges and sections across multiple versi...     |
 | [`createClient()`](/packages/./api/index#createclient)                                   | function |                                                                                      |
 | [`getLineRange()`](/packages/./api/index#getlinerange)                                   | function | Extract a range of lines from a document, returning content and token statist...     |
 | [`searchContent()`](/packages/./api/index#searchcontent)                                 | function | Search document content for lines matching a query string or regex.                  |
@@ -100,6 +103,15 @@ title: ''
 | [`CacheStats`](/packages/./api/index#cachestats)                             | interface | Snapshot of cache performance statistics.                                        |
 | [`LRUCacheOptions`](/packages/./api/index#lrucacheoptions)                   | interface | Configuration options for constructing an `LRUCache` instance.                   |
 | [`DiffResult`](/packages/./api/index#diffresult)                             | interface |                                                                                  |
+| [`StructuredDiffLine`](/packages/./api/index#structureddiffline)             | interface | A single line in a structured diff with type annotation and line numbers.        |
+| [`StructuredDiffResult`](/packages/./api/index#structureddiffresult)         | interface | Full structured diff result with interleaved lines and summary counts.           |
+| [`MultiDiffVariant`](/packages/./api/index#multidiffvariant)                 | interface | A single version variant at a divergent line position.                           |
+| [`MultiDiffLine`](/packages/./api/index#multidiffline)                       | interface | One line entry in a multi-way diff result.                                       |
+| [`MultiDiffStats`](/packages/./api/index#multidiffstats)                     | interface | Aggregate statistics for a multi-way diff.                                       |
+| [`MultiDiffResult`](/packages/./api/index#multidiffresult)                   | interface | Full result of a multi-way diff.                                                 |
+| [`CherryPickProvenance`](/packages/./api/index#cherrypickprovenance)         | interface | A single provenance entry in the cherry-pick merged output.                      |
+| [`CherryPickStats`](/packages/./api/index#cherrypickstats)                   | interface | Statistics for a cherry-pick merge operation.                                    |
+| [`CherryPickResult`](/packages/./api/index#cherrypickresult)                 | interface | Return value of a cherry-pick merge operation.                                   |
 | [`ContentFormat`](/packages/./api/index#contentformat)                       | type      | Supported content formats.                                                       |
 | [`DocumentMode`](/packages/./api/index#documentmode)                         | type      | Lifecycle state for collaborative documents.                                     |
 | [`DocumentMeta`](/packages/./api/index#documentmeta)                         | interface | Metadata for a stored document.                                                  |

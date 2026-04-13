@@ -136,6 +136,22 @@ Require the authenticated user to be the document owner. Checks slug from route 
 (request: FastifyRequest, reply: FastifyReply) => Promise<undefined>
 ```
 
+### `requireOwnerAllowAnon`
+
+Require the authenticated user (anonymous OK) to be the document owner. Reads slug from request body (for routes like POST /signed-urls where slug is a body field). Does NOT call requireRegistered — anonymous owners are permitted. Returns 403 if not owner, 404 if document not found.
+
+```typescript
+(request: FastifyRequest, reply: FastifyReply) => Promise<undefined>
+```
+
+### `requireOwnerAllowAnonParams`
+
+Require the authenticated user (anonymous OK) to be the document owner. Reads slug from route params (for routes like POST /documents/:slug/transition). Does NOT call requireRegistered — anonymous owners are permitted. Returns 403 if not owner, 404 if document not found.
+
+```typescript
+(request: FastifyRequest, reply: FastifyReply) => Promise<undefined>
+```
+
 ### `lifecycleRoutes`
 
 Register lifecycle and consensus routes: state transitions, approve/reject voting, approval listing, and contributor attribution.
@@ -179,6 +195,14 @@ Register retrieval planning route: POST /documents/:slug/plan-retrieval for toke
 ### `signedUrlRoutes`
 
 Register signed URL route: POST /signed-urls to generate time-limited HMAC-signed access tokens for document retrieval. Requires owner authentication.
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+### `mergeRoutes`
+
+Register the cherry-pick merge route.
 
 ```typescript
 (fastify: FastifyInstance) => Promise<void>

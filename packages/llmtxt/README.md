@@ -17,6 +17,7 @@ npm install llmtxt
 import {
   compress, decompress, generateId, hashContent,
   createPatch, applyPatch, generateSignedUrl,
+  multiWayDiff, cherryPickMerge,
 } from 'llmtxt';
 
 const compressed = await compress('Hello world');
@@ -26,6 +27,27 @@ const hash = hashContent(text);
 
 const patch = createPatch('hello\n', 'hello world\n');
 const rebuilt = applyPatch('hello\n', patch);
+```
+
+## Multi-Way Diff and Cherry-Pick Merge
+
+```ts
+import { multiWayDiff, cherryPickMerge } from 'llmtxt';
+
+// Compare multiple agent versions against a base using LCS alignment
+const diff = multiWayDiff(base, JSON.stringify([v2Content, v3Content, v4Content]));
+// Returns MultiDiffResult: { sections, totalVersions, baseTokenCount }
+
+// Selectively merge sections from different versions
+const merged = cherryPickMerge(
+  base,
+  JSON.stringify([v2Content, v3Content]),
+  JSON.stringify([
+    { section: 'Introduction', fromVersion: 1 },
+    { section: 'API Reference', fromVersion: 2 },
+  ])
+);
+// Returns CherryPickResult: { content, provenance, stats }
 ```
 
 ## SDK (Collaborative Documents)
@@ -50,6 +72,8 @@ import { buildGraph } from 'llmtxt/graph';
 - Compression, hashing, base62, token estimation (Rust WASM)
 - Signed URL generation and verification
 - Unified diff patch creation, application, version reconstruction
+- Multi-way diff across up to 5 agent versions (LCS-aligned, WASM)
+- Cherry-pick merge: selectively assemble sections from multiple versions (WASM)
 - Progressive disclosure: overview, section extraction, content search
 - Collaborative document lifecycle (DRAFT, REVIEW, LOCKED, ARCHIVED)
 - Version stack management with attribution tracking

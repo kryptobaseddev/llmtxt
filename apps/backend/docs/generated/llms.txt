@@ -16,7 +16,7 @@ npm install -D @llmtxt/backend
 ## Packages
 
 ### main
-27 functions, 36 types, 34 variables
+30 functions, 36 types, 34 variables
 
 - getDocumentCacheKey() — Generate cache key for a document
 - shouldSkipCache() — Check if cache should be skipped based on query params
@@ -34,12 +34,15 @@ npm install -D @llmtxt/backend
 - requireAuth() — Authenticate the request via session cookie. Populates request.user and request.session, or returns 401.
 - requireRegistered() — Require an authenticated, non-anonymous user. Calls requireAuth first, then rejects anonymous sessions with 403.
 - requireOwner() — Require the authenticated user to be the document owner. Checks slug from route params against document ownerId. Returns 403 if not owner, 404 if document not found.
+- requireOwnerAllowAnon() — Require the authenticated user (anonymous OK) to be the document owner. Reads slug from request body (for routes like POST /signed-urls where slug is a body field). Does NOT call requireRegistered — anonymous owners are permitted. Returns 403 if not owner, 404 if document not found.
+- requireOwnerAllowAnonParams() — Require the authenticated user (anonymous OK) to be the document owner. Reads slug from route params (for routes like POST /documents/:slug/transition). Does NOT call requireRegistered — anonymous owners are permitted. Returns 403 if not owner, 404 if document not found.
 - lifecycleRoutes() — Register lifecycle and consensus routes: state transitions, approve/reject voting, approval listing, and contributor attribution.
 - patchRoutes() — Register patch route: POST /documents/:slug/patch to apply a unified diff and create a new version. Requires authentication and editable document state.
 - similarityRoutes() — Register similarity route: GET /documents/:slug/similar?q=query&method=ngram&threshold=0 to rank document sections by similarity to a query.
 - graphRoutes() — Register knowledge graph route: GET /documents/:slug/graph to extract mentions, #tags, and /directives from document content.
 - retrievalRoutes() — Register retrieval planning route: POST /documents/:slug/plan-retrieval for token-budget-aware section selection. Ranks sections by relevance and greedily packs within a token budget.
 - signedUrlRoutes() — Register signed URL route: POST /signed-urls to generate time-limited HMAC-signed access tokens for document retrieval. Requires owner authentication.
+- mergeRoutes() — Register the cherry-pick merge route.
 - getDocumentWithContent() — Fetch a document by slug, resolving content from cache or database with decompression.
 - handleContentNegotiation() — Handle content negotiation for slug requests. Returns true if the request was handled (response sent), false otherwise.
 - extractSlugWithExtension() — Check if a URL path looks like a document slug with an explicit extension. Supported extensions: .txt, .json, .md
