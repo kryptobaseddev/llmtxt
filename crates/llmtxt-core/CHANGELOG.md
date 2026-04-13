@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026.4.3] - 2026-04-13
+
+### Added
+- `multi_way_diff()` / `multi_way_diff_native()` — LCS-aligned N-way comparison across up to 5 versions with per-line consensus detection, divergence tracking, and insertion identification. Uses pairwise `structured_diff` alignment against base to handle line shifts from insertions/deletions
+- `diff_multi` module — internal LCS alignment helpers for multi-way diff grid construction
+- `cherry_pick_merge()` — section-based cherry-pick merge from multiple versions into a single output. Heading-keyed section claims with per-version coordinate spaces, fill-from for unclaimed sections, provenance tracking
+- `cherry_pick` module — extracted from `patch.rs` into dedicated module with `find_section_line_range`, section assembly, and overlap detection
+- New line type `"insertion"` in multi-diff results for lines only present in some versions
+- 15+ new unit tests covering LCS alignment with insertions, multi-version section merge, duplicate section claims, parent-child heading hierarchy
+
+### Changed
+- Multi-way diff algorithm rewritten from positional comparison to LCS-based alignment — consensus percentages now reflect semantic agreement, not line positions
+- Cherry-pick merge rewritten to use heading-keyed section claims instead of shared line-number keyspace — sections from different versions no longer cause false overlap errors
+- Fill-from assembly emits only to next heading boundary, preventing section duplication with hierarchical headings
+
+### Fixed
+- Multi-diff false divergence when versions have insertions that shift subsequent lines
+- Cherry-pick merge "Overlapping line ranges" error when merging sections from 3+ versions with different line counts
+- Cherry-pick merge section duplication where fill-from appended entire base instead of replacing claimed sections
+
 ## [2026.4.2] - 2026-04-01
 
 ### Added

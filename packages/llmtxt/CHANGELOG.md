@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026.4.3] - 2026-04-13
+
+### Added
+- **multi-diff**: `multiWayDiff()` — LCS-aligned N-way comparison across up to 5 versions with per-line consensus, divergence, and insertion detection. WASM-backed via `multi_way_diff_wasm`
+- **merge**: `cherryPickMerge()` — section-based cherry-pick merge from multiple versions. Heading-keyed claims, fill-from for unclaimed sections, provenance tracking. WASM-backed via `cherry_pick_merge_wasm`
+- **types**: `MultiDiffResult`, `MultiDiffLine`, `MultiDiffVariant`, `MultiDiffStats`, `CherryPickResult`, `CherryPickProvenance`, `CherryPickStats` interfaces
+- **types**: `"insertion"` line type added to `MultiDiffLine.type` union
+- **backend**: `GET /documents/:slug/multi-diff?versions=2,3,4,5` — multi-version comparison endpoint
+- **backend**: `POST /documents/:slug/merge` — cherry-pick merge endpoint with provenance in changelog
+- **backend**: `agentId` alias accepted on PUT and POST /compress (maps to `createdBy`)
+- **backend**: `targetState` alias accepted on POST /transition (maps to `state`)
+- **backend**: HTTP 423 Locked response on PUT/merge/patch for LOCKED and ARCHIVED documents
+- **backend**: `requireOwnerAllowAnon` middleware — anonymous doc owners can create signed URLs and transition state
+- **backend**: Concurrent version creation wrapped in `BEGIN IMMEDIATE` transactions with retry on UNIQUE violation
+- **backend**: Duplicate approval/rejection prevention (409 Conflict on second attempt from same reviewer)
+- **backend**: Rejections cleared on REVIEW to DRAFT transition for fresh review cycles
+- **backend**: autoLock race protection with atomic `WHERE state=REVIEW` check
+- **frontend**: `MultiDiffViewer` component — version selector, consensus visualization, expandable divergent variants, insertion line rendering
+- **frontend**: `MergeBuilder` component — cherry-pick merge UI with preview, provenance colors, inline validation
+- **frontend**: Version selector dropdown on Content tab with "Version N of M" indicator
+- **frontend**: Token stats clearly label original vs compressed counts
+- **frontend**: Favicons, OG meta tags, Twitter cards, per-page dynamic OG tags
+- **infra**: Cloudflare Configuration Rule bypassing bot detection for api.llmtxt.my
+
+### Changed
+- **backend**: Anonymous sessions can now use lifecycle transitions, approvals, rejections, patches, and signed URL creation
+- **backend**: Merge provenance `fromVersion` uses actual DB version numbers instead of 0-based indices
+- **backend**: Similarity results use `title` field instead of `sectionTitle` (consistent with overview/plan-retrieval)
+- **frontend**: Renamed `state` variable to `docState` to avoid Svelte 5 `$state` rune collision (77 svelte-check errors resolved)
+
+### Fixed
+- Multi-diff false divergence when versions have line insertions/deletions (LCS alignment rewrite)
+- Cherry-pick merge false "Overlapping line ranges" error on multi-version section merge
+- Cherry-pick merge section duplication with hierarchical headings
+- Concurrent version creation race condition (transaction + retry)
+- HTTP 500 from async transaction callbacks in better-sqlite3 (switched to synchronous)
+- Rejection permanently blocking consensus (now cleared on REVIEW to DRAFT)
+- autoLock creating duplicate state transition records on simultaneous approvals
+- LOCKED documents accepting write operations
+
 ## [2026.4.2] - 2026-04-01
 
 ### Added

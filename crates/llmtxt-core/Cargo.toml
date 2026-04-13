@@ -1,6 +1,6 @@
 [package]
 name = "llmtxt-core"
-version = "2026.4.2"
+version = "2026.4.3"
 edition = "2024"
 description = "Core primitives for llmtxt: compression, patching, hashing, signing, and encoding"
 license = "MIT"
