@@ -85,7 +85,6 @@ fn extract_section_content(lines: &[&str], start: usize, end: usize) -> String {
     lines[(start - 1)..end].join("\n")
 }
 
-
 /// A contiguous block of output lines plus provenance metadata.
 #[derive(Debug)]
 struct ContentBlock {
