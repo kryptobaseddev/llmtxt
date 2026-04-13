@@ -5,8 +5,6 @@ use std::collections::HashMap;
 
 // ── Input types ───────────────────────────────────────────────────────────────
 
-/// A single source specification for cherry-pick merge.
-/// Either `line_ranges` or `sections` must be non-empty.
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SourceSpec {
@@ -17,7 +15,6 @@ struct SourceSpec {
     sections: Vec<String>,
 }
 
-/// Top-level selection spec for cherry-pick merge.
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SelectionSpec {
@@ -27,7 +24,6 @@ struct SelectionSpec {
 
 // ── Output types ──────────────────────────────────────────────────────────────
 
-/// A single provenance entry in the merged output.
 #[derive(Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ProvenanceEntry {
@@ -38,7 +34,6 @@ struct ProvenanceEntry {
     fill_from: Option<bool>,
 }
 
-/// Return value of cherry-pick merge.
 #[derive(Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 struct CherryPickResult {
@@ -68,16 +63,13 @@ struct CherryPickStats {
 fn find_section_line_range(lines: &[&str], heading: &str) -> Option<(usize, usize)> {
     let heading_trimmed = heading.trim();
     let target_level = heading_trimmed.chars().take_while(|&c| c == '#').count();
-
     let mut section_start: Option<usize> = None;
-
     for (i, line) in lines.iter().enumerate() {
         let trimmed = line.trim();
         if let Some(start) = section_start {
             if trimmed.starts_with('#') {
                 let level = trimmed.chars().take_while(|&c| c == '#').count();
                 if level <= target_level {
-                    // End of section (exclusive boundary at line i)
                     return Some((start + 1, i));
                 }
             }
@@ -85,66 +77,42 @@ fn find_section_line_range(lines: &[&str], heading: &str) -> Option<(usize, usiz
             section_start = Some(i);
         }
     }
-
     section_start.map(|s| (s + 1, lines.len()))
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
+/// Extract lines `start..=end` (1-based inclusive) joined by `\n`.
+fn extract_section_content(lines: &[&str], start: usize, end: usize) -> String {
+    lines[(start - 1)..end].join("\n")
+}
 
-/// Merge content from multiple versions by cherry-picking specific line ranges
-/// and/or markdown sections.
+/// Return every markdown heading that appears in `lines`, in order.
+fn collect_section_headings(lines: &[&str]) -> Vec<String> {
+    lines
+        .iter()
+        .filter(|l| l.trim().starts_with('#'))
+        .map(|l| l.trim().to_string())
+        .collect()
+}
+
+/// A contiguous block of output lines plus provenance metadata.
+#[derive(Debug)]
+struct ContentBlock {
+    lines: Vec<String>,
+    from_version: usize,
+    is_fill: bool,
+}
+
+// ── Source collection ─────────────────────────────────────────────────────────
+
+/// Parse all source specs into section claims and line-range blocks.
 ///
-/// # Arguments
-/// - `base`: base version content (usually v1). Inserted as version index 0 if
-///   key `"0"` is absent from `versions_json`.
-/// - `versions_json`: JSON object mapping version index (string key) to full
-///   content, e.g. `{"0":"...", "1":"...", "2":"..."}`.
-/// - `selection_json`: JSON object with a `sources` array and an optional
-///   `fillFrom` index. Each source has `versionIndex` and either `lineRanges`
-///   (array of `[start, end]` 1-based inclusive pairs) or `sections` (array of
-///   markdown heading strings).
-///
-/// # Returns
-/// JSON string with `content`, `provenance`, and `stats` fields on success, or
-/// an `Err` string describing the first error encountered.
-///
-/// # Errors
-/// - `"Version index N not found"` — `versionIndex` references missing version.
-/// - `"Section 'X' not found in version N"` — section heading not present.
-/// - `"Overlapping line ranges: ..."` — two selections assign the same line.
-pub fn cherry_pick_merge(
-    base: &str,
-    versions_json: &str,
-    selection_json: &str,
-) -> Result<String, String> {
-    // ── Parse inputs ──────────────────────────────────────────────────────────
-    let versions_raw: HashMap<String, String> =
-        serde_json::from_str(versions_json).map_err(|e| format!("Invalid versions JSON: {e}"))?;
-
-    let selection: SelectionSpec =
-        serde_json::from_str(selection_json).map_err(|e| format!("Invalid selection JSON: {e}"))?;
-
-    // Build a numeric-keyed map; fall back to `base` for key "0" when absent.
-    let mut versions: HashMap<usize, String> = HashMap::new();
-    for (k, v) in &versions_raw {
-        let idx: usize = k
-            .parse()
-            .map_err(|_| format!("Version key '{k}' is not a valid integer"))?;
-        versions.insert(idx, v.clone());
-    }
-    versions.entry(0).or_insert_with(|| base.to_string());
-
-    // ── Determine fill source ─────────────────────────────────────────────────
-    let fill_version_idx = selection.fill_from.unwrap_or(0);
-    let fill_content = versions
-        .get(&fill_version_idx)
-        .ok_or_else(|| format!("Version index {fill_version_idx} not found"))?
-        .clone();
-    let fill_line_count = fill_content.lines().count();
-
-    // ── Build per-line assignment map ─────────────────────────────────────────
-    // Key: 1-based line number. Value: (version_index, is_fill).
-    let mut assigned: HashMap<usize, (usize, bool)> = HashMap::new();
+/// Returns `(sections_extracted, line_ranges_extracted)`.
+fn collect_sources(
+    selection: &SelectionSpec,
+    versions: &HashMap<usize, String>,
+    section_claims: &mut HashMap<String, (usize, String)>,
+    line_range_blocks: &mut Vec<ContentBlock>,
+) -> Result<(usize, usize), String> {
     let mut sections_extracted: usize = 0;
     let mut line_ranges_extracted: usize = 0;
 
@@ -156,7 +124,156 @@ pub fn cherry_pick_merge(
         let ver_lines: Vec<&str> = ver_content.lines().collect();
         let ver_total = ver_lines.len();
 
-        // Process explicit line ranges
+        for heading in &source.sections {
+            let normalized = heading.trim().to_string();
+            let (sec_start, sec_end) =
+                find_section_line_range(&ver_lines, &normalized).ok_or_else(|| {
+                    format!("Section '{normalized}' not found in version {ver_idx}")
+                })?;
+            if let Some((existing_ver, _)) = section_claims.get(&normalized) {
+                return Err(format!(
+                    "Section '{normalized}' claimed by multiple sources: \
+                     version {existing_ver} and version {ver_idx}"
+                ));
+            }
+            let content = extract_section_content(&ver_lines, sec_start, sec_end);
+            section_claims.insert(normalized, (ver_idx, content));
+            sections_extracted += 1;
+        }
+
+        collect_line_ranges(
+            source,
+            ver_idx,
+            &ver_lines,
+            ver_total,
+            line_range_blocks,
+            &mut line_ranges_extracted,
+        )?;
+    }
+
+    Ok((sections_extracted, line_ranges_extracted))
+}
+
+/// Validate and collect line-range blocks for one source spec.
+/// Overlap detection is scoped to this version's own coordinate space.
+fn collect_line_ranges(
+    source: &SourceSpec,
+    ver_idx: usize,
+    ver_lines: &[&str],
+    ver_total: usize,
+    out_blocks: &mut Vec<ContentBlock>,
+    counter: &mut usize,
+) -> Result<(), String> {
+    let mut ver_assigned: HashMap<usize, usize> = HashMap::new();
+    for range in &source.line_ranges {
+        let [start, end] = *range;
+        if start < 1 || end < start || end > ver_total {
+            return Err(format!(
+                "Line range [{start}, {end}] is out of bounds for version \
+                 {ver_idx} ({ver_total} lines)"
+            ));
+        }
+        for ln in start..=end {
+            if let Some(&prev) = ver_assigned.get(&ln) {
+                return Err(format!(
+                    "Overlapping line ranges: line {ln} in version {ver_idx} \
+                     is already assigned (range near line {prev})"
+                ));
+            }
+            ver_assigned.insert(ln, start);
+        }
+        let block_lines: Vec<String> = ver_lines[(start - 1)..end]
+            .iter()
+            .map(|l| l.to_string())
+            .collect();
+        out_blocks.push(ContentBlock {
+            lines: block_lines,
+            from_version: ver_idx,
+            is_fill: false,
+        });
+        *counter += 1;
+    }
+    Ok(())
+}
+
+// ── Assembly strategies ───────────────────────────────────────────────────────
+
+/// Section-based assembly: walk the fillFrom document in heading order.
+/// Appends any line-range blocks after the section content.
+fn assemble_section_blocks(
+    fill_lines: &[&str],
+    fill_version_idx: usize,
+    has_fill: bool,
+    section_claims: &HashMap<String, (usize, String)>,
+    line_range_blocks: Vec<ContentBlock>,
+) -> Result<Vec<ContentBlock>, String> {
+    let mut blocks: Vec<ContentBlock> = Vec::new();
+
+    // Preamble: lines before the first heading in fillFrom
+    let first_heading_pos = fill_lines.iter().position(|l| l.trim().starts_with('#'));
+    match first_heading_pos {
+        Some(0) => {}
+        Some(pos) => blocks.push(ContentBlock {
+            lines: fill_lines[..pos].iter().map(|l| l.to_string()).collect(),
+            from_version: fill_version_idx,
+            is_fill: true,
+        }),
+        None if !fill_lines.is_empty() => blocks.push(ContentBlock {
+            lines: fill_lines.iter().map(|l| l.to_string()).collect(),
+            from_version: fill_version_idx,
+            is_fill: true,
+        }),
+        None => {}
+    }
+
+    for heading in &collect_section_headings(fill_lines) {
+        if let Some((ver_idx, content)) = section_claims.get(heading) {
+            blocks.push(ContentBlock {
+                lines: content.lines().map(str::to_string).collect(),
+                from_version: *ver_idx,
+                is_fill: false,
+            });
+        } else if has_fill {
+            let (sec_start, sec_end) =
+                find_section_line_range(fill_lines, heading).ok_or_else(|| {
+                    format!(
+                        "Internal error: heading '{heading}' not found in \
+                         fillFrom version {fill_version_idx}"
+                    )
+                })?;
+            blocks.push(ContentBlock {
+                lines: extract_section_content(fill_lines, sec_start, sec_end)
+                    .lines()
+                    .map(str::to_string)
+                    .collect(),
+                from_version: fill_version_idx,
+                is_fill: true,
+            });
+        }
+    }
+
+    blocks.extend(line_range_blocks);
+    Ok(blocks)
+}
+
+/// Positional (line-range-only) assembly: the original algorithm.
+/// Builds a line-number assignment map, fills gaps, then emits in order.
+fn assemble_line_range_blocks(
+    selection: &SelectionSpec,
+    versions: &HashMap<usize, String>,
+    fill_version_idx: usize,
+    fill_content: &str,
+) -> Result<Vec<ContentBlock>, String> {
+    let mut assigned: HashMap<usize, (usize, bool)> = HashMap::new();
+
+    for source in &selection.sources {
+        let ver_idx = source.version_index;
+        let ver_content = versions
+            .get(&ver_idx)
+            .ok_or_else(|| format!("Version index {ver_idx} not found"))?;
+        let ver_lines: Vec<&str> = ver_content.lines().collect();
+        let ver_total = ver_lines.len();
+
         for range in &source.line_ranges {
             let [start, end] = *range;
             if start < 1 || end < start || end > ver_total {
@@ -175,116 +292,165 @@ pub fn cherry_pick_merge(
                 }
                 assigned.insert(ln, (ver_idx, false));
             }
-            line_ranges_extracted += 1;
-        }
-
-        // Process section names
-        for section_heading in &source.sections {
-            let (sec_start, sec_end) = find_section_line_range(&ver_lines, section_heading)
-                .ok_or_else(|| {
-                    format!("Section '{section_heading}' not found in version {ver_idx}")
-                })?;
-
-            for ln in sec_start..=sec_end {
-                if let Some(&(existing_ver, _)) = assigned.get(&ln) {
-                    return Err(format!(
-                        "Overlapping line ranges: section '{section_heading}' \
-                         lines {sec_start}-{sec_end} (version {ver_idx}) \
-                         overlap at line {ln} already assigned from version \
-                         {existing_ver}"
-                    ));
-                }
-                assigned.insert(ln, (ver_idx, false));
-            }
-            sections_extracted += 1;
         }
     }
 
-    // Fill unassigned lines from fill_from version
     if selection.fill_from.is_some() {
-        for ln in 1..=fill_line_count {
+        for ln in 1..=fill_content.lines().count() {
             assigned.entry(ln).or_insert((fill_version_idx, true));
         }
     }
 
-    // ── Assemble output ───────────────────────────────────────────────────────
-    let mut sorted_lines: Vec<usize> = assigned.keys().copied().collect();
-    sorted_lines.sort_unstable();
-
-    // Cache version lines to avoid repeated splits
     let ver_line_cache: HashMap<usize, Vec<String>> = versions
         .iter()
-        .map(|(&idx, content)| (idx, content.lines().map(str::to_string).collect()))
+        .map(|(&idx, c)| (idx, c.lines().map(str::to_string).collect()))
         .collect();
 
-    let mut output_lines: Vec<String> = Vec::with_capacity(sorted_lines.len());
-    let mut provenance: Vec<ProvenanceEntry> = Vec::new();
-    let mut prov_start: usize = 1;
-    // (from_version, current_output_line_num, is_fill)
-    let mut prev_entry: Option<(usize, usize, bool)> = None;
+    let mut sorted: Vec<usize> = assigned.keys().copied().collect();
+    sorted.sort_unstable();
 
-    for (out_idx, &source_line) in sorted_lines.iter().enumerate() {
-        let output_line_num = out_idx + 1;
-        let &(ver_idx, is_fill) = assigned.get(&source_line).ok_or_else(|| {
-            format!("Internal error: source line {source_line} missing from assignment map")
-        })?;
+    let mut blocks: Vec<ContentBlock> = Vec::new();
+    let mut current: Option<ContentBlock> = None;
 
+    for &ln in &sorted {
+        let &(ver_idx, is_fill) = assigned
+            .get(&ln)
+            .ok_or_else(|| format!("Internal error: line {ln} missing from map"))?;
         let ver_lines = ver_line_cache
             .get(&ver_idx)
             .ok_or_else(|| format!("Internal error: version {ver_idx} missing from cache"))?;
-        let line_content = ver_lines
-            .get(source_line - 1)
-            .ok_or_else(|| {
-                format!(
-                    "Internal error: line {source_line} out of range for \
-                     version {ver_idx}"
-                )
-            })?
-            .clone();
-        output_lines.push(line_content);
+        let line_str = ver_lines
+            .get(ln - 1)
+            .ok_or_else(|| format!("Internal error: line {ln} out of range for v{ver_idx}"))?;
 
-        match prev_entry {
-            None => {
-                prev_entry = Some((ver_idx, output_line_num, is_fill));
-                prov_start = output_line_num;
+        match current.as_mut() {
+            Some(b) if b.from_version == ver_idx && b.is_fill == is_fill => {
+                b.lines.push(line_str.clone());
             }
-            Some((prev_ver, prev_out, prev_fill)) => {
-                if prev_ver != ver_idx || prev_fill != is_fill {
-                    provenance.push(ProvenanceEntry {
-                        line_start: prov_start,
-                        line_end: prev_out,
-                        from_version: prev_ver,
-                        fill_from: if prev_fill { Some(true) } else { None },
-                    });
-                    prov_start = output_line_num;
+            _ => {
+                if let Some(b) = current.take() {
+                    blocks.push(b);
                 }
-                prev_entry = Some((ver_idx, output_line_num, is_fill));
+                current = Some(ContentBlock {
+                    lines: vec![line_str.clone()],
+                    from_version: ver_idx,
+                    is_fill,
+                });
             }
         }
     }
+    if let Some(b) = current {
+        blocks.push(b);
+    }
+    Ok(blocks)
+}
 
-    if let Some((ver_idx, last_out, is_fill)) = prev_entry {
+// ── Output builder ────────────────────────────────────────────────────────────
+
+/// Convert `ContentBlock`s into a final content string and provenance list.
+fn build_output(blocks: &[ContentBlock], fill_content: &str) -> (String, Vec<ProvenanceEntry>) {
+    let mut all_lines: Vec<String> = Vec::new();
+    let mut provenance: Vec<ProvenanceEntry> = Vec::new();
+
+    for block in blocks {
+        if block.lines.is_empty() {
+            continue;
+        }
+        let start_line = all_lines.len() + 1;
+        all_lines.extend(block.lines.iter().cloned());
         provenance.push(ProvenanceEntry {
-            line_start: prov_start,
-            line_end: last_out,
-            from_version: ver_idx,
-            fill_from: if is_fill { Some(true) } else { None },
+            line_start: start_line,
+            line_end: all_lines.len(),
+            from_version: block.from_version,
+            fill_from: if block.is_fill { Some(true) } else { None },
         });
     }
 
-    // Preserve trailing newline if the fill source had one
-    let mut content = output_lines.join("\n");
+    let mut content = all_lines.join("\n");
     if fill_content.ends_with('\n') && !content.is_empty() {
         content.push('\n');
     }
+    (content, provenance)
+}
 
-    let sources_used = selection.sources.len();
+// ── Public API ────────────────────────────────────────────────────────────────
+
+/// Merge content from multiple versions by cherry-picking specific line ranges
+/// and/or markdown sections.
+///
+/// # Arguments
+/// - `base`: base version content (usually v1). Inserted as version index 0 if
+///   key `"0"` is absent from `versions_json`.
+/// - `versions_json`: JSON object mapping version index (string key) to full
+///   content, e.g. `{"0":"...", "1":"...", "2":"..."}`.
+/// - `selection_json`: JSON object with a `sources` array and an optional
+///   `fillFrom` index. Each source has `versionIndex` and either `lineRanges`
+///   (array of `[start, end]` 1-based inclusive pairs) or `sections` (array of
+///   markdown heading strings).
+///
+/// # Returns
+/// JSON string with `content`, `provenance`, and `stats` fields on success.
+///
+/// # Errors
+/// - `"Version index N not found"` — `versionIndex` references missing version.
+/// - `"Section 'X' not found in version N"` — section heading not present.
+/// - `"Section 'X' claimed by multiple sources"` — two sources pick same section.
+/// - `"Overlapping line ranges: ..."` — two selections assign the same line.
+pub fn cherry_pick_merge(
+    base: &str,
+    versions_json: &str,
+    selection_json: &str,
+) -> Result<String, String> {
+    let versions_raw: HashMap<String, String> =
+        serde_json::from_str(versions_json).map_err(|e| format!("Invalid versions JSON: {e}"))?;
+    let selection: SelectionSpec = serde_json::from_str(selection_json)
+        .map_err(|e| format!("Invalid selection JSON: {e}"))?;
+
+    let mut versions: HashMap<usize, String> = HashMap::new();
+    for (k, v) in &versions_raw {
+        let idx: usize = k
+            .parse()
+            .map_err(|_| format!("Version key '{k}' is not a valid integer"))?;
+        versions.insert(idx, v.clone());
+    }
+    versions.entry(0).or_insert_with(|| base.to_string());
+
+    let fill_version_idx = selection.fill_from.unwrap_or(0);
+    let fill_content = versions
+        .get(&fill_version_idx)
+        .ok_or_else(|| format!("Version index {fill_version_idx} not found"))?
+        .clone();
+
+    let mut section_claims: HashMap<String, (usize, String)> = HashMap::new();
+    let mut line_range_blocks: Vec<ContentBlock> = Vec::new();
+    let (sections_extracted, line_ranges_extracted) =
+        collect_sources(&selection, &versions, &mut section_claims, &mut line_range_blocks)?;
+
+    let has_sections =
+        !section_claims.is_empty() || selection.sources.iter().any(|s| !s.sections.is_empty());
+
+    let blocks: Vec<ContentBlock> = if has_sections {
+        let fill_lines: Vec<&str> = fill_content.lines().collect();
+        assemble_section_blocks(
+            &fill_lines,
+            fill_version_idx,
+            selection.fill_from.is_some(),
+            &section_claims,
+            line_range_blocks,
+        )?
+    } else {
+        assemble_line_range_blocks(&selection, &versions, fill_version_idx, &fill_content)?
+    };
+
+    let (content, provenance) = build_output(&blocks, &fill_content);
+    let total_lines = content.lines().count();
+
     serde_json::to_string(&CherryPickResult {
         content,
         provenance,
         stats: CherryPickStats {
-            total_lines: output_lines.len(),
-            sources_used,
+            total_lines,
+            sources_used: selection.sources.len(),
             sections_extracted,
             line_ranges_extracted,
         },
@@ -296,7 +462,6 @@ pub fn cherry_pick_merge(
 mod tests {
     use super::*;
 
-    /// Build a versions_json string from a slice of (index, content) pairs.
     fn make_versions_json(versions: &[(usize, &str)]) -> String {
         let map: serde_json::Map<String, serde_json::Value> = versions
             .iter()
@@ -305,8 +470,6 @@ mod tests {
         serde_json::to_string(&map).unwrap()
     }
 
-    /// Build a selection JSON string programmatically to avoid raw-string
-    /// delimiter conflicts with markdown `#` characters.
     fn make_selection(sources: &[serde_json::Value], fill_from: Option<usize>) -> String {
         let mut obj = serde_json::json!({ "sources": sources });
         if let Some(idx) = fill_from {
@@ -315,84 +478,64 @@ mod tests {
         serde_json::to_string(&obj).unwrap()
     }
 
+    fn parse(json: &str) -> serde_json::Value {
+        serde_json::from_str(json).unwrap()
+    }
+
     // ── Line range tests ──────────────────────────────────────────
 
     #[test]
     fn test_line_range_basic() {
         let v0 = "a\nb\nc\nd\ne\n";
         let v1 = "A\nB\nC\nD\nE\n";
-        let versions_json = make_versions_json(&[(0, v0), (1, v1)]);
-        // Lines 1-2 from v0, lines 4-5 from v1, fill rest from v0
-        let selection = make_selection(
+        let vj = make_versions_json(&[(0, v0), (1, v1)]);
+        let sel = make_selection(
             &[
                 serde_json::json!({ "versionIndex": 0, "lineRanges": [[1, 2]] }),
                 serde_json::json!({ "versionIndex": 1, "lineRanges": [[4, 5]] }),
             ],
             Some(0),
         );
-
-        let result_json = cherry_pick_merge(v0, &versions_json, &selection).unwrap();
-        let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
-        let content = result["content"].as_str().unwrap();
-        let lines: Vec<&str> = content.lines().collect();
-
-        assert_eq!(lines.len(), 5);
-        assert_eq!(lines[0], "a"); // line 1 from v0
-        assert_eq!(lines[1], "b"); // line 2 from v0
-        assert_eq!(lines[2], "c"); // line 3 fill from v0
-        assert_eq!(lines[3], "D"); // line 4 from v1
-        assert_eq!(lines[4], "E"); // line 5 from v1
-
-        assert_eq!(result["stats"]["totalLines"], 5);
-        assert_eq!(result["stats"]["lineRangesExtracted"], 2);
-        assert_eq!(result["stats"]["sectionsExtracted"], 0);
+        let r = parse(&cherry_pick_merge(v0, &vj, &sel).unwrap());
+        let lines: Vec<&str> = r["content"].as_str().unwrap().lines().collect();
+        assert_eq!(lines, ["a", "b", "c", "D", "E"]);
+        assert_eq!(r["stats"]["totalLines"], 5);
+        assert_eq!(r["stats"]["lineRangesExtracted"], 2);
+        assert_eq!(r["stats"]["sectionsExtracted"], 0);
     }
 
     #[test]
     fn test_no_fill_only_explicit() {
         let v0 = "a\nb\nc\n";
         let v1 = "X\nY\nZ\n";
-        let versions_json = make_versions_json(&[(0, v0), (1, v1)]);
-        // Only take line 2 from v1, no fill
-        let selection = make_selection(
+        let vj = make_versions_json(&[(0, v0), (1, v1)]);
+        let sel = make_selection(
             &[serde_json::json!({ "versionIndex": 1, "lineRanges": [[2, 2]] })],
             None,
         );
-
-        let result_json = cherry_pick_merge(v0, &versions_json, &selection).unwrap();
-        let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
-        let content = result["content"].as_str().unwrap();
-        let lines: Vec<&str> = content.lines().collect();
-
-        assert_eq!(lines.len(), 1);
-        assert_eq!(lines[0], "Y");
-        assert_eq!(result["stats"]["totalLines"], 1);
+        let r = parse(&cherry_pick_merge(v0, &vj, &sel).unwrap());
+        let lines: Vec<&str> = r["content"].as_str().unwrap().lines().collect();
+        assert_eq!(lines, ["Y"]);
+        assert_eq!(r["stats"]["totalLines"], 1);
     }
 
-    // ── Section name tests ────────────────────────────────────────
+    // ── Section tests ─────────────────────────────────────────────
 
     #[test]
     fn test_section_names() {
         let v0 = "# Intro\nOriginal intro\n# Sec1\nOriginal sec1\n# Sec2\nOriginal sec2\n";
         let v1 = "# Intro\nUpdated intro\n# Sec1\nUpdated sec1\n# Sec2\nUpdated sec2\n";
-        let versions_json = make_versions_json(&[(0, v0), (1, v1)]);
-        // Take Sec1 from v1, fill rest from v0
-        let selection = make_selection(
-            &[serde_json::json!({
-                "versionIndex": 1,
-                "sections": ["# Sec1"]
-            })],
+        let vj = make_versions_json(&[(0, v0), (1, v1)]);
+        let sel = make_selection(
+            &[serde_json::json!({ "versionIndex": 1, "sections": ["# Sec1"] })],
             Some(0),
         );
-
-        let result_json = cherry_pick_merge(v0, &versions_json, &selection).unwrap();
-        let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
-        let content = result["content"].as_str().unwrap();
-
-        assert!(content.contains("Updated sec1"), "expected v1 sec1 body");
-        assert!(content.contains("Original intro"), "expected v0 intro fill");
-        assert!(content.contains("Original sec2"), "expected v0 sec2 fill");
-        assert_eq!(result["stats"]["sectionsExtracted"], 1);
+        let r = parse(&cherry_pick_merge(v0, &vj, &sel).unwrap());
+        let c = r["content"].as_str().unwrap();
+        assert!(c.contains("Updated sec1"));
+        assert!(c.contains("Original intro"));
+        assert!(c.contains("Original sec2"));
+        assert_eq!(r["stats"]["sectionsExtracted"], 1);
     }
 
     #[test]
@@ -400,27 +543,21 @@ mod tests {
         let v0 = "# Alpha\nalpha v0\n# Beta\nbeta v0\n# Gamma\ngamma v0\n";
         let v1 = "# Alpha\nalpha v1\n# Beta\nbeta v1\n# Gamma\ngamma v1\n";
         let v2 = "# Alpha\nalpha v2\n# Beta\nbeta v2\n# Gamma\ngamma v2\n";
-        let versions_json = make_versions_json(&[(0, v0), (1, v1), (2, v2)]);
-        let selection = make_selection(
+        let vj = make_versions_json(&[(0, v0), (1, v1), (2, v2)]);
+        let sel = make_selection(
             &[
                 serde_json::json!({ "versionIndex": 1, "sections": ["# Beta"] }),
                 serde_json::json!({ "versionIndex": 2, "sections": ["# Gamma"] }),
             ],
             Some(0),
         );
-
-        let result_json = cherry_pick_merge(v0, &versions_json, &selection).unwrap();
-        let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
-        let content = result["content"].as_str().unwrap();
-
-        assert!(
-            content.contains("alpha v0"),
-            "Alpha should be filled from v0"
-        );
-        assert!(content.contains("beta v1"), "Beta should come from v1");
-        assert!(content.contains("gamma v2"), "Gamma should come from v2");
-        assert_eq!(result["stats"]["sectionsExtracted"], 2);
-        assert_eq!(result["stats"]["sourcesUsed"], 2);
+        let r = parse(&cherry_pick_merge(v0, &vj, &sel).unwrap());
+        let c = r["content"].as_str().unwrap();
+        assert!(c.contains("alpha v0"));
+        assert!(c.contains("beta v1"));
+        assert!(c.contains("gamma v2"));
+        assert_eq!(r["stats"]["sectionsExtracted"], 2);
+        assert_eq!(r["stats"]["sourcesUsed"], 2);
     }
 
     // ── Provenance tests ──────────────────────────────────────────
@@ -429,38 +566,24 @@ mod tests {
     fn test_provenance_metadata() {
         let v0 = "a\nb\nc\nd\ne\n";
         let v1 = "A\nB\nC\nD\nE\n";
-        let versions_json = make_versions_json(&[(0, v0), (1, v1)]);
-        // Lines 1-2 from v0, lines 4-5 from v1, fill line 3 from v0
-        let selection = make_selection(
+        let vj = make_versions_json(&[(0, v0), (1, v1)]);
+        let sel = make_selection(
             &[
                 serde_json::json!({ "versionIndex": 0, "lineRanges": [[1, 2]] }),
                 serde_json::json!({ "versionIndex": 1, "lineRanges": [[4, 5]] }),
             ],
             Some(0),
         );
-
-        let result_json = cherry_pick_merge(v0, &versions_json, &selection).unwrap();
-        let result: serde_json::Value = serde_json::from_str(&result_json).unwrap();
-        let provenance = result["provenance"].as_array().unwrap();
-
-        // Explicit v0 range at lines 1-2
-        let has_v0_explicit = provenance.iter().any(|p| {
-            p["fromVersion"] == 0
-                && p["lineStart"] == 1
-                && p["lineEnd"] == 2
-                && p["fillFrom"].is_null()
-        });
-        assert!(has_v0_explicit, "expected explicit v0 range in provenance");
-
-        // Fill entry from v0
-        let has_fill = provenance
+        let r = parse(&cherry_pick_merge(v0, &vj, &sel).unwrap());
+        let prov = r["provenance"].as_array().unwrap();
+        assert!(prov.iter().any(|p| p["fromVersion"] == 0
+            && p["lineStart"] == 1
+            && p["lineEnd"] == 2
+            && p["fillFrom"].is_null()));
+        assert!(prov
             .iter()
-            .any(|p| p["fromVersion"] == 0 && p["fillFrom"] == true);
-        assert!(has_fill, "expected fill provenance entry");
-
-        // v1 entry
-        let has_v1 = provenance.iter().any(|p| p["fromVersion"] == 1);
-        assert!(has_v1, "expected v1 range in provenance");
+            .any(|p| p["fromVersion"] == 0 && p["fillFrom"] == true));
+        assert!(prov.iter().any(|p| p["fromVersion"] == 1));
     }
 
     // ── Error tests ───────────────────────────────────────────────
@@ -468,61 +591,151 @@ mod tests {
     #[test]
     fn test_overlapping_line_ranges_error() {
         let v0 = "a\nb\nc\nd\ne\n";
-        let versions_json = make_versions_json(&[(0, v0)]);
-        // Ranges [2,4] and [3,5] overlap
-        let selection = make_selection(
+        let vj = make_versions_json(&[(0, v0)]);
+        let sel = make_selection(
             &[
                 serde_json::json!({ "versionIndex": 0, "lineRanges": [[2, 4]] }),
                 serde_json::json!({ "versionIndex": 0, "lineRanges": [[3, 5]] }),
             ],
             None,
         );
-
-        let result = cherry_pick_merge(v0, &versions_json, &selection);
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert!(
-            err.contains("Overlapping line ranges"),
-            "expected overlap error, got: {err}"
-        );
+        let err = cherry_pick_merge(v0, &vj, &sel).unwrap_err();
+        assert!(err.contains("Overlapping line ranges"), "{err}");
     }
 
     #[test]
     fn test_version_not_found_error() {
         let v0 = "a\nb\nc\n";
-        let versions_json = make_versions_json(&[(0, v0)]);
-        let selection = make_selection(
+        let vj = make_versions_json(&[(0, v0)]);
+        let sel = make_selection(
             &[serde_json::json!({ "versionIndex": 99, "lineRanges": [[1, 2]] })],
             None,
         );
-
-        let result = cherry_pick_merge(v0, &versions_json, &selection);
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert!(
-            err.contains("Version index 99 not found"),
-            "expected version-not-found error, got: {err}"
-        );
+        let err = cherry_pick_merge(v0, &vj, &sel).unwrap_err();
+        assert!(err.contains("Version index 99 not found"), "{err}");
     }
 
     #[test]
     fn test_section_not_found_error() {
         let v0 = "# Intro\nHello\n# Footer\nBye\n";
-        let versions_json = make_versions_json(&[(0, v0)]);
-        let selection = make_selection(
-            &[serde_json::json!({
-                "versionIndex": 0,
-                "sections": ["# Nonexistent"]
-            })],
+        let vj = make_versions_json(&[(0, v0)]);
+        let sel = make_selection(
+            &[serde_json::json!({ "versionIndex": 0, "sections": ["# Nonexistent"] })],
             None,
         );
+        let err = cherry_pick_merge(v0, &vj, &sel).unwrap_err();
+        assert!(err.contains("Section '# Nonexistent' not found"), "{err}");
+    }
 
-        let result = cherry_pick_merge(v0, &versions_json, &selection);
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert!(
-            err.contains("Section '# Nonexistent' not found"),
-            "expected section-not-found error, got: {err}"
+    // ── New tests: per-version coordinate spaces ──────────────────
+
+    /// Core regression: v2 expands Section 1, v3 expands Section 2 so their
+    /// sections share overlapping per-version line numbers.  Merge must succeed.
+    #[test]
+    fn test_multi_version_sections_different_line_counts() {
+        let base = "# Section 1\nbase s1\n# Section 2\nbase s2\n# Section 3\nbase s3\n";
+        let v2 = "# Section 1\nv2 s1 line1\nv2 s1 line2\nv2 s1 line3\n\
+                  # Section 2\nv2 s2\n# Section 3\nv2 s3\n";
+        let v3 = "# Section 1\nv3 s1\n\
+                  # Section 2\nv3 s2 line1\nv3 s2 line2\n\
+                  # Section 3\nv3 s3\n";
+        let vj = make_versions_json(&[(0, base), (2, v2), (3, v3)]);
+        let sel = make_selection(
+            &[
+                serde_json::json!({ "versionIndex": 2, "sections": ["# Section 1"] }),
+                serde_json::json!({ "versionIndex": 3, "sections": ["# Section 2"] }),
+            ],
+            Some(0),
         );
+        let r = parse(&cherry_pick_merge(base, &vj, &sel).expect("merge must succeed"));
+        let c = r["content"].as_str().unwrap();
+        assert!(c.contains("v2 s1 line1"), "s1 line1 from v2");
+        assert!(c.contains("v2 s1 line3"), "s1 line3 from v2");
+        assert!(c.contains("v3 s2 line1"), "s2 line1 from v3");
+        assert!(c.contains("v3 s2 line2"), "s2 line2 from v3");
+        assert!(c.contains("base s3"), "s3 filled from base");
+        assert!(!c.contains("v3 s1"), "s1 must not come from v3");
+        assert!(!c.contains("v2 s2"), "s2 must not come from v2");
+        assert_eq!(r["stats"]["sectionsExtracted"], 2);
+    }
+
+    /// Same section claimed by two sources must error.
+    #[test]
+    fn test_duplicate_section_claim_error() {
+        let v0 = "# Alpha\nalpha v0\n# Beta\nbeta v0\n";
+        let v1 = "# Alpha\nalpha v1\n# Beta\nbeta v1\n";
+        let v2 = "# Alpha\nalpha v2\n# Beta\nbeta v2\n";
+        let vj = make_versions_json(&[(0, v0), (1, v1), (2, v2)]);
+        let sel = make_selection(
+            &[
+                serde_json::json!({ "versionIndex": 1, "sections": ["# Alpha"] }),
+                serde_json::json!({ "versionIndex": 2, "sections": ["# Alpha"] }),
+            ],
+            Some(0),
+        );
+        let err = cherry_pick_merge(v0, &vj, &sel).unwrap_err();
+        assert!(err.contains("claimed by multiple sources"), "{err}");
+    }
+
+    /// Line ranges work correctly within a single version's coordinate space.
+    #[test]
+    fn test_line_ranges_per_version_coordinate_space() {
+        let v0 = "line1\nline2\nline3\nline4\nline5\n";
+        let v1 = "LINE1\nLINE2\nLINE3\nLINE4\nLINE5\n";
+        let vj = make_versions_json(&[(0, v0), (1, v1)]);
+        let sel = make_selection(
+            &[serde_json::json!({ "versionIndex": 1, "lineRanges": [[3, 4]] })],
+            Some(0),
+        );
+        let r = parse(&cherry_pick_merge(v0, &vj, &sel).unwrap());
+        let lines: Vec<&str> = r["content"].as_str().unwrap().lines().collect();
+        assert_eq!(lines, ["line1", "line2", "LINE3", "LINE4", "line5"]);
+    }
+
+    /// fillFrom fills unclaimed sections in document order.
+    #[test]
+    fn test_fill_from_fills_unclaimed_sections() {
+        let base = "# Header\nheader base\n# Content\ncontent base\n# Footer\nfooter base\n";
+        let v1 = "# Header\nheader v1\n# Content\ncontent v1\n# Footer\nfooter v1\n";
+        let vj = make_versions_json(&[(0, base), (1, v1)]);
+        let sel = make_selection(
+            &[serde_json::json!({ "versionIndex": 1, "sections": ["# Content"] })],
+            Some(0),
+        );
+        let r = parse(&cherry_pick_merge(base, &vj, &sel).unwrap());
+        let c = r["content"].as_str().unwrap();
+        assert!(c.contains("header base"));
+        assert!(c.contains("content v1"));
+        assert!(c.contains("footer base"));
+        let hp = c.find("header base").unwrap();
+        let cp = c.find("content v1").unwrap();
+        let fp = c.find("footer base").unwrap();
+        assert!(hp < cp && cp < fp, "sections must appear in base order");
+    }
+
+    /// Mixed mode: section source + line-range source in the same selection.
+    #[test]
+    fn test_mixed_sections_and_line_ranges() {
+        let base = "# Intro\nintro base\n# Body\nbody base\n# Footer\nfooter base\n";
+        let v1 = "# Intro\nintro v1\n# Body\nbody v1\n# Footer\nfooter v1\n";
+        let v2 = "EXTRA_LINE_1\nEXTRA_LINE_2\nEXTRA_LINE_3\n";
+        let vj = make_versions_json(&[(0, base), (1, v1), (2, v2)]);
+        let sel = make_selection(
+            &[
+                serde_json::json!({ "versionIndex": 1, "sections": ["# Body"] }),
+                serde_json::json!({ "versionIndex": 2, "lineRanges": [[1, 2]] }),
+            ],
+            Some(0),
+        );
+        let r = parse(&cherry_pick_merge(base, &vj, &sel).unwrap());
+        let c = r["content"].as_str().unwrap();
+        assert!(c.contains("intro base"));
+        assert!(c.contains("body v1"));
+        assert!(c.contains("footer base"));
+        assert!(c.contains("EXTRA_LINE_1"));
+        assert!(c.contains("EXTRA_LINE_2"));
+        assert!(!c.contains("EXTRA_LINE_3"));
+        assert_eq!(r["stats"]["sectionsExtracted"], 1);
+        assert_eq!(r["stats"]["lineRangesExtracted"], 1);
     }
 }

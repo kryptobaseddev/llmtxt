@@ -2,7 +2,7 @@
  * Lifecycle + Consensus routes: transition, approve, reject, approvals, contributors.
  */
 import type { FastifyInstance } from 'fastify';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { documents, stateTransitions, approvals, versions, contributors } from '../db/schema.js';
 import { requireAuth, requireOwner, requireOwnerAllowAnonParams } from '../middleware/auth.js';
@@ -93,6 +93,18 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
         atVersion: doc[0].currentVersion,
       });
 
+      // When reopening for edits, clear rejection records so the next
+      // review cycle starts clean. Approved records are left intact.
+      if (currentState === 'REVIEW' && effectiveState === 'DRAFT') {
+        await db.delete(approvals)
+          .where(
+            and(
+              eq(approvals.documentId, doc[0].id),
+              eq(approvals.status, 'REJECTED')
+            )
+          );
+      }
+
       invalidateDocumentCache(slug);
       return { slug, previousState: currentState, currentState: effectiveState, reason, changedAt: now };
     },
@@ -108,6 +120,22 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
       if (!doc.length) return reply.status(404).send({ error: 'Not Found' });
       if (doc[0].state !== 'REVIEW') {
         return reply.status(409).send({ error: 'Document must be in REVIEW state to approve' });
+      }
+
+      const existingApproval = await db.select()
+        .from(approvals)
+        .where(and(
+          eq(approvals.documentId, doc[0].id),
+          eq(approvals.reviewerId, request.user!.id),
+          eq(approvals.status, 'APPROVED'),
+        ))
+        .limit(1);
+
+      if (existingApproval.length > 0) {
+        return reply.status(409).send({
+          error: 'Conflict',
+          message: 'You have already approved this document',
+        });
       }
 
       const now = Date.now();
@@ -127,18 +155,32 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
 
       let autoLocked = false;
       if (consensus.approved) {
-        await db.update(documents).set({ state: 'LOCKED' }).where(eq(documents.slug, slug));
-        await db.insert(stateTransitions).values({
-          id: generateId(),
-          documentId: doc[0].id,
-          fromState: 'REVIEW',
-          toState: 'LOCKED',
-          changedBy: 'system',
-          changedAt: now,
-          reason: 'Auto-locked: consensus reached',
-          atVersion: doc[0].currentVersion,
-        });
-        autoLocked = true;
+        // Guard against duplicate locking when two approvals arrive simultaneously.
+        // The WHERE on state='REVIEW' means only one concurrent request wins the UPDATE.
+        const lockResult = await db.update(documents)
+          .set({ state: 'LOCKED' })
+          .where(and(
+            eq(documents.id, doc[0].id),
+            eq(documents.state, 'REVIEW'),
+          ))
+          .returning({ state: documents.state });
+
+        if (lockResult.length > 0) {
+          // This request won the race — record the transition exactly once.
+          await db.insert(stateTransitions).values({
+            id: generateId(),
+            documentId: doc[0].id,
+            fromState: 'REVIEW',
+            toState: 'LOCKED',
+            changedBy: 'system',
+            changedAt: now,
+            reason: 'Auto-locked: consensus reached',
+            atVersion: doc[0].currentVersion,
+          });
+          autoLocked = true;
+        }
+        // If lockResult is empty, another concurrent request already locked it — that's fine.
+        // autoLocked remains false so the caller knows this request did not perform the lock.
       }
 
       invalidateDocumentCache(slug);
@@ -156,6 +198,22 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
       if (!doc.length) return reply.status(404).send({ error: 'Not Found' });
       if (doc[0].state !== 'REVIEW') {
         return reply.status(409).send({ error: 'Document must be in REVIEW state to reject' });
+      }
+
+      const existingRejection = await db.select()
+        .from(approvals)
+        .where(and(
+          eq(approvals.documentId, doc[0].id),
+          eq(approvals.reviewerId, request.user!.id),
+          eq(approvals.status, 'REJECTED'),
+        ))
+        .limit(1);
+
+      if (existingRejection.length > 0) {
+        return reply.status(409).send({
+          error: 'Conflict',
+          message: 'You have already rejected this document',
+        });
       }
 
       const now = Date.now();

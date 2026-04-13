@@ -246,32 +246,9 @@ export async function mergeRoutes(fastify: FastifyInstance) {
           fromVersion: indexToVersion.get(entry.fromVersion) ?? entry.fromVersion,
         }));
 
-        // ── Determine new version number ────────────────────────────────────
-        const [latestVersion] = await db
-          .select({ versionNumber: versions.versionNumber })
-          .from(versions)
-          .where(eq(versions.documentId, doc.id))
-          .orderBy(desc(versions.versionNumber))
-          .limit(1);
-
-        const nextVersionNumber = latestVersion ? latestVersion.versionNumber + 1 : 2;
-
-        // Snapshot to version 1 if this is the very first versioned update
-        if (!latestVersion) {
-          const snapshotId = generateId();
-          await db.insert(versions).values({
-            id: snapshotId,
-            documentId: doc.id,
-            versionNumber: 1,
-            compressedData: doc.compressedData,
-            contentHash: doc.contentHash,
-            tokenCount: doc.tokenCount,
-            createdAt: doc.createdAt,
-            changelog: 'Initial version',
-          });
-        }
-
         // ── Resolve author ──────────────────────────────────────────────────
+        // Done outside the transaction to avoid holding the write lock during
+        // a potential network call.
         const callerSuppliedId = createdBy || agentId || null;
         const user = await getOptionalUser(request);
         const effectiveCreatedBy = callerSuppliedId || user?.id || null;
@@ -295,6 +272,7 @@ export async function mergeRoutes(fastify: FastifyInstance) {
           : `Cherry-pick merge: ${provenanceSummary}`;
 
         // ── Compress merged content ─────────────────────────────────────────
+        // Pure CPU work — done outside the transaction.
         const compressedData = await compress(mergedContent);
         const contentHash = hashContent(mergedContent);
         const tokenCount = calculateTokens(mergedContent);
@@ -302,66 +280,113 @@ export async function mergeRoutes(fastify: FastifyInstance) {
         const compressedSize = compressedData.length;
         const now = Date.now();
 
-        // ── Insert new version row ──────────────────────────────────────────
-        const versionId = generateId();
-        await db.insert(versions).values({
-          id: versionId,
-          documentId: doc.id,
-          versionNumber: nextVersionNumber,
-          compressedData,
-          contentHash,
-          tokenCount,
-          createdAt: now,
-          createdBy: effectiveCreatedBy,
-          changelog: effectiveChangelog,
-          storageType: 'inline',
-        });
+        // ── Atomic version creation ─────────────────────────────────────────
+        // Uses IMMEDIATE mode so SQLite acquires the write lock at BEGIN time,
+        // preventing two concurrent requests from reading the same MAX and then
+        // racing on the INSERT.
+        const runMergeInsert = async () =>
+          db.transaction(async (tx) => {
+            // Read current max version number inside the transaction.
+            const [latestVersion] = await tx
+              .select({ versionNumber: versions.versionNumber })
+              .from(versions)
+              .where(eq(versions.documentId, doc.id))
+              .orderBy(desc(versions.versionNumber))
+              .limit(1);
 
-        // ── Update document head ────────────────────────────────────────────
-        await db
-          .update(documents)
-          .set({
-            compressedData,
-            contentHash,
-            originalSize,
-            compressedSize,
-            tokenCount,
-            currentVersion: nextVersionNumber,
-          })
-          .where(eq(documents.id, doc.id));
+            const nextVersionNumber = latestVersion ? latestVersion.versionNumber + 1 : 2;
 
-        // ── Update contributor record ───────────────────────────────────────
-        if (effectiveCreatedBy) {
-          const [existing] = await db
-            .select()
-            .from(contributors)
-            .where(
-              and(
-                eq(contributors.documentId, doc.id),
-                eq(contributors.agentId, effectiveCreatedBy),
-              ),
-            );
+            // Snapshot to version 1 if this is the very first versioned update.
+            if (!latestVersion) {
+              await tx.insert(versions).values({
+                id: generateId(),
+                documentId: doc.id,
+                versionNumber: 1,
+                compressedData: doc.compressedData,
+                contentHash: doc.contentHash,
+                tokenCount: doc.tokenCount,
+                createdAt: doc.createdAt,
+                changelog: 'Initial version',
+              });
+            }
 
-          if (existing) {
-            await db
-              .update(contributors)
-              .set({
-                versionsAuthored: existing.versionsAuthored + 1,
-                lastContribution: now,
-              })
-              .where(eq(contributors.id, existing.id));
-          } else {
-            await db.insert(contributors).values({
+            // Insert new version row.
+            await tx.insert(versions).values({
               id: generateId(),
               documentId: doc.id,
-              agentId: effectiveCreatedBy,
-              versionsAuthored: 1,
-              totalTokensAdded: tokenCount ?? 0,
-              totalTokensRemoved: 0,
-              netTokens: tokenCount ?? 0,
-              firstContribution: now,
-              lastContribution: now,
+              versionNumber: nextVersionNumber,
+              compressedData,
+              contentHash,
+              tokenCount,
+              createdAt: now,
+              createdBy: effectiveCreatedBy,
+              changelog: effectiveChangelog,
+              storageType: 'inline',
             });
+
+            // Update document head.
+            await tx
+              .update(documents)
+              .set({
+                compressedData,
+                contentHash,
+                originalSize,
+                compressedSize,
+                tokenCount,
+                currentVersion: nextVersionNumber,
+              })
+              .where(eq(documents.id, doc.id));
+
+            // Upsert contributor record inside the same transaction.
+            if (effectiveCreatedBy) {
+              const [existing] = await tx
+                .select()
+                .from(contributors)
+                .where(
+                  and(
+                    eq(contributors.documentId, doc.id),
+                    eq(contributors.agentId, effectiveCreatedBy),
+                  ),
+                );
+
+              if (existing) {
+                await tx
+                  .update(contributors)
+                  .set({
+                    versionsAuthored: existing.versionsAuthored + 1,
+                    lastContribution: now,
+                  })
+                  .where(eq(contributors.id, existing.id));
+              } else {
+                await tx.insert(contributors).values({
+                  id: generateId(),
+                  documentId: doc.id,
+                  agentId: effectiveCreatedBy,
+                  versionsAuthored: 1,
+                  totalTokensAdded: tokenCount ?? 0,
+                  totalTokensRemoved: 0,
+                  netTokens: tokenCount ?? 0,
+                  firstContribution: now,
+                  lastContribution: now,
+                });
+              }
+            }
+
+            return nextVersionNumber;
+          }, { behavior: 'immediate' });
+
+        // Retry once on UNIQUE constraint collision (concurrent merge hit the
+        // same version number).  The retry reads a fresh MAX inside its own
+        // IMMEDIATE transaction so it lands on the correct next number.
+        let nextVersionNumber: number;
+        try {
+          nextVersionNumber = await runMergeInsert();
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (msg.includes('UNIQUE constraint failed')) {
+            nextVersionNumber = await runMergeInsert();
+          } else {
+            throw err;
           }
         }
 
