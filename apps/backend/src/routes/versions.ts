@@ -567,7 +567,7 @@ export async function versionRoutes(fastify: FastifyInstance) {
 
       // Check that every requested version was found
       for (const num of requestedVersions) {
-        if (!versionRows.find(r => r.versionNumber === num)) {
+        if (!versionRows.find((r: any) => r.versionNumber === num)) {
           return reply.status(404).send({ error: `Version ${num} not found` });
         }
       }
@@ -578,7 +578,7 @@ export async function versionRoutes(fastify: FastifyInstance) {
 
       const contentByVersion = new Map<number, string>();
       for (const num of sorted) {
-        const row = versionRows.find(r => r.versionNumber === num)!;
+        const row = versionRows.find((r: any) => r.versionNumber === num)!;
         const buf = row.compressedData instanceof Buffer
           ? row.compressedData
           : Buffer.from(row.compressedData as ArrayBuffer);
@@ -640,7 +640,7 @@ export async function versionRoutes(fastify: FastifyInstance) {
 
       const results = [];
       for (const num of requestedVersions) {
-        const ver = versionRows.find(v => v.versionNumber === num);
+        const ver = versionRows.find((v: any) => v.versionNumber === num);
         if (!ver) continue;
 
         const buffer = ver.compressedData instanceof Buffer

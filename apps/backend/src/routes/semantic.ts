@@ -24,10 +24,8 @@ import { createEmbeddingProvider } from '../utils/embeddings.js';
 // Import WASM-compiled Rust primitives from the llmtxt npm package.
 // `semantic_diff` and `semantic_consensus` accept pre-computed embeddings so
 // they never call external APIs — all I/O happens here in TypeScript.
-import {
-  semanticDiff as rustSemanticDiff,
-  semanticConsensus as rustSemanticConsensus,
-} from 'llmtxt';
+import { semanticDiff as rustSemanticDiff, semanticConsensus as rustSemanticConsensus } from 'llmtxt';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 
 // ── Validation schemas ────────────────────────────────────────────────────
 
@@ -294,7 +292,7 @@ export async function semanticRoutes(fastify: FastifyInstance) {
           );
 
         for (const num of requestedVersions) {
-          if (!versionRows.find(r => r.versionNumber === num)) {
+          if (!versionRows.find((r: any) => r.versionNumber === num)) {
             return reply.status(404).send({ error: `Version ${num} not found` });
           }
         }
@@ -303,7 +301,7 @@ export async function semanticRoutes(fastify: FastifyInstance) {
         const contentByVersion = new Map<number, string>();
         await Promise.all(
           requestedVersions.map(async num => {
-            const row = versionRows.find(r => r.versionNumber === num)!;
+            const row = versionRows.find((r: any) => r.versionNumber === num)!;
             const content = await decompressVersion(row.compressedData);
             contentByVersion.set(num, content);
           }),
@@ -429,13 +427,13 @@ export async function semanticRoutes(fastify: FastifyInstance) {
         // Use the review reason/comment as the text to embed.
         // Fall back to a synthetic label when no comment was provided.
         const texts = reviewRows.map(
-          r => r.reason?.trim() || `Approved by ${r.reviewerId}`,
+          (r: any) => r.reason?.trim() || `Approved by ${r.reviewerId}`,
         );
 
         const embeddings = await provider.embed(texts);
 
         // Build the reviews payload for the Rust primitive.
-        const embeddedReviews = reviewRows.map((r, i) => ({
+        const embeddedReviews = reviewRows.map((r: any, i: number) => ({
           reviewerId: r.reviewerId,
           content: texts[i],
           embedding: embeddings[i] ?? [],

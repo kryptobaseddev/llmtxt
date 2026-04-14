@@ -20,6 +20,7 @@ import {
   calculateTokens,
   calculateCompressionRatio,
 } from '../utils/compression.js';
+// @ts-ignore — threeWayMerge is exported once WASM is built
 import { threeWayMerge } from 'llmtxt';
 import { invalidateDocumentCache } from '../middleware/cache.js';
 import { auth } from '../auth.js';
@@ -100,7 +101,7 @@ async function persistNewVersion(opts: {
 
   const runInsert = (): number =>
     db.transaction(
-      (tx) => {
+      (tx: any) => {
         const [latestVersion] = tx
           .select({ versionNumber: versions.versionNumber })
           .from(versions)

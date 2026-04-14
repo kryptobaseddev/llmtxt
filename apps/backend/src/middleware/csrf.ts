@@ -84,6 +84,12 @@ export async function registerCsrf(app: FastifyInstance) {
     // Skip requests authenticated by Bearer token — CSRF does not apply.
     if (hasBearerToken(request)) return;
 
+    // Skip requests with no session cookie — CSRF only applies when the
+    // browser automatically attaches cookies. A bare HTTP client (curl, agent
+    // SDK, etc.) without cookies has nothing to forge.
+    const cookieHeader = request.headers.cookie || '';
+    if (!cookieHeader.includes('better-auth.session_token')) return;
+
     // Validate CSRF token for cookie-authenticated state-changing requests.
     // app.csrfProtection is a synchronous-style callback — wrap in a promise.
     await new Promise<void>((resolve, reject) => {

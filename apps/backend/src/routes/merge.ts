@@ -147,7 +147,7 @@ export async function mergeRoutes(fastify: FastifyInstance) {
           .where(eq(versions.documentId, doc.id));
 
         // Build a map from version number → row
-        const versionRowMap = new Map(versionRows.map((v) => [v.versionNumber, v]));
+        const versionRowMap = new Map<number, any>(versionRows.map((v: any) => [v.versionNumber, v]));
 
         // Validate all requested version numbers exist
         for (const num of requestedVersionNumbers) {
@@ -161,7 +161,7 @@ export async function mergeRoutes(fastify: FastifyInstance) {
         // ── Decompress content for each referenced version ──────────────────
         const versionContentMap = new Map<number, string>();
         for (const num of requestedVersionNumbers) {
-          const row = versionRowMap.get(num)!;
+          const row: any = versionRowMap.get(num)!;
           const buf =
             row.compressedData instanceof Buffer
               ? row.compressedData

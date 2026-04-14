@@ -266,6 +266,44 @@ export function multi_way_diff_wasm(base: string, versions_json: string): string
 export function reconstruct_version(base: string, patches_json: string, target: number): string;
 
 /**
+ * Evaluate semantic consensus from a JSON array of reviews (WASM / backend entry point).
+ *
+ * `reviews_json` must be a JSON array of objects with the shape
+ * `{ reviewerId: string, content: string, embedding: number[] }`.
+ *
+ * Returns a JSON-serialised [`SemanticConsensusResult`], or `{"error":"..."}` on failure.
+ */
+export function semantic_consensus(reviews_json: string, threshold: number): string;
+
+/**
+ * WASM binding for [`semantic_consensus`].
+ *
+ * `reviews_json` is a JSON array of `{ reviewerId, content, embedding: number[] }`.
+ * `threshold` is the minimum cosine similarity for two reviews to agree (e.g. 0.80).
+ * Returns a JSON-serialised `SemanticConsensusResult`, or `{"error":"..."}`.
+ */
+export function semantic_consensus_wasm(reviews_json: string, threshold: number): string;
+
+/**
+ * Compute semantic diff from JSON strings (WASM / backend entry point).
+ *
+ * `sections_a_json` and `sections_b_json` must each be a JSON array of objects
+ * with the shape `{ title: string, content: string, embedding: number[] }`.
+ *
+ * Returns a JSON-serialised [`SemanticDiffResult`], or `{"error":"..."}` on failure.
+ */
+export function semantic_diff(sections_a_json: string, sections_b_json: string): string;
+
+/**
+ * WASM binding for [`semantic_diff`].
+ *
+ * `sections_a_json` and `sections_b_json` are JSON arrays of
+ * `{ title, content, embedding: number[] }`.
+ * Returns a JSON-serialised `SemanticDiffResult`, or `{"error":"..."}`.
+ */
+export function semantic_diff_wasm(sections_a_json: string, sections_b_json: string): string;
+
+/**
  * Apply all patches sequentially to base content, then produce a single
  * unified diff from the original base to the final state.
  *
@@ -297,6 +335,15 @@ export function text_similarity(a: string, b: string): number;
  * Compute n-gram Jaccard similarity with configurable gram size.
  */
 export function text_similarity_ngram(a: string, b: string, n: number): number;
+
+/**
+ * WASM binding for the 3-way merge algorithm.
+ *
+ * Takes `base`, `ours`, and `theirs` content strings.
+ * Returns a JSON-serialised [`ThreeWayMergeResult`] on success, or
+ * `{"error": "<message>"}` on serialization failure.
+ */
+export function three_way_merge_wasm(base: string, ours: string, theirs: string): string;
 
 /**
  * Validate a proposed transition and return a JSON result.

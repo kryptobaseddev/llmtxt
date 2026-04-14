@@ -201,11 +201,11 @@ export async function collectionRoutes(fastify: FastifyInstance) {
         .from(collections)
         .orderBy(asc(collections.createdAt));
 
-      const accessible = allCollections.filter((c) => canReadCollection(c, userId));
+      const accessible = allCollections.filter((c: any) => canReadCollection(c, userId));
 
       // Attach document counts
       const result = await Promise.all(
-        accessible.map(async (col) => {
+        accessible.map(async (col: any) => {
           const memberRows = await db
             .select({ id: collectionDocuments.id })
             .from(collectionDocuments)
@@ -255,7 +255,7 @@ export async function collectionRoutes(fastify: FastifyInstance) {
         .where(eq(collectionDocuments.collectionId, col.id))
         .orderBy(asc(collectionDocuments.position));
 
-      const docIds = memberRows.map((r) => r.documentId);
+      const docIds = memberRows.map((r: any) => r.documentId);
       const docDetails =
         docIds.length > 0
           ? await db
@@ -271,10 +271,10 @@ export async function collectionRoutes(fastify: FastifyInstance) {
               .where(inArray(documents.id, docIds))
           : [];
 
-      const docMap = new Map(docDetails.map((d) => [d.id, d]));
+      const docMap = new Map<string, any>(docDetails.map((d: any) => [d.id, d]));
 
       const docsInOrder = memberRows
-        .flatMap((r) => {
+        .flatMap((r: any) => {
           const d = docMap.get(r.documentId);
           if (!d) return [];
           return [{
@@ -514,7 +514,7 @@ export async function collectionRoutes(fastify: FastifyInstance) {
         .from(documents)
         .where(inArray(documents.slug, docSlugs));
 
-      const slugToId = new Map(docRows.map((d) => [d.slug, d.id]));
+      const slugToId = new Map<string, string>(docRows.map((d: any) => [d.slug, d.id]));
 
       // Update positions
       const now = Date.now();
@@ -577,7 +577,7 @@ export async function collectionRoutes(fastify: FastifyInstance) {
         .where(eq(collectionDocuments.collectionId, col.id))
         .orderBy(asc(collectionDocuments.position));
 
-      const docIds = memberRows.map((r) => r.documentId);
+      const docIds = memberRows.map((r: any) => r.documentId);
       if (docIds.length === 0) {
         return reply.status(200).send({
           collection: slug,

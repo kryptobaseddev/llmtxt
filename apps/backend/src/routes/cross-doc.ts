@@ -196,8 +196,8 @@ export async function crossDocRoutes(fastify: FastifyInstance) {
           .where(inArray(collections.slug, collectionSlugs));
 
         const accessibleCollectionIds = collRows
-          .filter((c) => c.visibility === 'public' || c.ownerId === userId)
-          .map((c) => c.id);
+          .filter((c: any) => c.visibility === 'public' || c.ownerId === userId)
+          .map((c: any) => c.id as string);
 
         if (accessibleCollectionIds.length > 0) {
           const memberRows = await db
@@ -205,13 +205,13 @@ export async function crossDocRoutes(fastify: FastifyInstance) {
             .from(collectionDocuments)
             .where(inArray(collectionDocuments.collectionId, accessibleCollectionIds));
 
-          const docIds = memberRows.map((r) => r.documentId);
+          const docIds = memberRows.map((r: any) => r.documentId as string);
           if (docIds.length > 0) {
             const docRows = await db
               .select({ slug: documents.slug })
               .from(documents)
               .where(inArray(documents.id, docIds));
-            targetSlugs = docRows.map((d) => d.slug);
+            targetSlugs = docRows.map((d: any) => d.slug as string);
           }
         }
       } else {
@@ -220,8 +220,8 @@ export async function crossDocRoutes(fastify: FastifyInstance) {
           .select({ slug: documents.slug, ownerId: documents.ownerId, isAnonymous: documents.isAnonymous })
           .from(documents);
         targetSlugs = allDocs
-          .filter((d) => canUserReadDoc(d, userId))
-          .map((d) => d.slug);
+          .filter((d: any) => canUserReadDoc(d, userId))
+          .map((d: any) => d.slug as string);
       }
 
       // Execute search
@@ -554,7 +554,7 @@ export async function crossDocRoutes(fastify: FastifyInstance) {
           .select({ slug: documents.slug })
           .from(documents)
           .where(eq(documents.ownerId, userId));
-        targetSlugs = ownedDocs.map((d) => d.slug);
+        targetSlugs = ownedDocs.map((d: any) => d.slug as string);
       }
 
       if (targetSlugs.length === 0) {
@@ -574,8 +574,8 @@ export async function crossDocRoutes(fastify: FastifyInstance) {
         .from(documents)
         .where(inArray(documents.slug, targetSlugs));
 
-      const accessibleDocs = docRows.filter((d) => canUserReadDoc(d, userId));
-      const accessibleIds = new Set(accessibleDocs.map((d) => d.id));
+      const accessibleDocs = docRows.filter((d: any) => canUserReadDoc(d, userId));
+      const accessibleIds = new Set(accessibleDocs.map((d: any) => d.id as string));
 
       // Build nodes with title (from first heading in content)
       const nodes: Array<{ slug: string; title: string; state: string }> = [];
@@ -598,7 +598,7 @@ export async function crossDocRoutes(fastify: FastifyInstance) {
       }
 
       // Fetch edges between accessible documents
-      const accessibleIdArray = Array.from(accessibleIds);
+      const accessibleIdArray = Array.from(accessibleIds) as string[];
       const edges: Array<{ source: string; target: string; type: string; label: string | null }> = [];
 
       if (accessibleIdArray.length > 0) {
@@ -612,13 +612,13 @@ export async function crossDocRoutes(fastify: FastifyInstance) {
           .from(documentLinks)
           .where(
             and(
-              inArray(documentLinks.sourceDocId, accessibleIdArray),
-              inArray(documentLinks.targetDocId, accessibleIdArray)
+              inArray(documentLinks.sourceDocId, accessibleIdArray as [string, ...string[]]),
+              inArray(documentLinks.targetDocId, accessibleIdArray as [string, ...string[]])
             )
           );
 
         // Build id→slug map for edge labels
-        const idToSlug = new Map(accessibleDocs.map((d) => [d.id, d.slug]));
+        const idToSlug = new Map<string, string>(accessibleDocs.map((d: any) => [d.id as string, d.slug as string]));
 
         for (const row of linkRows) {
           const source = idToSlug.get(String(row.sourceDocId));

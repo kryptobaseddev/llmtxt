@@ -137,7 +137,7 @@ export async function webhookRoutes(app: FastifyInstance) {
         .where(eq(webhooks.userId, request.user!.id));
 
       return {
-        webhooks: rows.map(row => ({
+        webhooks: rows.map((row: any) => ({
           ...row,
           events: (() => {
             try {

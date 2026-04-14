@@ -23,17 +23,12 @@ llmtxt-core = "2026.4"
 - HMAC-SHA256 signed URL generation and verification
 - unified diff `create_patch` / `apply_patch` for document versioning
 - `reconstruct_version` / `squash_patches` for patch stack management
-- `multi_way_diff_wasm` for LCS-aligned comparison across up to 5 agent versions
-- `cherry_pick_merge_wasm` for section-based merge from multiple versions
 - n-gram Jaccard text similarity
 - base62 encoding helpers
 - organization-scoped signature variants
 - WASM-exported functions for TypeScript consumers
 
 ## Example
-
-Rust crate modules: `patch.rs`, `diff.rs`, `diff_multi.rs`, `cherry_pick.rs`, `lifecycle.rs`,
-`consensus.rs`, `native_signed_url.rs`, `lib.rs`.
 
 ```rust
 use llmtxt_core::{

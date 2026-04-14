@@ -827,6 +827,116 @@ function reconstruct_version(base, patches_json, target) {
 exports.reconstruct_version = reconstruct_version;
 
 /**
+ * Evaluate semantic consensus from a JSON array of reviews (WASM / backend entry point).
+ *
+ * `reviews_json` must be a JSON array of objects with the shape
+ * `{ reviewerId: string, content: string, embedding: number[] }`.
+ *
+ * Returns a JSON-serialised [`SemanticConsensusResult`], or `{"error":"..."}` on failure.
+ * @param {string} reviews_json
+ * @param {number} threshold
+ * @returns {string}
+ */
+function semantic_consensus(reviews_json, threshold) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(reviews_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.semantic_consensus(ptr0, len0, threshold);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.semantic_consensus = semantic_consensus;
+
+/**
+ * WASM binding for [`semantic_consensus`].
+ *
+ * `reviews_json` is a JSON array of `{ reviewerId, content, embedding: number[] }`.
+ * `threshold` is the minimum cosine similarity for two reviews to agree (e.g. 0.80).
+ * Returns a JSON-serialised `SemanticConsensusResult`, or `{"error":"..."}`.
+ * @param {string} reviews_json
+ * @param {number} threshold
+ * @returns {string}
+ */
+function semantic_consensus_wasm(reviews_json, threshold) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(reviews_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.semantic_consensus_wasm(ptr0, len0, threshold);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.semantic_consensus_wasm = semantic_consensus_wasm;
+
+/**
+ * Compute semantic diff from JSON strings (WASM / backend entry point).
+ *
+ * `sections_a_json` and `sections_b_json` must each be a JSON array of objects
+ * with the shape `{ title: string, content: string, embedding: number[] }`.
+ *
+ * Returns a JSON-serialised [`SemanticDiffResult`], or `{"error":"..."}` on failure.
+ * @param {string} sections_a_json
+ * @param {string} sections_b_json
+ * @returns {string}
+ */
+function semantic_diff(sections_a_json, sections_b_json) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(sections_a_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(sections_b_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.semantic_diff(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+exports.semantic_diff = semantic_diff;
+
+/**
+ * WASM binding for [`semantic_diff`].
+ *
+ * `sections_a_json` and `sections_b_json` are JSON arrays of
+ * `{ title, content, embedding: number[] }`.
+ * Returns a JSON-serialised `SemanticDiffResult`, or `{"error":"..."}`.
+ * @param {string} sections_a_json
+ * @param {string} sections_b_json
+ * @returns {string}
+ */
+function semantic_diff_wasm(sections_a_json, sections_b_json) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(sections_a_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(sections_b_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.semantic_diff_wasm(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+exports.semantic_diff_wasm = semantic_diff_wasm;
+
+/**
  * Apply all patches sequentially to base content, then produce a single
  * unified diff from the original base to the final state.
  *
@@ -925,6 +1035,37 @@ function text_similarity_ngram(a, b, n) {
     return ret;
 }
 exports.text_similarity_ngram = text_similarity_ngram;
+
+/**
+ * WASM binding for the 3-way merge algorithm.
+ *
+ * Takes `base`, `ours`, and `theirs` content strings.
+ * Returns a JSON-serialised [`ThreeWayMergeResult`] on success, or
+ * `{"error": "<message>"}` on serialization failure.
+ * @param {string} base
+ * @param {string} ours
+ * @param {string} theirs
+ * @returns {string}
+ */
+function three_way_merge_wasm(base, ours, theirs) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(base, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(ours, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(theirs, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.three_way_merge_wasm(ptr0, len0, ptr1, len1, ptr2, len2);
+        deferred4_0 = ret[0];
+        deferred4_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+exports.three_way_merge_wasm = three_way_merge_wasm;
 
 /**
  * Validate a proposed transition and return a JSON result.

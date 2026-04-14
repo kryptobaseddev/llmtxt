@@ -25,6 +25,10 @@ import { conflictRoutes } from '../conflicts.js';
 import { accessControlRoutes } from '../access-control.js';
 import { organizationRoutes } from '../organizations.js';
 import { semanticRoutes } from '../semantic.js';
+import { crossDocRoutes } from '../cross-doc.js';
+import { collectionRoutes } from '../collections.js';
+import { sseRoutes } from '../sse.js';
+import { webhookRoutes } from '../webhooks.js';
 import {
   API_VERSION_REGISTRY,
   addVersionResponseHeaders,
@@ -63,4 +67,8 @@ export async function v1Routes(app: FastifyInstance): Promise<void> {
   await app.register(accessControlRoutes);
   await app.register(organizationRoutes);
   await app.register(semanticRoutes);
+  await app.register(crossDocRoutes);
+  await app.register(collectionRoutes);
+  await app.register(sseRoutes);
+  await app.register(webhookRoutes);
 }

@@ -57,7 +57,7 @@ export async function getDocumentWithContent(slug: string, request: FastifyReque
       lastAccessedAt: Date.now(),
     })
     .where(eq(documents.id, doc.id))
-    .catch(err => request.log.error(err));
+    .catch((err: unknown) => request.log.error(err));
     
   if (!content) {
     const compressedBuffer = doc.compressedData instanceof Buffer

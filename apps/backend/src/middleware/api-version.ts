@@ -151,7 +151,7 @@ export async function apiVersionPlugin(app: FastifyInstance): Promise<void> {
   // Fastify 5 requires the default value type to match the declared property type.
   // Scoped route hooks (onRequest in v1Routes / legacyScope) overwrite this
   // value with their specific version context before any handler runs.
-  app.decorateRequest('apiVersion', API_VERSION_REGISTRY[CURRENT_API_VERSION]);
+  app.decorateRequest('apiVersion', null);
 
   app.addHook('onRequest', async (request: FastifyRequest, _reply: FastifyReply) => {
     // Resolve from Accept / X-API-Version headers only when the value has not

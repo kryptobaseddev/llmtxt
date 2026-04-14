@@ -360,6 +360,10 @@ export function threeWayMerge(base: string, ours: string, theirs: string): Three
   const parsed = JSON.parse(json) as ThreeWayMergeResult & { error?: string };
   if (parsed.error) {
     throw new Error(`threeWayMerge failed: ${parsed.error}`);
+  }
+  return parsed;
+}
+
 // ── Semantic Diff ───────────────────────────────────────────────
 
 /** How a section from version A maps to version B. */

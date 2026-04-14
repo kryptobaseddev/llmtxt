@@ -158,7 +158,7 @@ export async function wsRoutes(app: FastifyInstance) {
           .select({ slug: documents.slug })
           .from(documents)
           .where(eq(documents.ownerId, userId));
-        userDocumentSlugs = new Set(rows.map(r => r.slug));
+        userDocumentSlugs = new Set(rows.map((r: { slug: string }) => r.slug));
         return userDocumentSlugs;
       };
 
