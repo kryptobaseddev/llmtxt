@@ -16,6 +16,7 @@ import { retrievalRoutes } from './routes/retrieval.js';
 import { signedUrlRoutes } from './routes/signed-urls.js';
 import { mergeRoutes } from './routes/merge.js';
 import { publicDir, extractSlug, extractSlugWithExtension, handleContentNegotiation, getDocumentWithContent } from './routes/web.js';
+import { registerRateLimiting } from './middleware/rate-limit.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const API_HOSTS = new Set(['api.llmtxt.my']);
@@ -58,6 +59,9 @@ async function main() {
 
     // Register compression plugin
     await app.register(compress);
+
+    // Register rate limiting (after CORS and compression, before routes)
+    await registerRateLimiting(app);
 
     // ──────────────────────────────────────────────────────────────────
     // robots.txt: allow all crawlers
@@ -209,7 +213,13 @@ async function main() {
             description: 'Create anonymous session (24hr TTL)'
           }
         ],
-        llms_txt: 'https://api.llmtxt.my/llms.txt'
+        llms_txt: 'https://api.llmtxt.my/llms.txt',
+        rate_limits: {
+          unauthenticated: { requests_per_minute: 100, writes_per_minute: 20 },
+          authenticated: { requests_per_minute: 300, writes_per_minute: 60 },
+          api_key: { requests_per_minute: 600, writes_per_minute: 120 },
+          docs: 'Rate limit headers (X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset) are included in all API responses.',
+        },
       };
     });
 

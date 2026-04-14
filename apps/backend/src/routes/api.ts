@@ -40,6 +40,8 @@ import {
   contentCache,
   metadataCache,
 } from '../middleware/cache.js';
+import { writeRateLimit } from '../middleware/rate-limit.js';
+import { enforceContentSize, enforceDocumentLimit } from '../middleware/content-limits.js';
 
 // Legacy validation schemas (kept for backward compatibility)
 const slugParamsSchema = z.object({
@@ -149,10 +151,13 @@ export async function apiRoutes(fastify: FastifyInstance) {
    *   details: [...]
    * }
    */
-  fastify.post('/compress', async (
-    request: FastifyRequest<{ Body: { content: string; format?: 'json' | 'text' | 'markdown'; schema?: string; createdBy?: string; agentId?: string } }>,
-    reply: FastifyReply
-  ) => {
+  fastify.post<{ Body: { content: string; format?: 'json' | 'text' | 'markdown'; schema?: string; createdBy?: string; agentId?: string } }>(
+    '/compress',
+    {
+      config: writeRateLimit,
+      preHandler: [enforceContentSize, enforceDocumentLimit],
+    },
+    async (request, reply) => {
     try {
       // Step 1: Validate request body structure
       const bodyResult = compressRequestSchema.safeParse(request.body);
