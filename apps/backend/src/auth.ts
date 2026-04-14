@@ -12,14 +12,14 @@ import { betterAuth } from 'better-auth';
 import { anonymous } from 'better-auth/plugins';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { eq } from 'drizzle-orm';
-import { db } from './db/index.js';
+import { db, DATABASE_PROVIDER } from './db/index.js';
 import * as schema from './db/schema.js';
 import { documents, contributors, versions } from './db/schema.js';
 
 /** Better-auth instance with email/password + anonymous authentication, cookie-based sessions, and 24hr anonymous user TTL. */
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
-    provider: 'sqlite',
+    provider: DATABASE_PROVIDER === 'postgresql' ? 'pg' : 'sqlite',
     schema: {
       ...schema,
       user: schema.users,
