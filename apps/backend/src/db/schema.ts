@@ -470,6 +470,57 @@ export const versionAttributions = sqliteTable(
 );
 
 // ────────────────────────────────────────────────────────────────
+// Webhooks
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Webhooks table - stores external HTTP callback registrations.
+ *
+ * When a matching document event fires, the delivery worker POSTs
+ * the event payload to `url` with an HMAC-SHA256 signature in the
+ * X-LLMtxt-Signature header. Webhooks are automatically disabled
+ * after 10 consecutive delivery failures.
+ */
+export const webhooks = sqliteTable(
+  'webhooks',
+  {
+    id: text('id').primaryKey(), // base62
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** Callback URL — must be HTTPS in production. */
+    url: text('url').notNull(),
+    /** HMAC-SHA256 signing secret (caller-provided or auto-generated). */
+    secret: text('secret').notNull(),
+    /**
+     * JSON array of DocumentEventType strings to subscribe to.
+     * Empty array or omitted = subscribe to all events.
+     * Example: '["version.created","state.changed"]'
+     */
+    events: text('events').notNull().default('[]'),
+    /**
+     * Target document slug. Null = receive events from ALL documents
+     * owned by userId. Set to a specific slug to scope to one document.
+     */
+    documentSlug: text('document_slug'),
+    /** Whether this webhook is active. Set to false after 10 failures. */
+    active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    /** Consecutive delivery failure count. Reset to 0 on success. */
+    failureCount: integer('failure_count').notNull().default(0),
+    /** Timestamp of last successful or failed delivery attempt (ms). */
+    lastDeliveryAt: integer('last_delivery_at'),
+    /** Timestamp of last successful delivery (ms). */
+    lastSuccessAt: integer('last_success_at'),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => ({
+    userIdx: index('webhooks_user_id_idx').on(table.userId),
+    slugIdx: index('webhooks_document_slug_idx').on(table.documentSlug),
+    activeIdx: index('webhooks_active_idx').on(table.active, table.userId),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
 // Export TypeScript types
 // ────────────────────────────────────────────────────────────────
 
@@ -491,6 +542,8 @@ export type SignedUrlToken = typeof signedUrlTokens.$inferSelect;
 export type NewSignedUrlToken = typeof signedUrlTokens.$inferInsert;
 export type VersionAttribution = typeof versionAttributions.$inferSelect;
 export type NewVersionAttribution = typeof versionAttributions.$inferInsert;
+export type Webhook = typeof webhooks.$inferSelect;
+export type NewWebhook = typeof webhooks.$inferInsert;
 
 // ────────────────────────────────────────────────────────────────
 // Export Zod schemas for validation
@@ -514,6 +567,8 @@ export const insertSignedUrlTokenSchema = createInsertSchema(signedUrlTokens);
 export const selectSignedUrlTokenSchema = createSelectSchema(signedUrlTokens);
 export const insertVersionAttributionSchema = createInsertSchema(versionAttributions);
 export const selectVersionAttributionSchema = createSelectSchema(versionAttributions);
+export const insertWebhookSchema = createInsertSchema(webhooks);
+export const selectWebhookSchema = createSelectSchema(webhooks);
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type SelectUser = z.infer<typeof selectUserSchema>;
@@ -533,3 +588,5 @@ export type InsertSignedUrlToken = z.infer<typeof insertSignedUrlTokenSchema>;
 export type SelectSignedUrlToken = z.infer<typeof selectSignedUrlTokenSchema>;
 export type InsertVersionAttribution = z.infer<typeof insertVersionAttributionSchema>;
 export type SelectVersionAttribution = z.infer<typeof selectVersionAttributionSchema>;
+export type InsertWebhook = z.infer<typeof insertWebhookSchema>;
+export type SelectWebhook = z.infer<typeof selectWebhookSchema>;

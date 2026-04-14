@@ -3,6 +3,7 @@ import Fastify from 'fastify';
 import compress from '@fastify/compress';
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
+import websocket from '@fastify/websocket';
 import http from 'http';
 import { apiRoutes } from './routes/api.js';
 import { disclosureRoutes } from './routes/disclosure.js';
@@ -15,6 +16,10 @@ import { graphRoutes } from './routes/graph.js';
 import { retrievalRoutes } from './routes/retrieval.js';
 import { signedUrlRoutes } from './routes/signed-urls.js';
 import { mergeRoutes } from './routes/merge.js';
+import { wsRoutes } from './routes/ws.js';
+import { sseRoutes } from './routes/sse.js';
+import { webhookRoutes } from './routes/webhooks.js';
+import { startWebhookWorker } from './events/webhooks.js';
 import { publicDir, extractSlug, extractSlugWithExtension, handleContentNegotiation, getDocumentWithContent } from './routes/web.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -55,6 +60,11 @@ async function main() {
       allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
       credentials: true,
     });
+
+    // Register WebSocket plugin — MUST be registered before any WS routes.
+    // @fastify/websocket needs to intercept upgrade requests before Fastify's
+    // normal routing takes over.
+    await app.register(websocket);
 
     // Register compression plugin
     await app.register(compress);
@@ -194,6 +204,31 @@ async function main() {
             description: 'Cherry-pick merge: assemble new version from line ranges and sections across multiple versions'
           },
           {
+            path: '/documents/:slug/events',
+            method: 'GET',
+            description: 'Server-Sent Events stream for real-time document notifications (SSE fallback)'
+          },
+          {
+            path: '/webhooks',
+            method: 'POST',
+            description: 'Register a webhook for real-time event delivery to an external HTTPS endpoint'
+          },
+          {
+            path: '/webhooks',
+            method: 'GET',
+            description: 'List registered webhooks'
+          },
+          {
+            path: '/webhooks/:id',
+            method: 'DELETE',
+            description: 'Remove a registered webhook'
+          },
+          {
+            path: '/webhooks/:id/test',
+            method: 'POST',
+            description: 'Send a synthetic test event to a registered webhook'
+          },
+          {
             path: '/auth/sign-up/email',
             method: 'POST',
             description: 'Register with email/password'
@@ -209,7 +244,13 @@ async function main() {
             description: 'Create anonymous session (24hr TTL)'
           }
         ],
-        llms_txt: 'https://api.llmtxt.my/llms.txt'
+        llms_txt: 'https://api.llmtxt.my/llms.txt',
+        realtime: {
+          websocket: 'wss://api.llmtxt.my/ws/documents/{slug}',
+          websocket_all: 'wss://api.llmtxt.my/ws/documents',
+          sse: 'https://api.llmtxt.my/documents/{slug}/events',
+          webhooks: 'https://api.llmtxt.my/webhooks',
+        }
       };
     });
 
@@ -240,6 +281,18 @@ async function main() {
     await app.register(retrievalRoutes, { prefix: '/api' });
     await app.register(signedUrlRoutes, { prefix: '/api' });
     await app.register(mergeRoutes, { prefix: '/api' });
+
+    // ──────────────────────────────────────────────────────────────────
+    // Real-time routes
+    // WS routes use /ws prefix (separate from /api — different protocol).
+    // SSE and webhook routes live under /api like all other HTTP routes.
+    // ──────────────────────────────────────────────────────────────────
+    await app.register(wsRoutes, { prefix: '/ws' });
+    await app.register(sseRoutes, { prefix: '/api' });
+    await app.register(webhookRoutes, { prefix: '/api' });
+
+    // Start the webhook delivery worker (attaches a single event-bus listener).
+    startWebhookWorker();
 
     // Register error handler
     app.setErrorHandler((error: unknown, request, reply) => {

@@ -9,6 +9,7 @@ import { requireAuth } from '../middleware/auth.js';
 import {
   applyPatch, hashContent, compress, calculateTokens, generateId,
 } from 'llmtxt';
+import { eventBus } from '../events/bus.js';
 
 /** Register patch route: POST /documents/:slug/patch to apply a unified diff and create a new version. Requires authentication and editable document state. */
 export async function patchRoutes(fastify: FastifyInstance) {
@@ -79,6 +80,13 @@ export async function patchRoutes(fastify: FastifyInstance) {
         currentVersion: nextVersion,
         versionCount: doc[0].versionCount + 1,
       }).where(eq(documents.slug, slug));
+
+      // Emit version.created AFTER the successful DB write — non-blocking.
+      eventBus.emitVersionCreated(slug, doc[0].id, request.user!.id, {
+        version: nextVersion,
+        changelog,
+        createdBy: request.user!.id,
+      });
 
       reply.status(201);
       return {

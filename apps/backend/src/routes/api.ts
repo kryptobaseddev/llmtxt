@@ -40,6 +40,7 @@ import {
   contentCache,
   metadataCache,
 } from '../middleware/cache.js';
+import { eventBus } from '../events/bus.js';
 
 // Legacy validation schemas (kept for backward compatibility)
 const slugParamsSchema = z.object({
@@ -287,6 +288,12 @@ export async function apiRoutes(fastify: FastifyInstance) {
         response.schema = schema;
         response.validated = true;
       }
+
+      // Emit document.created AFTER the successful DB write — non-blocking.
+      eventBus.emitDocumentCreated(slug, id, effectiveCreatedBy || 'anonymous', {
+        tokenCount,
+        format: contentFormat,
+      });
 
       return reply.status(201).send(response);
     } catch (error) {

@@ -20,6 +20,7 @@ import {
 import { cherryPickMerge } from 'llmtxt';
 import { invalidateDocumentCache } from '../middleware/cache.js';
 import { auth } from '../auth.js';
+import { eventBus } from '../events/bus.js';
 
 // ── Auth helper ───────────────────────────────────────────────────────────────
 
@@ -409,6 +410,13 @@ export async function mergeRoutes(fastify: FastifyInstance) {
 
         // ── Invalidate cache ────────────────────────────────────────────────
         invalidateDocumentCache(slug);
+
+        // Emit version.created AFTER the successful DB write — non-blocking.
+        eventBus.emitVersionCreated(slug, doc.id, effectiveCreatedBy || 'anonymous', {
+          version: nextVersionNumber,
+          changelog: effectiveChangelog,
+          createdBy: effectiveCreatedBy,
+        });
 
         // ── Respond ─────────────────────────────────────────────────────────
         return reply.status(201).send({
