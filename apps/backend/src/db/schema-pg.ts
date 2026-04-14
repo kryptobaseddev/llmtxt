@@ -195,6 +195,15 @@ export const documents = pgTable(
     approvalAllowedReviewers: text('approval_allowed_reviewers').notNull().default(''),
     /** Auto-expire reviews older than this (ms). 0 = no timeout. */
     approvalTimeoutMs: bigint('approval_timeout_ms', { mode: 'number' }).notNull().default(0),
+
+    // ── Visibility (RBAC) ──
+    /**
+     * Who can read this document without an explicit role grant.
+     * 'public'  — anyone can read (default; backwards compatible).
+     * 'private' — only users with an explicit documentRoles row (or the owner) can read.
+     * 'org'     — members of any associated organization can read.
+     */
+    visibility: text('visibility').notNull().default('public'),
   },
   (table) => ({
     slugIdx: index('documents_slug_idx').on(table.slug),
@@ -207,6 +216,7 @@ export const documents = pgTable(
     purgeIdx: index('documents_purge_idx').on(table.isAnonymous, table.expiresAt),
     storageKeyIdx: index('documents_storage_key_idx').on(table.storageKey),
     sharingModeIdx: index('documents_sharing_mode_idx').on(table.sharingMode),
+    visibilityIdx: index('documents_visibility_idx').on(table.visibility),
   })
 );
 
@@ -487,6 +497,416 @@ export const versionAttributions = pgTable(
 );
 
 // ────────────────────────────────────────────────────────────────
+// API Keys
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * API keys table - programmatic access tokens for registered users.
+ *
+ * Keys are generated once and the raw value is never stored. Only the
+ * SHA-256 hash is persisted. The `keyPrefix` stores "llmtxt_" + first
+ * 8 chars of the random part for display purposes.
+ *
+ * Revocation is soft (revoked=true); rows are never hard-deleted so
+ * audit trails are preserved.
+ */
+export const apiKeys = pgTable(
+  'api_keys',
+  {
+    id: text('id').primaryKey(), // base62 generated
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** Human-readable key name like "CI Bot". */
+    name: text('name').notNull(),
+    /** SHA-256 of the full raw key (hex). */
+    keyHash: text('key_hash').notNull(),
+    /** Display prefix: "llmtxt_" + first 8 chars of the random part. */
+    keyPrefix: text('key_prefix').notNull(),
+    /** JSON array of allowed scopes, or '*' for all. */
+    scopes: text('scopes').notNull().default('*'),
+    /** Last time this key was used (unix ms). */
+    lastUsedAt: bigint('last_used_at', { mode: 'number' }),
+    /** Expiration timestamp (unix ms). Null means no expiry. */
+    expiresAt: bigint('expires_at', { mode: 'number' }),
+    /** Soft-delete flag. Revoked keys are rejected on auth. */
+    revoked: boolean('revoked').notNull().default(false),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+  },
+  (table) => ({
+    userIdIdx: index('api_keys_user_id_idx').on(table.userId),
+    keyHashIdx: uniqueIndex('api_keys_key_hash_idx').on(table.keyHash),
+    keyPrefixIdx: index('api_keys_key_prefix_idx').on(table.keyPrefix),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
+// Audit Logs
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Audit logs table - records all state-changing operations for compliance and
+ * forensic investigation. Every successful mutating request (POST/PUT/DELETE)
+ * should produce an audit log row.
+ */
+export const auditLogs = pgTable(
+  'audit_logs',
+  {
+    id: text('id').primaryKey(), // crypto.randomUUID()
+    // ── Who ──
+    /** Authenticated user ID. Null for unauthenticated / anonymous requests. */
+    userId: text('user_id'),
+    /** SDK agent identifier supplied in the request body (agentId / createdBy). */
+    agentId: text('agent_id'),
+    /** Client IP address extracted from x-forwarded-for or socket. */
+    ipAddress: text('ip_address'),
+    /** User-Agent header value. */
+    userAgent: text('user_agent'),
+    // ── What ──
+    /**
+     * Structured action name, dot-separated: `<resource>.<verb>`.
+     * Examples: 'document.create', 'document.update', 'version.create',
+     * 'lifecycle.transition', 'approval.submit', 'approval.reject',
+     * 'auth.login', 'auth.logout', 'signed_url.create'.
+     */
+    action: text('action').notNull(),
+    /** Resource type affected: 'document' | 'version' | 'approval' | 'auth' | 'signed_url' | ... */
+    resourceType: text('resource_type').notNull(),
+    /** Slug or ID of the affected resource. Null for resource-independent actions. */
+    resourceId: text('resource_id'),
+    // ── Details ──
+    /** JSON blob with action-specific context (e.g., from/to state for transitions). */
+    details: text('details'), // JSON string
+    // ── When ──
+    /** Unix timestamp in milliseconds when the request was received. */
+    timestamp: bigint('timestamp', { mode: 'number' }).notNull(),
+    // ── Context ──
+    /** Fastify request ID for log correlation. */
+    requestId: text('request_id'),
+    /** HTTP method of the originating request. */
+    method: text('method'),
+    /** Full request path (url). */
+    path: text('path'),
+    /** HTTP status code of the response. Populated via onResponse hook. */
+    statusCode: integer('status_code'),
+  },
+  (table) => ({
+    userIdIdx: index('audit_logs_user_id_idx').on(table.userId),
+    actionIdx: index('audit_logs_action_idx').on(table.action),
+    resourceIdx: index('audit_logs_resource_idx').on(table.resourceType, table.resourceId),
+    timestampIdx: index('audit_logs_timestamp_idx').on(table.timestamp),
+  }),
+);
+
+// ────────────────────────────────────────────────────────────────
+// Document roles (RBAC)
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Document-level role assignments.
+ *
+ * One row per (document, user) pair. The ownerId on the documents table
+ * is the source of truth for the 'owner' role; explicit role rows are
+ * for 'editor' and 'viewer' grants (and can optionally mirror owner).
+ *
+ * Roles: 'owner' | 'editor' | 'viewer'
+ */
+export const documentRoles = pgTable(
+  'document_roles',
+  {
+    id: text('id').primaryKey(),
+    documentId: text('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** 'owner' | 'editor' | 'viewer' */
+    role: text('role').notNull(),
+    /** userId who granted this role */
+    grantedBy: text('granted_by').notNull(),
+    /** unix ms */
+    grantedAt: bigint('granted_at', { mode: 'number' }).notNull(),
+  },
+  (table) => ({
+    docUserIdx: uniqueIndex('document_roles_doc_user_idx').on(table.documentId, table.userId),
+    userIdx: index('document_roles_user_idx').on(table.userId),
+    roleIdx: index('document_roles_role_idx').on(table.documentId, table.role),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
+// Organizations
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Organizations table — optional grouping of users for shared document access.
+ *
+ * Documents can be associated with one or more organizations via documentOrgs.
+ * Members of the organization inherit access based on their org role.
+ */
+export const organizations = pgTable(
+  'organizations',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    slug: text('slug').notNull().unique(),
+    createdBy: text('created_by')
+      .notNull()
+      .references(() => users.id),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+  },
+  (table) => ({
+    slugIdx: uniqueIndex('organizations_slug_idx').on(table.slug),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
+// Organization membership
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Org members table — maps users to organizations with a role.
+ *
+ * Roles: 'admin' | 'member' | 'viewer'
+ * Admin: can manage org membership and associate documents.
+ * Member: can read/write org-associated documents (per doc visibility).
+ * Viewer: read-only access to org documents.
+ */
+export const orgMembers = pgTable(
+  'org_members',
+  {
+    id: text('id').primaryKey(),
+    orgId: text('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** 'admin' | 'member' | 'viewer' */
+    role: text('role').notNull(),
+    joinedAt: bigint('joined_at', { mode: 'number' }).notNull(),
+  },
+  (table) => ({
+    orgUserIdx: uniqueIndex('org_members_org_user_idx').on(table.orgId, table.userId),
+    userIdx: index('org_members_user_idx').on(table.userId),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
+// Document-to-org associations
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Document-org association table — links a document to an organization.
+ *
+ * When a document has visibility='org', all members of associated organizations
+ * gain access according to their org role.
+ */
+export const documentOrgs = pgTable(
+  'document_orgs',
+  {
+    id: text('id').primaryKey(),
+    documentId: text('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    orgId: text('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    addedAt: bigint('added_at', { mode: 'number' }).notNull(),
+  },
+  (table) => ({
+    docOrgIdx: uniqueIndex('document_orgs_doc_org_idx').on(table.documentId, table.orgId),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
+// Pending access invites
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Pending invites table — holds invite-by-email records for users who do
+ * not yet have an account. On sign-up the invite is resolved and converted
+ * to a documentRoles row.
+ */
+export const pendingInvites = pgTable(
+  'pending_invites',
+  {
+    id: text('id').primaryKey(),
+    documentId: text('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    /** 'editor' | 'viewer' */
+    role: text('role').notNull(),
+    /** userId of inviter */
+    invitedBy: text('invited_by').notNull(),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    /** nullable — invites may be permanent */
+    expiresAt: bigint('expires_at', { mode: 'number' }),
+  },
+  (table) => ({
+    docEmailIdx: uniqueIndex('pending_invites_doc_email_idx').on(table.documentId, table.email),
+    emailIdx: index('pending_invites_email_idx').on(table.email),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
+// Webhooks
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Webhooks table - stores external HTTP callback registrations.
+ * When a matching document event fires, the delivery worker POSTs
+ * the event payload to `url` with an HMAC-SHA256 signature in the
+ * X-LLMtxt-Signature header. Webhooks are automatically disabled
+ * after 10 consecutive delivery failures.
+ */
+export const webhooks = pgTable(
+  'webhooks',
+  {
+    id: text('id').primaryKey(), // base62
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** Callback URL — must be HTTPS in production. */
+    url: text('url').notNull(),
+    /** HMAC-SHA256 signing secret (caller-provided or auto-generated). */
+    secret: text('secret').notNull(),
+    /**
+     * JSON array of DocumentEventType strings to subscribe to.
+     * Empty array or omitted = subscribe to all events.
+     * Example: '["version.created","state.changed"]'
+     */
+    events: text('events').notNull().default('[]'),
+    /**
+     * Target document slug. Null = receive events from ALL documents
+     * owned by userId. Set to a specific slug to scope to one document.
+     */
+    documentSlug: text('document_slug'),
+    /** Whether this webhook is active. Set to false after 10 failures. */
+    active: boolean('active').notNull().default(true),
+    /** Consecutive delivery failure count. Reset to 0 on success. */
+    failureCount: integer('failure_count').notNull().default(0),
+    /** Timestamp of last successful or failed delivery attempt (ms). */
+    lastDeliveryAt: bigint('last_delivery_at', { mode: 'number' }),
+    /** Timestamp of last successful delivery (ms). */
+    lastSuccessAt: bigint('last_success_at', { mode: 'number' }),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  },
+  (table) => ({
+    userIdx: index('webhooks_user_id_idx').on(table.userId),
+    slugIdx: index('webhooks_document_slug_idx').on(table.documentSlug),
+    activeIdx: index('webhooks_active_idx').on(table.active, table.userId),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
+// Document Links (cross-document references)
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Document links table - directional relationships between documents.
+ * Supports typed relationships: references, depends_on, derived_from,
+ * supersedes, related. Links are used to build cross-document
+ * knowledge graphs and dependency chains.
+ */
+export const documentLinks = pgTable(
+  'document_links',
+  {
+    id: text('id').primaryKey(),
+    sourceDocId: text('source_doc_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    targetDocId: text('target_doc_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    /** 'references' | 'depends_on' | 'derived_from' | 'supersedes' | 'related' */
+    linkType: text('link_type').notNull(),
+    /** Optional human-readable label for the link. */
+    label: text('label'),
+    /** userId of whoever created the link. */
+    createdBy: text('created_by'),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  },
+  (table) => ({
+    sourceIdx: index('document_links_source_idx').on(table.sourceDocId),
+    targetIdx: index('document_links_target_idx').on(table.targetDocId),
+    uniqueLinkIdx: uniqueIndex('document_links_unique_idx').on(
+      table.sourceDocId,
+      table.targetDocId,
+      table.linkType
+    ),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
+// Collections (document grouping)
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Collections table - named, ordered groupings of documents.
+ * Allows users to curate sets of related documents (e.g., a spec +
+ * design + implementation + test plan) and export them as a single
+ * concatenated context for agent consumption.
+ */
+export const collections = pgTable(
+  'collections',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    /** URL-safe slug: lowercase, hyphens, no spaces. */
+    slug: text('slug').notNull().unique(),
+    description: text('description'),
+    ownerId: text('owner_id')
+      .notNull()
+      .references(() => users.id),
+    /** 'public' | 'private' */
+    visibility: text('visibility').notNull().default('public'),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+  },
+  (table) => ({
+    slugIdx: uniqueIndex('collections_slug_idx').on(table.slug),
+    ownerIdx: index('collections_owner_idx').on(table.ownerId),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
+// Collection documents (membership)
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Collection documents table - ordered membership list.
+ * Each row maps a document into a collection with a position for
+ * ordering. The position is used for export order and display order.
+ */
+export const collectionDocuments = pgTable(
+  'collection_documents',
+  {
+    id: text('id').primaryKey(),
+    collectionId: text('collection_id')
+      .notNull()
+      .references(() => collections.id, { onDelete: 'cascade' }),
+    documentId: text('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    /** Ordering position within the collection (0-indexed). */
+    position: integer('position').notNull().default(0),
+    /** userId of whoever added the document. */
+    addedBy: text('added_by'),
+    addedAt: bigint('added_at', { mode: 'number' }).notNull(),
+  },
+  (table) => ({
+    collectionIdx: index('collection_docs_collection_idx').on(table.collectionId),
+    documentIdx: index('collection_docs_document_idx').on(table.documentId),
+    uniqueDocIdx: uniqueIndex('collection_docs_unique_idx').on(table.collectionId, table.documentId),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
 // Export TypeScript types
 // ────────────────────────────────────────────────────────────────
 
@@ -508,6 +928,28 @@ export type SignedUrlToken = typeof signedUrlTokens.$inferSelect;
 export type NewSignedUrlToken = typeof signedUrlTokens.$inferInsert;
 export type VersionAttribution = typeof versionAttributions.$inferSelect;
 export type NewVersionAttribution = typeof versionAttributions.$inferInsert;
+export type ApiKey = typeof apiKeys.$inferSelect;
+export type NewApiKey = typeof apiKeys.$inferInsert;
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type NewAuditLog = typeof auditLogs.$inferInsert;
+export type DocumentRole = typeof documentRoles.$inferSelect;
+export type NewDocumentRole = typeof documentRoles.$inferInsert;
+export type Organization = typeof organizations.$inferSelect;
+export type NewOrganization = typeof organizations.$inferInsert;
+export type OrgMember = typeof orgMembers.$inferSelect;
+export type NewOrgMember = typeof orgMembers.$inferInsert;
+export type DocumentOrg = typeof documentOrgs.$inferSelect;
+export type NewDocumentOrg = typeof documentOrgs.$inferInsert;
+export type PendingInvite = typeof pendingInvites.$inferSelect;
+export type NewPendingInvite = typeof pendingInvites.$inferInsert;
+export type Webhook = typeof webhooks.$inferSelect;
+export type NewWebhook = typeof webhooks.$inferInsert;
+export type DocumentLink = typeof documentLinks.$inferSelect;
+export type NewDocumentLink = typeof documentLinks.$inferInsert;
+export type Collection = typeof collections.$inferSelect;
+export type NewCollection = typeof collections.$inferInsert;
+export type CollectionDocument = typeof collectionDocuments.$inferSelect;
+export type NewCollectionDocument = typeof collectionDocuments.$inferInsert;
 
 // ────────────────────────────────────────────────────────────────
 // Export Zod schemas for validation
@@ -531,6 +973,28 @@ export const insertSignedUrlTokenSchema = createInsertSchema(signedUrlTokens);
 export const selectSignedUrlTokenSchema = createSelectSchema(signedUrlTokens);
 export const insertVersionAttributionSchema = createInsertSchema(versionAttributions);
 export const selectVersionAttributionSchema = createSelectSchema(versionAttributions);
+export const insertApiKeySchema = createInsertSchema(apiKeys);
+export const selectApiKeySchema = createSelectSchema(apiKeys);
+export const insertAuditLogSchema = createInsertSchema(auditLogs);
+export const selectAuditLogSchema = createSelectSchema(auditLogs);
+export const insertDocumentRoleSchema = createInsertSchema(documentRoles);
+export const selectDocumentRoleSchema = createSelectSchema(documentRoles);
+export const insertOrganizationSchema = createInsertSchema(organizations);
+export const selectOrganizationSchema = createSelectSchema(organizations);
+export const insertOrgMemberSchema = createInsertSchema(orgMembers);
+export const selectOrgMemberSchema = createSelectSchema(orgMembers);
+export const insertDocumentOrgSchema = createInsertSchema(documentOrgs);
+export const selectDocumentOrgSchema = createSelectSchema(documentOrgs);
+export const insertPendingInviteSchema = createInsertSchema(pendingInvites);
+export const selectPendingInviteSchema = createSelectSchema(pendingInvites);
+export const insertWebhookSchema = createInsertSchema(webhooks);
+export const selectWebhookSchema = createSelectSchema(webhooks);
+export const insertDocumentLinkSchema = createInsertSchema(documentLinks);
+export const selectDocumentLinkSchema = createSelectSchema(documentLinks);
+export const insertCollectionSchema = createInsertSchema(collections);
+export const selectCollectionSchema = createSelectSchema(collections);
+export const insertCollectionDocumentSchema = createInsertSchema(collectionDocuments);
+export const selectCollectionDocumentSchema = createSelectSchema(collectionDocuments);
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type SelectUser = z.infer<typeof selectUserSchema>;
@@ -550,3 +1014,25 @@ export type InsertSignedUrlToken = z.infer<typeof insertSignedUrlTokenSchema>;
 export type SelectSignedUrlToken = z.infer<typeof selectSignedUrlTokenSchema>;
 export type InsertVersionAttribution = z.infer<typeof insertVersionAttributionSchema>;
 export type SelectVersionAttribution = z.infer<typeof selectVersionAttributionSchema>;
+export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
+export type SelectApiKey = z.infer<typeof selectApiKeySchema>;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type SelectAuditLog = z.infer<typeof selectAuditLogSchema>;
+export type InsertDocumentRole = z.infer<typeof insertDocumentRoleSchema>;
+export type SelectDocumentRole = z.infer<typeof selectDocumentRoleSchema>;
+export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
+export type SelectOrganization = z.infer<typeof selectOrganizationSchema>;
+export type InsertOrgMember = z.infer<typeof insertOrgMemberSchema>;
+export type SelectOrgMember = z.infer<typeof selectOrgMemberSchema>;
+export type InsertDocumentOrg = z.infer<typeof insertDocumentOrgSchema>;
+export type SelectDocumentOrg = z.infer<typeof selectDocumentOrgSchema>;
+export type InsertPendingInvite = z.infer<typeof insertPendingInviteSchema>;
+export type SelectPendingInvite = z.infer<typeof selectPendingInviteSchema>;
+export type InsertWebhook = z.infer<typeof insertWebhookSchema>;
+export type SelectWebhook = z.infer<typeof selectWebhookSchema>;
+export type InsertDocumentLink = z.infer<typeof insertDocumentLinkSchema>;
+export type SelectDocumentLink = z.infer<typeof selectDocumentLinkSchema>;
+export type InsertCollection = z.infer<typeof insertCollectionSchema>;
+export type SelectCollection = z.infer<typeof selectCollectionSchema>;
+export type InsertCollectionDocument = z.infer<typeof insertCollectionDocumentSchema>;
+export type SelectCollectionDocument = z.infer<typeof selectCollectionDocumentSchema>;
