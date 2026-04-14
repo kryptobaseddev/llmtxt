@@ -40,7 +40,7 @@ declare module 'fastify' {
      * Resolved API version context for this request.
      * Present on every request after the apiVersion plugin is registered.
      */
-    apiVersion: ApiVersionInfo;
+    apiVersion: ApiVersionInfo | null;
   }
 }
 
