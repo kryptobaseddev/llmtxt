@@ -17,6 +17,14 @@ import { signedUrlRoutes } from './routes/signed-urls.js';
 import { mergeRoutes } from './routes/merge.js';
 import { apiKeyRoutes } from './routes/api-keys.js';
 import { publicDir, extractSlug, extractSlugWithExtension, handleContentNegotiation, getDocumentWithContent } from './routes/web.js';
+import { v1Routes } from './routes/v1/index.js';
+import {
+  apiVersionPlugin,
+  addVersionResponseHeaders,
+  addDeprecationHeaders,
+  API_VERSION_REGISTRY,
+  CURRENT_API_VERSION,
+} from './middleware/api-version.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const API_HOSTS = new Set(['api.llmtxt.my']);
@@ -30,15 +38,20 @@ function isApiHost(hostname: string): boolean {
 }
 
 // Use Fastify's serverFactory to intercept requests BEFORE routing.
-// This rewrites URLs for api.llmtxt.my so /health → /api/health.
+// This rewrites URLs for api.llmtxt.my so that:
+//   api.llmtxt.my/health          → /api/health          (legacy; gets deprecation headers)
+//   api.llmtxt.my/v1/health       → /api/v1/health       (versioned; no deprecation)
+//   api.llmtxt.my/v2/compress     → /api/v2/compress     (future versions, same pattern)
 const app = Fastify({
   logger: true,
   serverFactory: (handler) => {
     const server = http.createServer((req, res) => {
-      // Rewrite URL for API subdomain before Fastify routes the request
       const host = req.headers.host || '';
-      if (isApiHost(host) && req.url && !req.url.startsWith('/api')) {
-        req.url = `/api${req.url}`;
+      if (isApiHost(host) && req.url) {
+        // Only rewrite if the URL doesn't already start with /api
+        if (!req.url.startsWith('/api')) {
+          req.url = `/api${req.url}`;
+        }
       }
       handler(req, res);
     });
@@ -48,12 +61,15 @@ const app = Fastify({
 
 async function main() {
   try {
+    // Register API version plugin globally so request.apiVersion is always set
+    await app.register(apiVersionPlugin);
+
     // Register CORS plugin
     const corsOrigin = process.env.CORS_ORIGIN || 'https://www.llmtxt.my';
     await app.register(cors, {
       origin: corsOrigin.split(',').map(o => o.trim()),
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-API-Version'],
       credentials: true,
     });
 
@@ -74,10 +90,13 @@ async function main() {
     app.get('/.well-known/llm.json', async (request, reply) => {
       reply.type('application/json');
       return {
-        schema_version: '1.0',
+        schema_version: '1.1',
+        api_version: CURRENT_API_VERSION,
         name: 'llmtxt API',
         description: 'API for managing and serving llms.txt documents',
-        base_url: 'https://api.llmtxt.my',
+        base_url: `https://api.llmtxt.my/v${CURRENT_API_VERSION}`,
+        deprecated_base_url: 'https://api.llmtxt.my',
+        sunset_date: '2027-01-01',
         endpoints: [
           {
             path: '/health',
@@ -258,22 +277,57 @@ async function main() {
     });
 
     // ──────────────────────────────────────────────────────────────────
-    // API routes: always at /api prefix
-    // On api.llmtxt.my, the serverFactory rewrites / → /api/ before
-    // Fastify route matching, so api.llmtxt.my/compress hits /api/compress
+    // Versioned API routes: /api/v1/*
+    //
+    // This is the canonical, forward-looking location for all endpoints.
+    // Agents and SDK users should migrate here.
+    // On api.llmtxt.my the serverFactory already prepended /api, so:
+    //   api.llmtxt.my/v1/health   → /api/v1/health   (served here)
     // ──────────────────────────────────────────────────────────────────
-    await app.register(apiRoutes, { prefix: '/api' });
-    await app.register(disclosureRoutes, { prefix: '/api' });
-    await app.register(versionRoutes, { prefix: '/api' });
-    await app.register(authRoutes, { prefix: '/api' });
-    await app.register(lifecycleRoutes, { prefix: '/api' });
-    await app.register(patchRoutes, { prefix: '/api' });
-    await app.register(similarityRoutes, { prefix: '/api' });
-    await app.register(graphRoutes, { prefix: '/api' });
-    await app.register(retrievalRoutes, { prefix: '/api' });
-    await app.register(signedUrlRoutes, { prefix: '/api' });
-    await app.register(mergeRoutes, { prefix: '/api' });
-    await app.register(apiKeyRoutes, { prefix: '/api' });
+    await app.register(v1Routes, { prefix: '/api/v1' });
+
+    // ──────────────────────────────────────────────────────────────────
+    // Legacy API routes: /api/* (no version prefix)
+    //
+    // These continue to work identically for backwards compatibility.
+    // All responses carry RFC 8594 Deprecation + Sunset headers and a
+    // Link header pointing to the /api/v1/* successor URL.
+    //
+    // On api.llmtxt.my, the serverFactory rewrites / → /api/ before
+    // Fastify route matching, so api.llmtxt.my/compress → /api/compress.
+    // ──────────────────────────────────────────────────────────────────
+    await app.register(async (legacyScope) => {
+      const legacyVersionInfo = {
+        ...API_VERSION_REGISTRY[CURRENT_API_VERSION],
+        deprecated: true,
+        sunset: '2027-01-01',
+      };
+
+      // Stamp requests with legacy version context
+      legacyScope.addHook('onRequest', async (request, _reply) => {
+        request.apiVersion = legacyVersionInfo;
+      });
+
+      // Attach deprecation + version headers to every legacy response
+      legacyScope.addHook('onSend', async (request, reply) => {
+        addVersionResponseHeaders(reply, legacyVersionInfo);
+        addDeprecationHeaders(reply, request.url, legacyVersionInfo);
+      });
+
+      // Register the same route modules as v1 — no behaviour change
+      await legacyScope.register(apiRoutes);
+      await legacyScope.register(disclosureRoutes);
+      await legacyScope.register(versionRoutes);
+      await legacyScope.register(authRoutes);
+      await legacyScope.register(lifecycleRoutes);
+      await legacyScope.register(patchRoutes);
+      await legacyScope.register(similarityRoutes);
+      await legacyScope.register(graphRoutes);
+      await legacyScope.register(retrievalRoutes);
+      await legacyScope.register(signedUrlRoutes);
+      await legacyScope.register(mergeRoutes);
+      await legacyScope.register(apiKeyRoutes);
+    }, { prefix: '/api' });
 
     // Register error handler
     app.setErrorHandler((error: unknown, request, reply) => {
