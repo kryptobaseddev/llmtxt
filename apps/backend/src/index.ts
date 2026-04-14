@@ -32,6 +32,7 @@ import {
 import { securityHeaders } from './middleware/security.js';
 import { registerCsrf } from './middleware/csrf.js';
 import { registerAuditLogging, auditLogRoutes } from './middleware/audit.js';
+import { registerRateLimiting } from './middleware/rate-limit.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const API_HOSTS = new Set(['api.llmtxt.my']);
@@ -82,6 +83,9 @@ async function main() {
 
     // Register compression plugin
     await app.register(compress);
+
+    // Register rate limiting (after CORS and compression, before routes)
+    await registerRateLimiting(app);
 
     // ──────────────────────────────────────────────────────────────────
     // Security headers (CSP, HSTS, X-Content-Type-Options, etc.)
@@ -303,6 +307,12 @@ async function main() {
           }
         },
         llms_txt: 'https://api.llmtxt.my/llms.txt'
+        llms_txt: 'https://api.llmtxt.my/llms.txt',
+        rate_limits: {
+          unauthenticated: { requests_per_minute: 100, writes_per_minute: 20 },
+          authenticated: { requests_per_minute: 300, writes_per_minute: 60 },
+          api_key: { requests_per_minute: 600, writes_per_minute: 120 },
+          docs: 'Rate limit headers (X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset) are included in all API responses.',
       };
     });
 

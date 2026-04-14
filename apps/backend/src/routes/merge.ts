@@ -20,6 +20,7 @@ import { countTokens } from '../utils/tokenizer.js';
 import { cherryPickMerge } from 'llmtxt';
 import { invalidateDocumentCache } from '../middleware/cache.js';
 import { auth } from '../auth.js';
+import { writeRateLimit } from '../middleware/rate-limit.js';
 
 // ── Auth helper ───────────────────────────────────────────────────────────────
 
@@ -86,6 +87,7 @@ export async function mergeRoutes(fastify: FastifyInstance) {
    */
   fastify.post(
     '/documents/:slug/merge',
+    { config: writeRateLimit },
     async (
       request: FastifyRequest<{
         Params: { slug: string };

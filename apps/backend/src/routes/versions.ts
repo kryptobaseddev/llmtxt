@@ -20,6 +20,8 @@ import { countTokens } from '../utils/tokenizer.js';
 import { createPatch, multiWayDiff } from 'llmtxt';
 import { invalidateDocumentCache } from '../middleware/cache.js';
 import { auth } from '../auth.js';
+import { writeRateLimit } from '../middleware/rate-limit.js';
+import { enforceContentSize } from '../middleware/content-limits.js';
 
 /** Try to get the authenticated user from session cookies. */
 async function getOptionalUser(request: FastifyRequest) {
@@ -100,10 +102,13 @@ export async function versionRoutes(fastify: FastifyInstance) {
   /**
    * PUT /api/documents/:slug - Update document content (creates a new version)
    */
-  fastify.put('/documents/:slug', async (
-    request: FastifyRequest<{ Params: { slug: string }; Body: { content: string; changelog?: string; createdBy?: string; agentId?: string } }>,
-    reply: FastifyReply
-  ) => {
+  fastify.put<{ Params: { slug: string }; Body: { content: string; changelog?: string; createdBy?: string; agentId?: string } }>(
+    '/documents/:slug',
+    {
+      config: writeRateLimit,
+      preHandler: [enforceContentSize],
+    },
+    async (request, reply) => {
     try {
       const paramsResult = slugParamsSchema.safeParse(request.params);
       if (!paramsResult.success) {

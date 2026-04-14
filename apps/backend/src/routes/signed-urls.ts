@@ -9,6 +9,7 @@ import { requireOwnerAllowAnon } from '../middleware/auth.js';
 import {
   generateSignedUrl, deriveSigningKey, generateId,
 } from 'llmtxt';
+import { writeRateLimit } from '../middleware/rate-limit.js';
 
 const SIGNING_SECRET = process.env.SIGNING_SECRET || 'llmtxt-dev-secret';
 
@@ -24,7 +25,7 @@ export async function signedUrlRoutes(fastify: FastifyInstance) {
     };
   }>(
     '/signed-urls',
-    { preHandler: [requireOwnerAllowAnon] },
+    { preHandler: [requireOwnerAllowAnon], config: writeRateLimit },
     async (request, reply) => {
       const { slug, agentId, conversationId, expiresIn = 3600000 } = request.body;
 

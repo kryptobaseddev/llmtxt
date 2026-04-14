@@ -10,6 +10,8 @@ import {
   applyPatch, hashContent, compress, generateId,
 } from 'llmtxt';
 import { countTokens } from '../utils/tokenizer.js';
+import { writeRateLimit } from '../middleware/rate-limit.js';
+import { enforcePatchSize } from '../middleware/content-limits.js';
 
 /** Register patch route: POST /documents/:slug/patch to apply a unified diff and create a new version. Requires authentication and editable document state. */
 export async function patchRoutes(fastify: FastifyInstance) {
@@ -19,7 +21,7 @@ export async function patchRoutes(fastify: FastifyInstance) {
     Body: { patchText: string; changelog: string };
   }>(
     '/documents/:slug/patch',
-    { preHandler: [requireAuth] },
+    { preHandler: [requireAuth, enforcePatchSize], config: writeRateLimit },
     async (request, reply) => {
       const { slug } = request.params;
       const { patchText, changelog } = request.body;

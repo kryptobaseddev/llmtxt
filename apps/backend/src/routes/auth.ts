@@ -10,12 +10,14 @@
  */
 import type { FastifyInstance } from 'fastify';
 import { auth } from '../auth.js';
+import { authRateLimit } from '../middleware/rate-limit.js';
 
 /** Register authentication routes by proxying all /auth/* requests to the better-auth handler. */
 export async function authRoutes(fastify: FastifyInstance) {
   fastify.route({
     method: ['GET', 'POST'],
     url: '/auth/*',
+    config: authRateLimit,
     async handler(request, reply) {
       const url = new URL(
         request.url,
