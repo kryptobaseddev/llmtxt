@@ -15,6 +15,7 @@ import { graphRoutes } from './routes/graph.js';
 import { retrievalRoutes } from './routes/retrieval.js';
 import { signedUrlRoutes } from './routes/signed-urls.js';
 import { mergeRoutes } from './routes/merge.js';
+import { apiKeyRoutes } from './routes/api-keys.js';
 import { publicDir, extractSlug, extractSlugWithExtension, handleContentNegotiation, getDocumentWithContent } from './routes/web.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -207,8 +208,40 @@ async function main() {
             path: '/auth/sign-in/anonymous',
             method: 'POST',
             description: 'Create anonymous session (24hr TTL)'
+          },
+          {
+            path: '/keys',
+            method: 'POST',
+            description: 'Create a new API key (requires registered account; returns raw key once)',
+            auth: 'cookie'
+          },
+          {
+            path: '/keys',
+            method: 'GET',
+            description: 'List API keys for the authenticated user (key hashes never returned)',
+            auth: 'cookie'
+          },
+          {
+            path: '/keys/:id',
+            method: 'DELETE',
+            description: 'Revoke an API key by ID (soft delete)',
+            auth: 'cookie'
+          },
+          {
+            path: '/keys/:id/rotate',
+            method: 'POST',
+            description: 'Rotate an API key — revoke old key and issue a new one with same metadata',
+            auth: 'cookie'
           }
         ],
+        authentication: {
+          methods: ['cookie', 'bearer'],
+          bearer: {
+            description: 'Pass API key as Authorization: Bearer llmtxt_<token>',
+            key_format: 'llmtxt_ prefix followed by 43 base64url characters',
+            obtain_at: '/api/keys'
+          }
+        },
         llms_txt: 'https://api.llmtxt.my/llms.txt'
       };
     });
@@ -240,6 +273,7 @@ async function main() {
     await app.register(retrievalRoutes, { prefix: '/api' });
     await app.register(signedUrlRoutes, { prefix: '/api' });
     await app.register(mergeRoutes, { prefix: '/api' });
+    await app.register(apiKeyRoutes, { prefix: '/api' });
 
     // Register error handler
     app.setErrorHandler((error: unknown, request, reply) => {

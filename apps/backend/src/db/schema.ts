@@ -427,6 +427,51 @@ export const signedUrlTokens = sqliteTable(
 );
 
 // ────────────────────────────────────────────────────────────────
+// API Keys
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * API keys table - programmatic access tokens for registered users.
+ *
+ * Keys are generated once and the raw value is never stored. Only the
+ * SHA-256 hash is persisted. The `keyPrefix` stores "llmtxt_" + first
+ * 8 chars of the random part for display purposes.
+ *
+ * Revocation is soft (revoked=true); rows are never hard-deleted so
+ * audit trails are preserved.
+ */
+export const apiKeys = sqliteTable(
+  'api_keys',
+  {
+    id: text('id').primaryKey(), // base62 generated
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** Human-readable key name like "CI Bot". */
+    name: text('name').notNull(),
+    /** SHA-256 of the full raw key (hex). */
+    keyHash: text('key_hash').notNull(),
+    /** Display prefix: "llmtxt_" + first 8 chars of the random part. */
+    keyPrefix: text('key_prefix').notNull(),
+    /** JSON array of allowed scopes, or '*' for all. */
+    scopes: text('scopes').notNull().default('*'),
+    /** Last time this key was used (unix ms). */
+    lastUsedAt: integer('last_used_at'),
+    /** Expiration timestamp (unix ms). Null means no expiry. */
+    expiresAt: integer('expires_at'),
+    /** Soft-delete flag. Revoked keys are rejected on auth. */
+    revoked: integer('revoked', { mode: 'boolean' }).notNull().default(false),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => ({
+    userIdIdx: index('api_keys_user_id_idx').on(table.userId),
+    keyHashIdx: uniqueIndex('api_keys_key_hash_idx').on(table.keyHash),
+    keyPrefixIdx: index('api_keys_key_prefix_idx').on(table.keyPrefix),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
 // Version attributions (per-version diff metadata)
 // ────────────────────────────────────────────────────────────────
 
@@ -491,6 +536,8 @@ export type SignedUrlToken = typeof signedUrlTokens.$inferSelect;
 export type NewSignedUrlToken = typeof signedUrlTokens.$inferInsert;
 export type VersionAttribution = typeof versionAttributions.$inferSelect;
 export type NewVersionAttribution = typeof versionAttributions.$inferInsert;
+export type ApiKey = typeof apiKeys.$inferSelect;
+export type NewApiKey = typeof apiKeys.$inferInsert;
 
 // ────────────────────────────────────────────────────────────────
 // Export Zod schemas for validation
@@ -514,6 +561,8 @@ export const insertSignedUrlTokenSchema = createInsertSchema(signedUrlTokens);
 export const selectSignedUrlTokenSchema = createSelectSchema(signedUrlTokens);
 export const insertVersionAttributionSchema = createInsertSchema(versionAttributions);
 export const selectVersionAttributionSchema = createSelectSchema(versionAttributions);
+export const insertApiKeySchema = createInsertSchema(apiKeys);
+export const selectApiKeySchema = createSelectSchema(apiKeys);
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type SelectUser = z.infer<typeof selectUserSchema>;
@@ -533,3 +582,5 @@ export type InsertSignedUrlToken = z.infer<typeof insertSignedUrlTokenSchema>;
 export type SelectSignedUrlToken = z.infer<typeof selectSignedUrlTokenSchema>;
 export type InsertVersionAttribution = z.infer<typeof insertVersionAttributionSchema>;
 export type SelectVersionAttribution = z.infer<typeof selectVersionAttributionSchema>;
+export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
+export type SelectApiKey = z.infer<typeof selectApiKeySchema>;

@@ -3,12 +3,19 @@
  *
  * requireAuth: populates request.user or returns 401
  * requireOwner: checks request.user is document owner or returns 403
+ *
+ * Authentication priority:
+ *   1. Authorization: Bearer llmtxt_... — API key auth
+ *      - If a Bearer token is provided but invalid/revoked/expired → 401 immediately
+ *      - If valid → populate request.user and request.session (synthetic)
+ *   2. Cookie-based session via better-auth (existing behaviour)
  */
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { auth } from '../auth.js';
 import { db } from '../db/index.js';
-import { documents } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { documents, apiKeys, users } from '../db/schema.js';
+import { eq, and, gt } from 'drizzle-orm';
+import { hashApiKey, isApiKeyFormat } from '../utils/api-keys.js';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -17,8 +24,107 @@ declare module 'fastify' {
   }
 }
 
-/** Authenticate the request via session cookie. Populates request.user and request.session, or returns 401. */
+/**
+ * Attempt to authenticate via a Bearer API key.
+ *
+ * Returns:
+ *   - `'authenticated'` when the token is valid and request.user is set
+ *   - `'invalid'` when the Bearer token is present but bad (caller must 401)
+ *   - `'not_present'` when no Bearer token exists (fall through to cookie auth)
+ */
+async function tryBearerAuth(
+  request: FastifyRequest,
+  reply: FastifyReply
+): Promise<'authenticated' | 'invalid' | 'not_present'> {
+  const authHeader = request.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return 'not_present';
+  }
+
+  const token = authHeader.slice('Bearer '.length).trim();
+
+  // Quick format check before touching the database
+  if (!isApiKeyFormat(token)) {
+    reply.status(401).send({ error: 'Unauthorized', message: 'Invalid API key format' });
+    return 'invalid';
+  }
+
+  const keyHash = hashApiKey(token);
+  const now = Date.now();
+
+  // Look up key by hash — only active, non-expired keys
+  const [keyRow] = await db
+    .select({
+      id: apiKeys.id,
+      userId: apiKeys.userId,
+      revoked: apiKeys.revoked,
+      expiresAt: apiKeys.expiresAt,
+    })
+    .from(apiKeys)
+    .where(eq(apiKeys.keyHash, keyHash))
+    .limit(1);
+
+  if (!keyRow) {
+    reply.status(401).send({ error: 'Unauthorized', message: 'API key not found' });
+    return 'invalid';
+  }
+
+  if (keyRow.revoked) {
+    reply.status(401).send({ error: 'Unauthorized', message: 'API key has been revoked' });
+    return 'invalid';
+  }
+
+  if (keyRow.expiresAt !== null && keyRow.expiresAt <= now) {
+    reply.status(401).send({ error: 'Unauthorized', message: 'API key has expired' });
+    return 'invalid';
+  }
+
+  // Update lastUsedAt asynchronously (fire-and-forget) — don't block the request
+  db.update(apiKeys)
+    .set({ lastUsedAt: now, updatedAt: now })
+    .where(eq(apiKeys.id, keyRow.id))
+    .catch(() => {
+      // Non-fatal: audit update failure shouldn't break the request
+    });
+
+  // Fetch the owning user
+  const [userRow] = await db
+    .select({
+      id: users.id,
+      email: users.email,
+      name: users.name,
+      isAnonymous: users.isAnonymous,
+    })
+    .from(users)
+    .where(eq(users.id, keyRow.userId))
+    .limit(1);
+
+  if (!userRow) {
+    reply.status(401).send({ error: 'Unauthorized', message: 'API key owner not found' });
+    return 'invalid';
+  }
+
+  // Populate synthetic session on the request
+  request.user = {
+    id: userRow.id,
+    email: userRow.email ?? undefined,
+    name: userRow.name ?? undefined,
+    isAnonymous: userRow.isAnonymous === true,
+  };
+  // Synthetic session — use the key ID as the session ID for traceability
+  request.session = { id: `apikey:${keyRow.id}`, userId: userRow.id };
+
+  return 'authenticated';
+}
+
+/** Authenticate the request via Bearer API key first, then session cookie. Populates request.user and request.session, or returns 401. */
 export async function requireAuth(request: FastifyRequest, reply: FastifyReply) {
+  // 1. Try Bearer API key first
+  const bearerResult = await tryBearerAuth(request, reply);
+  if (bearerResult === 'authenticated') return;
+  if (bearerResult === 'invalid') return reply; // 401 already sent
+
+  // 2. Fall through to cookie-based session auth
   const headers = new Headers();
   for (const [key, value] of Object.entries(request.headers)) {
     if (value) headers.append(key, String(value));
