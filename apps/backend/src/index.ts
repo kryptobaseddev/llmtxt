@@ -3,6 +3,7 @@ import Fastify from 'fastify';
 import compress from '@fastify/compress';
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
+import websocket from '@fastify/websocket';
 import http from 'http';
 import { apiRoutes } from './routes/api.js';
 import { disclosureRoutes } from './routes/disclosure.js';
@@ -20,6 +21,10 @@ import { conflictRoutes } from './routes/conflicts.js';
 import { semanticRoutes } from './routes/semantic.js';
 import { accessControlRoutes } from './routes/access-control.js';
 import { organizationRoutes } from './routes/organizations.js';
+import { wsRoutes } from './routes/ws.js';
+import { sseRoutes } from './routes/sse.js';
+import { webhookRoutes } from './routes/webhooks.js';
+import { startWebhookWorker } from './events/webhooks.js';
 import { publicDir, extractSlug, extractSlugWithExtension, handleContentNegotiation, getDocumentWithContent } from './routes/web.js';
 import { v1Routes } from './routes/v1/index.js';
 import {
@@ -80,6 +85,11 @@ async function main() {
       allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-API-Version'],
       credentials: true,
     });
+
+    // Register WebSocket plugin — MUST be registered before any WS routes.
+    // @fastify/websocket needs to intercept upgrade requests before Fastify's
+    // normal routing takes over.
+    await app.register(websocket);
 
     // Register compression plugin
     await app.register(compress);
@@ -257,6 +267,17 @@ async function main() {
             path: '/documents/:slug/semantic-consensus',
             method: 'POST',
             description: 'Evaluate semantic consensus across approved reviews using embedding clustering'
+            path: '/documents/:slug/events',
+            description: 'Server-Sent Events stream for real-time document notifications (SSE fallback)'
+            path: '/webhooks',
+            description: 'Register a webhook for real-time event delivery to an external HTTPS endpoint'
+            path: '/webhooks',
+            description: 'List registered webhooks'
+            path: '/webhooks/:id',
+            method: 'DELETE',
+            description: 'Remove a registered webhook'
+            path: '/webhooks/:id/test',
+            description: 'Send a synthetic test event to a registered webhook'
           },
           {
             path: '/auth/sign-up/email',
@@ -313,6 +334,11 @@ async function main() {
           authenticated: { requests_per_minute: 300, writes_per_minute: 60 },
           api_key: { requests_per_minute: 600, writes_per_minute: 120 },
           docs: 'Rate limit headers (X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset) are included in all API responses.',
+        realtime: {
+          websocket: 'wss://api.llmtxt.my/ws/documents/{slug}',
+          websocket_all: 'wss://api.llmtxt.my/ws/documents',
+          sse: 'https://api.llmtxt.my/documents/{slug}/events',
+          webhooks: 'https://api.llmtxt.my/webhooks',
       };
     });
 
@@ -384,6 +410,18 @@ async function main() {
       await legacyScope.register(organizationRoutes);
       await legacyScope.register(semanticRoutes);
     }, { prefix: '/api' });
+
+    // ──────────────────────────────────────────────────────────────────
+    // Real-time routes
+    // WS routes use /ws prefix (separate from /api — different protocol).
+    // SSE and webhook routes live under /api like all other HTTP routes.
+    // ──────────────────────────────────────────────────────────────────
+    await app.register(wsRoutes, { prefix: '/ws' });
+    await app.register(sseRoutes, { prefix: '/api' });
+    await app.register(webhookRoutes, { prefix: '/api' });
+
+    // Start the webhook delivery worker (attaches a single event-bus listener).
+    startWebhookWorker();
 
     // Register error handler
     app.setErrorHandler((error: unknown, request, reply) => {

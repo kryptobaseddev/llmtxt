@@ -740,6 +740,37 @@ export const pendingInvites = sqliteTable(
   (table) => ({
     docEmailIdx: uniqueIndex('pending_invites_doc_email_idx').on(table.documentId, table.email),
     emailIdx: index('pending_invites_email_idx').on(table.email),
+// Webhooks
+ * Webhooks table - stores external HTTP callback registrations.
+ * When a matching document event fires, the delivery worker POSTs
+ * the event payload to `url` with an HMAC-SHA256 signature in the
+ * X-LLMtxt-Signature header. Webhooks are automatically disabled
+ * after 10 consecutive delivery failures.
+export const webhooks = sqliteTable(
+  'webhooks',
+    id: text('id').primaryKey(), // base62
+    /** Callback URL — must be HTTPS in production. */
+    url: text('url').notNull(),
+    /** HMAC-SHA256 signing secret (caller-provided or auto-generated). */
+    secret: text('secret').notNull(),
+     * JSON array of DocumentEventType strings to subscribe to.
+     * Empty array or omitted = subscribe to all events.
+     * Example: '["version.created","state.changed"]'
+    events: text('events').notNull().default('[]'),
+     * Target document slug. Null = receive events from ALL documents
+     * owned by userId. Set to a specific slug to scope to one document.
+    documentSlug: text('document_slug'),
+    /** Whether this webhook is active. Set to false after 10 failures. */
+    active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    /** Consecutive delivery failure count. Reset to 0 on success. */
+    failureCount: integer('failure_count').notNull().default(0),
+    /** Timestamp of last successful or failed delivery attempt (ms). */
+    lastDeliveryAt: integer('last_delivery_at'),
+    /** Timestamp of last successful delivery (ms). */
+    lastSuccessAt: integer('last_success_at'),
+    userIdx: index('webhooks_user_id_idx').on(table.userId),
+    slugIdx: index('webhooks_document_slug_idx').on(table.documentSlug),
+    activeIdx: index('webhooks_active_idx').on(table.active, table.userId),
   })
 );
 
@@ -779,6 +810,8 @@ export type DocumentOrg = typeof documentOrgs.$inferSelect;
 export type NewDocumentOrg = typeof documentOrgs.$inferInsert;
 export type PendingInvite = typeof pendingInvites.$inferSelect;
 export type NewPendingInvite = typeof pendingInvites.$inferInsert;
+export type Webhook = typeof webhooks.$inferSelect;
+export type NewWebhook = typeof webhooks.$inferInsert;
 
 // ────────────────────────────────────────────────────────────────
 // Export Zod schemas for validation
@@ -816,6 +849,8 @@ export const insertDocumentOrgSchema = createInsertSchema(documentOrgs);
 export const selectDocumentOrgSchema = createSelectSchema(documentOrgs);
 export const insertPendingInviteSchema = createInsertSchema(pendingInvites);
 export const selectPendingInviteSchema = createSelectSchema(pendingInvites);
+export const insertWebhookSchema = createInsertSchema(webhooks);
+export const selectWebhookSchema = createSelectSchema(webhooks);
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type SelectUser = z.infer<typeof selectUserSchema>;
@@ -849,3 +884,5 @@ export type InsertDocumentOrg = z.infer<typeof insertDocumentOrgSchema>;
 export type SelectDocumentOrg = z.infer<typeof selectDocumentOrgSchema>;
 export type InsertPendingInvite = z.infer<typeof insertPendingInviteSchema>;
 export type SelectPendingInvite = z.infer<typeof selectPendingInviteSchema>;
+export type InsertWebhook = z.infer<typeof insertWebhookSchema>;
+export type SelectWebhook = z.infer<typeof selectWebhookSchema>;

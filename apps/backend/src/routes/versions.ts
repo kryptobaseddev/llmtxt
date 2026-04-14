@@ -22,6 +22,7 @@ import { invalidateDocumentCache } from '../middleware/cache.js';
 import { auth } from '../auth.js';
 import { writeRateLimit } from '../middleware/rate-limit.js';
 import { enforceContentSize } from '../middleware/content-limits.js';
+import { eventBus } from '../events/bus.js';
 
 /** Try to get the authenticated user from session cookies. */
 async function getOptionalUser(request: FastifyRequest) {
@@ -306,6 +307,13 @@ export async function versionRoutes(fastify: FastifyInstance) {
 
       // Invalidate cache for this document
       invalidateDocumentCache(slug);
+
+      // Emit version.created AFTER the successful DB write — non-blocking.
+      eventBus.emitVersionCreated(slug, doc.id, effectiveCreatedBy || 'anonymous', {
+        version: nextVersionNumber,
+        changelog: changelog || null,
+        createdBy: effectiveCreatedBy,
+      });
 
       return reply.status(200).send({
         slug,

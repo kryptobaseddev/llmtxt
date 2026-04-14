@@ -12,6 +12,7 @@ import {
 import { countTokens } from '../utils/tokenizer.js';
 import { writeRateLimit } from '../middleware/rate-limit.js';
 import { enforcePatchSize } from '../middleware/content-limits.js';
+import { eventBus } from '../events/bus.js';
 
 /** Register patch route: POST /documents/:slug/patch to apply a unified diff and create a new version. Requires authentication and editable document state. */
 export async function patchRoutes(fastify: FastifyInstance) {
@@ -82,6 +83,13 @@ export async function patchRoutes(fastify: FastifyInstance) {
         currentVersion: nextVersion,
         versionCount: doc[0].versionCount + 1,
       }).where(eq(documents.slug, slug));
+
+      // Emit version.created AFTER the successful DB write — non-blocking.
+      eventBus.emitVersionCreated(slug, doc[0].id, request.user!.id, {
+        version: nextVersion,
+        changelog,
+        createdBy: request.user!.id,
+      });
 
       reply.status(201);
       return {

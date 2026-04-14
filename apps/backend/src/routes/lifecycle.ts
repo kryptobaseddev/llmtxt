@@ -16,6 +16,7 @@ import {
 import type { DocumentState, Review, ApprovalPolicy } from 'llmtxt/sdk';
 import { generateId } from 'llmtxt';
 import { invalidateDocumentCache } from '../middleware/cache.js';
+import { eventBus } from '../events/bus.js';
 
 function buildPolicy(doc: {
   approvalRequiredCount: number;
@@ -107,6 +108,14 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
       }
 
       invalidateDocumentCache(slug);
+
+      // Emit state.changed (or document.locked / document.archived) — non-blocking.
+      eventBus.emitStateChanged(slug, doc[0].id, request.user!.id, {
+        fromState: currentState,
+        toState: effectiveState,
+        reason: reason ?? null,
+      });
+
       return { slug, previousState: currentState, currentState: effectiveState, reason, changedAt: now };
     },
   );
@@ -185,6 +194,23 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
       }
 
       invalidateDocumentCache(slug);
+
+      // Emit approval event — non-blocking.
+      eventBus.emitApprovalSubmitted(slug, doc[0].id, request.user!.id, {
+        status: 'APPROVED',
+        atVersion: doc[0].currentVersion,
+        autoLocked,
+      });
+
+      // If auto-lock happened, also emit the state.changed / document.locked event.
+      if (autoLocked) {
+        eventBus.emitStateChanged(slug, doc[0].id, 'system', {
+          fromState: 'REVIEW',
+          toState: 'LOCKED',
+          reason: 'Auto-locked: consensus reached',
+        });
+      }
+
       return { slug, status: 'APPROVED', consensus, autoLocked };
     },
   );
@@ -233,6 +259,13 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
       const consensus = evaluateApprovals(toSdkReviews(allReviews), policy, doc[0].currentVersion);
 
       invalidateDocumentCache(slug);
+
+      // Emit rejection event — non-blocking.
+      eventBus.emitApprovalSubmitted(slug, doc[0].id, request.user!.id, {
+        status: 'REJECTED',
+        atVersion: doc[0].currentVersion,
+      });
+
       return { slug, status: 'REJECTED', consensus };
     },
   );
