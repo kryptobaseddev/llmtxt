@@ -121,9 +121,189 @@ The core primitives (compression, disclosure, versioning, diff, merge) are shipp
 - Target: Embedding-based semantic similarity for diff operations. Consensus detection based on meaning, not character matching. Semantic section alignment.
 - Why: Two agents expressing the same architecture in different words show as 100% divergent. Limits the value of consensus metrics for real-world document review.
 
+## Guiding Star
+
+> **No agent should ever lose work, duplicate work, or act on stale information.**
+
+Every future epic traces to one of three commitments:
+
+| Commitment | Meaning | Related capabilities |
+|------------|---------|---------------------|
+| **Never lose work** | Every write is durable, attributable, provable, recoverable | Durability, merge, audit, receipts, backups, event replay |
+| **Never duplicate work** | Agents coordinate, see each other's in-flight edits, don't clobber | Presence, locks, turn-taking, CRDT, deduplication |
+| **Never stale** | Agents learn of changes at section-level with diffs, not full-document re-reads | Differential subscriptions, cursor-based resume, cross-instance pubsub |
+
+See `RED-TEAM-ANALYSIS.md` for the honest assessment that drove these phases.
+
+### Phase 5: Verifiable Agent Identity & Trust
+
+#### Signed Agent Writes
+- Current: `agentId` is a self-declared string. Any agent can pose as any other.
+- Target: Writes include a detached signature over the canonical payload using the agent's bound keypair. Server derives identity from verified signature, not from claimed `agentId`.
+- Why: Makes every attribution, approval, and contributor stat trustworthy. Prevents Sybil attacks on consensus.
+- Depends on: API Key Authentication (Phase 1).
+
+#### Agent Capability Manifest
+- Current: No way to know what an agent can do.
+- Target: `/.well-known/agent.json` on agent-hosted endpoints; registered capabilities in LLMtxt queryable via `/api/v1/agents/:id/capabilities`. Includes operation names, rate limits, languages, trust score.
+- Why: Orchestrators route work to capable agents without guessing.
+
+#### Signing Key Rotation
+- Current: `SIGNING_SECRET` is global and unrotated; compromise = total loss of signed URL integrity.
+- Target: ed25519 keypairs per agent, public key published, rotation by revocation + re-issue. HMAC signed URLs replaced by detached signatures with `key_id`.
+- Why: Secret compromise becomes recoverable, not catastrophic.
+
+#### API Key Scopes (Enforced)
+- Current: `api_keys.scopes` column exists but is ignored by every route.
+- Target: Scope enforcement middleware: `read:docs`, `write:docs`, `manage:keys`, `admin:org`. Least-privilege by default.
+- Why: Shipped scope field with no enforcement is a false promise.
+
+### Phase 6: Differential Sync & Cross-Instance Event Bus
+
+#### External Event Bus (Redis / NATS)
+- Current: In-process `EventEmitter`. With >1 backend instance, subscribers miss events from other instances.
+- Target: Redis pub/sub or NATS as the event transport. All instances publish and subscribe. Optional event log for replay.
+- Why: The real-time epic is single-instance-only today. Horizontal scaling silently breaks subscriptions.
+
+#### Cursor-Based Event Replay
+- Current: WebSocket/SSE subscribers lose events if disconnected.
+- Target: Each event has a monotonic cursor per document. Clients reconnect with `?since=<cursor>` and receive missed events. Persistent event log with configurable retention.
+- Why: Agents with transient network issues silently drop coordination events today.
+
+#### Differential Subscriptions
+- Current: Events carry slug + metadata. Agents must re-fetch to see what changed.
+- Target: Events carry the unified diff, affected sections, token delta. Agents update local state without re-fetching.
+- Why: Eliminates the poll-after-notify round trip that wastes tokens.
+
+#### Section-Level Subscriptions
+- Current: Subscribe to a document = subscribe to everything.
+- Target: `ws.send({type:"subscribe", doc:"abc", sections:["## API"]})` → only events touching those sections.
+- Why: Agents watching specific sections of long documents stop paying for irrelevant updates.
+
+### Phase 7: CRDT & True Concurrent Editing
+
+#### Section-Level CRDT Merge
+- Current: 3-way merge exists but is invoked manually on conflict detection.
+- Target: Y.js or Automerge integration at section granularity. Concurrent writes to different sections merge automatically. Concurrent writes to the same section invoke CRDT resolution (character-level) or produce structured conflict markers.
+- Why: Last-writer-wins remains the default today. Agents silently lose work.
+
+#### Presence & Turn-Taking Primitives
+- Current: No coordination primitive exists.
+- Target: `PUT /documents/:slug/lock` with lease; `GET /documents/:slug/presence` returns active editors; `POST /documents/:slug/yield` for polite turn-taking.
+- Why: Multi-agent workflows need advisory locks to coordinate without constant conflict.
+
+#### Shared Scratchpad
+- Current: No volatile coordination channel.
+- Target: Per-document key-value scratchpad, short TTL, accessible to all readers. Not versioned. For agent status, intermediate results, handoff notes.
+- Why: Coordination metadata doesn't belong in document versions.
+
+### Phase 8: Operational Maturity
+
+#### OpenTelemetry Integration
+- Current: Pino JSON logs only.
+- Target: Traces, metrics, logs with W3C TraceContext propagation. SDK sends trace parent from agent to server.
+- Why: Distributed debugging is impossible without trace correlation.
+
+#### Secret Rotation & KMS
+- Current: All secrets in env vars. No rotation. Default `SIGNING_SECRET` is a public string.
+- Target: HashiCorp Vault or AWS KMS integration. Rotation runbook. Keys versioned.
+- Why: Enterprise claims require enterprise key management.
+
+#### Backup & Disaster Recovery
+- Current: Railway-default volume backups, RTO/RPO undefined.
+- Target: Documented RTO ≤ 1 hr, RPO ≤ 5 min. Tested restore procedure. Point-in-time recovery on PostgreSQL.
+- Why: "Never lose work" is a lie without a recovery path.
+
+#### Graceful Shutdown & Deployment Safety
+- Current: `process.exit(1)` on error. Railway redeploys all instances simultaneously.
+- Target: SIGTERM handler drains in-flight requests, releases WS connections cleanly. Blue-green or canary rollout.
+- Why: Deploys cause visible failures to subscribed agents today.
+
+#### Schema Reset Sentinel Removal
+- Current: Dockerfile wipes `data.db` if `/.schema-v2` sentinel absent. Production footgun.
+- Target: Drizzle migrations forward-only; sentinel removed. Rollback via restore.
+- Why: One misconfigured redeploy = total data loss.
+
+#### Data Export & Deletion (GDPR)
+- Current: No way for a user to export their data. No documented deletion flow.
+- Target: `POST /api/v1/users/me/export` produces a portable archive. `DELETE /api/v1/users/me` cascades per retention policy.
+- Why: Legal requirement in EU/UK jurisdictions.
+
+### Phase 9: Agent Ecosystem
+
+#### OpenAPI Specification
+- Current: No machine-readable API spec. Agents discover endpoints via hand-maintained `/.well-known/llm.json`.
+- Target: OpenAPI 3.1 spec generated from Fastify route schemas and Zod validators. Swagger UI at `/docs/api`. Postman collection exported.
+- Why: Every serious API ships an OpenAPI spec. Agent SDKs can be generated from it.
+
+#### Native MCP Server
+- Current: No MCP (Model Context Protocol) integration.
+- Target: Official MCP server implementation at `/mcp` exposing: document read/write, search, section retrieval as MCP resources/tools. Drop-in for Claude Desktop, Cursor, any MCP client.
+- Why: MCP is becoming the default agent-tool protocol. Not having a server is leaving the market.
+
+#### Multi-Language SDKs
+- Current: TypeScript/JavaScript only.
+- Target: Python, Go, Rust (native, not WASM) SDKs. Generated from OpenAPI + hand-tuned ergonomics.
+- Why: Most agent frameworks are Python. Go has DevOps. Rust has performance-sensitive consumers.
+
+#### CLI Tool
+- Current: None.
+- Target: `llmtxt` CLI: upload, list, show, diff, merge, watch. Usable from shell scripts and CI.
+- Why: Lowers the activation cost for new users; enables GitOps workflows.
+
+#### `llms.txt` Standard Compliance
+- Current: Hand-rolled `/.well-known/llm.json`.
+- Target: Conforming `/llms.txt` output per <https://llmstxt.org>. Per-document `llms.txt` generation (`GET /api/v1/documents/:slug.llms.txt`).
+- Why: Emerging standard; being ahead = discoverability by agents that follow the spec.
+
+### Phase 10: Performance & Content Engineering
+
+#### Zstd + Dictionary Training
+- Current: zlib deflate.
+- Target: zstd with per-workspace trained dictionaries for 2-5× better ratios on similar content (spec templates, code snippets). Fallback to zlib for backward compat.
+- Why: Agents exchange many similar documents; dictionary-trained compression yields dramatic wins.
+
+#### Multi-Tokenizer Support
+- Current: `gpt-tokenizer` (cl100k_base) only. 10-20% off for Claude/Gemini.
+- Target: `X-Tokenizer: anthropic|openai|gemini|raw-bytes` header. Per-request token count, cached.
+- Why: Agents' budget decisions are wrong today for non-GPT models.
+
+#### Real Semantic Embeddings
+- Current: Local TF-IDF 256d (barely better than random).
+- Target: Default to `text-embedding-3-small` (OpenAI) or `voyage-3` (Voyage AI) when keys configured; local fallback to `bge-small-en` (30MB model, 384d).
+- Why: Shipped semantic consensus does not detect semantic agreement with current TF-IDF.
+
+#### Stored Embeddings
+- Current: Embeddings computed on-demand each request.
+- Target: Section-level embeddings cached in DB, invalidated on content change. `pgvector` extension for PG mode.
+- Why: Semantic search / diff re-computes embeddings on every request today.
+
+#### Streaming Responses
+- Current: Full JSON responses.
+- Target: NDJSON / chunked responses for large documents and multi-doc queries.
+- Why: Agents can begin processing before full response arrives; lowers TTFB.
+
+### Phase 11: Byzantine-Resistant Consensus
+
+#### Agent Reputation Graph
+- Current: Every agent vote counts equally; Sybil-attack trivial.
+- Target: Agents earn reputation via approved contributions; reputation decays on rejections. Consensus weighted by reputation within a document's trust set.
+- Why: Enables trusted multi-agent review without central authority.
+
+#### Signed Receipts
+- Current: Server stores authoritative version history; no client-verifiable proof.
+- Target: Each write returns a signed receipt: `{documentId, version, contentHash, timestamp, serverSignature}`. Agents can prove they wrote version N at time T.
+- Why: Disputes between agents need verifiable history.
+
+#### Tamper-Evident Audit Log
+- Current: Audit log is plain append-only.
+- Target: Hash chain (each entry includes previous hash) + periodic Merkle root published. Tampering detectable.
+- Why: Required for any regulated-industry use.
+
 ## Non-Goals
 
-- Live cursor sync (collaboration is version-based with sequential patches, not real-time cursors — but real-time version notifications are in scope)
+- Live cursor sync (collaboration is version-based with sequential patches, not real-time cursors — but real-time version notifications and presence primitives are in scope)
 - Binary file storage (text and JSON only)
 - Replacing messaging systems (llmtxt is storage and collaboration, not transport)
 - Building a full CMS (llmtxt is infrastructure that platforms build on)
+- Becoming an agent runtime (agents run elsewhere; LLMtxt is their shared memory layer)
