@@ -590,6 +590,160 @@ export const auditLogs = sqliteTable(
 );
 
 // ────────────────────────────────────────────────────────────────
+// Document roles (RBAC)
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Document-level role assignments.
+ *
+ * One row per (document, user) pair. The ownerId on the documents table
+ * is the source of truth for the 'owner' role; explicit role rows are
+ * for 'editor' and 'viewer' grants (and can optionally mirror owner).
+ *
+ * Roles: 'owner' | 'editor' | 'viewer'
+ */
+export const documentRoles = sqliteTable(
+  'document_roles',
+  {
+    id: text('id').primaryKey(),
+    documentId: text('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** 'owner' | 'editor' | 'viewer' */
+    role: text('role').notNull(),
+    /** userId who granted this role */
+    grantedBy: text('granted_by').notNull(),
+    /** unix ms */
+    grantedAt: integer('granted_at').notNull(),
+  },
+  (table) => ({
+    docUserIdx: uniqueIndex('document_roles_doc_user_idx').on(table.documentId, table.userId),
+    userIdx: index('document_roles_user_idx').on(table.userId),
+    roleIdx: index('document_roles_role_idx').on(table.documentId, table.role),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
+// Organizations
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Organizations table — optional grouping of users for shared document access.
+ *
+ * Documents can be associated with one or more organizations via documentOrgs.
+ * Members of the organization inherit access based on their org role.
+ */
+export const organizations = sqliteTable(
+  'organizations',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    slug: text('slug').notNull().unique(),
+    createdBy: text('created_by')
+      .notNull()
+      .references(() => users.id),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => ({
+    slugIdx: uniqueIndex('organizations_slug_idx').on(table.slug),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
+// Organization membership
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Org members table — maps users to organizations with a role.
+ *
+ * Roles: 'admin' | 'member' | 'viewer'
+ * Admin: can manage org membership and associate documents.
+ * Member: can read/write org-associated documents (per doc visibility).
+ * Viewer: read-only access to org documents.
+ */
+export const orgMembers = sqliteTable(
+  'org_members',
+  {
+    id: text('id').primaryKey(),
+    orgId: text('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** 'admin' | 'member' | 'viewer' */
+    role: text('role').notNull(),
+    joinedAt: integer('joined_at').notNull(),
+  },
+  (table) => ({
+    orgUserIdx: uniqueIndex('org_members_org_user_idx').on(table.orgId, table.userId),
+    userIdx: index('org_members_user_idx').on(table.userId),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
+// Document-to-org associations
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Document-org association table — links a document to an organization.
+ *
+ * When a document has visibility='org', all members of associated organizations
+ * gain access according to their org role.
+ */
+export const documentOrgs = sqliteTable(
+  'document_orgs',
+  {
+    id: text('id').primaryKey(),
+    documentId: text('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    orgId: text('org_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    addedAt: integer('added_at').notNull(),
+  },
+  (table) => ({
+    docOrgIdx: uniqueIndex('document_orgs_doc_org_idx').on(table.documentId, table.orgId),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
+// Pending access invites
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Pending invites table — holds invite-by-email records for users who do
+ * not yet have an account. On sign-up the invite is resolved and converted
+ * to a documentRoles row.
+ */
+export const pendingInvites = sqliteTable(
+  'pending_invites',
+  {
+    id: text('id').primaryKey(),
+    documentId: text('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    /** 'editor' | 'viewer' */
+    role: text('role').notNull(),
+    /** userId of inviter */
+    invitedBy: text('invited_by').notNull(),
+    createdAt: integer('created_at').notNull(),
+    /** nullable — invites may be permanent */
+    expiresAt: integer('expires_at'),
+  },
+  (table) => ({
+    docEmailIdx: uniqueIndex('pending_invites_doc_email_idx').on(table.documentId, table.email),
+    emailIdx: index('pending_invites_email_idx').on(table.email),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
 // Export TypeScript types
 // ────────────────────────────────────────────────────────────────
 
@@ -615,6 +769,16 @@ export type ApiKey = typeof apiKeys.$inferSelect;
 export type NewApiKey = typeof apiKeys.$inferInsert;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type NewAuditLog = typeof auditLogs.$inferInsert;
+export type DocumentRole = typeof documentRoles.$inferSelect;
+export type NewDocumentRole = typeof documentRoles.$inferInsert;
+export type Organization = typeof organizations.$inferSelect;
+export type NewOrganization = typeof organizations.$inferInsert;
+export type OrgMember = typeof orgMembers.$inferSelect;
+export type NewOrgMember = typeof orgMembers.$inferInsert;
+export type DocumentOrg = typeof documentOrgs.$inferSelect;
+export type NewDocumentOrg = typeof documentOrgs.$inferInsert;
+export type PendingInvite = typeof pendingInvites.$inferSelect;
+export type NewPendingInvite = typeof pendingInvites.$inferInsert;
 
 // ────────────────────────────────────────────────────────────────
 // Export Zod schemas for validation
@@ -642,6 +806,16 @@ export const insertApiKeySchema = createInsertSchema(apiKeys);
 export const selectApiKeySchema = createSelectSchema(apiKeys);
 export const insertAuditLogSchema = createInsertSchema(auditLogs);
 export const selectAuditLogSchema = createSelectSchema(auditLogs);
+export const insertDocumentRoleSchema = createInsertSchema(documentRoles);
+export const selectDocumentRoleSchema = createSelectSchema(documentRoles);
+export const insertOrganizationSchema = createInsertSchema(organizations);
+export const selectOrganizationSchema = createSelectSchema(organizations);
+export const insertOrgMemberSchema = createInsertSchema(orgMembers);
+export const selectOrgMemberSchema = createSelectSchema(orgMembers);
+export const insertDocumentOrgSchema = createInsertSchema(documentOrgs);
+export const selectDocumentOrgSchema = createSelectSchema(documentOrgs);
+export const insertPendingInviteSchema = createInsertSchema(pendingInvites);
+export const selectPendingInviteSchema = createSelectSchema(pendingInvites);
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type SelectUser = z.infer<typeof selectUserSchema>;
@@ -665,3 +839,13 @@ export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
 export type SelectApiKey = z.infer<typeof selectApiKeySchema>;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type SelectAuditLog = z.infer<typeof selectAuditLogSchema>;
+export type InsertDocumentRole = z.infer<typeof insertDocumentRoleSchema>;
+export type SelectDocumentRole = z.infer<typeof selectDocumentRoleSchema>;
+export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
+export type SelectOrganization = z.infer<typeof selectOrganizationSchema>;
+export type InsertOrgMember = z.infer<typeof insertOrgMemberSchema>;
+export type SelectOrgMember = z.infer<typeof selectOrgMemberSchema>;
+export type InsertDocumentOrg = z.infer<typeof insertDocumentOrgSchema>;
+export type SelectDocumentOrg = z.infer<typeof selectDocumentOrgSchema>;
+export type InsertPendingInvite = z.infer<typeof insertPendingInviteSchema>;
+export type SelectPendingInvite = z.infer<typeof selectPendingInviteSchema>;

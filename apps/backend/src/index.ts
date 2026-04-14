@@ -16,6 +16,7 @@ import { retrievalRoutes } from './routes/retrieval.js';
 import { signedUrlRoutes } from './routes/signed-urls.js';
 import { mergeRoutes } from './routes/merge.js';
 import { apiKeyRoutes } from './routes/api-keys.js';
+import { conflictRoutes } from './routes/conflicts.js';
 import { publicDir, extractSlug, extractSlugWithExtension, handleContentNegotiation, getDocumentWithContent } from './routes/web.js';
 import { v1Routes } from './routes/v1/index.js';
 import {
@@ -350,6 +351,7 @@ async function main() {
       await legacyScope.register(mergeRoutes);
       await legacyScope.register(apiKeyRoutes);
       await legacyScope.register(auditLogRoutes);
+      await legacyScope.register(conflictRoutes);
     }, { prefix: '/api' });
 
     // Register error handler

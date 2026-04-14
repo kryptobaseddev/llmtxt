@@ -8,7 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { db } from '../db/index.js';
-import { documents, contributors, versions } from '../db/schema.js';
+import { documents, contributors, versions, documentRoles } from '../db/schema.js';
 import { eq, desc } from 'drizzle-orm';
 import { auth } from '../auth.js';
 import {
@@ -259,6 +259,20 @@ export async function apiRoutes(fastify: FastifyInstance) {
           netTokens: tokenCount,
           firstContribution: now,
           lastContribution: now,
+        });
+      }
+
+      // Grant the creator 'owner' role in document_roles so RBAC queries have a
+      // stable explicit record. The documents.ownerId FK is the primary source of
+      // truth; this row is a convenience mirror for JOIN-based permission lookups.
+      if (user?.id) {
+        await db.insert(documentRoles).values({
+          id: crypto.randomUUID(),
+          documentId: id,
+          userId: user.id,
+          role: 'owner',
+          grantedBy: user.id,
+          grantedAt: now,
         });
       }
 

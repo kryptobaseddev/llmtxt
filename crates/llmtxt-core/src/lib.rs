@@ -47,6 +47,23 @@ pub use patch::{
 mod cherry_pick;
 pub use cherry_pick::cherry_pick_merge;
 
+mod three_way_merge;
+pub use three_way_merge::{
+    Conflict, MergeStats, ThreeWayMergeResult, three_way_merge, three_way_merge_native,
+};
+
+// ── 3-Way Merge (WASM) ──────────────────────────────────────────
+
+/// WASM binding for the 3-way merge algorithm.
+///
+/// Takes `base`, `ours`, and `theirs` content strings.
+/// Returns a JSON-serialised [`ThreeWayMergeResult`] on success, or
+/// `{"error": "<message>"}` on serialization failure.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn three_way_merge_wasm(base: &str, ours: &str, theirs: &str) -> String {
+    three_way_merge(base, ours, theirs)
+}
+
 // ── Multi-way Diff (WASM) ────────────────────────────────────────
 
 /// WASM binding for [`multi_way_diff`].
