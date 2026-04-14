@@ -10,7 +10,7 @@ import { db } from '../db/index.js';
 import { documents } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { decompress } from '../utils/compression.js';
-import { calculateTokens } from '../utils/compression.js';
+import { countTokens } from '../utils/tokenizer.js';
 import {
   generateOverview,
   getLineRange,
@@ -41,7 +41,7 @@ async function resolveDocument(
       return {
         content: cached as string,
         format: 'unknown', // We'd need metadata from DB
-        totalTokens: calculateTokens(cached as string),
+        totalTokens: countTokens(cached as string),
         originalSize: 0, // Not available from cache
         compressedSize: 0, // Not available from cache
       };
@@ -77,7 +77,7 @@ async function resolveDocument(
   return {
     content,
     format: doc.format || 'text',
-    totalTokens: doc.tokenCount || calculateTokens(content),
+    totalTokens: doc.tokenCount || countTokens(content),
     originalSize: doc.originalSize,
     compressedSize: doc.compressedSize,
   };
@@ -261,7 +261,7 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
     const resultContent = results.map(r =>
       [...r.contextBefore, r.content, ...r.contextAfter].join('\n')
     ).join('\n\n');
-    const resultTokens = calculateTokens(resultContent);
+    const resultTokens = countTokens(resultContent);
 
     reply.header('X-Token-Count', resultTokens);
     reply.header('X-Total-Tokens', doc.totalTokens);

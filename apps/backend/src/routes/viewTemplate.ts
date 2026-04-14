@@ -1,3 +1,5 @@
+import { sanitizeHtml } from '../middleware/sanitize.js';
+
 /** Render the server-side HTML view template for a document page, including meta tags and structured content display. */
 export function renderViewHtml(slug: string, data: any): string {
   const format = data.format || 'text';
@@ -26,7 +28,10 @@ export function renderViewHtml(slug: string, data: any): string {
       initialContent = escapeHtml(data.content);
     }
   } else {
-    initialContent = renderMarkdown(data.content || '');
+    // Sanitize the markdown-rendered HTML before embedding in the page to
+    // prevent XSS from user-supplied content. Sanitization is on output only —
+    // stored content is never modified.
+    initialContent = sanitizeHtml(renderMarkdown(data.content || ''));
   }
 
   // Inject data into window object for client-side JS to use

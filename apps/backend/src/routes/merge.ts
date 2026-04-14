@@ -15,8 +15,8 @@ import {
   decompress,
   generateId,
   hashContent,
-  calculateTokens,
 } from '../utils/compression.js';
+import { countTokens } from '../utils/tokenizer.js';
 import { cherryPickMerge } from 'llmtxt';
 import { invalidateDocumentCache } from '../middleware/cache.js';
 import { auth } from '../auth.js';
@@ -282,7 +282,7 @@ export async function mergeRoutes(fastify: FastifyInstance) {
         // Pure CPU work — done outside the transaction.
         const compressedData = await compress(mergedContent);
         const contentHash = hashContent(mergedContent);
-        const tokenCount = calculateTokens(mergedContent);
+        const tokenCount = countTokens(mergedContent);
         const originalSize = Buffer.byteLength(mergedContent, 'utf-8');
         const compressedSize = compressedData.length;
         const now = Date.now();

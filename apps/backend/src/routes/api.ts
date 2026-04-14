@@ -16,9 +16,9 @@ import {
   decompress,
   generateId,
   hashContent,
-  calculateTokens,
   calculateCompressionRatio,
 } from '../utils/compression.js';
+import { countTokens } from '../utils/tokenizer.js';
 import {
   compressRequestSchema,
   decompressRequestSchema,
@@ -206,7 +206,7 @@ export async function apiRoutes(fastify: FastifyInstance) {
 
       // Calculate metadata
       const contentHash = hashContent(content);
-      const tokenCount = calculateTokens(content);
+      const tokenCount = countTokens(content);
       const compressionRatio = calculateCompressionRatio(originalSize, compressedSize);
 
       // Get optional user from session for ownership

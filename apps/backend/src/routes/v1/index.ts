@@ -20,6 +20,7 @@ import { retrievalRoutes } from '../retrieval.js';
 import { signedUrlRoutes } from '../signed-urls.js';
 import { mergeRoutes } from '../merge.js';
 import { apiKeyRoutes } from '../api-keys.js';
+import { auditLogRoutes } from '../../middleware/audit.js';
 import {
   API_VERSION_REGISTRY,
   addVersionResponseHeaders,
@@ -53,4 +54,5 @@ export async function v1Routes(app: FastifyInstance): Promise<void> {
   await app.register(signedUrlRoutes);
   await app.register(mergeRoutes);
   await app.register(apiKeyRoutes);
+  await app.register(auditLogRoutes);
 }
