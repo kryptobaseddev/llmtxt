@@ -18,5 +18,8 @@ sqlite.pragma('foreign_keys = ON');
 /** Drizzle ORM instance connected to the SQLite database with full schema. */
 export const db = drizzle({ client: sqlite, schema });
 
+/** Raw better-sqlite3 client — use only for operations not expressible in Drizzle (e.g., raw parameterized queries). */
+export { sqlite };
+
 // Export schema for convenience
 export { schema };

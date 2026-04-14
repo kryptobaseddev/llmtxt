@@ -470,6 +470,71 @@ export const versionAttributions = sqliteTable(
 );
 
 // ────────────────────────────────────────────────────────────────
+// Audit Logs
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Audit logs table - records all state-changing operations for compliance and
+ * forensic investigation. Every successful mutating request (POST/PUT/DELETE)
+ * should produce an audit log row.
+ *
+ * Growth management:
+ * - Four targeted indexes support the most common query patterns (by user, by
+ *   action type, by resource, and by timestamp range) without excessive index
+ *   overhead for an append-only table.
+ * - Old rows should be periodically archived or purged via a background job
+ *   (not yet implemented; tracked as a future operational task).
+ */
+export const auditLogs = sqliteTable(
+  'audit_logs',
+  {
+    id: text('id').primaryKey(), // crypto.randomUUID()
+    // ── Who ──
+    /** Authenticated user ID. Null for unauthenticated / anonymous requests. */
+    userId: text('user_id'),
+    /** SDK agent identifier supplied in the request body (agentId / createdBy). */
+    agentId: text('agent_id'),
+    /** Client IP address extracted from x-forwarded-for or socket. */
+    ipAddress: text('ip_address'),
+    /** User-Agent header value. */
+    userAgent: text('user_agent'),
+    // ── What ──
+    /**
+     * Structured action name, dot-separated: `<resource>.<verb>`.
+     * Examples: 'document.create', 'document.update', 'version.create',
+     * 'lifecycle.transition', 'approval.submit', 'approval.reject',
+     * 'auth.login', 'auth.logout', 'signed_url.create'.
+     */
+    action: text('action').notNull(),
+    /** Resource type affected: 'document' | 'version' | 'approval' | 'auth' | 'signed_url' | ... */
+    resourceType: text('resource_type').notNull(),
+    /** Slug or ID of the affected resource. Null for resource-independent actions. */
+    resourceId: text('resource_id'),
+    // ── Details ──
+    /** JSON blob with action-specific context (e.g., from/to state for transitions). */
+    details: text('details'), // JSON string
+    // ── When ──
+    /** Unix timestamp in milliseconds when the request was received. */
+    timestamp: integer('timestamp').notNull(),
+    // ── Context ──
+    /** Fastify request ID for log correlation. */
+    requestId: text('request_id'),
+    /** HTTP method of the originating request. */
+    method: text('method'),
+    /** Full request path (url). */
+    path: text('path'),
+    /** HTTP status code of the response. Populated via onResponse hook. */
+    statusCode: integer('status_code'),
+  },
+  (table) => ({
+    userIdIdx: index('audit_logs_user_id_idx').on(table.userId),
+    actionIdx: index('audit_logs_action_idx').on(table.action),
+    resourceIdx: index('audit_logs_resource_idx').on(table.resourceType, table.resourceId),
+    timestampIdx: index('audit_logs_timestamp_idx').on(table.timestamp),
+  }),
+);
+
+// ────────────────────────────────────────────────────────────────
 // Export TypeScript types
 // ────────────────────────────────────────────────────────────────
 
@@ -491,6 +556,8 @@ export type SignedUrlToken = typeof signedUrlTokens.$inferSelect;
 export type NewSignedUrlToken = typeof signedUrlTokens.$inferInsert;
 export type VersionAttribution = typeof versionAttributions.$inferSelect;
 export type NewVersionAttribution = typeof versionAttributions.$inferInsert;
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type NewAuditLog = typeof auditLogs.$inferInsert;
 
 // ────────────────────────────────────────────────────────────────
 // Export Zod schemas for validation
@@ -514,6 +581,8 @@ export const insertSignedUrlTokenSchema = createInsertSchema(signedUrlTokens);
 export const selectSignedUrlTokenSchema = createSelectSchema(signedUrlTokens);
 export const insertVersionAttributionSchema = createInsertSchema(versionAttributions);
 export const selectVersionAttributionSchema = createSelectSchema(versionAttributions);
+export const insertAuditLogSchema = createInsertSchema(auditLogs);
+export const selectAuditLogSchema = createSelectSchema(auditLogs);
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type SelectUser = z.infer<typeof selectUserSchema>;
@@ -533,3 +602,5 @@ export type InsertSignedUrlToken = z.infer<typeof insertSignedUrlTokenSchema>;
 export type SelectSignedUrlToken = z.infer<typeof selectSignedUrlTokenSchema>;
 export type InsertVersionAttribution = z.infer<typeof insertVersionAttributionSchema>;
 export type SelectVersionAttribution = z.infer<typeof selectVersionAttributionSchema>;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type SelectAuditLog = z.infer<typeof selectAuditLogSchema>;

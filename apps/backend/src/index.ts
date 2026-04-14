@@ -16,6 +16,9 @@ import { retrievalRoutes } from './routes/retrieval.js';
 import { signedUrlRoutes } from './routes/signed-urls.js';
 import { mergeRoutes } from './routes/merge.js';
 import { publicDir, extractSlug, extractSlugWithExtension, handleContentNegotiation, getDocumentWithContent } from './routes/web.js';
+import { securityHeaders } from './middleware/security.js';
+import { registerCsrf } from './middleware/csrf.js';
+import { registerAuditLogging, auditLogRoutes } from './middleware/audit.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const API_HOSTS = new Set(['api.llmtxt.my']);
@@ -58,6 +61,25 @@ async function main() {
 
     // Register compression plugin
     await app.register(compress);
+
+    // ──────────────────────────────────────────────────────────────────
+    // Security headers (CSP, HSTS, X-Content-Type-Options, etc.)
+    // Registered early so all responses — including errors — get headers.
+    // ──────────────────────────────────────────────────────────────────
+    await securityHeaders(app);
+
+    // ──────────────────────────────────────────────────────────────────
+    // CSRF protection for cookie-authenticated state-changing requests.
+    // Must come after @fastify/cookie but before route registration.
+    // Bearer token requests are exempt (CSRF does not apply to them).
+    // better-auth /api/auth/* routes are exempt (they manage CSRF internally).
+    // ──────────────────────────────────────────────────────────────────
+    await registerCsrf(app);
+
+    // ──────────────────────────────────────────────────────────────────
+    // Audit logging: fire-and-forget onResponse hook for mutating routes.
+    // ──────────────────────────────────────────────────────────────────
+    await registerAuditLogging(app);
 
     // ──────────────────────────────────────────────────────────────────
     // robots.txt: allow all crawlers
@@ -240,6 +262,7 @@ async function main() {
     await app.register(retrievalRoutes, { prefix: '/api' });
     await app.register(signedUrlRoutes, { prefix: '/api' });
     await app.register(mergeRoutes, { prefix: '/api' });
+    await app.register(auditLogRoutes, { prefix: '/api' });
 
     // Register error handler
     app.setErrorHandler((error: unknown, request, reply) => {

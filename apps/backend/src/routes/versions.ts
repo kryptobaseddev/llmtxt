@@ -13,10 +13,10 @@ import {
   decompress,
   generateId,
   hashContent,
-  calculateTokens,
   calculateCompressionRatio,
   structuredDiff,
 } from '../utils/compression.js';
+import { countTokens } from '../utils/tokenizer.js';
 import { createPatch, multiWayDiff } from 'llmtxt';
 import { invalidateDocumentCache } from '../middleware/cache.js';
 import { auth } from '../auth.js';
@@ -140,7 +140,7 @@ export async function versionRoutes(fastify: FastifyInstance) {
       // pure CPU/memory operations and do not touch the DB.
       const compressedData = await compress(content);
       const contentHash = hashContent(content);
-      const tokenCount = calculateTokens(content);
+      const tokenCount = countTokens(content);
       const originalSize = Buffer.byteLength(content, 'utf-8');
       const compressedSize = compressedData.length;
       const now = Date.now();

@@ -7,8 +7,9 @@ import { db } from '../db/index.js';
 import { documents, versions } from '../db/schema.js';
 import { requireAuth } from '../middleware/auth.js';
 import {
-  applyPatch, hashContent, compress, calculateTokens, generateId,
+  applyPatch, hashContent, compress, generateId,
 } from 'llmtxt';
+import { countTokens } from '../utils/tokenizer.js';
 
 /** Register patch route: POST /documents/:slug/patch to apply a unified diff and create a new version. Requires authentication and editable document state. */
 export async function patchRoutes(fastify: FastifyInstance) {
@@ -50,7 +51,7 @@ export async function patchRoutes(fastify: FastifyInstance) {
       }
 
       const contentHash = hashContent(newContent);
-      const tokenCount = calculateTokens(newContent);
+      const tokenCount = countTokens(newContent);
       const compressed = await compress(newContent);
       const nextVersion = doc[0].currentVersion + 1;
       const now = Date.now();
