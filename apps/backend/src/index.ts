@@ -15,6 +15,7 @@ import { graphRoutes } from './routes/graph.js';
 import { retrievalRoutes } from './routes/retrieval.js';
 import { signedUrlRoutes } from './routes/signed-urls.js';
 import { mergeRoutes } from './routes/merge.js';
+import { semanticRoutes } from './routes/semantic.js';
 import { publicDir, extractSlug, extractSlugWithExtension, handleContentNegotiation, getDocumentWithContent } from './routes/web.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -194,6 +195,21 @@ async function main() {
             description: 'Cherry-pick merge: assemble new version from line ranges and sections across multiple versions'
           },
           {
+            path: '/documents/:slug/semantic-diff',
+            method: 'POST',
+            description: 'Semantic diff between two versions using embedding-based section similarity'
+          },
+          {
+            path: '/documents/:slug/semantic-similarity?versions=1,2,3',
+            method: 'GET',
+            description: 'Pairwise cosine similarity matrix across multiple versions'
+          },
+          {
+            path: '/documents/:slug/semantic-consensus',
+            method: 'POST',
+            description: 'Evaluate semantic consensus across approved reviews using embedding clustering'
+          },
+          {
             path: '/auth/sign-up/email',
             method: 'POST',
             description: 'Register with email/password'
@@ -240,6 +256,7 @@ async function main() {
     await app.register(retrievalRoutes, { prefix: '/api' });
     await app.register(signedUrlRoutes, { prefix: '/api' });
     await app.register(mergeRoutes, { prefix: '/api' });
+    await app.register(semanticRoutes, { prefix: '/api' });
 
     // Register error handler
     app.setErrorHandler((error: unknown, request, reply) => {

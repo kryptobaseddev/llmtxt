@@ -86,6 +86,37 @@ pub use consensus::{
     mark_stale_reviews, mark_stale_reviews_native,
 };
 
+mod semantic;
+pub use semantic::{
+    EmbeddedReview, EmbeddedSection, ReviewCluster, SectionAlignment, SectionSimilarity,
+    SemanticChange, SemanticConsensusResult, SemanticDiffResult, cosine_similarity,
+    semantic_consensus, semantic_consensus_native, semantic_diff, semantic_diff_native,
+};
+
+// ── Semantic Diff (WASM) ─────────────────────────────────────────
+
+/// WASM binding for [`semantic_diff`].
+///
+/// `sections_a_json` and `sections_b_json` are JSON arrays of
+/// `{ title, content, embedding: number[] }`.
+/// Returns a JSON-serialised `SemanticDiffResult`, or `{"error":"..."}`.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn semantic_diff_wasm(sections_a_json: &str, sections_b_json: &str) -> String {
+    semantic_diff(sections_a_json, sections_b_json)
+}
+
+// ── Semantic Consensus (WASM) ────────────────────────────────────
+
+/// WASM binding for [`semantic_consensus`].
+///
+/// `reviews_json` is a JSON array of `{ reviewerId, content, embedding: number[] }`.
+/// `threshold` is the minimum cosine similarity for two reviews to agree (e.g. 0.80).
+/// Returns a JSON-serialised `SemanticConsensusResult`, or `{"error":"..."}`.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn semantic_consensus_wasm(reviews_json: &str, threshold: f64) -> String {
+    semantic_consensus(reviews_json, threshold)
+}
+
 type HmacSha256 = Hmac<Sha256>;
 
 const BASE62: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
