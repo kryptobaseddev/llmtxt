@@ -360,6 +360,84 @@ export function threeWayMerge(base: string, ours: string, theirs: string): Three
   const parsed = JSON.parse(json) as ThreeWayMergeResult & { error?: string };
   if (parsed.error) {
     throw new Error(`threeWayMerge failed: ${parsed.error}`);
+// ── Semantic Diff ───────────────────────────────────────────────
+
+/** How a section from version A maps to version B. */
+export type SectionAlignment = 'Matched' | 'Renamed' | 'Added' | 'Removed';
+
+/** Per-section similarity record produced by semantic diff. */
+export interface SectionSimilarity {
+  sectionA: string;
+  sectionB: string;
+  similarity: number;
+  alignment: SectionAlignment;
+}
+
+/** A semantic change annotation for a matched/renamed section pair. */
+export interface SemanticChange {
+  /** One of: "unchanged", "rephrased", "modified", "rewritten". */
+  changeType: string;
+  section: string;
+  similarity: number;
+  description: string;
+}
+
+/** Full result of a semantic diff between two document versions. */
+export interface SemanticDiffResult {
+  overallSimilarity: number;
+  sectionSimilarities: SectionSimilarity[];
+  semanticChanges: SemanticChange[];
+}
+
+/**
+ * Compute a semantic diff between two sets of pre-embedded document sections.
+ *
+ * @param sectionsAJson - JSON array of `{ title, content, embedding: number[] }` for version A.
+ * @param sectionsBJson - JSON array of `{ title, content, embedding: number[] }` for version B.
+ * @returns Parsed SemanticDiffResult.
+ * @throws Error if the Rust core returns an error object.
+ */
+export function semanticDiff(sectionsAJson: string, sectionsBJson: string): SemanticDiffResult {
+  const json = wasmModule.semantic_diff_wasm(sectionsAJson, sectionsBJson);
+  const parsed = JSON.parse(json) as SemanticDiffResult & { error?: string };
+  if (parsed.error) {
+    throw new Error(`semanticDiff failed: ${parsed.error}`);
+  }
+  return parsed;
+}
+
+// ── Semantic Consensus ──────────────────────────────────────────
+
+/** A cluster of reviewers whose embeddings are mutually similar. */
+export interface ReviewCluster {
+  members: string[];
+  avgSimilarity: number;
+}
+
+/** Result of semantic consensus evaluation across a set of reviews. */
+export interface SemanticConsensusResult {
+  consensus: boolean;
+  agreementScore: number;
+  clusters: ReviewCluster[];
+  outliers: string[];
+}
+
+/**
+ * Evaluate semantic consensus across a set of pre-embedded reviews.
+ *
+ * @param reviewsJson - JSON array of `{ reviewerId, content, embedding: number[] }`.
+ * @param threshold - Cosine similarity threshold for clustering (e.g. 0.80).
+ * @returns Parsed SemanticConsensusResult.
+ * @throws Error if the Rust core returns an error object.
+ */
+export function semanticConsensus(
+  reviewsJson: string,
+  threshold: number,
+): SemanticConsensusResult {
+  const json = wasmModule.semantic_consensus_wasm(reviewsJson, threshold);
+  const parsed = JSON.parse(json) as SemanticConsensusResult & { error?: string };
+  if (parsed.error) {
+    throw new Error(`semanticConsensus failed: ${parsed.error}`);
   }
   return parsed;
 }

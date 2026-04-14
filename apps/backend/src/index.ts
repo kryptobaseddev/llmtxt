@@ -17,6 +17,9 @@ import { signedUrlRoutes } from './routes/signed-urls.js';
 import { mergeRoutes } from './routes/merge.js';
 import { apiKeyRoutes } from './routes/api-keys.js';
 import { conflictRoutes } from './routes/conflicts.js';
+import { semanticRoutes } from './routes/semantic.js';
+import { accessControlRoutes } from './routes/access-control.js';
+import { organizationRoutes } from './routes/organizations.js';
 import { publicDir, extractSlug, extractSlugWithExtension, handleContentNegotiation, getDocumentWithContent } from './routes/web.js';
 import { v1Routes } from './routes/v1/index.js';
 import {
@@ -237,6 +240,21 @@ async function main() {
             description: 'Cherry-pick merge: assemble new version from line ranges and sections across multiple versions'
           },
           {
+            path: '/documents/:slug/semantic-diff',
+            method: 'POST',
+            description: 'Semantic diff between two versions using embedding-based section similarity'
+          },
+          {
+            path: '/documents/:slug/semantic-similarity?versions=1,2,3',
+            method: 'GET',
+            description: 'Pairwise cosine similarity matrix across multiple versions'
+          },
+          {
+            path: '/documents/:slug/semantic-consensus',
+            method: 'POST',
+            description: 'Evaluate semantic consensus across approved reviews using embedding clustering'
+          },
+          {
             path: '/auth/sign-up/email',
             method: 'POST',
             description: 'Register with email/password'
@@ -352,6 +370,9 @@ async function main() {
       await legacyScope.register(apiKeyRoutes);
       await legacyScope.register(auditLogRoutes);
       await legacyScope.register(conflictRoutes);
+      await legacyScope.register(accessControlRoutes);
+      await legacyScope.register(organizationRoutes);
+      await legacyScope.register(semanticRoutes);
     }, { prefix: '/api' });
 
     // Register error handler

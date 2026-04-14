@@ -131,6 +131,17 @@ export type {
   ThreeWayMergeResult,
 } from './patch.js';
 
+// ── Semantic Diff & Consensus ───────────────────────────────────
+export { semanticDiff, semanticConsensus } from './wasm.js';
+export type {
+  SectionAlignment,
+  SectionSimilarity,
+  SemanticChange,
+  SemanticDiffResult,
+  ReviewCluster,
+  SemanticConsensusResult,
+} from './wasm.js';
+
 // ── Snapshot Compression ───────────────────────────────────────
 export {
   compressSnapshot,
