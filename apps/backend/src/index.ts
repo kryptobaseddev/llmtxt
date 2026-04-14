@@ -25,6 +25,8 @@ import { wsRoutes } from './routes/ws.js';
 import { sseRoutes } from './routes/sse.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import { startWebhookWorker } from './events/webhooks.js';
+import { crossDocRoutes } from './routes/cross-doc.js';
+import { collectionRoutes } from './routes/collections.js';
 import { publicDir, extractSlug, extractSlugWithExtension, handleContentNegotiation, getDocumentWithContent } from './routes/web.js';
 import { v1Routes } from './routes/v1/index.js';
 import {
@@ -422,6 +424,19 @@ async function main() {
 
     // Start the webhook delivery worker (attaches a single event-bus listener).
     startWebhookWorker();
+    await app.register(apiRoutes, { prefix: '/api' });
+    await app.register(disclosureRoutes, { prefix: '/api' });
+    await app.register(versionRoutes, { prefix: '/api' });
+    await app.register(authRoutes, { prefix: '/api' });
+    await app.register(lifecycleRoutes, { prefix: '/api' });
+    await app.register(patchRoutes, { prefix: '/api' });
+    await app.register(similarityRoutes, { prefix: '/api' });
+    await app.register(graphRoutes, { prefix: '/api' });
+    await app.register(retrievalRoutes, { prefix: '/api' });
+    await app.register(signedUrlRoutes, { prefix: '/api' });
+    await app.register(mergeRoutes, { prefix: '/api' });
+    await app.register(crossDocRoutes, { prefix: '/api' });
+    await app.register(collectionRoutes, { prefix: '/api' });
 
     // Register error handler
     app.setErrorHandler((error: unknown, request, reply) => {

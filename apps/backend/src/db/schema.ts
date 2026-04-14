@@ -623,6 +623,29 @@ export const documentRoles = sqliteTable(
     docUserIdx: uniqueIndex('document_roles_doc_user_idx').on(table.documentId, table.userId),
     userIdx: index('document_roles_user_idx').on(table.userId),
     roleIdx: index('document_roles_role_idx').on(table.documentId, table.role),
+// Document Links (cross-document references)
+ * Document links table - directional relationships between documents.
+ * Supports typed relationships: references, depends_on, derived_from,
+ * supersedes, related. Links are used to build cross-document
+ * knowledge graphs and dependency chains.
+export const documentLinks = sqliteTable(
+  'document_links',
+    sourceDocId: text('source_doc_id')
+    targetDocId: text('target_doc_id')
+    /** 'references' | 'depends_on' | 'derived_from' | 'supersedes' | 'related' */
+    linkType: text('link_type').notNull(),
+    /** Optional human-readable label for the link. */
+    label: text('label'),
+    /** userId of whoever created the link. */
+    createdBy: text('created_by'),
+    createdAt: integer('created_at').notNull(),
+    sourceIdx: index('document_links_source_idx').on(table.sourceDocId),
+    targetIdx: index('document_links_target_idx').on(table.targetDocId),
+    uniqueLinkIdx: uniqueIndex('document_links_unique_idx').on(
+      table.sourceDocId,
+      table.targetDocId,
+      table.linkType
+    ),
   })
 );
 
@@ -645,11 +668,25 @@ export const organizations = sqliteTable(
     createdBy: text('created_by')
       .notNull()
       .references(() => users.id),
+// Collections (document grouping)
+ * Collections table - named, ordered groupings of documents.
+ * Allows users to curate sets of related documents (e.g., a spec +
+ * design + implementation + test plan) and export them as a single
+ * concatenated context for agent consumption.
+export const collections = sqliteTable(
+  'collections',
+    /** URL-safe slug: lowercase, hyphens, no spaces. */
+    description: text('description'),
+    ownerId: text('owner_id')
+    /** 'public' | 'private' */
+    visibility: text('visibility').notNull().default('public'),
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull(),
   },
   (table) => ({
     slugIdx: uniqueIndex('organizations_slug_idx').on(table.slug),
+    slugIdx: uniqueIndex('collections_slug_idx').on(table.slug),
+    ownerIdx: index('collections_owner_idx').on(table.ownerId),
   })
 );
 
@@ -771,6 +808,21 @@ export const webhooks = sqliteTable(
     userIdx: index('webhooks_user_id_idx').on(table.userId),
     slugIdx: index('webhooks_document_slug_idx').on(table.documentSlug),
     activeIdx: index('webhooks_active_idx').on(table.active, table.userId),
+// Collection documents (membership)
+ * Collection documents table - ordered membership list.
+ * Each row maps a document into a collection with a position for
+ * ordering. The position is used for export order and display order.
+export const collectionDocuments = sqliteTable(
+  'collection_documents',
+    collectionId: text('collection_id')
+      .references(() => collections.id, { onDelete: 'cascade' }),
+    /** Ordering position within the collection (0-indexed). */
+    position: integer('position').notNull().default(0),
+    /** userId of whoever added the document. */
+    addedBy: text('added_by'),
+    collectionIdx: index('collection_docs_collection_idx').on(table.collectionId),
+    documentIdx: index('collection_docs_document_idx').on(table.documentId),
+    uniqueDocIdx: uniqueIndex('collection_docs_unique_idx').on(table.collectionId, table.documentId),
   })
 );
 
@@ -812,6 +864,12 @@ export type PendingInvite = typeof pendingInvites.$inferSelect;
 export type NewPendingInvite = typeof pendingInvites.$inferInsert;
 export type Webhook = typeof webhooks.$inferSelect;
 export type NewWebhook = typeof webhooks.$inferInsert;
+export type DocumentLink = typeof documentLinks.$inferSelect;
+export type NewDocumentLink = typeof documentLinks.$inferInsert;
+export type Collection = typeof collections.$inferSelect;
+export type NewCollection = typeof collections.$inferInsert;
+export type CollectionDocument = typeof collectionDocuments.$inferSelect;
+export type NewCollectionDocument = typeof collectionDocuments.$inferInsert;
 
 // ────────────────────────────────────────────────────────────────
 // Export Zod schemas for validation
@@ -851,6 +909,12 @@ export const insertPendingInviteSchema = createInsertSchema(pendingInvites);
 export const selectPendingInviteSchema = createSelectSchema(pendingInvites);
 export const insertWebhookSchema = createInsertSchema(webhooks);
 export const selectWebhookSchema = createSelectSchema(webhooks);
+export const insertDocumentLinkSchema = createInsertSchema(documentLinks);
+export const selectDocumentLinkSchema = createSelectSchema(documentLinks);
+export const insertCollectionSchema = createInsertSchema(collections);
+export const selectCollectionSchema = createSelectSchema(collections);
+export const insertCollectionDocumentSchema = createInsertSchema(collectionDocuments);
+export const selectCollectionDocumentSchema = createSelectSchema(collectionDocuments);
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type SelectUser = z.infer<typeof selectUserSchema>;
@@ -886,3 +950,9 @@ export type InsertPendingInvite = z.infer<typeof insertPendingInviteSchema>;
 export type SelectPendingInvite = z.infer<typeof selectPendingInviteSchema>;
 export type InsertWebhook = z.infer<typeof insertWebhookSchema>;
 export type SelectWebhook = z.infer<typeof selectWebhookSchema>;
+export type InsertDocumentLink = z.infer<typeof insertDocumentLinkSchema>;
+export type SelectDocumentLink = z.infer<typeof selectDocumentLinkSchema>;
+export type InsertCollection = z.infer<typeof insertCollectionSchema>;
+export type SelectCollection = z.infer<typeof selectCollectionSchema>;
+export type InsertCollectionDocument = z.infer<typeof insertCollectionDocumentSchema>;
+export type SelectCollectionDocument = z.infer<typeof selectCollectionDocumentSchema>;
