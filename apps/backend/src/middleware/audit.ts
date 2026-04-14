@@ -23,9 +23,10 @@
  *             approval.reject, auth.login, auth.logout, signed_url.create
  */
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { db, sqlite } from '../db/index.js';
+import { db } from '../db/index.js';
 import { auditLogs } from '../db/schema.js';
 import { requireAuth } from './auth.js';
+import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
 
 const STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'DELETE', 'PATCH']);
 
@@ -171,11 +172,11 @@ export async function registerAuditLogging(app: FastifyInstance) {
     };
 
     // Fire-and-forget via setImmediate — never blocks the response.
-    setImmediate(() => {
+    setImmediate(async () => {
       try {
-        db.insert(auditLogs).values(entry).run();
+        await db.insert(auditLogs).values(entry);
       } catch (err) {
-        app.log.error({ err }, 'audit log write failed');
+        app.log.error({ err, entry }, 'audit log write failed');
       }
     });
   });
@@ -213,50 +214,43 @@ export async function auditLogRoutes(app: FastifyInstance) {
       const limit = Math.min(parseInt(q.limit ?? '50', 10) || 50, 500);
       const offset = parseInt(q.offset ?? '0', 10) || 0;
 
-      // Build parameterized WHERE clause.
-      const conditions: string[] = [];
-      const params: (string | number)[] = [];
+      // Build Drizzle ORM conditions — compatible with both SQLite and PostgreSQL.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const conditions: any[] = [];
 
-      if (q.action) {
-        conditions.push('action = ?');
-        params.push(q.action);
-      }
-      if (q.resourceType) {
-        conditions.push('resource_type = ?');
-        params.push(q.resourceType);
-      }
-      if (q.userId) {
-        conditions.push('user_id = ?');
-        params.push(q.userId);
-      }
+      if (q.action) conditions.push(eq(auditLogs.action, q.action));
+      if (q.resourceType) conditions.push(eq(auditLogs.resourceType, q.resourceType));
+      if (q.userId) conditions.push(eq(auditLogs.userId, q.userId));
       if (q.from) {
         const ts = parseInt(q.from, 10);
-        if (!isNaN(ts)) {
-          conditions.push('timestamp >= ?');
-          params.push(ts);
-        }
+        if (!isNaN(ts)) conditions.push(gte(auditLogs.timestamp, ts));
       }
       if (q.to) {
         const ts = parseInt(q.to, 10);
-        if (!isNaN(ts)) {
-          conditions.push('timestamp <= ?');
-          params.push(ts);
-        }
+        if (!isNaN(ts)) conditions.push(lte(auditLogs.timestamp, ts));
       }
 
-      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-      const rows = sqlite
-        .prepare(`SELECT * FROM audit_logs ${where} ORDER BY timestamp DESC LIMIT ? OFFSET ?`)
-        .all(...params, limit, offset);
+      const [rows, countResult] = await Promise.all([
+        db
+          .select()
+          .from(auditLogs)
+          .where(whereClause)
+          .orderBy(desc(auditLogs.timestamp))
+          .limit(limit)
+          .offset(offset),
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(auditLogs)
+          .where(whereClause),
+      ]);
 
-      const [countRow] = sqlite
-        .prepare(`SELECT COUNT(*) as total FROM audit_logs ${where}`)
-        .all(...params) as [{ total: number }];
+      const total = Number(countResult[0]?.count ?? 0);
 
       return reply.send({
         logs: rows,
-        total: countRow.total,
+        total,
         limit,
         offset,
       });
