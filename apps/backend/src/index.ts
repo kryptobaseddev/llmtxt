@@ -15,6 +15,8 @@ import { graphRoutes } from './routes/graph.js';
 import { retrievalRoutes } from './routes/retrieval.js';
 import { signedUrlRoutes } from './routes/signed-urls.js';
 import { mergeRoutes } from './routes/merge.js';
+import { crossDocRoutes } from './routes/cross-doc.js';
+import { collectionRoutes } from './routes/collections.js';
 import { publicDir, extractSlug, extractSlugWithExtension, handleContentNegotiation, getDocumentWithContent } from './routes/web.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -240,6 +242,8 @@ async function main() {
     await app.register(retrievalRoutes, { prefix: '/api' });
     await app.register(signedUrlRoutes, { prefix: '/api' });
     await app.register(mergeRoutes, { prefix: '/api' });
+    await app.register(crossDocRoutes, { prefix: '/api' });
+    await app.register(collectionRoutes, { prefix: '/api' });
 
     // Register error handler
     app.setErrorHandler((error: unknown, request, reply) => {
