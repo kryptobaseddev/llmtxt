@@ -8,6 +8,7 @@ import { documents } from '../db/schema.js';
 import { generateOverview } from 'llmtxt/disclosure';
 import { rankBySimilarity } from 'llmtxt/similarity';
 import { decompress } from 'llmtxt';
+import { canRead } from '../middleware/rbac.js';
 
 /** Register similarity route: GET /documents/:slug/similar?q=query&method=ngram&threshold=0 to rank document sections by similarity to a query. */
 export async function similarityRoutes(fastify: FastifyInstance) {
@@ -17,6 +18,7 @@ export async function similarityRoutes(fastify: FastifyInstance) {
     Querystring: { q: string; method?: string; threshold?: string };
   }>(
     '/documents/:slug/similar',
+    { preHandler: [canRead] },
     async (request, reply) => {
       const { slug } = request.params;
       const { q, method = 'ngram', threshold = '0' } = request.query;

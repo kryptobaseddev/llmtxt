@@ -23,6 +23,7 @@ import { auth } from '../auth.js';
 import { writeRateLimit } from '../middleware/rate-limit.js';
 import { enforceContentSize } from '../middleware/content-limits.js';
 import { eventBus } from '../events/bus.js';
+import { canRead, canWrite } from '../middleware/rbac.js';
 
 /** Try to get the authenticated user from session cookies. */
 async function getOptionalUser(request: FastifyRequest) {
@@ -107,7 +108,7 @@ export async function versionRoutes(fastify: FastifyInstance) {
     '/documents/:slug',
     {
       config: writeRateLimit,
-      preHandler: [enforceContentSize],
+      preHandler: [canWrite, enforceContentSize],
     },
     async (request, reply) => {
     try {
@@ -336,9 +337,9 @@ export async function versionRoutes(fastify: FastifyInstance) {
   /**
    * GET /api/documents/:slug/versions - List all versions of a document
    */
-  fastify.get('/documents/:slug/versions', async (
-    request: FastifyRequest<{ Params: { slug: string } }>,
-    reply: FastifyReply
+  fastify.get<{ Params: { slug: string } }>('/documents/:slug/versions', { preHandler: [canRead] }, async (
+    request,
+    reply
   ) => {
     try {
       const paramsResult = slugParamsSchema.safeParse(request.params);
@@ -383,9 +384,9 @@ export async function versionRoutes(fastify: FastifyInstance) {
   /**
    * GET /api/documents/:slug/versions/:num - Get a specific version's content
    */
-  fastify.get('/documents/:slug/versions/:num', async (
-    request: FastifyRequest<{ Params: { slug: string; num: string } }>,
-    reply: FastifyReply
+  fastify.get<{ Params: { slug: string; num: string } }>('/documents/:slug/versions/:num', { preHandler: [canRead] }, async (
+    request,
+    reply
   ) => {
     try {
       const paramsResult = versionParamsSchema.safeParse(request.params);
@@ -439,9 +440,9 @@ export async function versionRoutes(fastify: FastifyInstance) {
   /**
    * GET /api/documents/:slug/diff?from=1&to=2 - Compute diff between two versions
    */
-  fastify.get('/documents/:slug/diff', async (
-    request: FastifyRequest<{ Params: { slug: string }; Querystring: { from: string; to: string } }>,
-    reply: FastifyReply
+  fastify.get<{ Params: { slug: string }; Querystring: { from: string; to: string } }>('/documents/:slug/diff', { preHandler: [canRead] }, async (
+    request,
+    reply
   ) => {
     try {
       const paramsResult = slugParamsSchema.safeParse(request.params);
@@ -526,9 +527,9 @@ export async function versionRoutes(fastify: FastifyInstance) {
    * and where they diverge. The lowest version number in the list is used as the base.
    * No authentication required — works for anonymous sessions.
    */
-  fastify.get('/documents/:slug/multi-diff', async (
-    request: FastifyRequest<{ Params: { slug: string }; Querystring: { versions: string } }>,
-    reply: FastifyReply
+  fastify.get<{ Params: { slug: string }; Querystring: { versions: string } }>('/documents/:slug/multi-diff', { preHandler: [canRead] }, async (
+    request,
+    reply
   ) => {
     try {
       const paramsResult = slugParamsSchema.safeParse(request.params);

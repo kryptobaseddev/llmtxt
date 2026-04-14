@@ -42,6 +42,7 @@ import {
 import { writeRateLimit } from '../middleware/rate-limit.js';
 import { enforceContentSize, enforceDocumentLimit } from '../middleware/content-limits.js';
 import { eventBus } from '../events/bus.js';
+import { canRead } from '../middleware/rbac.js';
 
 // Legacy validation schemas (kept for backward compatibility)
 const slugParamsSchema = z.object({
@@ -453,9 +454,9 @@ export async function apiRoutes(fastify: FastifyInstance) {
   /**
    * GET /api/documents/:slug - Get document metadata
    */
-  fastify.get('/documents/:slug', async (
-    request: FastifyRequest<{ Params: SlugParams }>,
-    reply: FastifyReply
+  fastify.get<{ Params: SlugParams }>('/documents/:slug', { preHandler: [canRead] }, async (
+    request,
+    reply
   ) => {
     try {
       // Validate params

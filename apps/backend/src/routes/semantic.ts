@@ -20,6 +20,7 @@ import { documents, versions, approvals } from '../db/schema.js';
 import { decompress, structuredDiff } from '../utils/compression.js';
 import { parseSections } from '../utils/sections.js';
 import { createEmbeddingProvider } from '../utils/embeddings.js';
+import { canRead } from '../middleware/rbac.js';
 
 // Import WASM-compiled Rust primitives from the llmtxt npm package.
 // `semantic_diff` and `semantic_consensus` accept pre-computed embeddings so
@@ -157,6 +158,7 @@ export async function semanticRoutes(fastify: FastifyInstance) {
     Body: { fromVersion: number; toVersion: number };
   }>(
     '/documents/:slug/semantic-diff',
+    { preHandler: [canRead] },
     async (
       request: FastifyRequest<{
         Params: { slug: string };
@@ -250,6 +252,7 @@ export async function semanticRoutes(fastify: FastifyInstance) {
     Querystring: { versions: string };
   }>(
     '/documents/:slug/semantic-similarity',
+    { preHandler: [canRead] },
     async (
       request: FastifyRequest<{
         Params: { slug: string };
@@ -366,6 +369,7 @@ export async function semanticRoutes(fastify: FastifyInstance) {
     Body: { threshold?: number };
   }>(
     '/documents/:slug/semantic-consensus',
+    { preHandler: [canRead] },
     async (
       request: FastifyRequest<{
         Params: { slug: string };

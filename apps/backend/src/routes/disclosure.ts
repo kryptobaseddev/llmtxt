@@ -24,6 +24,7 @@ import {
   setCachedContent,
   shouldSkipCache,
 } from '../middleware/cache.js';
+import { canRead } from '../middleware/rbac.js';
 
 // ──────────────────────────────────────────────────────────────────
 // Shared helper: resolve a slug to decompressed content
@@ -138,9 +139,9 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
    *   toc?: [{ title, depth, line }],   // Markdown documents
    * }
    */
-  fastify.get('/documents/:slug/overview', async (
-    request: FastifyRequest<{ Params: { slug: string } }>,
-    reply: FastifyReply,
+  fastify.get<{ Params: { slug: string } }>('/documents/:slug/overview', { preHandler: [canRead] }, async (
+    request,
+    reply,
   ) => {
     const { slug } = slugSchema.parse(request.params);
     const doc = await resolveDocument(slug, shouldSkipCache(request));
@@ -178,12 +179,12 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
    *   tokensSaved: number,
    * }
    */
-  fastify.get('/documents/:slug/lines', async (
-    request: FastifyRequest<{
-      Params: { slug: string };
-      Querystring: { start?: string; end?: string };
-    }>,
-    reply: FastifyReply,
+  fastify.get<{
+    Params: { slug: string };
+    Querystring: { start?: string; end?: string };
+  }>('/documents/:slug/lines', { preHandler: [canRead] }, async (
+    request,
+    reply,
   ) => {
     const { slug } = slugSchema.parse(request.params);
     const { start, end } = lineRangeQuery.parse(request.query);
@@ -230,12 +231,12 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
    *   }],
    * }
    */
-  fastify.get('/documents/:slug/search', async (
-    request: FastifyRequest<{
-      Params: { slug: string };
-      Querystring: { q?: string; context?: string; max?: string };
-    }>,
-    reply: FastifyReply,
+  fastify.get<{
+    Params: { slug: string };
+    Querystring: { q?: string; context?: string; max?: string };
+  }>('/documents/:slug/search', { preHandler: [canRead] }, async (
+    request,
+    reply,
   ) => {
     const { slug } = slugSchema.parse(request.params);
     const parsed = searchQuery.safeParse(request.query);
@@ -295,12 +296,12 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
    *   tokensSaved: number,
    * }
    */
-  fastify.get('/documents/:slug/query', async (
-    request: FastifyRequest<{
-      Params: { slug: string };
-      Querystring: { path?: string };
-    }>,
-    reply: FastifyReply,
+  fastify.get<{
+    Params: { slug: string };
+    Querystring: { path?: string };
+  }>('/documents/:slug/query', { preHandler: [canRead] }, async (
+    request,
+    reply,
   ) => {
     const { slug } = slugSchema.parse(request.params);
     const parsed = jsonPathQuery.safeParse(request.query);
@@ -353,9 +354,9 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
    *   sections: [{ title, depth, startLine, endLine, tokenCount, type }],
    * }
    */
-  fastify.get('/documents/:slug/sections', async (
-    request: FastifyRequest<{ Params: { slug: string } }>,
-    reply: FastifyReply,
+  fastify.get<{ Params: { slug: string } }>('/documents/:slug/sections', { preHandler: [canRead] }, async (
+    request,
+    reply,
   ) => {
     const { slug } = slugSchema.parse(request.params);
     const doc = await resolveDocument(slug, shouldSkipCache(request));
@@ -382,9 +383,9 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
    *   toc: string[]
    * }
    */
-  fastify.get('/documents/:slug/toc', async (
-    request: FastifyRequest<{ Params: { slug: string } }>,
-    reply: FastifyReply,
+  fastify.get<{ Params: { slug: string } }>('/documents/:slug/toc', { preHandler: [canRead] }, async (
+    request,
+    reply,
   ) => {
     const { slug } = slugSchema.parse(request.params);
     const doc = await resolveDocument(slug, shouldSkipCache(request));
@@ -418,12 +419,12 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
    *   tokensSaved: number,
    * }
    */
-  fastify.get('/documents/:slug/sections/:name', async (
-    request: FastifyRequest<{
-      Params: { slug: string; name: string };
-      Querystring: { depth?: string };
-    }>,
-    reply: FastifyReply,
+  fastify.get<{
+    Params: { slug: string; name: string };
+    Querystring: { depth?: string };
+  }>('/documents/:slug/sections/:name', { preHandler: [canRead] }, async (
+    request,
+    reply,
   ) => {
     const { slug } = slugSchema.parse({ slug: request.params.slug });
     const { name } = sectionQuery.parse({ name: request.params.name });
@@ -462,12 +463,12 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
    *   end: optional 1-indexed end line
    *   section: optional section name to extract
    */
-  fastify.get('/documents/:slug/raw', async (
-    request: FastifyRequest<{
-      Params: { slug: string };
-      Querystring: { start?: string; end?: string; section?: string };
-    }>,
-    reply: FastifyReply,
+  fastify.get<{
+    Params: { slug: string };
+    Querystring: { start?: string; end?: string; section?: string };
+  }>('/documents/:slug/raw', { preHandler: [canRead] }, async (
+    request,
+    reply,
   ) => {
     const { slug } = slugSchema.parse(request.params);
     const doc = await resolveDocument(slug, shouldSkipCache(request));
@@ -522,12 +523,12 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
    *   totalTokensSaved: number,
    * }
    */
-  fastify.post('/documents/:slug/batch', async (
-    request: FastifyRequest<{
-      Params: { slug: string };
-      Body: { sections: string[] };
-    }>,
-    reply: FastifyReply,
+  fastify.post<{
+    Params: { slug: string };
+    Body: { sections: string[] };
+  }>('/documents/:slug/batch', { preHandler: [canRead] }, async (
+    request,
+    reply,
   ) => {
     const { slug } = slugSchema.parse(request.params);
     const parsed = batchQuerySchema.safeParse(request.body);

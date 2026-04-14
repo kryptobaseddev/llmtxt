@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { documents, versions } from '../db/schema.js';
 import { requireAuth } from '../middleware/auth.js';
+import { canWrite } from '../middleware/rbac.js';
 import {
   applyPatch, hashContent, compress, generateId,
 } from 'llmtxt';
@@ -22,7 +23,7 @@ export async function patchRoutes(fastify: FastifyInstance) {
     Body: { patchText: string; changelog: string };
   }>(
     '/documents/:slug/patch',
-    { preHandler: [requireAuth, enforcePatchSize], config: writeRateLimit },
+    { preHandler: [canWrite, enforcePatchSize], config: writeRateLimit },
     async (request, reply) => {
       const { slug } = request.params;
       const { patchText, changelog } = request.body;

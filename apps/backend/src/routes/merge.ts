@@ -22,6 +22,7 @@ import { invalidateDocumentCache } from '../middleware/cache.js';
 import { auth } from '../auth.js';
 import { writeRateLimit } from '../middleware/rate-limit.js';
 import { eventBus } from '../events/bus.js';
+import { canWrite } from '../middleware/rbac.js';
 
 // ── Auth helper ───────────────────────────────────────────────────────────────
 
@@ -86,15 +87,15 @@ export async function mergeRoutes(fastify: FastifyInstance) {
    * sections from multiple existing versions using the WASM cherry-pick merge
    * primitive. Does not require authentication (anonymous sessions work).
    */
-  fastify.post(
+  fastify.post<{
+    Params: { slug: string };
+    Body: z.infer<typeof mergeBodySchema>;
+  }>(
     '/documents/:slug/merge',
-    { config: writeRateLimit },
+    { config: writeRateLimit, preHandler: [canWrite] },
     async (
-      request: FastifyRequest<{
-        Params: { slug: string };
-        Body: z.infer<typeof mergeBodySchema>;
-      }>,
-      reply: FastifyReply,
+      request,
+      reply,
     ) => {
       try {
         // ── Validate params ─────────────────────────────────────────────────

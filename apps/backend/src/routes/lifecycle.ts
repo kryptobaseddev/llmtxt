@@ -6,6 +6,7 @@ import { eq, desc, and } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { documents, stateTransitions, approvals, versions, contributors } from '../db/schema.js';
 import { requireAuth, requireOwner, requireOwnerAllowAnonParams } from '../middleware/auth.js';
+import { canWrite, canApprove, canRead } from '../middleware/rbac.js';
 import { writeRateLimit } from '../middleware/rate-limit.js';
 import {
   validateTransition,
@@ -55,7 +56,7 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
   // POST /documents/:slug/transition
   fastify.post<{ Params: { slug: string }; Body: { state?: string; targetState?: string; reason?: string } }>(
     '/documents/:slug/transition',
-    { preHandler: [requireOwnerAllowAnonParams], config: writeRateLimit },
+    { preHandler: [canWrite, requireOwnerAllowAnonParams], config: writeRateLimit },
     async (request, reply) => {
       const { slug } = request.params;
       const { state, targetState, reason } = request.body;
@@ -123,7 +124,7 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
   // POST /documents/:slug/approve
   fastify.post<{ Params: { slug: string }; Body: { comment?: string } }>(
     '/documents/:slug/approve',
-    { preHandler: [requireAuth], config: writeRateLimit },
+    { preHandler: [canApprove], config: writeRateLimit },
     async (request, reply) => {
       const { slug } = request.params;
       const doc = await db.select().from(documents).where(eq(documents.slug, slug)).limit(1);
@@ -218,7 +219,7 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
   // POST /documents/:slug/reject
   fastify.post<{ Params: { slug: string }; Body: { comment: string } }>(
     '/documents/:slug/reject',
-    { preHandler: [requireAuth], config: writeRateLimit },
+    { preHandler: [canApprove], config: writeRateLimit },
     async (request, reply) => {
       const { slug } = request.params;
       const doc = await db.select().from(documents).where(eq(documents.slug, slug)).limit(1);
@@ -273,6 +274,7 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
   // GET /documents/:slug/approvals
   fastify.get<{ Params: { slug: string } }>(
     '/documents/:slug/approvals',
+    { preHandler: [canRead] },
     async (request, reply) => {
       const { slug } = request.params;
       const doc = await db.select().from(documents).where(eq(documents.slug, slug)).limit(1);
@@ -292,6 +294,7 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
   // GET /documents/:slug/contributors
   fastify.get<{ Params: { slug: string } }>(
     '/documents/:slug/contributors',
+    { preHandler: [canRead] },
     async (request, reply) => {
       const { slug } = request.params;
       const doc = await db.select().from(documents).where(eq(documents.slug, slug)).limit(1);

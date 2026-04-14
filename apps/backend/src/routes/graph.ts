@@ -11,6 +11,7 @@ import {
   extractMentions, extractTags, extractDirectives,
 } from 'llmtxt/graph';
 import { decompress } from 'llmtxt';
+import { canRead } from '../middleware/rbac.js';
 
 /** Register knowledge graph route: GET /documents/:slug/graph to extract @mentions, #tags, /directives from document content, and cross-document links. */
 export async function graphRoutes(fastify: FastifyInstance) {
@@ -20,6 +21,7 @@ export async function graphRoutes(fastify: FastifyInstance) {
     Querystring: { topicLimit?: string; agentLimit?: string };
   }>(
     '/documents/:slug/graph',
+    { preHandler: [canRead] },
     async (request, reply) => {
       const { slug } = request.params;
       const topicLimit = parseInt(request.query.topicLimit || '10', 10);

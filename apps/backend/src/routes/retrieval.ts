@@ -8,6 +8,7 @@ import { documents } from '../db/schema.js';
 import { planRetrieval } from 'llmtxt/sdk';
 import { generateOverview } from 'llmtxt/disclosure';
 import { decompress } from 'llmtxt';
+import { canRead } from '../middleware/rbac.js';
 
 /** Register retrieval planning route: POST /documents/:slug/plan-retrieval for token-budget-aware section selection. Ranks sections by relevance and greedily packs within a token budget. */
 export async function retrievalRoutes(fastify: FastifyInstance) {
@@ -22,6 +23,7 @@ export async function retrievalRoutes(fastify: FastifyInstance) {
     };
   }>(
     '/documents/:slug/plan-retrieval',
+    { preHandler: [canRead] },
     async (request, reply) => {
       const { slug } = request.params;
       const { tokenBudget, query, minScore, includeIntro } = request.body;

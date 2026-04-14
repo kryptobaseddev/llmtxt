@@ -24,6 +24,7 @@ import {
 import { threeWayMerge } from 'llmtxt';
 import { invalidateDocumentCache } from '../middleware/cache.js';
 import { auth } from '../auth.js';
+import { canWrite } from '../middleware/rbac.js';
 
 // ── Auth helper ───────────────────────────────────────────────────────────────
 
@@ -274,14 +275,15 @@ export async function conflictRoutes(fastify: FastifyInstance) {
    * When `resolution` is `"ours"` or `"theirs"`, the chosen version's content
    * is copied as a new version directly.
    */
-  fastify.post(
+  fastify.post<{
+    Params: { slug: string };
+    Body: z.infer<typeof mergeConflictBodySchema>;
+  }>(
     '/documents/:slug/merge-conflict',
+    { preHandler: [canWrite] },
     async (
-      request: FastifyRequest<{
-        Params: { slug: string };
-        Body: z.infer<typeof mergeConflictBodySchema>;
-      }>,
-      reply: FastifyReply,
+      request,
+      reply,
     ) => {
       try {
         const paramsResult = slugParamsSchema.safeParse(request.params);
@@ -465,14 +467,15 @@ export async function conflictRoutes(fastify: FastifyInstance) {
    * resolving the `<<<<<<<`/`=======`/`>>>>>>>` markers, and submitting the
    * final content.
    */
-  fastify.post(
+  fastify.post<{
+    Params: { slug: string };
+    Body: z.infer<typeof resolveConflictBodySchema>;
+  }>(
     '/documents/:slug/resolve-conflict',
+    { preHandler: [canWrite] },
     async (
-      request: FastifyRequest<{
-        Params: { slug: string };
-        Body: z.infer<typeof resolveConflictBodySchema>;
-      }>,
-      reply: FastifyReply,
+      request,
+      reply,
     ) => {
       try {
         const paramsResult = slugParamsSchema.safeParse(request.params);
