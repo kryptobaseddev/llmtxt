@@ -288,31 +288,25 @@ export async function mergeRoutes(fastify: FastifyInstance) {
         const now = Date.now();
 
         // ── Atomic version creation ─────────────────────────────────────────
-        // Uses IMMEDIATE mode so SQLite acquires the write lock at BEGIN time,
-        // preventing two concurrent requests from reading the same MAX and then
-        // racing on the INSERT.
-        //
-        // better-sqlite3 is a synchronous driver — transaction callbacks MUST be
-        // synchronous.  Passing an async callback causes better-sqlite3 to throw
-        // "Transaction function cannot return a promise".  All Drizzle ORM calls
-        // inside a better-sqlite3 transaction are synchronous; await must not
-        // be used inside the callback.
-        const runMergeInsert = (): number =>
-          db.transaction((tx) => {
+        // Uses async transaction syntax which works for both Drizzle-over-SQLite
+        // (better-sqlite3 wraps sync ops transparently) and Drizzle-over-pg.
+        // The { behavior: 'immediate' } option was SQLite-only and is omitted
+        // for dual-provider compatibility.
+        const runMergeInsert = async (): Promise<number> =>
+          db.transaction(async (tx: typeof db) => {
             // Read current max version number inside the transaction.
-            const [latestVersion] = tx
+            const [latestVersion] = await tx
               .select({ versionNumber: versions.versionNumber })
               .from(versions)
               .where(eq(versions.documentId, doc.id))
               .orderBy(desc(versions.versionNumber))
-              .limit(1)
-              .all();
+              .limit(1);
 
             const nextVersionNumber = latestVersion ? latestVersion.versionNumber + 1 : 2;
 
             // Snapshot to version 1 if this is the very first versioned update.
             if (!latestVersion) {
-              tx.insert(versions).values({
+              await tx.insert(versions).values({
                 id: generateId(),
                 documentId: doc.id,
                 versionNumber: 1,
@@ -321,11 +315,11 @@ export async function mergeRoutes(fastify: FastifyInstance) {
                 tokenCount: doc.tokenCount,
                 createdAt: doc.createdAt,
                 changelog: 'Initial version',
-              }).run();
+              });
             }
 
             // Insert new version row.
-            tx.insert(versions).values({
+            await tx.insert(versions).values({
               id: generateId(),
               documentId: doc.id,
               versionNumber: nextVersionNumber,
@@ -336,10 +330,10 @@ export async function mergeRoutes(fastify: FastifyInstance) {
               createdBy: effectiveCreatedBy,
               changelog: effectiveChangelog,
               storageType: 'inline',
-            }).run();
+            });
 
             // Update document head.
-            tx
+            await tx
               .update(documents)
               .set({
                 compressedData,
@@ -349,12 +343,11 @@ export async function mergeRoutes(fastify: FastifyInstance) {
                 tokenCount,
                 currentVersion: nextVersionNumber,
               })
-              .where(eq(documents.id, doc.id))
-              .run();
+              .where(eq(documents.id, doc.id));
 
             // Upsert contributor record inside the same transaction.
             if (effectiveCreatedBy) {
-              const [existing] = tx
+              const [existing] = await tx
                 .select()
                 .from(contributors)
                 .where(
@@ -362,20 +355,18 @@ export async function mergeRoutes(fastify: FastifyInstance) {
                     eq(contributors.documentId, doc.id),
                     eq(contributors.agentId, effectiveCreatedBy),
                   ),
-                )
-                .all();
+                );
 
               if (existing) {
-                tx
+                await tx
                   .update(contributors)
                   .set({
                     versionsAuthored: existing.versionsAuthored + 1,
                     lastContribution: now,
                   })
-                  .where(eq(contributors.id, existing.id))
-                  .run();
+                  .where(eq(contributors.id, existing.id));
               } else {
-                tx.insert(contributors).values({
+                await tx.insert(contributors).values({
                   id: generateId(),
                   documentId: doc.id,
                   agentId: effectiveCreatedBy,
@@ -385,23 +376,23 @@ export async function mergeRoutes(fastify: FastifyInstance) {
                   netTokens: tokenCount ?? 0,
                   firstContribution: now,
                   lastContribution: now,
-                }).run();
+                });
               }
             }
 
             return nextVersionNumber;
-          }, { behavior: 'immediate' });
+          });
 
         // Retry once on UNIQUE constraint collision (concurrent merge hit the
-        // same version number).  The retry reads a fresh MAX inside its own
-        // IMMEDIATE transaction so it lands on the correct next number.
+        // same version number). The retry reads a fresh MAX inside its own
+        // transaction so it lands on the correct next number.
         let nextVersionNumber: number;
         try {
-          nextVersionNumber = runMergeInsert();
+          nextVersionNumber = await runMergeInsert();
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          if (msg.includes('UNIQUE constraint failed')) {
-            nextVersionNumber = runMergeInsert();
+          if (msg.includes('UNIQUE constraint failed') || msg.includes('unique constraint')) {
+            nextVersionNumber = await runMergeInsert();
           } else {
             throw err;
           }

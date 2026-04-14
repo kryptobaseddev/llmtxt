@@ -166,32 +166,28 @@ export async function versionRoutes(fastify: FastifyInstance) {
       }
 
       // Helper that performs the atomic version creation inside a transaction.
-      // Uses IMMEDIATE mode so SQLite acquires the write lock at BEGIN time,
-      // preventing two concurrent readers from both seeing the same MAX and
-      // then racing on the INSERT.
-      // better-sqlite3 is a synchronous driver — transaction callbacks MUST be
-      // synchronous.  Passing an async callback causes better-sqlite3 to throw
-      // "Transaction function cannot return a promise", which is the root cause
-      // of the HTTP 500.  All Drizzle ORM calls inside a better-sqlite3
-      // transaction are synchronous; await is not needed (and must not be used).
-      const runVersionInsert = (overrideVersionNumber?: number): number =>
-        db.transaction((tx) => {
+      // Uses async transaction syntax which works for both Drizzle-over-SQLite
+      // (better-sqlite3 wraps sync ops transparently) and Drizzle-over-pg.
+      // The { behavior: 'immediate' } option was SQLite-only and is omitted here
+      // for dual-provider compatibility; PostgreSQL serialises writes via its own
+      // locking, and SQLite WAL handles concurrent readers correctly.
+      const runVersionInsert = async (overrideVersionNumber?: number): Promise<number> =>
+        db.transaction(async (tx: typeof db) => {
           // Read the current max version number inside the transaction so the
           // read and write are atomic.
-          const [latestVersion] = tx
+          const [latestVersion] = await tx
             .select({ versionNumber: versions.versionNumber })
             .from(versions)
             .where(eq(versions.documentId, doc.id))
             .orderBy(desc(versions.versionNumber))
-            .limit(1)
-            .all();
+            .limit(1);
 
           const nextVersionNumber =
             overrideVersionNumber ?? (latestVersion ? latestVersion.versionNumber + 1 : 2);
 
           // If this is the first update, snapshot the current content as version 1.
           if (!latestVersion) {
-            tx.insert(versions).values({
+            await tx.insert(versions).values({
               id: generateId(),
               documentId: doc.id,
               versionNumber: 1,
@@ -200,11 +196,11 @@ export async function versionRoutes(fastify: FastifyInstance) {
               tokenCount: doc.tokenCount,
               createdAt: doc.createdAt,
               changelog: 'Initial version',
-            }).run();
+            });
           }
 
           // Insert the new version row.
-          tx.insert(versions).values({
+          await tx.insert(versions).values({
             id: generateId(),
             documentId: doc.id,
             versionNumber: nextVersionNumber,
@@ -214,10 +210,10 @@ export async function versionRoutes(fastify: FastifyInstance) {
             createdAt: now,
             createdBy: effectiveCreatedBy,
             changelog: changelog || null,
-          }).run();
+          });
 
           // Update the document head.
-          tx
+          await tx
             .update(documents)
             .set({
               compressedData,
@@ -227,23 +223,21 @@ export async function versionRoutes(fastify: FastifyInstance) {
               tokenCount,
               currentVersion: nextVersionNumber,
             })
-            .where(eq(documents.id, doc.id))
-            .run();
+            .where(eq(documents.id, doc.id));
 
           // Upsert contributor record inside the same transaction so it is
           // also rolled back if anything above fails.
           if (effectiveCreatedBy) {
-            const [existing] = tx
+            const [existing] = await tx
               .select()
               .from(contributors)
               .where(and(
                 eq(contributors.documentId, doc.id),
                 eq(contributors.agentId, effectiveCreatedBy),
-              ))
-              .all();
+              ));
 
             if (existing) {
-              tx.update(contributors)
+              await tx.update(contributors)
                 .set({
                   versionsAuthored: existing.versionsAuthored + 1,
                   totalTokensAdded: existing.totalTokensAdded + tokensAdded,
@@ -251,10 +245,9 @@ export async function versionRoutes(fastify: FastifyInstance) {
                   netTokens: existing.netTokens + tokensAdded - tokensRemoved,
                   lastContribution: now,
                 })
-                .where(eq(contributors.id, existing.id))
-                .run();
+                .where(eq(contributors.id, existing.id));
             } else {
-              tx.insert(contributors).values({
+              await tx.insert(contributors).values({
                 id: generateId(),
                 documentId: doc.id,
                 agentId: effectiveCreatedBy,
@@ -264,24 +257,24 @@ export async function versionRoutes(fastify: FastifyInstance) {
                 netTokens: tokensAdded - tokensRemoved,
                 firstContribution: now,
                 lastContribution: now,
-              }).run();
+              });
             }
           }
 
           return nextVersionNumber;
-        }, { behavior: 'immediate' });
+        });
 
       // Attempt the transaction.  If a concurrent request wins the race and
-      // inserts the same version number first, SQLite throws a UNIQUE constraint
-      // error.  Retry once: the second attempt reads the updated MAX inside its
+      // inserts the same version number first, a UNIQUE constraint error is
+      // thrown.  Retry once: the second attempt reads the updated MAX inside its
       // own transaction so it will naturally land on MAX+1.
       let nextVersionNumber: number;
       try {
-        nextVersionNumber = runVersionInsert();
+        nextVersionNumber = await runVersionInsert();
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        if (msg.includes('UNIQUE constraint failed')) {
-          nextVersionNumber = runVersionInsert();
+        if (msg.includes('UNIQUE constraint failed') || msg.includes('unique constraint')) {
+          nextVersionNumber = await runVersionInsert();
         } else {
           throw err;
         }

@@ -1,0 +1,10 @@
+import { defineConfig } from 'drizzle-kit';
+
+export default defineConfig({
+  dialect: 'postgresql',
+  schema: './src/db/schema-pg.ts',
+  out: './src/db/migrations-pg',
+  dbCredentials: {
+    url: process.env.DATABASE_URL || 'postgresql://localhost:5432/llmtxt',
+  },
+});
