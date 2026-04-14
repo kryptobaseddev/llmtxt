@@ -21,6 +21,8 @@ export const DATABASE_PROVIDER = (process.env.DATABASE_PROVIDER || 'sqlite') as
 let _db: any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _schema: any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _sqlite: any = null;
 
 if (DATABASE_PROVIDER === 'postgresql') {
   // PostgreSQL path — dynamically require so the sqlite driver is never
@@ -44,16 +46,17 @@ if (DATABASE_PROVIDER === 'postgresql') {
   const { drizzle } = await import('drizzle-orm/better-sqlite3');
 
   const dbUrl = process.env.DATABASE_URL || './data.db';
-  const sqlite = new Database(dbUrl);
+  const sqliteInstance = new Database(dbUrl);
 
   // Enable WAL mode for better concurrency
-  sqlite.pragma('journal_mode = WAL');
+  sqliteInstance.pragma('journal_mode = WAL');
 
   // Enable foreign keys
-  sqlite.pragma('foreign_keys = ON');
+  sqliteInstance.pragma('foreign_keys = ON');
 
-  _db = drizzle({ client: sqlite, schema: sqliteSchema });
+  _db = drizzle({ client: sqliteInstance, schema: sqliteSchema });
   _schema = sqliteSchema;
+  _sqlite = sqliteInstance;
 }
 
 /** Drizzle ORM instance. Type varies by DATABASE_PROVIDER but API is identical. */
@@ -63,6 +66,14 @@ export const db: any = _db;
 /** Active schema module — use for table references in queries. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const schema: any = _schema;
+
+/**
+ * Raw better-sqlite3 instance. Only available when DATABASE_PROVIDER=sqlite.
+ * Use for raw prepared statements where Drizzle ORM is not suitable.
+ * Will be null in PostgreSQL mode.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const sqlite: any = _sqlite;
 
 // Re-export sqliteSchema as the canonical schema for all route files
 // that import directly from './schema.js'. Those imports continue to

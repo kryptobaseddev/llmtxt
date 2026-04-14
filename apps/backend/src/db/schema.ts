@@ -623,15 +623,29 @@ export const documentRoles = sqliteTable(
     docUserIdx: uniqueIndex('document_roles_doc_user_idx').on(table.documentId, table.userId),
     userIdx: index('document_roles_user_idx').on(table.userId),
     roleIdx: index('document_roles_role_idx').on(table.documentId, table.role),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
 // Document Links (cross-document references)
+// ────────────────────────────────────────────────────────────────
+
+/**
  * Document links table - directional relationships between documents.
  * Supports typed relationships: references, depends_on, derived_from,
  * supersedes, related. Links are used to build cross-document
  * knowledge graphs and dependency chains.
+ */
 export const documentLinks = sqliteTable(
   'document_links',
+  {
+    id: text('id').primaryKey(),
     sourceDocId: text('source_doc_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
     targetDocId: text('target_doc_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
     /** 'references' | 'depends_on' | 'derived_from' | 'supersedes' | 'related' */
     linkType: text('link_type').notNull(),
     /** Optional human-readable label for the link. */
@@ -639,6 +653,8 @@ export const documentLinks = sqliteTable(
     /** userId of whoever created the link. */
     createdBy: text('created_by'),
     createdAt: integer('created_at').notNull(),
+  },
+  (table) => ({
     sourceIdx: index('document_links_source_idx').on(table.sourceDocId),
     targetIdx: index('document_links_target_idx').on(table.targetDocId),
     uniqueLinkIdx: uniqueIndex('document_links_unique_idx').on(
@@ -668,23 +684,41 @@ export const organizations = sqliteTable(
     createdBy: text('created_by')
       .notNull()
       .references(() => users.id),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => ({
+    slugIdx: uniqueIndex('organizations_slug_idx').on(table.slug),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
 // Collections (document grouping)
+// ────────────────────────────────────────────────────────────────
+
+/**
  * Collections table - named, ordered groupings of documents.
  * Allows users to curate sets of related documents (e.g., a spec +
  * design + implementation + test plan) and export them as a single
  * concatenated context for agent consumption.
+ */
 export const collections = sqliteTable(
   'collections',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
     /** URL-safe slug: lowercase, hyphens, no spaces. */
+    slug: text('slug').notNull().unique(),
     description: text('description'),
     ownerId: text('owner_id')
+      .notNull()
+      .references(() => users.id),
     /** 'public' | 'private' */
     visibility: text('visibility').notNull().default('public'),
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull(),
   },
   (table) => ({
-    slugIdx: uniqueIndex('organizations_slug_idx').on(table.slug),
     slugIdx: uniqueIndex('collections_slug_idx').on(table.slug),
     ownerIdx: index('collections_owner_idx').on(table.ownerId),
   })
@@ -777,25 +811,41 @@ export const pendingInvites = sqliteTable(
   (table) => ({
     docEmailIdx: uniqueIndex('pending_invites_doc_email_idx').on(table.documentId, table.email),
     emailIdx: index('pending_invites_email_idx').on(table.email),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
 // Webhooks
+// ────────────────────────────────────────────────────────────────
+
+/**
  * Webhooks table - stores external HTTP callback registrations.
  * When a matching document event fires, the delivery worker POSTs
  * the event payload to `url` with an HMAC-SHA256 signature in the
  * X-LLMtxt-Signature header. Webhooks are automatically disabled
  * after 10 consecutive delivery failures.
+ */
 export const webhooks = sqliteTable(
   'webhooks',
+  {
     id: text('id').primaryKey(), // base62
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
     /** Callback URL — must be HTTPS in production. */
     url: text('url').notNull(),
     /** HMAC-SHA256 signing secret (caller-provided or auto-generated). */
     secret: text('secret').notNull(),
+    /**
      * JSON array of DocumentEventType strings to subscribe to.
      * Empty array or omitted = subscribe to all events.
      * Example: '["version.created","state.changed"]'
+     */
     events: text('events').notNull().default('[]'),
+    /**
      * Target document slug. Null = receive events from ALL documents
      * owned by userId. Set to a specific slug to scope to one document.
+     */
     documentSlug: text('document_slug'),
     /** Whether this webhook is active. Set to false after 10 failures. */
     active: integer('active', { mode: 'boolean' }).notNull().default(true),
@@ -805,21 +855,41 @@ export const webhooks = sqliteTable(
     lastDeliveryAt: integer('last_delivery_at'),
     /** Timestamp of last successful delivery (ms). */
     lastSuccessAt: integer('last_success_at'),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => ({
     userIdx: index('webhooks_user_id_idx').on(table.userId),
     slugIdx: index('webhooks_document_slug_idx').on(table.documentSlug),
     activeIdx: index('webhooks_active_idx').on(table.active, table.userId),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
 // Collection documents (membership)
+// ────────────────────────────────────────────────────────────────
+
+/**
  * Collection documents table - ordered membership list.
  * Each row maps a document into a collection with a position for
  * ordering. The position is used for export order and display order.
+ */
 export const collectionDocuments = sqliteTable(
   'collection_documents',
+  {
+    id: text('id').primaryKey(),
     collectionId: text('collection_id')
+      .notNull()
       .references(() => collections.id, { onDelete: 'cascade' }),
+    documentId: text('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
     /** Ordering position within the collection (0-indexed). */
     position: integer('position').notNull().default(0),
     /** userId of whoever added the document. */
     addedBy: text('added_by'),
+    addedAt: integer('added_at').notNull(),
+  },
+  (table) => ({
     collectionIdx: index('collection_docs_collection_idx').on(table.collectionId),
     documentIdx: index('collection_docs_document_idx').on(table.documentId),
     uniqueDocIdx: uniqueIndex('collection_docs_unique_idx').on(table.collectionId, table.documentId),

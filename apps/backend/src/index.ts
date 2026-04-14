@@ -269,16 +269,30 @@ async function main() {
             path: '/documents/:slug/semantic-consensus',
             method: 'POST',
             description: 'Evaluate semantic consensus across approved reviews using embedding clustering'
+          },
+          {
             path: '/documents/:slug/events',
+            method: 'GET',
             description: 'Server-Sent Events stream for real-time document notifications (SSE fallback)'
+          },
+          {
             path: '/webhooks',
+            method: 'POST',
             description: 'Register a webhook for real-time event delivery to an external HTTPS endpoint'
+          },
+          {
             path: '/webhooks',
+            method: 'GET',
             description: 'List registered webhooks'
+          },
+          {
             path: '/webhooks/:id',
             method: 'DELETE',
             description: 'Remove a registered webhook'
+          },
+          {
             path: '/webhooks/:id/test',
+            method: 'POST',
             description: 'Send a synthetic test event to a registered webhook'
           },
           {
@@ -329,18 +343,19 @@ async function main() {
             obtain_at: '/api/keys'
           }
         },
-        llms_txt: 'https://api.llmtxt.my/llms.txt'
         llms_txt: 'https://api.llmtxt.my/llms.txt',
         rate_limits: {
           unauthenticated: { requests_per_minute: 100, writes_per_minute: 20 },
           authenticated: { requests_per_minute: 300, writes_per_minute: 60 },
           api_key: { requests_per_minute: 600, writes_per_minute: 120 },
           docs: 'Rate limit headers (X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset) are included in all API responses.',
+        },
         realtime: {
           websocket: 'wss://api.llmtxt.my/ws/documents/{slug}',
           websocket_all: 'wss://api.llmtxt.my/ws/documents',
           sse: 'https://api.llmtxt.my/documents/{slug}/events',
           webhooks: 'https://api.llmtxt.my/webhooks',
+        },
       };
     });
 
