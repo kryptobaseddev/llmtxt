@@ -289,3 +289,77 @@ export function cherryPickMerge(
   }
   return parsed;
 }
+
+// ── 3-Way Merge ─────────────────────────────────────────────────
+
+/** A single conflict region from a 3-way merge. */
+export interface Conflict {
+  /** 1-based start line of the conflicting region in `ours`. */
+  oursStart: number;
+  /** 1-based end line of the conflicting region in `ours` (inclusive). */
+  oursEnd: number;
+  /** 1-based start line of the conflicting region in `theirs`. */
+  theirsStart: number;
+  /** 1-based end line of the conflicting region in `theirs` (inclusive). */
+  theirsEnd: number;
+  /** 1-based start line of the conflicting region in the common ancestor. */
+  baseStart: number;
+  /** 1-based end line of the conflicting region in the common ancestor. */
+  baseEnd: number;
+  /** The conflicting text from `ours`. */
+  oursContent: string;
+  /** The conflicting text from `theirs`. */
+  theirsContent: string;
+  /** The original text from the common ancestor. */
+  baseContent: string;
+}
+
+/** Statistics for a 3-way merge operation. */
+export interface MergeStats {
+  /** Total lines in the merged output (including conflict markers). */
+  totalLines: number;
+  /** Number of lines accepted without conflict. */
+  autoMergedLines: number;
+  /** Number of distinct conflict regions. */
+  conflictCount: number;
+}
+
+/** Full result of a 3-way merge operation. */
+export interface ThreeWayMergeResult {
+  /** The merged document content, with conflict markers where applicable. */
+  merged: string;
+  /** `true` when at least one conflict could not be auto-merged. */
+  hasConflicts: boolean;
+  /** Details of each conflict region. */
+  conflicts: Conflict[];
+  /** Summary statistics for the merge. */
+  stats: MergeStats;
+}
+
+/**
+ * Perform a 3-way merge of `base`, `ours`, and `theirs`.
+ *
+ * Regions modified by only one side are auto-merged.  Regions modified by
+ * both sides produce conflict markers in the output:
+ * ```
+ * <<<<<<< ours
+ * …ours content…
+ * =======
+ * …theirs content…
+ * >>>>>>> theirs
+ * ```
+ *
+ * @param base - Common ancestor content.
+ * @param ours - Our version of the document.
+ * @param theirs - Their version of the document.
+ * @returns Parsed ThreeWayMergeResult.
+ * @throws Error if the Rust core returns an error object.
+ */
+export function threeWayMerge(base: string, ours: string, theirs: string): ThreeWayMergeResult {
+  const json = wasmModule.three_way_merge_wasm(base, ours, theirs);
+  const parsed = JSON.parse(json) as ThreeWayMergeResult & { error?: string };
+  if (parsed.error) {
+    throw new Error(`threeWayMerge failed: ${parsed.error}`);
+  }
+  return parsed;
+}

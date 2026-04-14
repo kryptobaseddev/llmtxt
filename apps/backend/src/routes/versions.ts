@@ -90,6 +90,9 @@ const updateBodySchema = z.object({
   changelog: z.string().max(500).optional(),
   createdBy: z.string().max(100).optional(),
   agentId: z.string().max(100).optional(),
+  /** If provided, the caller declares the version they last read.
+   *  When the document's current version differs, a 409 is returned. */
+  baseVersion: z.number().int().positive().optional(),
 });
 
 /** Register version management routes: document update, version listing, version retrieval, and pairwise diff computation. */
@@ -112,7 +115,7 @@ export async function versionRoutes(fastify: FastifyInstance) {
       if (!bodyResult.success) {
         return reply.status(400).send({ error: 'Invalid request body', details: bodyResult.error.errors });
       }
-      const { content, changelog, createdBy, agentId } = bodyResult.data;
+      const { content, changelog, createdBy, agentId, baseVersion } = bodyResult.data;
 
       // Resolve effective author: explicit createdBy wins, then agentId alias,
       // then session user (resolved below after getOptionalUser).
@@ -134,6 +137,22 @@ export async function versionRoutes(fastify: FastifyInstance) {
           error: 'Locked',
           message: `Document is ${doc.state.toLowerCase()} and cannot be modified. Transition to DRAFT to enable editing.`,
         });
+      }
+
+      // ── Conflict detection ──────────────────────────────────────────────────
+      // When the caller declares the version they last read (`baseVersion`),
+      // check it against the document's current version.  A mismatch means
+      // another agent has committed changes since this caller last read.
+      if (baseVersion !== undefined && doc.currentVersion !== null) {
+        if (baseVersion !== doc.currentVersion) {
+          return reply.status(409).send({
+            error: 'Conflict',
+            message: 'Document has been modified since your last read',
+            yourBaseVersion: baseVersion,
+            currentVersion: doc.currentVersion,
+            conflictId: generateId(),
+          });
+        }
       }
 
       // Compress and hash the new content outside the transaction — these are

@@ -5,7 +5,7 @@
  * apply them deterministically using the same Rust core as native consumers.
  */
 export { createPatch, applyPatch, reconstructVersion, squashPatchesWasm } from './wasm.js';
-export { multiWayDiff, cherryPickMerge } from './wasm.js';
+export { multiWayDiff, cherryPickMerge, threeWayMerge } from './wasm.js';
 export type {
   MultiDiffVariant,
   MultiDiffLine,
@@ -14,4 +14,7 @@ export type {
   CherryPickProvenance,
   CherryPickStats,
   CherryPickResult,
+  Conflict,
+  MergeStats,
+  ThreeWayMergeResult,
 } from './wasm.js';
