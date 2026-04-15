@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026.4.4] - 2026-04-15
+
+### Changed — SDK-First Refactor (T111)
+
+All 22 violations from `docs/SSOT-AUDIT.md` resolved. `crates/llmtxt-core` is now the canonical Single Source of Truth (SSoT) for all portable primitives. `packages/llmtxt` is a thin WASM wrapper + TypeScript types. `apps/backend` imports only from the SDK — no more direct `node:crypto`, no more pure-TS re-implementations.
+
+**Rust primitives added to `crates/llmtxt-core`** (WASM-exported via `packages/llmtxt`):
+- `crypto::sign_webhook_payload` (HMAC-SHA256 for webhook signing) — replaces backend `createHmac`
+- `normalize::l2_normalize` (L2 vector normalization) — replaces backend inline TS
+- `slugify::slugify` — replaces backend inline TS
+- `rbac` module (ROLE_PERMISSIONS matrix lookups) — replaces backend matrix + types
+- `validation` module (`detect_format`, `contains_binary_content`, `find_overlong_line`) — replaces pure-TS re-implementations
+- `graph` module (mentions, tags, directives, graph build + top rankings) — replaces pure-TS `graph.ts`
+- `similarity` module (n-grams, jaccard, text/content similarity, min-hash, rank_by_similarity) — replaces pure-TS `similarity.ts`
+- `disclosure` module with submodules (markdown/code/json/text parsers, search, jsonpath, generateOverview) — replaces pure-TS `disclosure.ts` (729 LoC → ~100 LoC wrapper)
+- `tfidf` module (FNV1a hashing + TF-IDF batch embed) — replaces backend `LocalEmbeddingProvider`
+
+**TypeScript types/constants now exported from `packages/llmtxt`**:
+- `DocumentEventType`, `DocumentEvent`, `AuditAction`
+- `Permission`, `DocumentRole`, `OrgRole`, `ROLE_PERMISSIONS`
+- `CONTENT_LIMITS`, `API_VERSION_REGISTRY`, `CURRENT_API_VERSION`, `LATEST_API_VERSION`, `ApiVersionInfo`
+- `VALID_LINK_TYPES`
+- `COLLECTION_EXPORT_SEPARATOR`, `API_KEY_PREFIX`, `API_KEY_LENGTH`, `API_KEY_DISPLAY_LENGTH`
+- `STATE_CHANGING_METHODS` (deduplicated from audit + csrf middleware)
+
+### Deferred
+T112 (NAPI-RS native bindings) deferred 2026-04-15 pending production benchmark evidence. WASM is the sole Rust→JS binding for `llmtxt` until benchmarks justify native.
+
+### Testing
+- Cargo tests: 122 → 278 (+156 new Rust tests for migrated primitives)
+- Backend tests: 67/67 throughout — zero regression
+- Byte-identity tests: every migrated primitive verified Rust output == previous TypeScript output for ≥3 vectors
+
 ## [2026.4.3] - 2026-04-13
 
 ### Added
