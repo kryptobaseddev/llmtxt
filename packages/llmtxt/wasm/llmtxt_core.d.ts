@@ -57,6 +57,13 @@ export function apply_patch(original: string, patch_text: string): string;
 export function batch_diff_versions(base: string, patches_json: string, base_version: number, version_numbers_json: string): string;
 
 /**
+ * Build a knowledge graph from a JSON array of MessageInput objects.
+ *
+ * Returns a JSON-serialised KnowledgeGraph, or `{"error":"..."}` on failure.
+ */
+export function build_graph_wasm(messages_json: string): string;
+
+/**
  * Calculate the compression ratio (original / compressed), rounded to 2 decimals.
  * Returns 1.0 when `compressed_size` is 0.
  */
@@ -132,6 +139,21 @@ export function compute_signature(slug: string, agent_id: string, conversation_i
 export function compute_signature_with_length(slug: string, agent_id: string, conversation_id: string, expires_at: number, secret: string, sig_length: number): string;
 
 /**
+ * Check for binary content by scanning for control characters (0x00–0x08)
+ * in the first 8 KB of the content.
+ *
+ * Returns `true` if binary control characters are found.
+ *
+ * Matches the TypeScript `containsBinaryContent` helper exactly.
+ */
+export function contains_binary_content(content: string): boolean;
+
+/**
+ * Compute content similarity using word shingles.
+ */
+export function content_similarity_wasm(a: string, b: string): number;
+
+/**
  * Compute cosine similarity between two embedding vectors supplied as JSON arrays.
  *
  * WASM entry point for [`cosine_similarity`].
@@ -169,10 +191,50 @@ export function decode_base62(s: string): bigint;
 export function decompress(data: Uint8Array): string;
 
 /**
+ * WASM-exposed default max content bytes.
+ */
+export function default_max_content_bytes(): bigint;
+
+/**
+ * WASM-exposed default max line bytes.
+ */
+export function default_max_line_bytes(): number;
+
+/**
  * Derive a per-agent signing key from their API key.
  * Uses `HMAC-SHA256(api_key, "llmtxt-signing")`.
  */
 export function derive_signing_key(api_key: string): string;
+
+/**
+ * Detect the structural format of a document.
+ *
+ * Returns `"json"`, `"markdown"`, `"code"`, or `"text"`.
+ */
+export function detect_document_format_wasm(content: string): string;
+
+/**
+ * Detect whether content is JSON, markdown, or plain text.
+ *
+ * Precedence:
+ * 1. If `JSON.parse` succeeds → `"json"`.
+ * 2. If 2+ markdown signals match → `"markdown"`.
+ * 3. Otherwise → `"text"`.
+ *
+ * Matches the TypeScript `detectFormat` heuristic in `validation.ts`.
+ * Note: `detectDocumentFormat` in `disclosure.rs` has an extended version
+ * that also detects `"code"` — the canonical name for the validation variant
+ * is `detect_format` (no code detection, per audit item #14).
+ *
+ * # Examples
+ * ```rust
+ * use llmtxt_core::validation::detect_format;
+ * assert_eq!(detect_format("{\"a\":1}"), "json");
+ * assert_eq!(detect_format("# Title\n- item"), "markdown");
+ * assert_eq!(detect_format("Hello world"), "text");
+ * ```
+ */
+export function detect_format(content: string): string;
 
 /**
  * Reconstruct two versions and compute a diff between them.
@@ -201,9 +263,75 @@ export function encode_base62(num: bigint): string;
 export function evaluate_approvals(reviews_json: string, policy_json: string, current_version: number, now_ms: number): string;
 
 /**
+ * Extract /directives from content. Returns JSON array of strings.
+ */
+export function extract_directives_wasm(content: string): string;
+
+/**
+ * Extract @mentions from content. Returns JSON array of strings.
+ */
+export function extract_mentions_wasm(content: string): string;
+
+/**
+ * Extract character n-grams from text. Returns JSON array of strings.
+ */
+export function extract_ngrams_wasm(text: string, n: number): string;
+
+/**
+ * Extract #tags from content. Returns JSON array of strings.
+ */
+export function extract_tags_wasm(content: string): string;
+
+/**
+ * Extract word shingles from text. Returns JSON array of strings.
+ */
+export function extract_word_shingles_wasm(text: string, n: number): string;
+
+/**
+ * Find the 1-based line number of the first line that exceeds `max_bytes`
+ * characters. Returns 0 if no such line exists.
+ *
+ * Uses character count (not byte count) to match the TypeScript behaviour,
+ * which uses `lineLength = i - lineStart` where `i` advances by one
+ * JavaScript character at a time.
+ *
+ * Returns 0 (no overlong line) instead of -1 (which cannot be expressed
+ * as a u32). WASM callers should treat 0 as "no violation".
+ */
+export function find_overlong_line(content: string, max_chars: number): number;
+
+/**
+ * FNV-1a hash of a string (32-bit). Returns hash as u32 cast to u64.
+ *
+ * Matches the TS `fnv1aHash(str: string): number` function exactly.
+ */
+export function fnv1a_hash_wasm(s: string): number;
+
+/**
  * Generate an 8-character base62 ID from a UUID v4.
  */
 export function generate_id(): string;
+
+/**
+ * Generate a structural overview of a document.
+ *
+ * Returns JSON-serialised DocumentOverview, or `{"error":"..."}` on failure.
+ */
+export function generate_overview_wasm(content: string): string;
+
+/**
+ * Extract a line range from a document.
+ *
+ * Returns JSON-serialised LineRangeResult.
+ */
+export function get_line_range_wasm(content: string, start: number, end: number): string;
+
+/**
+ * Extract a named section from a document.
+ *
+ * Returns JSON result or `{"error":"section not found"}` if missing.
+ */
+export function get_section_wasm(content: string, section_name: string, depth_all: boolean): string;
 
 /**
  * Compute the SHA-256 hash of a UTF-8 string, returned as lowercase hex.
@@ -255,6 +383,11 @@ export function is_valid_transition(from: DocumentState, to: DocumentState): boo
 export function is_valid_transition_str(from: string, to: string): boolean;
 
 /**
+ * Compute Jaccard similarity between two texts using character n-grams.
+ */
+export function jaccard_similarity_wasm(a: string, b: string): number;
+
+/**
  * L2-normalize a vector supplied as a JSON array of numbers (WASM entry point).
  *
  * Delegates to [`l2_normalize`].
@@ -281,6 +414,11 @@ export function l2_normalize_wasm(vec_json: string): string;
 export function mark_stale_reviews(reviews_json: string, current_version: number): string;
 
 /**
+ * Generate a MinHash fingerprint. Returns JSON array of numbers.
+ */
+export function min_hash_fingerprint_wasm(text: string, num_hashes: number, ngram_size: number): string;
+
+/**
  * WASM binding for [`multi_way_diff`].
  *
  * Takes base content and a JSON array of version strings.
@@ -288,6 +426,22 @@ export function mark_stale_reviews(reviews_json: string, current_version: number
  * `{"error": "<message>"}` on failure.
  */
 export function multi_way_diff_wasm(base: string, versions_json: string): string;
+
+/**
+ * Execute a JSONPath query against JSON content.
+ *
+ * Returns `{ result, tokenCount, path }` JSON or `{"error":"..."}` on failure.
+ */
+export function query_json_path_wasm(content: string, path: string): string;
+
+/**
+ * Rank candidates by similarity to query.
+ *
+ * `candidates_json` is a JSON array of strings.
+ * `options_json` is `{"method":"ngram"|"shingle","threshold":0.0}` (optional keys).
+ * Returns JSON array of `{ index, score }` sorted descending.
+ */
+export function rank_by_similarity_wasm(query: string, candidates_json: string, options_json: string): string;
 
 /**
  * Apply a sequence of patches to base content, returning the content at the
@@ -299,6 +453,37 @@ export function multi_way_diff_wasm(base: string, versions_json: string): string
  * If `target` exceeds the number of patches, all patches are applied.
  */
 export function reconstruct_version(base: string, patches_json: string, target: number): string;
+
+/**
+ * Check if a role has a specific permission.
+ *
+ * Returns `true` if `role` (e.g. `"editor"`) has the given `permission`
+ * (e.g. `"write"`). Unknown roles or permissions return `false`.
+ */
+export function role_has_permission(role: string, permission: string): boolean;
+
+/**
+ * Return the permissions for a document role as a JSON array of strings.
+ *
+ * Accepts `"owner"`, `"editor"`, or `"viewer"`.
+ * Returns `["read","write","delete","manage","approve"]` etc.
+ * Returns `"[]"` for unknown roles.
+ *
+ * # Examples (TypeScript via WASM)
+ * ```ts
+ * import { rolePermissions } from 'llmtxt';
+ * rolePermissions('owner');  // '["read","write","delete","manage","approve"]'
+ * rolePermissions('viewer'); // '["read"]'
+ * ```
+ */
+export function role_permissions(role: string): string;
+
+/**
+ * Search document content.
+ *
+ * Returns JSON array of SearchResult.
+ */
+export function search_content_wasm(content: string, query: string, context_lines: number, max_results: number): string;
 
 /**
  * Evaluate semantic consensus from a JSON array of reviews (WASM / backend entry point).
@@ -354,6 +539,29 @@ export function semantic_diff_wasm(sections_a_json: string, sections_b_json: str
 export function sign_webhook_payload(secret: string, payload: string): string;
 
 /**
+ * Convert a collection or document name to a URL-safe slug.
+ *
+ * Algorithm:
+ * 1. Lowercase the input.
+ * 2. Strip non-word, non-space, non-hyphen characters.
+ * 3. Replace runs of whitespace with a single hyphen.
+ * 4. Collapse multiple consecutive hyphens into one.
+ * 5. Trim leading and trailing hyphens.
+ * 6. Truncate to 80 characters.
+ *
+ * Returns an empty string if the input is empty or produces no slug characters.
+ *
+ * # Examples (TypeScript via WASM)
+ * ```ts
+ * import { slugify } from 'llmtxt';
+ * slugify('Hello World!'); // "hello-world"
+ * slugify('  my  doc  '); // "my-doc"
+ * slugify('Rust & TypeScript'); // "rust-typescript"
+ * ```
+ */
+export function slugify(name: string): string;
+
+/**
  * Apply all patches sequentially to base content, then produce a single
  * unified diff from the original base to the final state.
  *
@@ -377,14 +585,33 @@ export function structured_diff(old_text: string, new_text: string): string;
  * Compute character-level n-gram Jaccard similarity between two texts.
  * Returns 0.0 (no overlap) to 1.0 (identical). Default n=3.
  *
- * Suitable for finding similar messages without vector embeddings.
+ * WASM shim — delegates to [`similarity::text_similarity_jaccard`].
  */
 export function text_similarity(a: string, b: string): number;
 
 /**
  * Compute n-gram Jaccard similarity with configurable gram size.
+ *
+ * WASM shim — delegates to [`similarity::text_similarity_jaccard`].
  */
 export function text_similarity_ngram(a: string, b: string, n: number): number;
+
+/**
+ * Embed a batch of texts using TF-IDF. Input is a JSON array of strings.
+ *
+ * Returns a JSON array-of-arrays string, e.g. `"[[0.1,...],[0.2,...]]"`.
+ * Returns `"[]"` on parse error.
+ */
+export function tfidf_embed_batch_wasm(texts_json: string, dim: number): string;
+
+/**
+ * Embed a single text using TF-IDF into a JSON array of f32 values.
+ *
+ * `dim` is the output dimensionality (default 256 in the TS `LocalEmbeddingProvider`).
+ *
+ * Returns a JSON array string, e.g. `"[0.1, 0.2, ...]"`, or `"[]"` on error.
+ */
+export function tfidf_embed_wasm(text: string, dim: number): string;
 
 /**
  * WASM binding for the 3-way merge algorithm.
@@ -396,134 +623,25 @@ export function text_similarity_ngram(a: string, b: string, n: number): number;
 export function three_way_merge_wasm(base: string, ours: string, theirs: string): string;
 
 /**
+ * Find the most active agents.
+ *
+ * `graph_json` is a serialised KnowledgeGraph. `limit` is the max number of results.
+ * Returns a JSON array of `{ agent, activity }` objects.
+ */
+export function top_agents_wasm(graph_json: string, limit: number): string;
+
+/**
+ * Find the most connected topics.
+ *
+ * `graph_json` is a serialised KnowledgeGraph. `limit` is the max number of results.
+ * Returns a JSON array of `{ topic, agents }` objects.
+ */
+export function top_topics_wasm(graph_json: string, limit: number): string;
+
+/**
  * Validate a proposed transition and return a JSON result.
  *
  * Returns a JSON object with `valid`, `reason`, and `allowedTargets` fields.
  * Matches the TypeScript `TransitionResult` interface.
  */
 export function validate_transition(from: string, to: string): string;
-
-/**
- * Check if a role has a specific permission.
- *
- * Returns `true` if `role` (e.g. `"editor"`) has the given `permission`
- * (e.g. `"write"`). Unknown roles or permissions return `false`.
- */
-export function role_has_permission(role: string, permission: string): boolean;
-
-/**
- * Return the permissions for a document role as a JSON array of strings.
- *
- * Accepts `"owner"`, `"editor"`, or `"viewer"`.
- * Returns `["read","write","delete","manage","approve"]` etc.
- * Returns `"[]"` for unknown roles.
- */
-export function role_permissions(role: string): string;
-
-/**
- * Convert a collection or document name to a URL-safe slug.
- *
- * 1. Lowercase the input.
- * 2. Strip non-word, non-space, non-hyphen characters.
- * 3. Replace runs of whitespace with a single hyphen.
- * 4. Collapse multiple consecutive hyphens into one.
- * 5. Trim leading and trailing hyphens.
- * 6. Truncate to 80 characters.
- *
- * Returns an empty string if the input is empty or produces no slug characters.
- */
-export function slugify(name: string): string;
-
-// ── Validation primitives (T123) ────────────────────────────────────
-
-/**
- * Detect whether content is JSON, markdown, or plain text.
- * Returns `"json"`, `"markdown"`, or `"text"`.
- */
-export function detect_format(content: string): string;
-
-/**
- * Check for binary content by scanning for control characters (0x00–0x08)
- * in the first 8 KB of the content.
- */
-export function contains_binary_content(content: string): boolean;
-
-/**
- * Find the 1-based line number of the first line that exceeds `max_chars`.
- * Returns 0 if no overlong line exists.
- */
-export function find_overlong_line(content: string, max_chars: number): number;
-
-/** WASM-exposed default max content bytes (5 MB). */
-export function default_max_content_bytes(): bigint;
-
-/** WASM-exposed default max line bytes (64 KiB). */
-export function default_max_line_bytes(): number;
-
-// ── Graph primitives (T122) ─────────────────────────────────────────
-
-/**
- * Extract @mentions from content. Returns JSON array of strings.
- */
-export function extract_mentions_wasm(content: string): string;
-
-/**
- * Extract #tags from content. Returns JSON array of strings.
- */
-export function extract_tags_wasm(content: string): string;
-
-/**
- * Extract /directives from content. Returns JSON array of strings.
- */
-export function extract_directives_wasm(content: string): string;
-
-/**
- * Build a knowledge graph from a JSON array of MessageInput objects.
- * Returns a JSON-serialised KnowledgeGraph, or `{"error":"..."}` on failure.
- */
-export function build_graph_wasm(messages_json: string): string;
-
-/**
- * Find the most connected topics. Returns JSON array of `{ topic, agents }`.
- */
-export function top_topics_wasm(graph_json: string, limit: number): string;
-
-/**
- * Find the most active agents. Returns JSON array of `{ agent, activity }`.
- */
-export function top_agents_wasm(graph_json: string, limit: number): string;
-
-// ── Similarity primitives (T121) ────────────────────────────────────
-
-/**
- * Extract character n-grams from text. Returns JSON array of strings.
- */
-export function extract_ngrams_wasm(text: string, n: number): string;
-
-/**
- * Extract word shingles from text. Returns JSON array of strings.
- */
-export function extract_word_shingles_wasm(text: string, n: number): string;
-
-/**
- * Compute Jaccard similarity between two texts using character n-grams (n=3).
- */
-export function jaccard_similarity_wasm(a: string, b: string): number;
-
-/**
- * Compute content similarity using word shingles (n=2).
- */
-export function content_similarity_wasm(a: string, b: string): number;
-
-/**
- * Generate a MinHash fingerprint. Returns JSON array of numbers.
- */
-export function min_hash_fingerprint_wasm(text: string, num_hashes: number, ngram_size: number): string;
-
-/**
- * Rank candidates by similarity to query.
- * `candidates_json` is a JSON array of strings.
- * `options_json` is `{"method":"ngram"|"shingle","threshold":0.0}`.
- * Returns JSON array of `{ index, score }` sorted descending.
- */
-export function rank_by_similarity_wasm(query: string, candidates_json: string, options_json: string): string;

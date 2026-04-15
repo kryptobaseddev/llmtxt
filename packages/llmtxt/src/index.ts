@@ -223,6 +223,9 @@ export {
   findOverlongLine,
 } from './wasm.js';
 
+// ── TF-IDF Embeddings (WASM-backed, T125) ──────────────────────
+export { fnv1aHash, tfidfEmbed, tfidfEmbedBatch } from './wasm.js';
+
 // ── Types ───────────────────────────────────────────────────────
 export type {
   ContentFormat,

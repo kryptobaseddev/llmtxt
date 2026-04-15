@@ -145,6 +145,20 @@ pub use similarity::{
     rank_by_similarity, rank_by_similarity_wasm, simple_hash, text_similarity_jaccard,
 };
 
+pub mod disclosure;
+pub use disclosure::code::parse_code_sections;
+pub use disclosure::json::{extract_json_keys, parse_json_sections};
+pub use disclosure::markdown::{extract_markdown_toc, parse_markdown_sections};
+pub use disclosure::search::search_content;
+pub use disclosure::text::parse_text_sections;
+pub use disclosure::{
+    DocumentOverview, JsonKey, LineRangeResult, SearchResult, Section, TocEntry,
+    detect_document_format, generate_overview, get_line_range, get_section, query_json_path,
+};
+
+pub mod tfidf;
+pub use tfidf::{fnv1a_hash, tfidf_embed};
+
 // ── Semantic Diff (WASM) ─────────────────────────────────────────
 
 /// WASM binding for [`semantic_diff`].

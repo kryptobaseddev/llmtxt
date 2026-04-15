@@ -607,6 +607,29 @@ function derive_signing_key(api_key) {
 exports.derive_signing_key = derive_signing_key;
 
 /**
+ * Detect the structural format of a document.
+ *
+ * Returns `"json"`, `"markdown"`, `"code"`, or `"text"`.
+ * @param {string} content
+ * @returns {string}
+ */
+function detect_document_format_wasm(content) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(content, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.detect_document_format_wasm(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.detect_document_format_wasm = detect_document_format_wasm;
+
+/**
  * Detect whether content is JSON, markdown, or plain text.
  *
  * Precedence:
@@ -869,6 +892,21 @@ function find_overlong_line(content, max_chars) {
 exports.find_overlong_line = find_overlong_line;
 
 /**
+ * FNV-1a hash of a string (32-bit). Returns hash as u32 cast to u64.
+ *
+ * Matches the TS `fnv1aHash(str: string): number` function exactly.
+ * @param {string} s
+ * @returns {number}
+ */
+function fnv1a_hash_wasm(s) {
+    const ptr0 = passStringToWasm0(s, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.fnv1a_hash_wasm(ptr0, len0);
+    return ret >>> 0;
+}
+exports.fnv1a_hash_wasm = fnv1a_hash_wasm;
+
+/**
  * Generate an 8-character base62 ID from a UUID v4.
  * @returns {string}
  */
@@ -885,6 +923,81 @@ function generate_id() {
     }
 }
 exports.generate_id = generate_id;
+
+/**
+ * Generate a structural overview of a document.
+ *
+ * Returns JSON-serialised DocumentOverview, or `{"error":"..."}` on failure.
+ * @param {string} content
+ * @returns {string}
+ */
+function generate_overview_wasm(content) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(content, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.generate_overview_wasm(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.generate_overview_wasm = generate_overview_wasm;
+
+/**
+ * Extract a line range from a document.
+ *
+ * Returns JSON-serialised LineRangeResult.
+ * @param {string} content
+ * @param {number} start
+ * @param {number} end
+ * @returns {string}
+ */
+function get_line_range_wasm(content, start, end) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(content, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.get_line_range_wasm(ptr0, len0, start, end);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.get_line_range_wasm = get_line_range_wasm;
+
+/**
+ * Extract a named section from a document.
+ *
+ * Returns JSON result or `{"error":"section not found"}` if missing.
+ * @param {string} content
+ * @param {string} section_name
+ * @param {boolean} depth_all
+ * @returns {string}
+ */
+function get_section_wasm(content, section_name, depth_all) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(content, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(section_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.get_section_wasm(ptr0, len0, ptr1, len1, depth_all);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+exports.get_section_wasm = get_section_wasm;
 
 /**
  * Compute the SHA-256 hash of a UTF-8 string, returned as lowercase hex.
@@ -1136,6 +1249,32 @@ function multi_way_diff_wasm(base, versions_json) {
 exports.multi_way_diff_wasm = multi_way_diff_wasm;
 
 /**
+ * Execute a JSONPath query against JSON content.
+ *
+ * Returns `{ result, tokenCount, path }` JSON or `{"error":"..."}` on failure.
+ * @param {string} content
+ * @param {string} path
+ * @returns {string}
+ */
+function query_json_path_wasm(content, path) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(content, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(path, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.query_json_path_wasm(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+exports.query_json_path_wasm = query_json_path_wasm;
+
+/**
  * Rank candidates by similarity to query.
  *
  * `candidates_json` is a JSON array of strings.
@@ -1253,6 +1392,34 @@ function role_permissions(role) {
     }
 }
 exports.role_permissions = role_permissions;
+
+/**
+ * Search document content.
+ *
+ * Returns JSON array of SearchResult.
+ * @param {string} content
+ * @param {string} query
+ * @param {number} context_lines
+ * @param {number} max_results
+ * @returns {string}
+ */
+function search_content_wasm(content, query, context_lines, max_results) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(content, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(query, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.search_content_wasm(ptr0, len0, ptr1, len1, context_lines, max_results);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+exports.search_content_wasm = search_content_wasm;
 
 /**
  * Evaluate semantic consensus from a JSON array of reviews (WASM / backend entry point).
@@ -1505,7 +1672,7 @@ exports.structured_diff = structured_diff;
  * Compute character-level n-gram Jaccard similarity between two texts.
  * Returns 0.0 (no overlap) to 1.0 (identical). Default n=3.
  *
- * Suitable for finding similar messages without vector embeddings.
+ * WASM shim — delegates to [`similarity::text_similarity_jaccard`].
  * @param {string} a
  * @param {string} b
  * @returns {number}
@@ -1522,6 +1689,8 @@ exports.text_similarity = text_similarity;
 
 /**
  * Compute n-gram Jaccard similarity with configurable gram size.
+ *
+ * WASM shim — delegates to [`similarity::text_similarity_jaccard`].
  * @param {string} a
  * @param {string} b
  * @param {number} n
@@ -1536,6 +1705,57 @@ function text_similarity_ngram(a, b, n) {
     return ret;
 }
 exports.text_similarity_ngram = text_similarity_ngram;
+
+/**
+ * Embed a batch of texts using TF-IDF. Input is a JSON array of strings.
+ *
+ * Returns a JSON array-of-arrays string, e.g. `"[[0.1,...],[0.2,...]]"`.
+ * Returns `"[]"` on parse error.
+ * @param {string} texts_json
+ * @param {number} dim
+ * @returns {string}
+ */
+function tfidf_embed_batch_wasm(texts_json, dim) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(texts_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.tfidf_embed_batch_wasm(ptr0, len0, dim);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.tfidf_embed_batch_wasm = tfidf_embed_batch_wasm;
+
+/**
+ * Embed a single text using TF-IDF into a JSON array of f32 values.
+ *
+ * `dim` is the output dimensionality (default 256 in the TS `LocalEmbeddingProvider`).
+ *
+ * Returns a JSON array string, e.g. `"[0.1, 0.2, ...]"`, or `"[]"` on error.
+ * @param {string} text
+ * @param {number} dim
+ * @returns {string}
+ */
+function tfidf_embed_wasm(text, dim) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(text, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.tfidf_embed_wasm(ptr0, len0, dim);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.tfidf_embed_wasm = tfidf_embed_wasm;
 
 /**
  * WASM binding for the 3-way merge algorithm.

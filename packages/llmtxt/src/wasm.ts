@@ -770,6 +770,186 @@ export function jaccardSimilarity(a: string, b: string): number {
   return wasmModule.jaccard_similarity_wasm(a, b);
 }
 
+// ── Progressive Disclosure (WASM-backed, T119) ───────────────────
+
+/** Re-export disclosure types for consumers of this module. */
+export type { Section, DocumentOverview, SearchResult, LineRangeResult } from './disclosure.js';
+
+/**
+ * Detect the structural format of a document.
+ *
+ * Returns `"json"`, `"markdown"`, `"code"`, or `"text"`.
+ * Extends crates/llmtxt-core::validation::detect_format with "code" detection.
+ *
+ * Delegates to crates/llmtxt-core::disclosure::detect_document_format_wasm.
+ */
+export function detectDocumentFormat(content: string): 'json' | 'markdown' | 'code' | 'text' {
+  return wasmModule.detect_document_format_wasm(content) as 'json' | 'markdown' | 'code' | 'text';
+}
+
+/**
+ * Generate a structural overview of a document.
+ *
+ * Delegates to crates/llmtxt-core::disclosure::generate_overview_wasm.
+ *
+ * @returns Parsed DocumentOverview.
+ * @throws Error if the Rust core returns an error object.
+ */
+export function generateOverview(content: string): import('./disclosure.js').DocumentOverview {
+  const json = wasmModule.generate_overview_wasm(content);
+  const parsed = JSON.parse(json) as import('./disclosure.js').DocumentOverview & { error?: string };
+  if (parsed.error) {
+    throw new Error(`generateOverview failed: ${parsed.error}`);
+  }
+  return parsed;
+}
+
+/**
+ * Extract a line range from a document.
+ *
+ * Delegates to crates/llmtxt-core::disclosure::get_line_range_wasm.
+ *
+ * @returns Parsed LineRangeResult.
+ * @throws Error if the Rust core returns an error object.
+ */
+export function getLineRange(
+  content: string,
+  start: number,
+  end: number,
+): import('./disclosure.js').LineRangeResult {
+  const json = wasmModule.get_line_range_wasm(content, start, end);
+  const parsed = JSON.parse(json) as import('./disclosure.js').LineRangeResult & { error?: string };
+  if (parsed.error) {
+    throw new Error(`getLineRange failed: ${parsed.error}`);
+  }
+  return parsed;
+}
+
+/**
+ * Search document content for lines matching a query.
+ *
+ * Delegates to crates/llmtxt-core::disclosure::search_content_wasm.
+ *
+ * @param contextLines - Number of surrounding context lines (default 2).
+ * @param maxResults - Maximum number of results to return (default 20).
+ * @returns Array of SearchResult.
+ * @throws Error if the Rust core returns an error object.
+ */
+export function searchContent(
+  content: string,
+  query: string,
+  contextLines = 2,
+  maxResults = 20,
+): import('./disclosure.js').SearchResult[] {
+  const json = wasmModule.search_content_wasm(content, query, contextLines, maxResults);
+  const parsed = JSON.parse(json) as
+    | import('./disclosure.js').SearchResult[]
+    | { error?: string };
+  if (!Array.isArray(parsed) && parsed.error) {
+    throw new Error(`searchContent failed: ${parsed.error}`);
+  }
+  return parsed as import('./disclosure.js').SearchResult[];
+}
+
+/**
+ * Execute a JSONPath-style query against JSON content.
+ *
+ * Delegates to crates/llmtxt-core::disclosure::query_json_path_wasm.
+ *
+ * @returns `{ result, tokenCount, path }` object.
+ * @throws Error if path resolution fails.
+ */
+export function queryJsonPath(
+  content: string,
+  path: string,
+): { result: unknown; tokenCount: number; path: string } {
+  const json = wasmModule.query_json_path_wasm(content, path);
+  const parsed = JSON.parse(json) as
+    | { result: unknown; tokenCount: number; path: string }
+    | { error: string };
+  if ('error' in parsed) {
+    throw new Error(`queryJsonPath failed: ${parsed.error}`);
+  }
+  return parsed;
+}
+
+/**
+ * Extract a named section from a document.
+ *
+ * Delegates to crates/llmtxt-core::disclosure::get_section_wasm.
+ *
+ * @param depthAll - If true, include nested sub-sections.
+ * @returns Section result or null if not found.
+ */
+export function getSection(
+  content: string,
+  sectionName: string,
+  depthAll = false,
+): {
+  section: import('./disclosure.js').Section;
+  content: string;
+  tokenCount: number;
+  totalTokens: number;
+  tokensSaved: number;
+} | null {
+  const json = wasmModule.get_section_wasm(content, sectionName, depthAll);
+  const parsed = JSON.parse(json) as { error?: string };
+  if (parsed.error) {
+    return null;
+  }
+  return parsed as {
+    section: import('./disclosure.js').Section;
+    content: string;
+    tokenCount: number;
+    totalTokens: number;
+    tokensSaved: number;
+  };
+}
+
+// ── TF-IDF Embeddings (WASM-backed, T125) ───────────────────────
+
+/**
+ * FNV-1a hash of a string (32-bit unsigned integer).
+ *
+ * Identical to the TS `fnv1aHash()` function in embeddings.ts.
+ * Delegates to crates/llmtxt-core::tfidf::fnv1a_hash_wasm.
+ *
+ * @param s - Input string.
+ * @returns 32-bit unsigned integer hash.
+ */
+export function fnv1aHash(s: string): number {
+  return wasmModule.fnv1a_hash_wasm(s);
+}
+
+/**
+ * Embed a single text using TF-IDF into a float vector.
+ *
+ * Delegates to crates/llmtxt-core::tfidf::tfidf_embed_wasm.
+ *
+ * @param text - Input text.
+ * @param dim - Output dimensionality (default 256, matching LocalEmbeddingProvider).
+ * @returns Array of float32 values, L2-normalized.
+ */
+export function tfidfEmbed(text: string, dim = 256): number[] {
+  return JSON.parse(wasmModule.tfidf_embed_wasm(text, dim)) as number[];
+}
+
+/**
+ * Embed a batch of texts using TF-IDF with shared IDF weighting.
+ *
+ * This matches the `LocalEmbeddingProvider.embed()` TypeScript implementation
+ * exactly — IDF is computed across the entire batch, not per-document.
+ *
+ * Delegates to crates/llmtxt-core::tfidf::tfidf_embed_batch_wasm.
+ *
+ * @param texts - Array of input strings.
+ * @param dim - Output dimensionality (default 256).
+ * @returns Array of float32 arrays, each L2-normalized.
+ */
+export function tfidfEmbedBatch(texts: string[], dim = 256): number[][] {
+  return JSON.parse(wasmModule.tfidf_embed_batch_wasm(JSON.stringify(texts), dim)) as number[][];
+}
+
 /**
  * Generate a MinHash fingerprint for content.
  *
