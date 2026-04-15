@@ -15,15 +15,22 @@
  *   `sha256=<hex HMAC-SHA256 of the JSON body>` using the webhook secret.
  * - Recipients should verify this header before processing events.
  *
+ * Tracing:
+ * - Each delivery includes W3C Trace Context headers (traceparent, tracestate)
+ *   to enable correlation with the span that triggered the event.
+ * - X-Llmtxt-Event-Id is a UUID for deduplication across retries.
+ *
  * Security:
  * - Only HTTPS URLs are allowed in production (NODE_ENV=production).
  * - The secret is stored in plaintext in the DB; treat it as a symmetric key.
  */
 import { signWebhookPayload } from 'llmtxt';
+import { context, propagation } from '@opentelemetry/api';
 import { eventBus, type DocumentEvent } from './bus.js';
 import { db } from '../db/index.js';
 import { webhooks } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -53,14 +60,22 @@ async function attemptDelivery(url: string, secret: string, payload: string): Pr
   const timer = setTimeout(() => controller.abort(), DELIVERY_TIMEOUT_MS);
 
   try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'User-Agent': 'llmtxt-webhook/1.0',
+      'X-LLMtxt-Signature': signature,
+      'X-LLMtxt-Event': JSON.parse(payload).type ?? 'unknown',
+      'X-Llmtxt-Event-Id': randomUUID(),
+    };
+
+    // Inject W3C Trace Context headers (traceparent, tracestate)
+    // This enables downstream consumers to correlate their trace with ours.
+    // If OTel is in no-op mode, propagation.inject is a no-op and adds no headers.
+    propagation.inject(context.active(), headers);
+
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'llmtxt-webhook/1.0',
-        'X-LLMtxt-Signature': signature,
-        'X-LLMtxt-Event': JSON.parse(payload).type ?? 'unknown',
-      },
+      headers,
       body: payload,
       signal: controller.signal,
     });

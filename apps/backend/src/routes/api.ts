@@ -43,6 +43,7 @@ import { writeRateLimit } from '../middleware/rate-limit.js';
 import { enforceContentSize, enforceDocumentLimit } from '../middleware/content-limits.js';
 import { eventBus } from '../events/bus.js';
 import { canRead } from '../middleware/rbac.js';
+import { documentCreatedTotal } from '../middleware/metrics.js';
 
 // Legacy validation schemas (kept for backward compatibility)
 const slugParamsSchema = z.object({
@@ -235,6 +236,9 @@ export async function apiRoutes(fastify: FastifyInstance) {
         ownerId: user?.id ?? null,
         isAnonymous: user ? ((user as Record<string, unknown>).isAnonymous === true) : false,
       });
+
+      // Increment document created counter (visibility defaults to 'public')
+      documentCreatedTotal.inc({ visibility: 'public' });
 
       // Create version 1 so the versions tab shows the initial version
       await db.insert(versions).values({

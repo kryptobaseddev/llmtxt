@@ -63,6 +63,7 @@ export const httpRequestsTotal = new Counter({
 export const documentCreatedTotal = new Counter({
   name: 'llmtxt_document_created_total',
   help: 'Total number of documents created',
+  labelNames: ['visibility'] as const,
   registers: [register],
 });
 
@@ -70,6 +71,7 @@ export const documentCreatedTotal = new Counter({
 export const documentApprovalSubmittedTotal = new Counter({
   name: 'llmtxt_document_approval_submitted_total',
   help: 'Total number of document approval votes submitted',
+  labelNames: ['status'] as const,
   registers: [register],
 });
 
@@ -85,6 +87,7 @@ export const documentStateTransitionTotal = new Counter({
 export const versionCreatedTotal = new Counter({
   name: 'llmtxt_version_created_total',
   help: 'Total number of document versions created',
+  labelNames: ['source'] as const,
   registers: [register],
 });
 
@@ -92,7 +95,7 @@ export const versionCreatedTotal = new Counter({
 export const webhookDeliveryTotal = new Counter({
   name: 'llmtxt_webhook_delivery_total',
   help: 'Total number of webhook delivery attempts',
-  labelNames: ['result'] as const,
+  labelNames: ['event_type', 'result'] as const,
   registers: [register],
 });
 

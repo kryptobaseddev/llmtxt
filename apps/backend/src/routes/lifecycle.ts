@@ -18,6 +18,7 @@ import type { DocumentState, Review, ApprovalPolicy } from 'llmtxt/sdk';
 import { generateId } from 'llmtxt';
 import { invalidateDocumentCache } from '../middleware/cache.js';
 import { eventBus } from '../events/bus.js';
+import { documentApprovalSubmittedTotal, documentStateTransitionTotal } from '../middleware/metrics.js';
 
 function buildPolicy(doc: {
   approvalRequiredCount: number;
@@ -96,6 +97,8 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
         atVersion: doc[0].currentVersion,
       });
 
+      documentStateTransitionTotal.inc({ from_state: currentState, to_state: effectiveState });
+
       // When reopening for edits, clear rejection records so the next
       // review cycle starts clean. Approved records are left intact.
       if (currentState === 'REVIEW' && effectiveState === 'DRAFT') {
@@ -159,6 +162,8 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
         reason: request.body.comment ?? null,
         atVersion: doc[0].currentVersion,
       });
+
+      documentApprovalSubmittedTotal.inc({ status: 'approved' });
 
       const allReviews = await db.select().from(approvals).where(eq(approvals.documentId, doc[0].id));
       const policy = buildPolicy(doc[0]);
@@ -254,6 +259,8 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
         reason: request.body.comment,
         atVersion: doc[0].currentVersion,
       });
+
+      documentApprovalSubmittedTotal.inc({ status: 'rejected' });
 
       const allReviews = await db.select().from(approvals).where(eq(approvals.documentId, doc[0].id));
       const policy = buildPolicy(doc[0]);
