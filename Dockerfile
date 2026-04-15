@@ -22,7 +22,9 @@ COPY --from=build /app/apps/backend/package.json ./apps/backend/
 COPY --from=build /app/apps/backend/public ./apps/backend/public
 COPY --from=build /app/apps/backend/src/db/migrations ./apps/backend/src/db/migrations
 COPY --from=build /app/apps/backend/drizzle.config.ts ./apps/backend/
+COPY --from=build /app/apps/backend/scripts/run-migrations.ts ./apps/backend/scripts/
 
 EXPOSE 8080
 ENV PORT=8080
-CMD ["sh", "-c", "cd apps/backend && npx drizzle-kit migrate && node dist/index.js"]
+# run-migrations.ts exits 1 on any migration error — container will NOT start if migrations fail.
+CMD ["sh", "-c", "cd apps/backend && node --import tsx/esm scripts/run-migrations.ts && node --import ./dist/instrumentation.js dist/index.js"]

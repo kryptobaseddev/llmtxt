@@ -69,3 +69,28 @@ jobs:
       # - name: Validate version (CalVer guard)
       #   working-directory: packages/llmtxt
       #   run: pnpm exec versionguard validate
+
+  migration-check:
+    name: Migration safety check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        working-directory: apps/backend
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint migrations (static duplicate detection)
+        working-directory: apps/backend
+        run: bash scripts/check-migrations.sh
+
+      - name: Run migrations against fresh DB (idempotency check)
+        working-directory: apps/backend
+        run: bash scripts/ci-migrate-check.sh
