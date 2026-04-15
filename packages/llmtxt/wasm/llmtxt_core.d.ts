@@ -132,6 +132,22 @@ export function compute_signature(slug: string, agent_id: string, conversation_i
 export function compute_signature_with_length(slug: string, agent_id: string, conversation_id: string, expires_at: number, secret: string, sig_length: number): string;
 
 /**
+ * Compute cosine similarity between two embedding vectors supplied as JSON arrays.
+ *
+ * WASM entry point for [`cosine_similarity`].
+ *
+ * Both arguments must be JSON arrays of numbers, e.g. `[0.1, 0.2, 0.3]`.
+ * Returns a value in `[-1.0, 1.0]`, or `0.0` on parse error.
+ *
+ * # Examples (TypeScript)
+ * ```ts
+ * import { cosineSimilarity } from 'llmtxt';
+ * const sim = cosineSimilarity('[1.0, 0.0]', '[0.0, 1.0]'); // 0.0 — orthogonal
+ * ```
+ */
+export function cosine_similarity_wasm(a_json: string, b_json: string): number;
+
+/**
  * Create a unified diff patch representing the difference between `original`
  * and `modified`.
  */
@@ -239,6 +255,25 @@ export function is_valid_transition(from: DocumentState, to: DocumentState): boo
 export function is_valid_transition_str(from: string, to: string): boolean;
 
 /**
+ * L2-normalize a vector supplied as a JSON array of numbers (WASM entry point).
+ *
+ * Delegates to [`l2_normalize`].
+ *
+ * # Arguments
+ * * `vec_json` — JSON array of numbers, e.g. `"[0.1, 0.2, 0.3]"`.
+ *
+ * # Returns
+ * JSON array string of normalized f32 values, or `"[]"` on parse error.
+ *
+ * # Examples (TypeScript)
+ * ```ts
+ * import { l2Normalize } from 'llmtxt';
+ * const normed = l2Normalize('[3.0, 4.0]'); // "[0.6, 0.8]"
+ * ```
+ */
+export function l2_normalize_wasm(vec_json: string): string;
+
+/**
  * Mark reviews as stale for the given version. JSON I/O for WASM.
  *
  * Returns a JSON array of updated reviews.
@@ -302,6 +337,21 @@ export function semantic_diff(sections_a_json: string, sections_b_json: string):
  * Returns a JSON-serialised `SemanticDiffResult`, or `{"error":"..."}`.
  */
 export function semantic_diff_wasm(sections_a_json: string, sections_b_json: string): string;
+
+/**
+ * Compute the HMAC-SHA256 webhook signature for a payload.
+ *
+ * Returns `"sha256=<hex>"` — the canonical format for the
+ * `X-LLMtxt-Signature` request header.
+ *
+ * # Arguments
+ * * `secret` - The webhook signing secret (UTF-8 string).
+ * * `payload` - The raw request body bytes to sign.
+ *
+ * Returns an empty string if the HMAC key is invalid (should not occur
+ * in practice; HMAC-SHA256 accepts keys of any length).
+ */
+export function sign_webhook_payload(secret: string, payload: string): string;
 
 /**
  * Apply all patches sequentially to base content, then produce a single

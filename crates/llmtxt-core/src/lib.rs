@@ -103,11 +103,18 @@ pub use consensus::{
     mark_stale_reviews, mark_stale_reviews_native,
 };
 
+pub mod crypto;
+pub use crypto::sign_webhook_payload;
+
+pub mod normalize;
+pub use normalize::{l2_normalize, l2_normalize_wasm};
+
 mod semantic;
 pub use semantic::{
     EmbeddedReview, EmbeddedSection, ReviewCluster, SectionAlignment, SectionSimilarity,
     SemanticChange, SemanticConsensusResult, SemanticDiffResult, cosine_similarity,
-    semantic_consensus, semantic_consensus_native, semantic_diff, semantic_diff_native,
+    cosine_similarity_wasm, semantic_consensus, semantic_consensus_native, semantic_diff,
+    semantic_diff_native,
 };
 
 // ── Semantic Diff (WASM) ─────────────────────────────────────────

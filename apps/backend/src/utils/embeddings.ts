@@ -13,7 +13,12 @@
  * Embeddings are computed on-demand and NOT persisted. Storage optimisation
  * (caching / pre-computing embeddings) can be added later without changing the
  * interface.
+ *
+ * L2 normalization delegates to crates/llmtxt-core::normalize::l2_normalize
+ * via the llmtxt WASM binding (audit item #4 fix).
  */
+
+import { l2Normalize as wasmL2Normalize } from 'llmtxt';
 
 // ── Interface ──────────────────────────────────────────────────────────────
 
@@ -164,7 +169,7 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
         vec[bucket] += weight;
       }
 
-      return l2Normalize(Array.from(vec));
+      return JSON.parse(wasmL2Normalize(JSON.stringify(Array.from(vec)))) as number[];
     });
   }
 }
@@ -217,12 +222,6 @@ function fnv1aHash(str: string): number {
     hash = (Math.imul(hash, 0x01000193) >>> 0);
   }
   return hash;
-}
-
-function l2Normalize(vec: number[]): number[] {
-  const mag = Math.sqrt(vec.reduce((s, x) => s + x * x, 0));
-  if (mag === 0) return vec;
-  return vec.map(x => x / mag);
 }
 
 function sleep(ms: number): Promise<void> {

@@ -8,8 +8,12 @@
  * The raw key is NEVER stored. Only the SHA-256 hex digest is persisted.
  * The display prefix ("llmtxt_" + first 8 random chars) lets users
  * identify which key is which without exposing the secret.
+ *
+ * SHA-256 hashing delegates to crates/llmtxt-core via the llmtxt WASM binding,
+ * keeping the crypto primitive in the Rust SSoT.
  */
-import { randomBytes, createHash } from 'crypto';
+import { randomBytes } from 'node:crypto';
+import { hashContent } from 'llmtxt';
 
 const KEY_PREFIX = 'llmtxt_';
 
@@ -34,6 +38,7 @@ export function generateApiKey(): { rawKey: string; keyHash: string; keyPrefix: 
 /**
  * Hash a raw API key using SHA-256.
  *
+ * Delegates to crates/llmtxt-core::hash_content via the llmtxt WASM binding.
  * Used both at creation time (to derive the stored hash) and at
  * authentication time (to look up the key by hash).
  *
@@ -41,7 +46,7 @@ export function generateApiKey(): { rawKey: string; keyHash: string; keyPrefix: 
  * @returns Hex-encoded SHA-256 digest
  */
 export function hashApiKey(rawKey: string): string {
-  return createHash('sha256').update(rawKey).digest('hex');
+  return hashContent(rawKey);
 }
 
 /**

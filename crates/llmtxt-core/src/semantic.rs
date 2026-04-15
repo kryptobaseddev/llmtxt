@@ -101,6 +101,31 @@ pub struct SemanticDiffResult {
     pub semantic_changes: Vec<SemanticChange>,
 }
 
+/// Compute cosine similarity between two embedding vectors supplied as JSON arrays.
+///
+/// WASM entry point for [`cosine_similarity`].
+///
+/// Both arguments must be JSON arrays of numbers, e.g. `[0.1, 0.2, 0.3]`.
+/// Returns a value in `[-1.0, 1.0]`, or `0.0` on parse error.
+///
+/// # Examples (TypeScript)
+/// ```ts
+/// import { cosineSimilarity } from 'llmtxt';
+/// const sim = cosineSimilarity('[1.0, 0.0]', '[0.0, 1.0]'); // 0.0 — orthogonal
+/// ```
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn cosine_similarity_wasm(a_json: &str, b_json: &str) -> f64 {
+    let a: Vec<f64> = match serde_json::from_str(a_json) {
+        Ok(v) => v,
+        Err(_) => return 0.0,
+    };
+    let b: Vec<f64> = match serde_json::from_str(b_json) {
+        Ok(v) => v,
+        Err(_) => return 0.0,
+    };
+    cosine_similarity(&a, &b)
+}
+
 // ── Semantic diff ─────────────────────────────────────────────────
 
 /// Classify the type of semantic change for a matched section pair.

@@ -131,6 +131,15 @@ export type {
   ThreeWayMergeResult,
 } from './patch.js';
 
+// ── Vector Normalization ─────────────────────────────────────────
+export { l2Normalize } from './wasm.js';
+
+// ── Webhook Signing ─────────────────────────────────────────────
+export { signWebhookPayload } from './wasm.js';
+
+// ── Cosine Similarity ────────────────────────────────────────────
+export { cosineSimilarity } from './wasm.js';
+
 // ── Semantic Diff & Consensus ───────────────────────────────────
 export { semanticDiff, semanticConsensus } from './wasm.js';
 export type {

@@ -411,6 +411,33 @@ function compute_signature_with_length(slug, agent_id, conversation_id, expires_
 exports.compute_signature_with_length = compute_signature_with_length;
 
 /**
+ * Compute cosine similarity between two embedding vectors supplied as JSON arrays.
+ *
+ * WASM entry point for [`cosine_similarity`].
+ *
+ * Both arguments must be JSON arrays of numbers, e.g. `[0.1, 0.2, 0.3]`.
+ * Returns a value in `[-1.0, 1.0]`, or `0.0` on parse error.
+ *
+ * # Examples (TypeScript)
+ * ```ts
+ * import { cosineSimilarity } from 'llmtxt';
+ * const sim = cosineSimilarity('[1.0, 0.0]', '[0.0, 1.0]'); // 0.0 — orthogonal
+ * ```
+ * @param {string} a_json
+ * @param {string} b_json
+ * @returns {number}
+ */
+function cosine_similarity_wasm(a_json, b_json) {
+    const ptr0 = passStringToWasm0(a_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(b_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.cosine_similarity_wasm(ptr0, len0, ptr1, len1);
+    return ret;
+}
+exports.cosine_similarity_wasm = cosine_similarity_wasm;
+
+/**
  * Create a unified diff patch representing the difference between `original`
  * and `modified`.
  * @param {string} original
@@ -732,6 +759,41 @@ function is_valid_transition_str(from, to) {
 exports.is_valid_transition_str = is_valid_transition_str;
 
 /**
+ * L2-normalize a vector supplied as a JSON array of numbers (WASM entry point).
+ *
+ * Delegates to [`l2_normalize`].
+ *
+ * # Arguments
+ * * `vec_json` — JSON array of numbers, e.g. `"[0.1, 0.2, 0.3]"`.
+ *
+ * # Returns
+ * JSON array string of normalized f32 values, or `"[]"` on parse error.
+ *
+ * # Examples (TypeScript)
+ * ```ts
+ * import { l2Normalize } from 'llmtxt';
+ * const normed = l2Normalize('[3.0, 4.0]'); // "[0.6, 0.8]"
+ * ```
+ * @param {string} vec_json
+ * @returns {string}
+ */
+function l2_normalize_wasm(vec_json) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(vec_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.l2_normalize_wasm(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.l2_normalize_wasm = l2_normalize_wasm;
+
+/**
  * Mark reviews as stale for the given version. JSON I/O for WASM.
  *
  * Returns a JSON array of updated reviews.
@@ -935,6 +997,40 @@ function semantic_diff_wasm(sections_a_json, sections_b_json) {
     }
 }
 exports.semantic_diff_wasm = semantic_diff_wasm;
+
+/**
+ * Compute the HMAC-SHA256 webhook signature for a payload.
+ *
+ * Returns `"sha256=<hex>"` — the canonical format for the
+ * `X-LLMtxt-Signature` request header.
+ *
+ * # Arguments
+ * * `secret` - The webhook signing secret (UTF-8 string).
+ * * `payload` - The raw request body bytes to sign.
+ *
+ * Returns an empty string if the HMAC key is invalid (should not occur
+ * in practice; HMAC-SHA256 accepts keys of any length).
+ * @param {string} secret
+ * @param {string} payload
+ * @returns {string}
+ */
+function sign_webhook_payload(secret, payload) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(secret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(payload, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.sign_webhook_payload(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+exports.sign_webhook_payload = sign_webhook_payload;
 
 /**
  * Apply all patches sequentially to base content, then produce a single

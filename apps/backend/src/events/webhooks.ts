@@ -19,7 +19,7 @@
  * - Only HTTPS URLs are allowed in production (NODE_ENV=production).
  * - The secret is stored in plaintext in the DB; treat it as a symmetric key.
  */
-import { createHmac } from 'node:crypto';
+import { signWebhookPayload } from 'llmtxt';
 import { eventBus, type DocumentEvent } from './bus.js';
 import { db } from '../db/index.js';
 import { webhooks } from '../db/schema.js';
@@ -34,11 +34,14 @@ const DELIVERY_TIMEOUT_MS = 10_000;
 
 // ── HMAC signature ────────────────────────────────────────────────────────────
 
-/** Compute HMAC-SHA256 signature for a payload. Returns `sha256=<hex>`. */
+/**
+ * Compute HMAC-SHA256 signature for a payload.
+ *
+ * Delegates to crates/llmtxt-core::crypto::sign_webhook_payload via the
+ * llmtxt WASM binding. Returns `sha256=<hex>`.
+ */
 function computeSignature(secret: string, payload: string): string {
-  const hmac = createHmac('sha256', secret);
-  hmac.update(payload);
-  return `sha256=${hmac.digest('hex')}`;
+  return signWebhookPayload(secret, payload);
 }
 
 // ── Delivery ─────────────────────────────────────────────────────────────────

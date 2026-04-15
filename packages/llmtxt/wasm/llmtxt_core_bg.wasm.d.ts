@@ -1,6 +1,10 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
+export const cosine_similarity_wasm: (a: number, b: number, c: number, d: number) => number;
+export const semantic_consensus: (a: number, b: number, c: number) => [number, number];
+export const semantic_diff: (a: number, b: number, c: number, d: number) => [number, number];
+export const sign_webhook_payload: (a: number, b: number, c: number, d: number) => [number, number];
 export const __wbg_diffresult_free: (a: number, b: number) => void;
 export const compute_diff: (a: number, b: number, c: number, d: number) => number;
 export const diffresult_added_lines: (a: number) => number;
@@ -30,6 +34,7 @@ export const text_similarity_ngram: (a: number, b: number, c: number, d: number,
 export const three_way_merge_wasm: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
 export const calculate_compression_ratio: (a: number, b: number) => number;
 export const evaluate_approvals: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number, number];
+export const l2_normalize_wasm: (a: number, b: number) => [number, number];
 export const mark_stale_reviews: (a: number, b: number, c: number) => [number, number, number, number];
 export const apply_patch: (a: number, b: number, c: number, d: number) => [number, number, number, number];
 export const batch_diff_versions: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number, number, number];
@@ -38,8 +43,6 @@ export const create_patch: (a: number, b: number, c: number, d: number) => [numb
 export const diff_versions: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number, number];
 export const reconstruct_version: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
 export const squash_patches: (a: number, b: number, c: number, d: number) => [number, number, number, number];
-export const semantic_consensus: (a: number, b: number, c: number) => [number, number];
-export const semantic_diff: (a: number, b: number, c: number, d: number) => [number, number];
 export const is_editable: (a: number) => number;
 export const is_editable_str: (a: number, b: number) => number;
 export const is_terminal: (a: number) => number;

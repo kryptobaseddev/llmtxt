@@ -364,6 +364,53 @@ export function threeWayMerge(base: string, ours: string, theirs: string): Three
   return parsed;
 }
 
+// ── Vector Normalization ────────────────────────────────────────
+
+/**
+ * L2-normalize a vector of numbers to unit length.
+ *
+ * Delegates to crates/llmtxt-core::normalize::l2_normalize via WASM.
+ *
+ * @param vecJson - JSON array of numbers, e.g. `"[3.0, 4.0]"`.
+ * @returns JSON array string of normalized values, or `"[]"` on parse error.
+ */
+export function l2Normalize(vecJson: string): string {
+  return wasmModule.l2_normalize_wasm(vecJson);
+}
+
+// ── Webhook Signing ─────────────────────────────────────────────
+
+/**
+ * Compute the HMAC-SHA256 webhook signature for a payload.
+ *
+ * Returns `"sha256=<hex>"` — the canonical format for the
+ * `X-LLMtxt-Signature` request header.
+ *
+ * Delegates to crates/llmtxt-core::crypto::sign_webhook_payload.
+ *
+ * @param secret - The webhook signing secret.
+ * @param payload - The raw request body string to sign.
+ * @returns `sha256=<hex HMAC-SHA256>` or empty string on HMAC error.
+ */
+export function signWebhookPayload(secret: string, payload: string): string {
+  return wasmModule.sign_webhook_payload(secret, payload);
+}
+
+// ── Cosine Similarity ───────────────────────────────────────────
+
+/**
+ * Compute cosine similarity between two embedding vectors.
+ *
+ * Delegates to crates/llmtxt-core::semantic::cosine_similarity_wasm.
+ *
+ * @param a - Embedding vector as a JSON array string, e.g. `"[1.0, 0.0]"`.
+ * @param b - Embedding vector as a JSON array string.
+ * @returns Cosine similarity in `[-1.0, 1.0]`, or `0.0` on invalid input.
+ */
+export function cosineSimilarity(aJson: string, bJson: string): number {
+  return wasmModule.cosine_similarity_wasm(aJson, bJson);
+}
+
 // ── Semantic Diff ───────────────────────────────────────────────
 
 /** How a section from version A maps to version B. */

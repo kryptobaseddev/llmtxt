@@ -10,11 +10,11 @@
  */
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { randomBytes, createHmac } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { db } from '../db/index.js';
 import { webhooks } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
-import { generateId } from 'llmtxt';
+import { generateId, signWebhookPayload } from 'llmtxt';
 import { requireAuth } from '../middleware/auth.js';
 
 // ── Validation schemas ────────────────────────────────────────────────────────
@@ -223,9 +223,7 @@ export async function webhookRoutes(app: FastifyInstance) {
         test: true,
       });
 
-      const hmac = createHmac('sha256', hook.secret);
-      hmac.update(testPayload);
-      const signature = `sha256=${hmac.digest('hex')}`;
+      const signature = signWebhookPayload(hook.secret, testPayload);
 
       let success = false;
       let statusCode: number | null = null;

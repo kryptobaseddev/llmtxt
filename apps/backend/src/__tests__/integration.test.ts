@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import Fastify, { type FastifyInstance } from 'fastify';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, asc, desc } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 import { generateApiKey, hashApiKey } from '../utils/api-keys.js';
 import { compress, decompress, generateId, hashContent } from '../utils/compression.js';
@@ -1405,6 +1405,7 @@ describe('Collections & Cross-Doc (Epic 9)', async () => {
     const members = db.select()
       .from(schema.collectionDocuments)
       .where(eq(schema.collectionDocuments.collectionId, collectionId))
+      .orderBy(asc(schema.collectionDocuments.position))
       .all();
 
     assert.equal(members.length, 2);

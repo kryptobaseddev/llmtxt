@@ -18,14 +18,19 @@ import { eq, and, inArray } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { documents, versions, approvals } from '../db/schema.js';
 import { decompress, structuredDiff } from '../utils/compression.js';
-import { parseSections } from '../utils/sections.js';
+import { generateOverview } from 'llmtxt';
 import { createEmbeddingProvider } from '../utils/embeddings.js';
 import { canRead } from '../middleware/rbac.js';
 
 // Import WASM-compiled Rust primitives from the llmtxt npm package.
 // `semantic_diff` and `semantic_consensus` accept pre-computed embeddings so
 // they never call external APIs — all I/O happens here in TypeScript.
-import { semanticDiff as rustSemanticDiff, semanticConsensus as rustSemanticConsensus } from 'llmtxt';
+// `cosineSimilarity` is the Rust SSoT for vector math (replaces the inline TS impl).
+import {
+  semanticDiff as rustSemanticDiff,
+  semanticConsensus as rustSemanticConsensus,
+  cosineSimilarity as rustCosineSimilarity,
+} from 'llmtxt';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 
 // ── Validation schemas ────────────────────────────────────────────────────
@@ -111,17 +116,35 @@ async function getVersionContent(
   return decompressVersion(ver.compressedData);
 }
 
-/** Embed sections using the configured provider. Returns sections with embeddings. */
+/**
+ * Embed sections using the configured provider.
+ *
+ * Uses the SDK `generateOverview` section parser (the SSoT for section
+ * splitting — fixes audit item #9).  Section content is reconstructed from
+ * the line ranges returned by `generateOverview`.
+ *
+ * @returns Array of `{ title, content, embedding }` objects ready for the
+ *   Rust semantic diff / consensus primitives.
+ */
 async function embedSections(
   content: string,
   provider: Awaited<ReturnType<typeof createEmbeddingProvider>>,
 ): Promise<Array<{ title: string; content: string; embedding: number[] }>> {
-  const sections = parseSections(content);
-  if (sections.length === 0) {
+  const overview = generateOverview(content);
+
+  if (overview.sections.length === 0) {
     // Treat the entire content as one unnamed section.
     const [embedding] = await provider.embed([content]);
     return [{ title: 'Document', content, embedding: embedding ?? [] }];
   }
+
+  const lines = content.split('\n');
+
+  const sections = overview.sections.map(s => ({
+    title: s.title,
+    // Reconstruct content from the line range (1-based → 0-based).
+    content: lines.slice(s.startLine - 1, s.endLine).join('\n'),
+  }));
 
   const texts = sections.map(s => s.content);
   const embeddings = await provider.embed(texts);
@@ -323,7 +346,10 @@ export async function semanticRoutes(fastify: FastifyInstance) {
         for (let i = 0; i < n; i++) {
           matrix[i][i] = 1.0;
           for (let j = i + 1; j < n; j++) {
-            const sim = cosineSimilarityTs(embeddings[i], embeddings[j]);
+            const sim = rustCosineSimilarity(
+            JSON.stringify(embeddings[i]),
+            JSON.stringify(embeddings[j]),
+          );
             matrix[i][j] = sim;
             matrix[j][i] = sim;
           }
@@ -463,25 +489,3 @@ export async function semanticRoutes(fastify: FastifyInstance) {
   );
 }
 
-// ── TypeScript cosine similarity (for the similarity matrix) ─────────────
-
-/**
- * Cosine similarity in pure TypeScript.
- *
- * Used for the similarity matrix endpoint where the Rust WASM binding would
- * require converting the matrix computation to JSON round-trips — simpler to
- * do directly here.
- */
-function cosineSimilarityTs(a: number[], b: number[]): number {
-  if (a.length !== b.length || a.length === 0) return 0;
-  let dot = 0;
-  let magA = 0;
-  let magB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    magA += a[i] * a[i];
-    magB += b[i] * b[i];
-  }
-  const denom = Math.sqrt(magA) * Math.sqrt(magB);
-  return denom === 0 ? 0 : dot / denom;
-}
