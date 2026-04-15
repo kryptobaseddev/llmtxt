@@ -1,18 +1,3 @@
-CREATE TABLE `api_keys` (
-	`id` text PRIMARY KEY,
-	`user_id` text NOT NULL,
-	`name` text NOT NULL,
-	`key_hash` text NOT NULL,
-	`key_prefix` text NOT NULL,
-	`scopes` text DEFAULT '*' NOT NULL,
-	`last_used_at` integer,
-	`expires_at` integer,
-	`revoked` integer DEFAULT false NOT NULL,
-	`created_at` integer NOT NULL,
-	`updated_at` integer NOT NULL,
-	CONSTRAINT `fk_api_keys_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
-);
---> statement-breakpoint
 CREATE TABLE `document_orgs` (
 	`id` text PRIMARY KEY,
 	`document_id` text NOT NULL,
@@ -65,9 +50,6 @@ CREATE TABLE `pending_invites` (
 );
 --> statement-breakpoint
 ALTER TABLE `documents` ADD `visibility` text DEFAULT 'public' NOT NULL;--> statement-breakpoint
-CREATE INDEX `api_keys_user_id_idx` ON `api_keys` (`user_id`);--> statement-breakpoint
-CREATE UNIQUE INDEX `api_keys_key_hash_idx` ON `api_keys` (`key_hash`);--> statement-breakpoint
-CREATE INDEX `api_keys_key_prefix_idx` ON `api_keys` (`key_prefix`);--> statement-breakpoint
 CREATE UNIQUE INDEX `document_orgs_doc_org_idx` ON `document_orgs` (`document_id`,`org_id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `document_roles_doc_user_idx` ON `document_roles` (`document_id`,`user_id`);--> statement-breakpoint
 CREATE INDEX `document_roles_user_idx` ON `document_roles` (`user_id`);--> statement-breakpoint
