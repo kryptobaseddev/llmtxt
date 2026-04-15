@@ -21,7 +21,9 @@ COPY --from=build /app/apps/backend/dist ./apps/backend/dist
 COPY --from=build /app/apps/backend/package.json ./apps/backend/
 COPY --from=build /app/apps/backend/public ./apps/backend/public
 COPY --from=build /app/apps/backend/src/db/migrations ./apps/backend/src/db/migrations
+COPY --from=build /app/apps/backend/src/db/migrations-pg ./apps/backend/src/db/migrations-pg
 COPY --from=build /app/apps/backend/drizzle.config.ts ./apps/backend/
+COPY --from=build /app/apps/backend/drizzle-pg.config.ts ./apps/backend/
 COPY --from=build /app/apps/backend/scripts/run-migrations.ts ./apps/backend/scripts/
 
 EXPOSE 8080
