@@ -1,0 +1,38 @@
+{
+  "root": true,
+  "ignorePatterns": [
+    "dist",
+    "node_modules",
+    "*.config.*"
+  ],
+  "parser": "@typescript-eslint/parser",
+  "plugins": [
+    "@typescript-eslint"
+  ],
+  "parserOptions": {
+    "ecmaVersion": 2024,
+    "sourceType": "module"
+  },
+  "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "node:crypto",
+            "importNames": ["createHash", "createHmac"],
+            "message": "Use @llmtxt hash_content / sign_webhook_payload via packages/llmtxt instead of node:crypto createHash/createHmac (see docs/SSOT.md)"
+          },
+          {
+            "name": "yjs",
+            "message": "CRDT work uses Yrs (Rust) via WASM, not JS CRDT libs. Import Y from packages/llmtxt instead (see docs/SSOT.md)"
+          },
+          {
+            "name": "automerge",
+            "message": "CRDT work uses Yrs (Rust) via WASM, not JS CRDT libs. Import Y from packages/llmtxt instead (see docs/SSOT.md)"
+          }
+        ]
+      }
+    ]
+  }
+}

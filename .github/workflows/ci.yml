@@ -60,6 +60,10 @@ jobs:
         working-directory: packages/llmtxt
         run: pnpm run typecheck
 
+      - name: Lint (backend)
+        working-directory: apps/backend
+        run: pnpm run lint
+
       # CalVer guard disabled: v2026.4.0 was published in March (should have been 2026.3.x)
       # Re-enable after April 2026 when the version aligns with the calendar again
       # - name: Validate version (CalVer guard)
