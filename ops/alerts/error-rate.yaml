@@ -1,0 +1,47 @@
+# ops/alerts/error-rate.yaml
+# Prometheus alert rule for llmtxt-api error rate monitoring
+# Epic: T145 (Observability Stack)
+# Task: T214
+#
+# This rule fires when the HTTP error rate (5xx responses / total responses)
+# for any route exceeds 5% over a 5-minute window.
+#
+# To use with Grafana Cloud:
+# 1. Copy this rule to a Prometheus config or Grafana alert rule
+# 2. Adjust the 'group' name and 'for' duration as needed
+# 3. Ensure prometheus job_name scrapes https://api.llmtxt.my/api/metrics with METRICS_TOKEN
+
+groups:
+  - name: llmtxt-observability
+    interval: 30s
+    rules:
+      - alert: LLMtxtAPIErrorRateHigh
+        expr: |
+          (
+            sum(rate(http_requests_total{status_code=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: llmtxt-api
+          team: rcasd
+        annotations:
+          summary: "LLMtxt API error rate exceeds 5%"
+          description: |
+            The HTTP error rate (5xx responses / total responses) for llmtxt-api
+            has exceeded 5% over the last 5 minutes.
+
+            Current error rate: {{ printf "%.2f" $value | multiply 100 }}%
+
+            Steps to triage:
+            1. Check /api/health and /api/ready endpoints
+            2. Review recent commits on main branch
+            3. Check Railway deployment status
+            4. Query logs in Loki by trace_id for specific errors
+            5. Check Sentry dashboard for stack traces
+
+            See ops/RUNBOOK.md for incident playbooks.
+          dashboard: https://grafana.com/  # Will be updated with actual Grafana Cloud dashboard URL
+          runbook: https://github.com/kryptobaseddev/llmtxt/blob/main/ops/RUNBOOK.md
