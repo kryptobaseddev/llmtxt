@@ -41,6 +41,7 @@ import { securityHeaders } from './middleware/security.js';
 import { registerCsrf } from './middleware/csrf.js';
 import { registerAuditLogging, auditLogRoutes } from './middleware/audit.js';
 import { registerRateLimiting } from './middleware/rate-limit.js';
+import { registerMetrics } from './middleware/metrics.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const API_HOSTS = new Set(['api.llmtxt.my']);
@@ -99,6 +100,13 @@ async function main() {
 
     // Register rate limiting (after CORS and compression, before routes)
     await registerRateLimiting(app);
+
+    // ──────────────────────────────────────────────────────────────────
+    // Metrics hooks: per-request HTTP duration + counter recording.
+    // Registered after rate limiting so rate-limit overhead is included
+    // in the measured duration (more accurate latency tracking).
+    // ──────────────────────────────────────────────────────────────────
+    await registerMetrics(app);
 
     // ──────────────────────────────────────────────────────────────────
     // Security headers (CSP, HSTS, X-Content-Type-Options, etc.)

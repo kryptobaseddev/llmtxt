@@ -1,17 +1,21 @@
 /**
- * Health check routes for Railway uptime monitoring and readiness probes.
+ * Health check and metrics routes for Railway uptime monitoring.
  *
- * GET /api/health  — liveness: always 200, no I/O, responds in <50ms.
- * GET /api/ready   — readiness: runs SELECT 1 on the active DB connection.
+ * GET /api/health   — liveness: always 200, no I/O, responds in <50ms.
+ * GET /api/ready    — readiness: runs SELECT 1 on the active DB connection.
+ * GET /api/metrics  — Prometheus text format metrics (prom-client registry).
  *
- * Both routes are exempt from authentication and rate limiting.
- * The allowList in registerRateLimiting already covers /api/health;
- * /api/ready is added here via the route-level config.
+ * All three routes are exempt from authentication and rate limiting.
+ * The allowList in registerRateLimiting covers /api/health, /api/ready, and
+ * /api/metrics.
+ *
+ * SPEC references: SPEC-T145 §7.4–7.8 (metrics), §8.1–8.4 (health/ready)
  */
 import type { FastifyInstance } from 'fastify';
 import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import { metricsRegistry } from '../middleware/metrics.js';
 
 // Read package version at startup — resolved relative to this file's directory.
 function readPackageVersion(): string {
@@ -106,6 +110,64 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
           status: 'unavailable',
           reason: message,
           ts: new Date().toISOString(),
+        });
+      }
+    }
+  );
+
+  /**
+   * GET /metrics (registered at /api/metrics via prefix in index.ts)
+   *
+   * Prometheus text format metrics endpoint. Returns the full default registry
+   * including HTTP request duration histogram, request counter, and process
+   * metrics collected by prom-client.
+   *
+   * Authentication: if METRICS_TOKEN env var is set, requires
+   *   Authorization: Bearer <METRICS_TOKEN>
+   * and returns 401 if the header is absent or the token doesn't match.
+   * If METRICS_TOKEN is unset the endpoint is publicly accessible (dev-only).
+   *
+   * SPEC-T145 §7.4–7.8
+   */
+  app.get(
+    '/metrics',
+    {
+      config: {
+        // Exempt from rate limiting — Prometheus scraper hits this frequently.
+        rateLimit: false,
+      },
+    },
+    async (request, reply) => {
+      const metricsToken = process.env.METRICS_TOKEN;
+
+      if (metricsToken) {
+        const authHeader = request.headers['authorization'];
+        const provided = authHeader?.startsWith('Bearer ')
+          ? authHeader.slice(7)
+          : null;
+
+        if (!provided || provided !== metricsToken) {
+          return reply.status(401).send({
+            error: 'Unauthorized',
+            message: 'Valid Authorization: Bearer <METRICS_TOKEN> header required',
+          });
+        }
+      }
+
+      try {
+        const [metrics, contentType] = await Promise.all([
+          metricsRegistry.metrics(),
+          Promise.resolve(metricsRegistry.contentType),
+        ]);
+        return reply
+          .status(200)
+          .header('Content-Type', contentType)
+          .send(metrics);
+      } catch (err) {
+        app.log.error({ err }, 'failed to collect metrics');
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: 'Failed to collect metrics',
         });
       }
     }
