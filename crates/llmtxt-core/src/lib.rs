@@ -123,6 +123,28 @@ pub use semantic::{
     semantic_diff_native,
 };
 
+pub mod validation;
+pub use validation::{
+    DEFAULT_MAX_CONTENT_BYTES, DEFAULT_MAX_LINE_BYTES, contains_binary_content,
+    default_max_content_bytes, default_max_line_bytes, detect_format, find_overlong_line,
+};
+
+pub mod graph;
+pub use graph::{
+    GraphEdge, GraphNode, GraphStats, KnowledgeGraph, MessageInput, MessageMetadata, TopAgent,
+    TopTopic, build_graph_native, build_graph_wasm, extract_directives, extract_directives_wasm,
+    extract_mentions, extract_mentions_wasm, extract_tags, extract_tags_wasm, top_agents_native,
+    top_agents_wasm, top_topics_native, top_topics_wasm,
+};
+
+pub mod similarity;
+pub use similarity::{
+    SimilarityResult, content_similarity, content_similarity_wasm, extract_ngrams,
+    extract_ngrams_wasm, extract_word_shingles, extract_word_shingles_wasm, fingerprint_similarity,
+    jaccard_similarity, jaccard_similarity_wasm, min_hash_fingerprint, min_hash_fingerprint_wasm,
+    rank_by_similarity, rank_by_similarity_wasm, simple_hash, text_similarity_jaccard,
+};
+
 // ── Semantic Diff (WASM) ─────────────────────────────────────────
 
 /// WASM binding for [`semantic_diff`].
@@ -399,48 +421,23 @@ fn current_time_ms() -> f64 {
         .unwrap_or(0.0)
 }
 
-// ── Similarity ─────────────────────────────────────────────────
+// ── Similarity (WASM shims — delegate to similarity module) ────────
 
 /// Compute character-level n-gram Jaccard similarity between two texts.
 /// Returns 0.0 (no overlap) to 1.0 (identical). Default n=3.
 ///
-/// Suitable for finding similar messages without vector embeddings.
+/// WASM shim — delegates to [`similarity::text_similarity_jaccard`].
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn text_similarity(a: &str, b: &str) -> f64 {
-    text_similarity_ngram(a, b, 3)
+    similarity::text_similarity_jaccard(a, b, 3)
 }
 
 /// Compute n-gram Jaccard similarity with configurable gram size.
+///
+/// WASM shim — delegates to [`similarity::text_similarity_jaccard`].
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn text_similarity_ngram(a: &str, b: &str, n: usize) -> f64 {
-    let a_lower = a.to_lowercase();
-    let b_lower = b.to_lowercase();
-    let a_norm: String = a_lower.split_whitespace().collect::<Vec<_>>().join(" ");
-    let b_norm: String = b_lower.split_whitespace().collect::<Vec<_>>().join(" ");
-
-    if a_norm.len() < n && b_norm.len() < n {
-        return if a_norm == b_norm { 1.0 } else { 0.0 };
-    }
-
-    let a_grams: std::collections::HashSet<&str> = (0..=a_norm.len().saturating_sub(n))
-        .filter_map(|i| a_norm.get(i..i + n))
-        .collect();
-    let b_grams: std::collections::HashSet<&str> = (0..=b_norm.len().saturating_sub(n))
-        .filter_map(|i| b_norm.get(i..i + n))
-        .collect();
-
-    if a_grams.is_empty() && b_grams.is_empty() {
-        return 1.0;
-    }
-
-    let intersection = a_grams.intersection(&b_grams).count();
-    let union = a_grams.union(&b_grams).count();
-
-    if union == 0 {
-        0.0
-    } else {
-        intersection as f64 / union as f64
-    }
+    similarity::text_similarity_jaccard(a, b, n)
 }
 
 #[cfg(test)]

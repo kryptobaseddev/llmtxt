@@ -26,7 +26,6 @@ export type { DiffResult, StructuredDiffLine, StructuredDiffResult } from './com
 export {
   validateJson,
   validateText,
-  detectFormat,
   validateContent,
   autoValidate,
   DEFAULT_MAX_CONTENT_BYTES,
@@ -185,34 +184,44 @@ export type {
   AttachmentVersionResult,
 } from './client.js';
 
-// ── Similarity ─────────────────────────────────────────────────
+// ── Similarity (WASM-backed, T121) ─────────────────────────────
 export {
+  contentSimilarity,
   extractNgrams,
   extractWordShingles,
-  jaccardSimilarity,
-  textSimilarity,
-  contentSimilarity,
-  minHashFingerprint,
   fingerprintSimilarity,
+  jaccardSimilarity,
+  minHashFingerprint,
   rankBySimilarity,
+  textSimilarity,
 } from './similarity.js';
 
-// ── Knowledge Graph ────────────────────────────────────────────
+export type { SimilarityRankResult } from './wasm.js';
+
+// ── Knowledge Graph (WASM-backed, T122) ────────────────────────
 export {
+  buildGraph,
+  extractDirectives,
   extractMentions,
   extractTags,
-  extractDirectives,
-  buildGraph,
-  topTopics,
   topAgents,
+  topTopics,
 } from './graph.js';
 
 export type {
-  GraphNode,
   GraphEdge,
+  GraphNode,
+  GraphStats,
   KnowledgeGraph,
   MessageInput,
 } from './graph.js';
+
+// ── Format Detection & Content Checks (WASM-backed, T123) ──────
+export {
+  containsBinaryContent,
+  detectFormat,
+  findOverlongLine,
+} from './wasm.js';
 
 // ── Types ───────────────────────────────────────────────────────
 export type {

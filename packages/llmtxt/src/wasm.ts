@@ -539,3 +539,280 @@ export function semanticConsensus(
   }
   return parsed;
 }
+
+// ── Content Similarity (n-gram / MinHash) ────────────────────────
+
+/**
+ * Compute similarity between two texts using word shingles.
+ *
+ * Delegates to crates/llmtxt-core::similarity::content_similarity_wasm.
+ *
+ * @param a - First text.
+ * @param b - Second text.
+ * @returns Jaccard similarity of word bigrams, 0.0 to 1.0.
+ */
+export function contentSimilarity(a: string, b: string): number {
+  return wasmModule.content_similarity_wasm(a, b);
+}
+
+/**
+ * Auto-detect whether a string is JSON, markdown, or plain text.
+ *
+ * Delegates to crates/llmtxt-core::validation::detect_format.
+ *
+ * @param content - The string to inspect.
+ * @returns `"json"`, `"markdown"`, or `"text"`.
+ */
+export function detectFormat(content: string): 'json' | 'markdown' | 'text' {
+  return wasmModule.detect_format(content) as 'json' | 'markdown' | 'text';
+}
+
+/**
+ * Check for binary content (control chars 0x00–0x08) in the first 8 KB.
+ *
+ * Delegates to crates/llmtxt-core::validation::contains_binary_content.
+ */
+export function containsBinaryContent(content: string): boolean {
+  return wasmModule.contains_binary_content(content);
+}
+
+/**
+ * Extract @mentions from message content. Returns unique names (excluding @all).
+ *
+ * Delegates to crates/llmtxt-core::graph::extract_mentions_wasm.
+ *
+ * @returns JSON array string of mention strings.
+ */
+export function extractMentions(content: string): string[] {
+  return JSON.parse(wasmModule.extract_mentions_wasm(content)) as string[];
+}
+
+/**
+ * Extract character-level n-grams from text.
+ *
+ * Delegates to crates/llmtxt-core::similarity::extract_ngrams_wasm.
+ *
+ * @param text - Input text.
+ * @param n - N-gram size (default 3).
+ * @returns Sorted array of n-gram strings.
+ */
+export function extractNgrams(text: string, n = 3): string[] {
+  return JSON.parse(wasmModule.extract_ngrams_wasm(text, n)) as string[];
+}
+
+/**
+ * Extract #tags from message content. Returns unique tag names.
+ *
+ * Delegates to crates/llmtxt-core::graph::extract_tags_wasm.
+ */
+export function extractTags(content: string): string[] {
+  return JSON.parse(wasmModule.extract_tags_wasm(content)) as string[];
+}
+
+/**
+ * Extract /directives from message content. Returns unique directive keywords.
+ *
+ * Delegates to crates/llmtxt-core::graph::extract_directives_wasm.
+ */
+export function extractDirectives(content: string): string[] {
+  return JSON.parse(wasmModule.extract_directives_wasm(content)) as string[];
+}
+
+/**
+ * Extract word-level n-gram shingles from text.
+ *
+ * Delegates to crates/llmtxt-core::similarity::extract_word_shingles_wasm.
+ *
+ * @param text - Input text.
+ * @param n - Shingle size (default 2).
+ * @returns Sorted array of shingle strings.
+ */
+export function extractWordShingles(text: string, n = 2): string[] {
+  return JSON.parse(wasmModule.extract_word_shingles_wasm(text, n)) as string[];
+}
+
+/**
+ * Find the 1-based line number of the first line exceeding max_chars.
+ * Returns 0 if no overlong line exists.
+ *
+ * Delegates to crates/llmtxt-core::validation::find_overlong_line.
+ */
+export function findOverlongLine(content: string, maxChars: number): number {
+  return wasmModule.find_overlong_line(content, maxChars);
+}
+
+/**
+ * Estimate similarity between two MinHash fingerprints.
+ *
+ * @param a - Fingerprint array (from minHashFingerprint).
+ * @param b - Fingerprint array (from minHashFingerprint).
+ * @returns Approximate Jaccard similarity, 0.0 to 1.0.
+ */
+export function fingerprintSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length || a.length === 0) return 0;
+  let matches = 0;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] === b[i]) matches++;
+  }
+  return matches / a.length;
+}
+
+// ── Knowledge Graph ──────────────────────────────────────────────
+
+/** A node in the knowledge graph. */
+export interface GraphNode {
+  id: string;
+  type: string;
+  label: string;
+  weight: number;
+}
+
+/** An edge in the knowledge graph. */
+export interface GraphEdge {
+  source: string;
+  target: string;
+  type: string;
+  weight: number;
+}
+
+/** Statistics for a knowledge graph. */
+export interface GraphStats {
+  agentCount: number;
+  topicCount: number;
+  decisionCount: number;
+  edgeCount: number;
+}
+
+/** A knowledge graph containing nodes, edges, and statistics. */
+export interface KnowledgeGraph {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  stats: GraphStats;
+}
+
+/** Input message for graph construction. */
+export interface MessageInput {
+  id: string;
+  fromAgentId: string;
+  content: string;
+  metadata?: {
+    mentions?: string[];
+    directives?: string[];
+    tags?: string[];
+  };
+  createdAt: string;
+}
+
+/**
+ * Build a knowledge graph from an array of messages.
+ *
+ * Delegates to crates/llmtxt-core::graph::build_graph_wasm.
+ *
+ * @param messages - Array of MessageInput objects.
+ * @returns Parsed KnowledgeGraph.
+ * @throws Error if the Rust core returns an error.
+ */
+export function buildGraph(messages: MessageInput[]): KnowledgeGraph {
+  const json = wasmModule.build_graph_wasm(JSON.stringify(messages));
+  const parsed = JSON.parse(json) as KnowledgeGraph & { error?: string };
+  if (parsed.error) {
+    throw new Error(`buildGraph failed: ${parsed.error}`);
+  }
+  return parsed;
+}
+
+/**
+ * Find the most connected topics in the graph.
+ *
+ * Delegates to crates/llmtxt-core::graph::top_topics_wasm.
+ *
+ * @param graph - A KnowledgeGraph returned by buildGraph.
+ * @param limit - Maximum number of results (default 10).
+ * @returns Array of `{ topic, agents }` sorted by agent count descending.
+ */
+export function topTopics(graph: KnowledgeGraph, limit = 10): Array<{ topic: string; agents: number }> {
+  const json = wasmModule.top_topics_wasm(JSON.stringify(graph), limit);
+  const parsed = JSON.parse(json) as Array<{ topic: string; agents: number }> | { error?: string };
+  if (!Array.isArray(parsed) && parsed.error) {
+    throw new Error(`topTopics failed: ${parsed.error}`);
+  }
+  return parsed as Array<{ topic: string; agents: number }>;
+}
+
+/**
+ * Find the most active agents in the graph.
+ *
+ * Delegates to crates/llmtxt-core::graph::top_agents_wasm.
+ *
+ * @param graph - A KnowledgeGraph returned by buildGraph.
+ * @param limit - Maximum number of results (default 10).
+ * @returns Array of `{ agent, activity }` sorted by activity descending.
+ */
+export function topAgents(graph: KnowledgeGraph, limit = 10): Array<{ agent: string; activity: number }> {
+  const json = wasmModule.top_agents_wasm(JSON.stringify(graph), limit);
+  const parsed = JSON.parse(json) as Array<{ agent: string; activity: number }> | { error?: string };
+  if (!Array.isArray(parsed) && parsed.error) {
+    throw new Error(`topAgents failed: ${parsed.error}`);
+  }
+  return parsed as Array<{ agent: string; activity: number }>;
+}
+
+/**
+ * Compute Jaccard similarity between two texts using character n-grams.
+ *
+ * Delegates to crates/llmtxt-core::similarity::jaccard_similarity_wasm.
+ *
+ * @param a - First text.
+ * @param b - Second text.
+ * @returns Jaccard similarity with n=3, 0.0 to 1.0.
+ */
+export function jaccardSimilarity(a: string, b: string): number {
+  return wasmModule.jaccard_similarity_wasm(a, b);
+}
+
+/**
+ * Generate a MinHash fingerprint for content.
+ *
+ * Delegates to crates/llmtxt-core::similarity::min_hash_fingerprint_wasm.
+ *
+ * @param text - Input text.
+ * @param numHashes - Number of hash functions (default 64).
+ * @param ngramSize - N-gram size (default 3).
+ * @returns Array of minimum hash values.
+ */
+export function minHashFingerprint(text: string, numHashes = 64, ngramSize = 3): number[] {
+  return JSON.parse(wasmModule.min_hash_fingerprint_wasm(text, numHashes, ngramSize)) as number[];
+}
+
+/** Result entry from rankBySimilarity. */
+export interface SimilarityRankResult {
+  index: number;
+  score: number;
+}
+
+/**
+ * Rank a list of texts by similarity to a query.
+ *
+ * Delegates to crates/llmtxt-core::similarity::rank_by_similarity_wasm.
+ *
+ * @param query - Query string.
+ * @param candidates - Array of candidate strings.
+ * @param options - `{ method?: "ngram" | "shingle", threshold?: number }`.
+ * @returns Array of `{ index, score }` sorted by descending score.
+ */
+export function rankBySimilarity(
+  query: string,
+  candidates: string[],
+  options: { method?: 'ngram' | 'shingle'; threshold?: number } = {},
+): SimilarityRankResult[] {
+  const json = wasmModule.rank_by_similarity_wasm(
+    query,
+    JSON.stringify(candidates),
+    JSON.stringify(options),
+  );
+  const parsed = JSON.parse(json) as SimilarityRankResult[] | { error?: string };
+  if (!Array.isArray(parsed) && parsed.error) {
+    throw new Error(`rankBySimilarity failed: ${parsed.error}`);
+  }
+  return parsed as SimilarityRankResult[];
+}

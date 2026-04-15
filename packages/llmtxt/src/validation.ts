@@ -1,6 +1,11 @@
 /**
- * Content validation: format detection, JSON/text/markdown validation,
- * and optional predefined-schema enforcement.
+ * Content validation: format detection, binary checking, and line-length enforcement.
+ *
+ * Computation-heavy primitives (detectFormat, containsBinaryContent, findOverlongLine)
+ * are now backed by crates/llmtxt-core via WASM (SSoT enforcement, T111/T123).
+ *
+ * Zod-based schema validators (validateJson, validateText, validateContent, autoValidate)
+ * remain in TypeScript because they depend on the Zod library which cannot run in Rust.
  */
 import { ZodError } from 'zod';
 import {
@@ -10,6 +15,11 @@ import {
   isPredefinedSchema,
   predefinedSchemas,
 } from './schemas.js';
+import {
+  detectFormat as detectFormatWasm,
+  containsBinaryContent as containsBinaryContentWasm,
+  findOverlongLine as findOverlongLineWasm,
+} from './wasm.js';
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -153,23 +163,14 @@ export function validateText(content: unknown): ValidationResult<string> {
   return { success: true, data: result.data, format: 'text' };
 }
 
-// Markdown signals used by detectFormat — must match disclosure.ts heuristics
-const MARKDOWN_SIGNALS = [
-  /^#{1,6}\s/m,         // Headers
-  /^\s*[-*]\s/m,        // Unordered lists
-  /^\s*\d+\.\s/m,       // Ordered lists
-  /```/,                // Code blocks
-  /\[.+\]\(.+\)/,      // Links
-];
-
 /**
  * Auto-detect whether a string is JSON, markdown, or plain text.
  *
  * @remarks
+ * Delegates to crates/llmtxt-core::validation::detect_format (WASM-backed, T123).
  * Attempts JSON parsing first. For non-JSON content, applies markdown
  * heuristics (headings, lists, code blocks, links) — 2+ signals returns
- * `"markdown"`, otherwise `"text"`. This is now consistent with the
- * disclosure module's `detectDocumentFormat`.
+ * `"markdown"`, otherwise `"text"`.
  *
  * @param content - The string to inspect.
  * @returns The detected format: `"json"`, `"markdown"`, or `"text"`.
@@ -182,13 +183,7 @@ const MARKDOWN_SIGNALS = [
  * ```
  */
 export function detectFormat(content: string): 'json' | 'text' | 'markdown' {
-  try {
-    JSON.parse(content);
-    return 'json';
-  } catch {
-    const markdownScore = MARKDOWN_SIGNALS.filter(r => r.test(content)).length;
-    return markdownScore >= 2 ? 'markdown' : 'text';
-  }
+  return detectFormatWasm(content);
 }
 
 /** Default maximum content size in bytes (5 MB). */
@@ -210,34 +205,6 @@ export interface ValidateContentOptions {
 }
 
 /**
- * Check for binary content by scanning for control characters (0x00-0x08)
- * in the first 8KB.
- */
-function containsBinaryContent(content: string): boolean {
-  const scanLength = Math.min(content.length, 8192);
-  for (let i = 0; i < scanLength; i++) {
-    const code = content.charCodeAt(i);
-    if (code >= 0 && code <= 8) return true;
-  }
-  return false;
-}
-
-/**
- * Check if any line exceeds the maximum line length.
- */
-function findOverlongLine(content: string, maxBytes: number): number | null {
-  let lineStart = 0;
-  for (let i = 0; i <= content.length; i++) {
-    if (i === content.length || content[i] === '\n') {
-      const lineLength = i - lineStart;
-      if (lineLength > maxBytes) return lineStart + 1; // 1-indexed
-      lineStart = i + 1;
-    }
-  }
-  return null;
-}
-
-/**
  * Validate content for a given format, with optional schema enforcement
  * and content size limits.
  *
@@ -246,6 +213,9 @@ function findOverlongLine(content: string, maxBytes: number): number | null {
  * {@link validateText} for text/markdown. Enforces a byte-size limit
  * (default 5 MB) before format validation. Returns an error result when
  * an unsupported format string is supplied or content exceeds the limit.
+ *
+ * Binary content detection and overlong-line checks now delegate to
+ * crates/llmtxt-core::validation via WASM (T123).
  *
  * @param content - The raw content to validate.
  * @param format - The expected content format.
@@ -287,9 +257,9 @@ export function validateContent(
     }
   }
 
-  // Reject binary content (control chars 0x00-0x08 in first 8KB)
+  // Reject binary content (delegates to WASM, T123)
   const rejectBinary = opts.rejectBinary ?? true;
-  if (rejectBinary && typeof content === 'string' && containsBinaryContent(content)) {
+  if (rejectBinary && typeof content === 'string' && containsBinaryContentWasm(content)) {
     return {
       success: false,
       errors: [{
@@ -300,11 +270,11 @@ export function validateContent(
     };
   }
 
-  // Enforce max line length
+  // Enforce max line length (delegates to WASM, T123)
   const maxLineBytes = opts.maxLineBytes ?? DEFAULT_MAX_LINE_BYTES;
   if (maxLineBytes > 0 && typeof content === 'string') {
-    const overlongLine = findOverlongLine(content, maxLineBytes);
-    if (overlongLine !== null) {
+    const overlongLine = findOverlongLineWasm(content, maxLineBytes);
+    if (overlongLine !== 0) {
       const maxKB = (maxLineBytes / 1024).toFixed(0);
       return {
         success: false,

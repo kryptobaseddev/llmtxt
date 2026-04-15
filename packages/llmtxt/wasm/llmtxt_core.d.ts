@@ -433,3 +433,97 @@ export function role_permissions(role: string): string;
  * Returns an empty string if the input is empty or produces no slug characters.
  */
 export function slugify(name: string): string;
+
+// ── Validation primitives (T123) ────────────────────────────────────
+
+/**
+ * Detect whether content is JSON, markdown, or plain text.
+ * Returns `"json"`, `"markdown"`, or `"text"`.
+ */
+export function detect_format(content: string): string;
+
+/**
+ * Check for binary content by scanning for control characters (0x00–0x08)
+ * in the first 8 KB of the content.
+ */
+export function contains_binary_content(content: string): boolean;
+
+/**
+ * Find the 1-based line number of the first line that exceeds `max_chars`.
+ * Returns 0 if no overlong line exists.
+ */
+export function find_overlong_line(content: string, max_chars: number): number;
+
+/** WASM-exposed default max content bytes (5 MB). */
+export function default_max_content_bytes(): bigint;
+
+/** WASM-exposed default max line bytes (64 KiB). */
+export function default_max_line_bytes(): number;
+
+// ── Graph primitives (T122) ─────────────────────────────────────────
+
+/**
+ * Extract @mentions from content. Returns JSON array of strings.
+ */
+export function extract_mentions_wasm(content: string): string;
+
+/**
+ * Extract #tags from content. Returns JSON array of strings.
+ */
+export function extract_tags_wasm(content: string): string;
+
+/**
+ * Extract /directives from content. Returns JSON array of strings.
+ */
+export function extract_directives_wasm(content: string): string;
+
+/**
+ * Build a knowledge graph from a JSON array of MessageInput objects.
+ * Returns a JSON-serialised KnowledgeGraph, or `{"error":"..."}` on failure.
+ */
+export function build_graph_wasm(messages_json: string): string;
+
+/**
+ * Find the most connected topics. Returns JSON array of `{ topic, agents }`.
+ */
+export function top_topics_wasm(graph_json: string, limit: number): string;
+
+/**
+ * Find the most active agents. Returns JSON array of `{ agent, activity }`.
+ */
+export function top_agents_wasm(graph_json: string, limit: number): string;
+
+// ── Similarity primitives (T121) ────────────────────────────────────
+
+/**
+ * Extract character n-grams from text. Returns JSON array of strings.
+ */
+export function extract_ngrams_wasm(text: string, n: number): string;
+
+/**
+ * Extract word shingles from text. Returns JSON array of strings.
+ */
+export function extract_word_shingles_wasm(text: string, n: number): string;
+
+/**
+ * Compute Jaccard similarity between two texts using character n-grams (n=3).
+ */
+export function jaccard_similarity_wasm(a: string, b: string): number;
+
+/**
+ * Compute content similarity using word shingles (n=2).
+ */
+export function content_similarity_wasm(a: string, b: string): number;
+
+/**
+ * Generate a MinHash fingerprint. Returns JSON array of numbers.
+ */
+export function min_hash_fingerprint_wasm(text: string, num_hashes: number, ngram_size: number): string;
+
+/**
+ * Rank candidates by similarity to query.
+ * `candidates_json` is a JSON array of strings.
+ * `options_json` is `{"method":"ngram"|"shingle","threshold":0.0}`.
+ * Returns JSON array of `{ index, score }` sorted descending.
+ */
+export function rank_by_similarity_wasm(query: string, candidates_json: string, options_json: string): string;
