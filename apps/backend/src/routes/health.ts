@@ -88,7 +88,7 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
         const { db, DATABASE_PROVIDER } = await import('../db/index.js');
 
         if (DATABASE_PROVIDER === 'postgresql') {
-          // Drizzle over node-postgres: use sql template tag for a raw query.
+          // Drizzle over postgres-js: use sql template tag for a raw query.
           const { sql } = await import('drizzle-orm');
           await db.execute(sql`SELECT 1`);
         } else {

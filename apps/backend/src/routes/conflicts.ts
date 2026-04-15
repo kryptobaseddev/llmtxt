@@ -71,9 +71,10 @@ type DocRow = {
  * Compress `content` then atomically insert a new version row, update the
  * document head, and upsert the contributor record.
  *
- * Uses IMMEDIATE transaction mode so SQLite acquires the write lock at BEGIN
- * time, preventing two concurrent requests from racing on the version number.
- * better-sqlite3 is synchronous — no async/await inside the transaction callback.
+ * Uses an async transaction callback compatible with both drizzle-orm/better-sqlite3
+ * and drizzle-orm/postgres-js.  The { behavior: 'immediate' } SQLite option is
+ * intentionally omitted — Postgres READ COMMITTED isolation plus the UNIQUE
+ * constraint retry below is sufficient to prevent duplicate version numbers.
  *
  * Returns the new version number and metadata.
  */
@@ -100,119 +101,103 @@ async function persistNewVersion(opts: {
   const compressedSize = compressedData.length;
   const now = Date.now();
 
-  const runInsert = (): number =>
-    db.transaction(
-      (tx: any) => {
-        const [latestVersion] = tx
-          .select({ versionNumber: versions.versionNumber })
-          .from(versions)
-          .where(eq(versions.documentId, doc.id))
-          .orderBy(desc(versions.versionNumber))
-          .limit(1)
-          .all();
+  const runInsert = async (): Promise<number> =>
+    db.transaction(async (tx: any) => {
+      const [latestVersion] = await tx
+        .select({ versionNumber: versions.versionNumber })
+        .from(versions)
+        .where(eq(versions.documentId, doc.id))
+        .orderBy(desc(versions.versionNumber))
+        .limit(1);
 
-        const nextVersionNumber = latestVersion ? latestVersion.versionNumber + 1 : 2;
+      const nextVersionNumber = latestVersion ? latestVersion.versionNumber + 1 : 2;
 
-        // Snapshot the original content as version 1 if no prior versions exist.
-        if (!latestVersion) {
-          tx
-            .insert(versions)
-            .values({
-              id: generateId(),
-              documentId: doc.id,
-              versionNumber: 1,
-              compressedData: doc.compressedData,
-              contentHash: doc.contentHash,
-              tokenCount: doc.tokenCount,
-              createdAt: doc.createdAt,
-              changelog: 'Initial version',
+      // Snapshot the original content as version 1 if no prior versions exist.
+      if (!latestVersion) {
+        await tx.insert(versions).values({
+          id: generateId(),
+          documentId: doc.id,
+          versionNumber: 1,
+          compressedData: doc.compressedData,
+          contentHash: doc.contentHash,
+          tokenCount: doc.tokenCount,
+          createdAt: doc.createdAt,
+          changelog: 'Initial version',
+        });
+      }
+
+      // Insert the new version row.
+      await tx.insert(versions).values({
+        id: generateId(),
+        documentId: doc.id,
+        versionNumber: nextVersionNumber,
+        compressedData,
+        contentHash,
+        tokenCount,
+        createdAt: now,
+        createdBy: effectiveCreatedBy,
+        changelog,
+      });
+
+      // Update the document head.
+      await tx
+        .update(documents)
+        .set({
+          compressedData,
+          contentHash,
+          originalSize,
+          compressedSize,
+          tokenCount,
+          currentVersion: nextVersionNumber,
+        })
+        .where(eq(documents.id, doc.id));
+
+      // Upsert contributor record inside the same transaction.
+      if (effectiveCreatedBy) {
+        const [existing] = await tx
+          .select()
+          .from(contributors)
+          .where(
+            and(
+              eq(contributors.documentId, doc.id),
+              eq(contributors.agentId, effectiveCreatedBy),
+            ),
+          );
+
+        if (existing) {
+          await tx
+            .update(contributors)
+            .set({
+              versionsAuthored: existing.versionsAuthored + 1,
+              lastContribution: now,
             })
-            .run();
-        }
-
-        // Insert the new version row.
-        tx
-          .insert(versions)
-          .values({
+            .where(eq(contributors.id, existing.id));
+        } else {
+          await tx.insert(contributors).values({
             id: generateId(),
             documentId: doc.id,
-            versionNumber: nextVersionNumber,
-            compressedData,
-            contentHash,
-            tokenCount,
-            createdAt: now,
-            createdBy: effectiveCreatedBy,
-            changelog,
-          })
-          .run();
-
-        // Update the document head.
-        tx
-          .update(documents)
-          .set({
-            compressedData,
-            contentHash,
-            originalSize,
-            compressedSize,
-            tokenCount,
-            currentVersion: nextVersionNumber,
-          })
-          .where(eq(documents.id, doc.id))
-          .run();
-
-        // Upsert contributor record inside the same transaction.
-        if (effectiveCreatedBy) {
-          const [existing] = tx
-            .select()
-            .from(contributors)
-            .where(
-              and(
-                eq(contributors.documentId, doc.id),
-                eq(contributors.agentId, effectiveCreatedBy),
-              ),
-            )
-            .all();
-
-          if (existing) {
-            tx
-              .update(contributors)
-              .set({
-                versionsAuthored: existing.versionsAuthored + 1,
-                lastContribution: now,
-              })
-              .where(eq(contributors.id, existing.id))
-              .run();
-          } else {
-            tx
-              .insert(contributors)
-              .values({
-                id: generateId(),
-                documentId: doc.id,
-                agentId: effectiveCreatedBy,
-                versionsAuthored: 1,
-                totalTokensAdded: tokenCount ?? 0,
-                totalTokensRemoved: 0,
-                netTokens: tokenCount ?? 0,
-                firstContribution: now,
-                lastContribution: now,
-              })
-              .run();
-          }
+            agentId: effectiveCreatedBy,
+            versionsAuthored: 1,
+            totalTokensAdded: tokenCount ?? 0,
+            totalTokensRemoved: 0,
+            netTokens: tokenCount ?? 0,
+            firstContribution: now,
+            lastContribution: now,
+          });
         }
+      }
 
-        return nextVersionNumber;
-      },
-      { behavior: 'immediate' },
-    );
+      return nextVersionNumber;
+    });
 
   // Retry once on UNIQUE constraint collision from a concurrent write.
   let nextVersionNumber: number;
   try {
-    nextVersionNumber = runInsert();
+    nextVersionNumber = await runInsert();
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes('UNIQUE constraint failed')) {
-      nextVersionNumber = runInsert();
+    if (msg.includes('UNIQUE constraint failed') || msg.includes('unique constraint')) {
+      nextVersionNumber = await runInsert();
     } else {
       throw err;
     }
