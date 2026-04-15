@@ -5,16 +5,18 @@
  * method for HTTP testing without starting a real server.
  *
  * Each describe block is self-contained with its own in-memory SQLite
- * database and minimal Fastify app.
+ * database (default) or isolated Postgres schema (when DATABASE_URL_PG is set).
  *
  * Run with:
  *   node --import tsx/esm --test src/__tests__/integration.test.ts
+ *
+ * PostgreSQL mode:
+ *   DATABASE_URL_PG=postgres://test:test@localhost:5432/llmtxt_test \
+ *     node --import tsx/esm --test src/__tests__/integration.test.ts
  */
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import Fastify, { type FastifyInstance } from 'fastify';
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { eq, and, asc, desc } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 import { generateApiKey, hashApiKey } from '../utils/api-keys.js';
@@ -24,318 +26,15 @@ import fastifyCookie from '@fastify/cookie';
 import fastifyCsrf from '@fastify/csrf-protection';
 import { securityHeaders } from '../middleware/security.js';
 import { apiVersionPlugin, addVersionResponseHeaders, addDeprecationHeaders, API_VERSION_REGISTRY, CURRENT_API_VERSION } from '../middleware/api-version.js';
+import { setupTestDb, teardownTestDb, type TestDbContext } from './helpers/test-db.js';
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Test database bootstrap helpers
+// Shared seed helpers
 // ──────────────────────────────────────────────────────────────────────────────
-
-/**
- * Create a fully-bootstrapped in-memory SQLite test database with all tables.
- */
-function createTestDb() {
-  const sqlite = new Database(':memory:');
-  sqlite.pragma('foreign_keys = ON');
-
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL DEFAULT '',
-      email TEXT NOT NULL UNIQUE,
-      email_verified INTEGER NOT NULL DEFAULT 0,
-      image TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      is_anonymous INTEGER DEFAULT 0,
-      agent_id TEXT,
-      expires_at INTEGER
-    );
-
-    CREATE TABLE IF NOT EXISTS sessions (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      token TEXT NOT NULL UNIQUE,
-      expires_at INTEGER NOT NULL,
-      ip_address TEXT,
-      user_agent TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS accounts (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      account_id TEXT NOT NULL,
-      provider_id TEXT NOT NULL,
-      access_token TEXT,
-      refresh_token TEXT,
-      access_token_expires_at INTEGER,
-      refresh_token_expires_at INTEGER,
-      scope TEXT,
-      id_token TEXT,
-      password TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS verifications (
-      id TEXT PRIMARY KEY,
-      identifier TEXT NOT NULL,
-      value TEXT NOT NULL,
-      expires_at INTEGER NOT NULL,
-      created_at INTEGER,
-      updated_at INTEGER
-    );
-
-    CREATE TABLE IF NOT EXISTS documents (
-      id TEXT PRIMARY KEY,
-      slug TEXT NOT NULL UNIQUE,
-      format TEXT NOT NULL,
-      content_hash TEXT NOT NULL,
-      compressed_data BLOB,
-      original_size INTEGER NOT NULL,
-      compressed_size INTEGER NOT NULL,
-      token_count INTEGER,
-      created_at INTEGER NOT NULL,
-      expires_at INTEGER,
-      access_count INTEGER NOT NULL DEFAULT 0,
-      last_accessed_at INTEGER,
-      state TEXT NOT NULL DEFAULT 'DRAFT',
-      owner_id TEXT REFERENCES users(id) ON DELETE SET NULL,
-      is_anonymous INTEGER NOT NULL DEFAULT 0,
-      storage_type TEXT NOT NULL DEFAULT 'inline',
-      storage_key TEXT,
-      current_version INTEGER NOT NULL DEFAULT 0,
-      version_count INTEGER NOT NULL DEFAULT 0,
-      sharing_mode TEXT NOT NULL DEFAULT 'signed_url',
-      approval_required_count INTEGER NOT NULL DEFAULT 1,
-      approval_require_unanimous INTEGER NOT NULL DEFAULT 0,
-      approval_allowed_reviewers TEXT NOT NULL DEFAULT '',
-      approval_timeout_ms INTEGER NOT NULL DEFAULT 0,
-      visibility TEXT NOT NULL DEFAULT 'public'
-    );
-
-    CREATE INDEX IF NOT EXISTS documents_slug_idx ON documents(slug);
-    CREATE INDEX IF NOT EXISTS documents_owner_id_idx ON documents(owner_id);
-
-    CREATE TABLE IF NOT EXISTS versions (
-      id TEXT PRIMARY KEY,
-      document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-      version_number INTEGER NOT NULL,
-      compressed_data BLOB,
-      content_hash TEXT NOT NULL,
-      token_count INTEGER,
-      created_at INTEGER NOT NULL,
-      created_by TEXT,
-      changelog TEXT,
-      patch_text TEXT,
-      base_version INTEGER,
-      storage_type TEXT NOT NULL DEFAULT 'inline',
-      storage_key TEXT,
-      UNIQUE(document_id, version_number)
-    );
-
-    CREATE INDEX IF NOT EXISTS versions_document_id_idx ON versions(document_id);
-
-    CREATE TABLE IF NOT EXISTS state_transitions (
-      id TEXT PRIMARY KEY,
-      document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-      from_state TEXT NOT NULL,
-      to_state TEXT NOT NULL,
-      changed_by TEXT NOT NULL,
-      changed_at INTEGER NOT NULL,
-      reason TEXT,
-      at_version INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS approvals (
-      id TEXT PRIMARY KEY,
-      document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-      reviewer_id TEXT NOT NULL,
-      status TEXT NOT NULL,
-      timestamp INTEGER NOT NULL,
-      reason TEXT,
-      at_version INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS contributors (
-      id TEXT PRIMARY KEY,
-      document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-      agent_id TEXT NOT NULL,
-      versions_authored INTEGER NOT NULL DEFAULT 0,
-      total_tokens_added INTEGER NOT NULL DEFAULT 0,
-      total_tokens_removed INTEGER NOT NULL DEFAULT 0,
-      net_tokens INTEGER NOT NULL DEFAULT 0,
-      first_contribution INTEGER NOT NULL,
-      last_contribution INTEGER NOT NULL,
-      sections_modified TEXT NOT NULL DEFAULT '[]',
-      display_name TEXT,
-      UNIQUE(document_id, agent_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS api_keys (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      name TEXT NOT NULL,
-      key_hash TEXT NOT NULL UNIQUE,
-      key_prefix TEXT NOT NULL,
-      scopes TEXT NOT NULL DEFAULT '*',
-      last_used_at INTEGER,
-      expires_at INTEGER,
-      revoked INTEGER NOT NULL DEFAULT 0,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-
-    CREATE UNIQUE INDEX IF NOT EXISTS api_keys_key_hash_idx ON api_keys(key_hash);
-
-    CREATE TABLE IF NOT EXISTS audit_logs (
-      id TEXT PRIMARY KEY,
-      user_id TEXT,
-      agent_id TEXT,
-      ip_address TEXT,
-      user_agent TEXT,
-      action TEXT NOT NULL,
-      resource_type TEXT NOT NULL,
-      resource_id TEXT,
-      details TEXT,
-      timestamp INTEGER NOT NULL,
-      request_id TEXT,
-      method TEXT,
-      path TEXT,
-      status_code INTEGER
-    );
-
-    CREATE TABLE IF NOT EXISTS document_roles (
-      id TEXT PRIMARY KEY,
-      document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      role TEXT NOT NULL,
-      granted_by TEXT NOT NULL,
-      granted_at INTEGER NOT NULL,
-      UNIQUE(document_id, user_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS document_links (
-      id TEXT PRIMARY KEY,
-      source_doc_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-      target_doc_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-      link_type TEXT NOT NULL,
-      label TEXT,
-      created_by TEXT,
-      created_at INTEGER NOT NULL,
-      UNIQUE(source_doc_id, target_doc_id, link_type)
-    );
-
-    CREATE TABLE IF NOT EXISTS collections (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      slug TEXT NOT NULL UNIQUE,
-      description TEXT,
-      owner_id TEXT NOT NULL REFERENCES users(id),
-      visibility TEXT NOT NULL DEFAULT 'public',
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS collection_documents (
-      id TEXT PRIMARY KEY,
-      collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
-      document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-      position INTEGER NOT NULL DEFAULT 0,
-      added_by TEXT,
-      added_at INTEGER NOT NULL,
-      UNIQUE(collection_id, document_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS webhooks (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      url TEXT NOT NULL,
-      secret TEXT NOT NULL,
-      events TEXT NOT NULL DEFAULT '[]',
-      document_slug TEXT,
-      active INTEGER NOT NULL DEFAULT 1,
-      failure_count INTEGER NOT NULL DEFAULT 0,
-      last_delivery_at INTEGER,
-      last_success_at INTEGER,
-      created_at INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS signed_url_tokens (
-      id TEXT PRIMARY KEY,
-      document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-      slug TEXT NOT NULL,
-      agent_id TEXT NOT NULL,
-      conversation_id TEXT NOT NULL,
-      org_id TEXT,
-      signature TEXT NOT NULL,
-      signature_length INTEGER NOT NULL DEFAULT 16,
-      expires_at INTEGER NOT NULL,
-      created_at INTEGER NOT NULL,
-      revoked INTEGER NOT NULL DEFAULT 0,
-      access_count INTEGER NOT NULL DEFAULT 0,
-      last_accessed_at INTEGER
-    );
-
-    CREATE TABLE IF NOT EXISTS organizations (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      slug TEXT NOT NULL UNIQUE,
-      created_by TEXT NOT NULL REFERENCES users(id),
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS org_members (
-      id TEXT PRIMARY KEY,
-      org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      role TEXT NOT NULL,
-      joined_at INTEGER NOT NULL,
-      UNIQUE(org_id, user_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS document_orgs (
-      id TEXT PRIMARY KEY,
-      document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-      org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-      added_at INTEGER NOT NULL,
-      UNIQUE(document_id, org_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS pending_invites (
-      id TEXT PRIMARY KEY,
-      document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-      email TEXT NOT NULL,
-      role TEXT NOT NULL,
-      invited_by TEXT NOT NULL,
-      created_at INTEGER NOT NULL,
-      expires_at INTEGER,
-      UNIQUE(document_id, email)
-    );
-
-    CREATE TABLE IF NOT EXISTS version_attributions (
-      id TEXT PRIMARY KEY,
-      document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-      version_number INTEGER NOT NULL,
-      author_id TEXT NOT NULL,
-      added_lines INTEGER NOT NULL DEFAULT 0,
-      removed_lines INTEGER NOT NULL DEFAULT 0,
-      added_tokens INTEGER NOT NULL DEFAULT 0,
-      removed_tokens INTEGER NOT NULL DEFAULT 0,
-      sections_modified TEXT NOT NULL DEFAULT '[]',
-      changelog TEXT NOT NULL DEFAULT '',
-      created_at INTEGER NOT NULL,
-      UNIQUE(document_id, version_number)
-    );
-  `);
-
-  return { db: drizzle({ client: sqlite, schema }), sqlite };
-}
 
 /** Seed a test user into the db. */
 function seedUser(
-  db: ReturnType<typeof createTestDb>['db'],
+  db: TestDbContext['db'],
   opts: { id?: string; email?: string } = {}
 ) {
   const id = opts.id ?? `user_${Math.random().toString(36).slice(2)}`;
@@ -357,7 +56,7 @@ function seedUser(
  * Seed a document with an initial version. Returns the doc slug and id.
  */
 async function seedDocument(
-  db: ReturnType<typeof createTestDb>['db'],
+  db: TestDbContext['db'],
   opts: { content?: string; ownerId?: string; format?: string; slug?: string } = {}
 ) {
   const content = opts.content ?? '# Test Document\n\nThis is test content.';
@@ -404,10 +103,10 @@ async function seedDocument(
 
 describe('Document CRUD (baseline)', async () => {
   let app: FastifyInstance;
-  let testDb: ReturnType<typeof createTestDb>;
+  let testDb: TestDbContext;
 
   before(async () => {
-    testDb = createTestDb();
+    testDb = await setupTestDb();
     app = Fastify({ logger: false });
 
     // Register api version plugin
@@ -547,7 +246,10 @@ describe('Document CRUD (baseline)', async () => {
     await app.ready();
   });
 
-  after(async () => { await app.close(); });
+  after(async () => {
+    await app.close();
+    await teardownTestDb(testDb);
+  });
 
   it('POST /api/compress creates a document and returns 201', async () => {
     const res = await app.inject({
@@ -629,13 +331,15 @@ describe('Document CRUD (baseline)', async () => {
 // ──────────────────────────────────────────────────────────────────────────────
 
 describe('API Key Authentication (Epic 1)', async () => {
-  let testDb: ReturnType<typeof createTestDb>;
+  let testDb: TestDbContext;
   let user: { id: string; email: string };
 
-  before(() => {
-    testDb = createTestDb();
+  before(async () => {
+    testDb = await setupTestDb();
     user = seedUser(testDb.db);
   });
+
+  after(async () => { await teardownTestDb(testDb); });
 
   it('creates an API key and retrieves it by hash', () => {
     const { rawKey, keyHash, keyPrefix } = generateApiKey();
@@ -1155,11 +859,13 @@ describe('Security Headers (Epic 8)', async () => {
 // ──────────────────────────────────────────────────────────────────────────────
 
 describe('Conflict Detection (Epic 4)', async () => {
-  let testDb: ReturnType<typeof createTestDb>;
+  let testDb: TestDbContext;
 
-  before(() => {
-    testDb = createTestDb();
+  before(async () => {
+    testDb = await setupTestDb();
   });
+
+  after(async () => { await teardownTestDb(testDb); });
 
   it('optimistic concurrency: update with correct baseVersion succeeds', async () => {
     const { db } = testDb;
@@ -1297,13 +1003,15 @@ describe('Conflict Detection (Epic 4)', async () => {
 // ──────────────────────────────────────────────────────────────────────────────
 
 describe('Collections & Cross-Doc (Epic 9)', async () => {
-  let testDb: ReturnType<typeof createTestDb>;
+  let testDb: TestDbContext;
   let user: { id: string; email: string };
 
-  before(() => {
-    testDb = createTestDb();
+  before(async () => {
+    testDb = await setupTestDb();
     user = seedUser(testDb.db);
   });
+
+  after(async () => { await teardownTestDb(testDb); });
 
   it('creates a document link and retrieves it with correct direction', async () => {
     const { db } = testDb;
@@ -1455,13 +1163,15 @@ describe('Collections & Cross-Doc (Epic 9)', async () => {
 // ──────────────────────────────────────────────────────────────────────────────
 
 describe('Real-Time Events (Epic 3)', async () => {
-  let testDb: ReturnType<typeof createTestDb>;
+  let testDb: TestDbContext;
   let user: { id: string; email: string };
 
-  before(() => {
-    testDb = createTestDb();
+  before(async () => {
+    testDb = await setupTestDb();
     user = seedUser(testDb.db);
   });
+
+  after(async () => { await teardownTestDb(testDb); });
 
   it('registers a webhook and persists it in the database', () => {
     const { db } = testDb;
@@ -1588,12 +1298,12 @@ describe('Real-Time Events (Epic 3)', async () => {
 // ──────────────────────────────────────────────────────────────────────────────
 
 describe('Audit Logging (Epic 8)', async () => {
-  let testDb: ReturnType<typeof createTestDb>;
+  let testDb: TestDbContext;
   let app: FastifyInstance;
   let user: { id: string; email: string };
 
   before(async () => {
-    testDb = createTestDb();
+    testDb = await setupTestDb();
     user = seedUser(testDb.db);
 
     app = Fastify({ logger: false });
@@ -1657,10 +1367,13 @@ describe('Audit Logging (Epic 8)', async () => {
       return reply.status(201).send({ id, slug });
     });
 
-    // Audit log query endpoint
+    // Audit log query endpoint — uses Drizzle ORM for provider portability
     app.get('/api/audit-logs', async (_request, reply) => {
-      const logs = testDb.sqlite
-        .prepare('SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT 50')
+      const logs = testDb.db
+        .select()
+        .from(schema.auditLogs)
+        .orderBy(desc(schema.auditLogs.timestamp))
+        .limit(50)
         .all();
       return reply.send({ logs, total: logs.length });
     });
@@ -1668,7 +1381,10 @@ describe('Audit Logging (Epic 8)', async () => {
     await app.ready();
   });
 
-  after(async () => { await app.close(); });
+  after(async () => {
+    await app.close();
+    await teardownTestDb(testDb);
+  });
 
   it('creating a document generates an audit log entry with action=document.create', async () => {
     // Create a document
@@ -1688,11 +1404,11 @@ describe('Audit Logging (Epic 8)', async () => {
     assert.equal(logsRes.statusCode, 200);
     const { logs } = logsRes.json();
 
-    const createLog = (logs as Array<{ action: string; resource_type: string }>)
+    const createLog = (logs as Array<{ action: string; resourceType: string }>)
       .find(l => l.action === 'document.create');
 
     assert.ok(createLog, 'Audit log must have a document.create entry');
-    assert.equal(createLog.resource_type, 'document');
+    assert.equal(createLog.resourceType, 'document');
   });
 
   it('audit log entry has required fields: userId, action, resourceType, timestamp', async () => {
@@ -1714,7 +1430,7 @@ describe('Audit Logging (Epic 8)', async () => {
     const entry = logs[0] as Record<string, unknown>;
     assert.ok(entry.id, 'Audit log must have id');
     assert.ok(entry.action, 'Audit log must have action');
-    assert.ok(entry.resource_type, 'Audit log must have resource_type');
+    assert.ok(entry.resourceType, 'Audit log must have resourceType');
     assert.ok(typeof entry.timestamp === 'number', 'Audit log must have numeric timestamp');
   });
 });
@@ -1724,11 +1440,11 @@ describe('Audit Logging (Epic 8)', async () => {
 // ──────────────────────────────────────────────────────────────────────────────
 
 describe('Semantic Diff (Epic 10)', async () => {
-  let testDb: ReturnType<typeof createTestDb>;
+  let testDb: TestDbContext;
   let app: FastifyInstance;
 
   before(async () => {
-    testDb = createTestDb();
+    testDb = await setupTestDb();
 
     app = Fastify({ logger: false });
 
@@ -1751,8 +1467,8 @@ describe('Semantic Diff (Epic 10)', async () => {
         .where(eq(schema.versions.documentId, doc.id))
         .all();
 
-      const fromRow = versions.find(v => v.versionNumber === body.fromVersion);
-      const toRow = versions.find(v => v.versionNumber === body.toVersion);
+      const fromRow = versions.find((v: { versionNumber: number }) => v.versionNumber === body.fromVersion);
+      const toRow = versions.find((v: { versionNumber: number }) => v.versionNumber === body.toVersion);
 
       if (!fromRow) return reply.status(404).send({ error: `Version ${body.fromVersion} not found` });
       if (!toRow) return reply.status(404).send({ error: `Version ${body.toVersion} not found` });
@@ -1789,7 +1505,10 @@ describe('Semantic Diff (Epic 10)', async () => {
     await app.ready();
   });
 
-  after(async () => { await app.close(); });
+  after(async () => {
+    await app.close();
+    await teardownTestDb(testDb);
+  });
 
   it('semantic-diff endpoint exists and returns 404 for unknown document', async () => {
     const res = await app.inject({

@@ -7,6 +7,10 @@
  *
  * Or via the pnpm test script (once configured).
  *
+ * PostgreSQL mode:
+ *   DATABASE_URL_PG=postgres://test:test@localhost:5432/llmtxt_test \
+ *     node --import tsx/esm --test src/__tests__/api-keys.test.ts
+ *
  * Test groups:
  *   1. Key generation utility
  *   2. Key hash verification
@@ -17,11 +21,10 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import Fastify from 'fastify';
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { eq } from 'drizzle-orm';
 import * as schema from '../db/schema.js';
 import { generateApiKey, hashApiKey, isApiKeyFormat } from '../utils/api-keys.js';
+import { setupTestDb, teardownTestDb, type TestDbContext } from './helpers/test-db.js';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // 1. Key generation utility
@@ -127,63 +130,16 @@ describe('isApiKeyFormat()', () => {
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
-// 4 & 5. Integration tests using an in-memory SQLite database
+// 4 & 5. Integration tests using the test database harness
 //
-// We spin up an isolated Fastify instance with an in-memory database so these
-// tests are fully self-contained and don't touch the real data.db.
+// We spin up an isolated database (SQLite in-memory by default, or a Postgres
+// schema when DATABASE_URL_PG is set) so these tests are fully self-contained.
 // ──────────────────────────────────────────────────────────────────────────────
-
-/**
- * Bootstrap a minimal in-memory database with the required tables.
- * We only create the tables needed by the API key tests, not the full schema.
- */
-function createTestDb() {
-  const sqlite = new Database(':memory:');
-  sqlite.pragma('foreign_keys = ON');
-
-  // Create users table (minimal — only what api_keys references)
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL DEFAULT '',
-      email TEXT NOT NULL UNIQUE,
-      email_verified INTEGER NOT NULL DEFAULT 0,
-      image TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      is_anonymous INTEGER DEFAULT 0,
-      agent_id TEXT,
-      expires_at INTEGER
-    );
-  `);
-
-  // Create api_keys table
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS api_keys (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      name TEXT NOT NULL,
-      key_hash TEXT NOT NULL UNIQUE,
-      key_prefix TEXT NOT NULL,
-      scopes TEXT NOT NULL DEFAULT '*',
-      last_used_at INTEGER,
-      expires_at INTEGER,
-      revoked INTEGER NOT NULL DEFAULT 0,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-    CREATE INDEX api_keys_user_id_idx ON api_keys (user_id);
-    CREATE UNIQUE INDEX api_keys_key_hash_idx ON api_keys (key_hash);
-    CREATE INDEX api_keys_key_prefix_idx ON api_keys (key_prefix);
-  `);
-
-  return drizzle({ client: sqlite, schema });
-}
 
 /**
  * Seed a test user and return the user row.
  */
-function seedUser(db: ReturnType<typeof createTestDb>, opts: { id?: string; email?: string } = {}) {
+function seedUser(db: TestDbContext['db'], opts: { id?: string; email?: string } = {}) {
   const id = opts.id ?? `user_${Math.random().toString(36).slice(2)}`;
   const email = opts.email ?? `${id}@test.example`;
   const now = Date.now();
@@ -203,7 +159,7 @@ function seedUser(db: ReturnType<typeof createTestDb>, opts: { id?: string; emai
  * Build a minimal Fastify app for testing the API key routes.
  * Uses an injected db rather than the global singleton.
  */
-async function buildTestApp(db: ReturnType<typeof createTestDb>, userId: string) {
+async function buildTestApp(db: TestDbContext['db'], userId: string) {
   // Dynamically import the route factory so we can override the db reference.
   // Since we can't easily inject db into the production route module (it imports
   // the global singleton), we test the key logic directly via db operations and
@@ -238,20 +194,22 @@ async function buildTestApp(db: ReturnType<typeof createTestDb>, userId: string)
 }
 
 describe('API key database operations (integration)', async () => {
-  let db: ReturnType<typeof createTestDb>;
+  let ctx: TestDbContext;
   let user: { id: string; email: string };
 
-  before(() => {
-    db = createTestDb();
-    user = seedUser(db);
+  before(async () => {
+    ctx = await setupTestDb();
+    user = seedUser(ctx.db);
   });
+
+  after(async () => { await teardownTestDb(ctx); });
 
   it('can insert a key row and retrieve it by hash', () => {
     const { rawKey, keyHash, keyPrefix } = generateApiKey();
     const now = Date.now();
     const id = `key_${Math.random().toString(36).slice(2)}`;
 
-    db.insert(schema.apiKeys).values({
+    ctx.db.insert(schema.apiKeys).values({
       id,
       userId: user.id,
       name: 'Test Key',
@@ -263,7 +221,7 @@ describe('API key database operations (integration)', async () => {
       updatedAt: now,
     }).run();
 
-    const [found] = db
+    const [found] = ctx.db
       .select()
       .from(schema.apiKeys)
       .where(eq(schema.apiKeys.keyHash, keyHash))
@@ -284,7 +242,7 @@ describe('API key database operations (integration)', async () => {
     const { keyHash, keyPrefix } = generateApiKey();
     const now = Date.now();
 
-    db.insert(schema.apiKeys).values({
+    ctx.db.insert(schema.apiKeys).values({
       id: `key_dup1_${Math.random().toString(36).slice(2)}`,
       userId: user.id,
       name: 'Dup Key 1',
@@ -297,7 +255,7 @@ describe('API key database operations (integration)', async () => {
     }).run();
 
     assert.throws(() => {
-      db.insert(schema.apiKeys).values({
+      ctx.db.insert(schema.apiKeys).values({
         id: `key_dup2_${Math.random().toString(36).slice(2)}`,
         userId: user.id,
         name: 'Dup Key 2',
@@ -316,7 +274,7 @@ describe('API key database operations (integration)', async () => {
     const now = Date.now();
     const id = `key_revoke_${Math.random().toString(36).slice(2)}`;
 
-    db.insert(schema.apiKeys).values({
+    ctx.db.insert(schema.apiKeys).values({
       id,
       userId: user.id,
       name: 'To Be Revoked',
@@ -328,12 +286,12 @@ describe('API key database operations (integration)', async () => {
       updatedAt: now,
     }).run();
 
-    db.update(schema.apiKeys)
+    ctx.db.update(schema.apiKeys)
       .set({ revoked: true, updatedAt: Date.now() })
       .where(eq(schema.apiKeys.id, id))
       .run();
 
-    const [found] = db
+    const [found] = ctx.db
       .select({ revoked: schema.apiKeys.revoked })
       .from(schema.apiKeys)
       .where(eq(schema.apiKeys.id, id))
@@ -350,7 +308,7 @@ describe('API key database operations (integration)', async () => {
     const pastExpiry = now - 1000; // 1 second in the past
     const id = `key_expired_${Math.random().toString(36).slice(2)}`;
 
-    db.insert(schema.apiKeys).values({
+    ctx.db.insert(schema.apiKeys).values({
       id,
       userId: user.id,
       name: 'Expired Key',
@@ -363,7 +321,7 @@ describe('API key database operations (integration)', async () => {
       updatedAt: now,
     }).run();
 
-    const [found] = db
+    const [found] = ctx.db
       .select({ expiresAt: schema.apiKeys.expiresAt, revoked: schema.apiKeys.revoked })
       .from(schema.apiKeys)
       .where(eq(schema.apiKeys.id, id))
@@ -380,7 +338,7 @@ describe('API key database operations (integration)', async () => {
     const now = Date.now();
     const id = `key_noexp_${Math.random().toString(36).slice(2)}`;
 
-    db.insert(schema.apiKeys).values({
+    ctx.db.insert(schema.apiKeys).values({
       id,
       userId: user.id,
       name: 'No Expiry Key',
@@ -393,7 +351,7 @@ describe('API key database operations (integration)', async () => {
       updatedAt: now,
     }).run();
 
-    const [found] = db
+    const [found] = ctx.db
       .select({ expiresAt: schema.apiKeys.expiresAt })
       .from(schema.apiKeys)
       .where(eq(schema.apiKeys.id, id))
@@ -412,7 +370,7 @@ describe('API key database operations (integration)', async () => {
     const now = Date.now();
     const id = `key_lastused_${Math.random().toString(36).slice(2)}`;
 
-    db.insert(schema.apiKeys).values({
+    ctx.db.insert(schema.apiKeys).values({
       id,
       userId: user.id,
       name: 'Last Used Key',
@@ -425,12 +383,12 @@ describe('API key database operations (integration)', async () => {
     }).run();
 
     const usedAt = Date.now();
-    db.update(schema.apiKeys)
+    ctx.db.update(schema.apiKeys)
       .set({ lastUsedAt: usedAt, updatedAt: usedAt })
       .where(eq(schema.apiKeys.id, id))
       .run();
 
-    const [found] = db
+    const [found] = ctx.db
       .select({ lastUsedAt: schema.apiKeys.lastUsedAt })
       .from(schema.apiKeys)
       .where(eq(schema.apiKeys.id, id))
@@ -442,20 +400,22 @@ describe('API key database operations (integration)', async () => {
 });
 
 describe('Key rotation (integration)', async () => {
-  let db: ReturnType<typeof createTestDb>;
+  let ctx: TestDbContext;
   let user: { id: string; email: string };
 
-  before(() => {
-    db = createTestDb();
-    user = seedUser(db);
+  before(async () => {
+    ctx = await setupTestDb();
+    user = seedUser(ctx.db);
   });
+
+  after(async () => { await teardownTestDb(ctx); });
 
   it('rotates a key: old key revoked, new key active with same metadata', () => {
     const { keyHash: oldHash, keyPrefix: oldPrefix } = generateApiKey();
     const now = Date.now();
     const oldId = `key_old_${Math.random().toString(36).slice(2)}`;
 
-    db.insert(schema.apiKeys).values({
+    ctx.db.insert(schema.apiKeys).values({
       id: oldId,
       userId: user.id,
       name: 'My CI Key',
@@ -468,7 +428,7 @@ describe('Key rotation (integration)', async () => {
     }).run();
 
     // Simulate rotation: revoke old, create new
-    db.update(schema.apiKeys)
+    ctx.db.update(schema.apiKeys)
       .set({ revoked: true, updatedAt: Date.now() })
       .where(eq(schema.apiKeys.id, oldId))
       .run();
@@ -477,7 +437,7 @@ describe('Key rotation (integration)', async () => {
     const newId = `key_new_${Math.random().toString(36).slice(2)}`;
     const rotatedAt = Date.now();
 
-    db.insert(schema.apiKeys).values({
+    ctx.db.insert(schema.apiKeys).values({
       id: newId,
       userId: user.id,
       name: 'My CI Key',
@@ -489,12 +449,12 @@ describe('Key rotation (integration)', async () => {
       updatedAt: rotatedAt,
     }).run();
 
-    const [oldRow] = db.select({ revoked: schema.apiKeys.revoked })
+    const [oldRow] = ctx.db.select({ revoked: schema.apiKeys.revoked })
       .from(schema.apiKeys)
       .where(eq(schema.apiKeys.id, oldId))
       .limit(1).all();
 
-    const [newRow] = db.select({ revoked: schema.apiKeys.revoked, name: schema.apiKeys.name, scopes: schema.apiKeys.scopes })
+    const [newRow] = ctx.db.select({ revoked: schema.apiKeys.revoked, name: schema.apiKeys.name, scopes: schema.apiKeys.scopes })
       .from(schema.apiKeys)
       .where(eq(schema.apiKeys.id, newId))
       .limit(1).all();
@@ -508,17 +468,18 @@ describe('Key rotation (integration)', async () => {
 
 describe('HTTP endpoint smoke tests', async () => {
   let app: ReturnType<typeof Fastify>;
-  let db: ReturnType<typeof createTestDb>;
+  let ctx: TestDbContext;
   let user: { id: string; email: string };
 
   before(async () => {
-    db = createTestDb();
-    user = seedUser(db);
-    app = await buildTestApp(db, user.id);
+    ctx = await setupTestDb();
+    user = seedUser(ctx.db);
+    app = await buildTestApp(ctx.db, user.id);
   });
 
   after(async () => {
     await app.close();
+    await teardownTestDb(ctx);
   });
 
   it('GET /keys returns 200 with empty keys array for new user', async () => {
@@ -532,7 +493,7 @@ describe('HTTP endpoint smoke tests', async () => {
   it('GET /keys returns keys after inserting one', async () => {
     const { keyHash, keyPrefix } = generateApiKey();
     const now = Date.now();
-    db.insert(schema.apiKeys).values({
+    ctx.db.insert(schema.apiKeys).values({
       id: `key_smoke_${Math.random().toString(36).slice(2)}`,
       userId: user.id,
       name: 'Smoke Test Key',
