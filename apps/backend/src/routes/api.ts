@@ -89,13 +89,9 @@ export async function apiRoutes(fastify: FastifyInstance) {
     return reply.type('text/plain').send(content);
   });
 
-  // Health check endpoint
-  fastify.get('/health', async () => ({
-    status: 'ok',
-    timestamp: Date.now(),
-    uptime: process.uptime(),
-    version: '1.0.0',
-  }));
+  // Health check endpoints moved to routes/health.ts (T210):
+  // - GET /api/health (liveness, no I/O)
+  // - GET /api/ready (readiness, pings DB)
 
   /** GET /api/documents/mine - List documents owned by the authenticated user. */
   fastify.get('/documents/mine', async (request, reply) => {
