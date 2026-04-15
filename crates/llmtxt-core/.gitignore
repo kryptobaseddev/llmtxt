@@ -1,0 +1,7 @@
+# CLEO agent runtime state (not crate content)
+.cleo/
+
+# Cargo build artifacts
+target/
+
+# Coverage artifacts (tarpaulin-report.json is tracked — it's the committed snapshot)
