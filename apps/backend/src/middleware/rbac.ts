@@ -21,24 +21,14 @@ import type { FastifyRequest, FastifyReply } from 'fastify';
 import { eq, and } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { documents, documentRoles, documentOrgs, orgMembers } from '../db/schema.js';
+import { ROLE_PERMISSIONS } from 'llmtxt';
+import type { DocumentRole, OrgRole, Permission } from 'llmtxt';
+
+export type { DocumentRole, OrgRole, Permission };
 
 // ────────────────────────────────────────────────────────────────
-// Types
+// Permission matrix (imported from SDK — canonical in Rust core)
 // ────────────────────────────────────────────────────────────────
-
-export type DocumentRole = 'owner' | 'editor' | 'viewer';
-export type OrgRole = 'admin' | 'member' | 'viewer';
-export type Permission = 'read' | 'write' | 'delete' | 'manage' | 'approve';
-
-// ────────────────────────────────────────────────────────────────
-// Permission matrix
-// ────────────────────────────────────────────────────────────────
-
-const ROLE_PERMISSIONS: Record<DocumentRole, Permission[]> = {
-  owner: ['read', 'write', 'delete', 'manage', 'approve'],
-  editor: ['read', 'write', 'approve'],
-  viewer: ['read'],
-};
 
 /**
  * Map an org-level role to the effective document permission set.

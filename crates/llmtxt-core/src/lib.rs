@@ -109,6 +109,12 @@ pub use crypto::sign_webhook_payload;
 pub mod normalize;
 pub use normalize::{l2_normalize, l2_normalize_wasm};
 
+pub mod rbac;
+pub use rbac::{DocumentRole, OrgRole, Permission, role_has_permission, role_permissions};
+
+pub mod slugify;
+pub use slugify::slugify;
+
 mod semantic;
 pub use semantic::{
     EmbeddedReview, EmbeddedSection, ReviewCluster, SectionAlignment, SectionSimilarity,

@@ -144,6 +144,29 @@ function batch_diff_versions(base, patches_json, base_version, version_numbers_j
 exports.batch_diff_versions = batch_diff_versions;
 
 /**
+ * Build a knowledge graph from a JSON array of MessageInput objects.
+ *
+ * Returns a JSON-serialised KnowledgeGraph, or `{"error":"..."}` on failure.
+ * @param {string} messages_json
+ * @returns {string}
+ */
+function build_graph_wasm(messages_json) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(messages_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.build_graph_wasm(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.build_graph_wasm = build_graph_wasm;
+
+/**
  * Calculate the compression ratio (original / compressed), rounded to 2 decimals.
  * Returns 1.0 when `compressed_size` is 0.
  * @param {number} original_size
@@ -411,6 +434,40 @@ function compute_signature_with_length(slug, agent_id, conversation_id, expires_
 exports.compute_signature_with_length = compute_signature_with_length;
 
 /**
+ * Check for binary content by scanning for control characters (0x00–0x08)
+ * in the first 8 KB of the content.
+ *
+ * Returns `true` if binary control characters are found.
+ *
+ * Matches the TypeScript `containsBinaryContent` helper exactly.
+ * @param {string} content
+ * @returns {boolean}
+ */
+function contains_binary_content(content) {
+    const ptr0 = passStringToWasm0(content, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.contains_binary_content(ptr0, len0);
+    return ret !== 0;
+}
+exports.contains_binary_content = contains_binary_content;
+
+/**
+ * Compute content similarity using word shingles.
+ * @param {string} a
+ * @param {string} b
+ * @returns {number}
+ */
+function content_similarity_wasm(a, b) {
+    const ptr0 = passStringToWasm0(a, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(b, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.content_similarity_wasm(ptr0, len0, ptr1, len1);
+    return ret;
+}
+exports.content_similarity_wasm = content_similarity_wasm;
+
+/**
  * Compute cosine similarity between two embedding vectors supplied as JSON arrays.
  *
  * WASM entry point for [`cosine_similarity`].
@@ -508,6 +565,26 @@ function decompress(data) {
 exports.decompress = decompress;
 
 /**
+ * WASM-exposed default max content bytes.
+ * @returns {bigint}
+ */
+function default_max_content_bytes() {
+    const ret = wasm.default_max_content_bytes();
+    return BigInt.asUintN(64, ret);
+}
+exports.default_max_content_bytes = default_max_content_bytes;
+
+/**
+ * WASM-exposed default max line bytes.
+ * @returns {number}
+ */
+function default_max_line_bytes() {
+    const ret = wasm.default_max_line_bytes();
+    return ret >>> 0;
+}
+exports.default_max_line_bytes = default_max_line_bytes;
+
+/**
  * Derive a per-agent signing key from their API key.
  * Uses `HMAC-SHA256(api_key, "llmtxt-signing")`.
  * @param {string} api_key
@@ -528,6 +605,45 @@ function derive_signing_key(api_key) {
     }
 }
 exports.derive_signing_key = derive_signing_key;
+
+/**
+ * Detect whether content is JSON, markdown, or plain text.
+ *
+ * Precedence:
+ * 1. If `JSON.parse` succeeds → `"json"`.
+ * 2. If 2+ markdown signals match → `"markdown"`.
+ * 3. Otherwise → `"text"`.
+ *
+ * Matches the TypeScript `detectFormat` heuristic in `validation.ts`.
+ * Note: `detectDocumentFormat` in `disclosure.rs` has an extended version
+ * that also detects `"code"` — the canonical name for the validation variant
+ * is `detect_format` (no code detection, per audit item #14).
+ *
+ * # Examples
+ * ```rust
+ * use llmtxt_core::validation::detect_format;
+ * assert_eq!(detect_format("{\"a\":1}"), "json");
+ * assert_eq!(detect_format("# Title\n- item"), "markdown");
+ * assert_eq!(detect_format("Hello world"), "text");
+ * ```
+ * @param {string} content
+ * @returns {string}
+ */
+function detect_format(content) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(content, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.detect_format(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.detect_format = detect_format;
 
 /**
  * Reconstruct two versions and compute a diff between them.
@@ -622,6 +738,135 @@ function evaluate_approvals(reviews_json, policy_json, current_version, now_ms) 
     }
 }
 exports.evaluate_approvals = evaluate_approvals;
+
+/**
+ * Extract /directives from content. Returns JSON array of strings.
+ * @param {string} content
+ * @returns {string}
+ */
+function extract_directives_wasm(content) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(content, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.extract_directives_wasm(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.extract_directives_wasm = extract_directives_wasm;
+
+/**
+ * Extract @mentions from content. Returns JSON array of strings.
+ * @param {string} content
+ * @returns {string}
+ */
+function extract_mentions_wasm(content) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(content, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.extract_mentions_wasm(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.extract_mentions_wasm = extract_mentions_wasm;
+
+/**
+ * Extract character n-grams from text. Returns JSON array of strings.
+ * @param {string} text
+ * @param {number} n
+ * @returns {string}
+ */
+function extract_ngrams_wasm(text, n) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(text, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.extract_ngrams_wasm(ptr0, len0, n);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.extract_ngrams_wasm = extract_ngrams_wasm;
+
+/**
+ * Extract #tags from content. Returns JSON array of strings.
+ * @param {string} content
+ * @returns {string}
+ */
+function extract_tags_wasm(content) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(content, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.extract_tags_wasm(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.extract_tags_wasm = extract_tags_wasm;
+
+/**
+ * Extract word shingles from text. Returns JSON array of strings.
+ * @param {string} text
+ * @param {number} n
+ * @returns {string}
+ */
+function extract_word_shingles_wasm(text, n) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(text, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.extract_word_shingles_wasm(ptr0, len0, n);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.extract_word_shingles_wasm = extract_word_shingles_wasm;
+
+/**
+ * Find the 1-based line number of the first line that exceeds `max_bytes`
+ * characters. Returns 0 if no such line exists.
+ *
+ * Uses character count (not byte count) to match the TypeScript behaviour,
+ * which uses `lineLength = i - lineStart` where `i` advances by one
+ * JavaScript character at a time.
+ *
+ * Returns 0 (no overlong line) instead of -1 (which cannot be expressed
+ * as a u32). WASM callers should treat 0 as "no violation".
+ * @param {string} content
+ * @param {number} max_chars
+ * @returns {number}
+ */
+function find_overlong_line(content, max_chars) {
+    const ptr0 = passStringToWasm0(content, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.find_overlong_line(ptr0, len0, max_chars);
+    return ret >>> 0;
+}
+exports.find_overlong_line = find_overlong_line;
 
 /**
  * Generate an 8-character base62 ID from a UUID v4.
@@ -759,6 +1004,22 @@ function is_valid_transition_str(from, to) {
 exports.is_valid_transition_str = is_valid_transition_str;
 
 /**
+ * Compute Jaccard similarity between two texts using character n-grams.
+ * @param {string} a
+ * @param {string} b
+ * @returns {number}
+ */
+function jaccard_similarity_wasm(a, b) {
+    const ptr0 = passStringToWasm0(a, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(b, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.jaccard_similarity_wasm(ptr0, len0, ptr1, len1);
+    return ret;
+}
+exports.jaccard_similarity_wasm = jaccard_similarity_wasm;
+
+/**
  * L2-normalize a vector supplied as a JSON array of numbers (WASM entry point).
  *
  * Delegates to [`l2_normalize`].
@@ -824,6 +1085,29 @@ function mark_stale_reviews(reviews_json, current_version) {
 exports.mark_stale_reviews = mark_stale_reviews;
 
 /**
+ * Generate a MinHash fingerprint. Returns JSON array of numbers.
+ * @param {string} text
+ * @param {number} num_hashes
+ * @param {number} ngram_size
+ * @returns {string}
+ */
+function min_hash_fingerprint_wasm(text, num_hashes, ngram_size) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(text, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.min_hash_fingerprint_wasm(ptr0, len0, num_hashes, ngram_size);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.min_hash_fingerprint_wasm = min_hash_fingerprint_wasm;
+
+/**
  * WASM binding for [`multi_way_diff`].
  *
  * Takes base content and a JSON array of version strings.
@@ -850,6 +1134,37 @@ function multi_way_diff_wasm(base, versions_json) {
     }
 }
 exports.multi_way_diff_wasm = multi_way_diff_wasm;
+
+/**
+ * Rank candidates by similarity to query.
+ *
+ * `candidates_json` is a JSON array of strings.
+ * `options_json` is `{"method":"ngram"|"shingle","threshold":0.0}` (optional keys).
+ * Returns JSON array of `{ index, score }` sorted descending.
+ * @param {string} query
+ * @param {string} candidates_json
+ * @param {string} options_json
+ * @returns {string}
+ */
+function rank_by_similarity_wasm(query, candidates_json, options_json) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(query, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(candidates_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(options_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.rank_by_similarity_wasm(ptr0, len0, ptr1, len1, ptr2, len2);
+        deferred4_0 = ret[0];
+        deferred4_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+exports.rank_by_similarity_wasm = rank_by_similarity_wasm;
 
 /**
  * Apply a sequence of patches to base content, returning the content at the
@@ -887,6 +1202,57 @@ function reconstruct_version(base, patches_json, target) {
     }
 }
 exports.reconstruct_version = reconstruct_version;
+
+/**
+ * Check if a role has a specific permission.
+ *
+ * Returns `true` if `role` (e.g. `"editor"`) has the given `permission`
+ * (e.g. `"write"`). Unknown roles or permissions return `false`.
+ * @param {string} role
+ * @param {string} permission
+ * @returns {boolean}
+ */
+function role_has_permission(role, permission) {
+    const ptr0 = passStringToWasm0(role, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(permission, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.role_has_permission(ptr0, len0, ptr1, len1);
+    return ret !== 0;
+}
+exports.role_has_permission = role_has_permission;
+
+/**
+ * Return the permissions for a document role as a JSON array of strings.
+ *
+ * Accepts `"owner"`, `"editor"`, or `"viewer"`.
+ * Returns `["read","write","delete","manage","approve"]` etc.
+ * Returns `"[]"` for unknown roles.
+ *
+ * # Examples (TypeScript via WASM)
+ * ```ts
+ * import { rolePermissions } from 'llmtxt';
+ * rolePermissions('owner');  // '["read","write","delete","manage","approve"]'
+ * rolePermissions('viewer'); // '["read"]'
+ * ```
+ * @param {string} role
+ * @returns {string}
+ */
+function role_permissions(role) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(role, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.role_permissions(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.role_permissions = role_permissions;
 
 /**
  * Evaluate semantic consensus from a JSON array of reviews (WASM / backend entry point).
@@ -1033,6 +1399,45 @@ function sign_webhook_payload(secret, payload) {
 exports.sign_webhook_payload = sign_webhook_payload;
 
 /**
+ * Convert a collection or document name to a URL-safe slug.
+ *
+ * Algorithm:
+ * 1. Lowercase the input.
+ * 2. Strip non-word, non-space, non-hyphen characters.
+ * 3. Replace runs of whitespace with a single hyphen.
+ * 4. Collapse multiple consecutive hyphens into one.
+ * 5. Trim leading and trailing hyphens.
+ * 6. Truncate to 80 characters.
+ *
+ * Returns an empty string if the input is empty or produces no slug characters.
+ *
+ * # Examples (TypeScript via WASM)
+ * ```ts
+ * import { slugify } from 'llmtxt';
+ * slugify('Hello World!'); // "hello-world"
+ * slugify('  my  doc  '); // "my-doc"
+ * slugify('Rust & TypeScript'); // "rust-typescript"
+ * ```
+ * @param {string} name
+ * @returns {string}
+ */
+function slugify(name) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.slugify(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.slugify = slugify;
+
+/**
  * Apply all patches sequentially to base content, then produce a single
  * unified diff from the original base to the final state.
  *
@@ -1162,6 +1567,56 @@ function three_way_merge_wasm(base, ours, theirs) {
     }
 }
 exports.three_way_merge_wasm = three_way_merge_wasm;
+
+/**
+ * Find the most active agents.
+ *
+ * `graph_json` is a serialised KnowledgeGraph. `limit` is the max number of results.
+ * Returns a JSON array of `{ agent, activity }` objects.
+ * @param {string} graph_json
+ * @param {number} limit
+ * @returns {string}
+ */
+function top_agents_wasm(graph_json, limit) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(graph_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.top_agents_wasm(ptr0, len0, limit);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.top_agents_wasm = top_agents_wasm;
+
+/**
+ * Find the most connected topics.
+ *
+ * `graph_json` is a serialised KnowledgeGraph. `limit` is the max number of results.
+ * Returns a JSON array of `{ topic, agents }` objects.
+ * @param {string} graph_json
+ * @param {number} limit
+ * @returns {string}
+ */
+function top_topics_wasm(graph_json, limit) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(graph_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.top_topics_wasm(ptr0, len0, limit);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.top_topics_wasm = top_topics_wasm;
 
 /**
  * Validate a proposed transition and return a JSON result.

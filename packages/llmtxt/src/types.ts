@@ -107,3 +107,74 @@ export interface AttachmentVersionOptions {
   baseVersion?: number;
   changelog?: string;
 }
+
+// ── RBAC Types ─────────────────────────────────────────────────
+
+/**
+ * Fine-grained permission on a document.
+ * Canonical definition; mirrors crates/llmtxt-core::rbac::Permission.
+ */
+export type Permission = 'read' | 'write' | 'delete' | 'manage' | 'approve';
+
+/**
+ * Role a user holds on a specific document.
+ * Canonical definition; mirrors crates/llmtxt-core::rbac::DocumentRole.
+ */
+export type DocumentRole = 'owner' | 'editor' | 'viewer';
+
+/**
+ * Role a user holds within an organisation.
+ * Canonical definition; mirrors crates/llmtxt-core::rbac::OrgRole.
+ */
+export type OrgRole = 'admin' | 'member' | 'viewer';
+
+/**
+ * Permission matrix for document roles.
+ * Mirrors the ROLE_PERMISSIONS constant from the Rust core — exported here
+ * so TypeScript consumers do not need to call the WASM `rolePermissions`
+ * helper for static look-ups.
+ */
+export const ROLE_PERMISSIONS: Readonly<Record<DocumentRole, readonly Permission[]>> = {
+  owner: ['read', 'write', 'delete', 'manage', 'approve'],
+  editor: ['read', 'write', 'approve'],
+  viewer: ['read'],
+} as const;
+
+// ── Document Event Types ────────────────────────────────────────
+
+/**
+ * Discriminant for document lifecycle events emitted by the event bus.
+ *
+ * Consumers should use this type when subscribing to the bus or when
+ * filtering events in webhook handlers.
+ */
+export type DocumentEventType =
+  | 'version.created'
+  | 'state.changed'
+  | 'approval.submitted'
+  | 'approval.rejected'
+  | 'document.created'
+  | 'document.locked'
+  | 'document.archived'
+  | 'contributor.updated';
+
+/**
+ * Payload for a document lifecycle event.
+ *
+ * Emitted by the in-process event bus after a successful database write.
+ * Consumers include WebSocket/SSE streams and webhook delivery workers.
+ */
+export interface DocumentEvent {
+  /** Discriminant — consumers can switch on this. */
+  type: DocumentEventType;
+  /** Short URL slug of the affected document. */
+  slug: string;
+  /** Opaque document primary key. */
+  documentId: string;
+  /** Unix timestamp in milliseconds. */
+  timestamp: number;
+  /** userId or agentId that triggered the event. 'system' for auto-actions. */
+  actor: string;
+  /** Event-specific supplemental data. */
+  data: Record<string, unknown>;
+}

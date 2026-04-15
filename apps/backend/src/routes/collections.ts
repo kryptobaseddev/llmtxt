@@ -17,6 +17,7 @@ import { db } from '../db/index.js';
 import { documents, collections, collectionDocuments } from '../db/schema.js';
 import { auth } from '../auth.js';
 import { decompress, generateId } from '../utils/compression.js';
+import { slugify } from 'llmtxt';
 
 // ────────────────────────────────────────────────────────────────
 // Validation schemas
@@ -45,18 +46,6 @@ const reorderSchema = z.object({
 // ────────────────────────────────────────────────────────────────
 // Helpers
 // ────────────────────────────────────────────────────────────────
-
-/** Convert a collection name to a URL-safe slug. */
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    .substring(0, 80);
-}
 
 /** Generate a unique slug for a collection name (appends -N suffix on conflict). */
 async function generateCollectionSlug(name: string): Promise<string> {

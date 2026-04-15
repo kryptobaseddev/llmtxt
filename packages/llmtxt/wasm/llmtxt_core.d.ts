@@ -402,3 +402,34 @@ export function three_way_merge_wasm(base: string, ours: string, theirs: string)
  * Matches the TypeScript `TransitionResult` interface.
  */
 export function validate_transition(from: string, to: string): string;
+
+/**
+ * Check if a role has a specific permission.
+ *
+ * Returns `true` if `role` (e.g. `"editor"`) has the given `permission`
+ * (e.g. `"write"`). Unknown roles or permissions return `false`.
+ */
+export function role_has_permission(role: string, permission: string): boolean;
+
+/**
+ * Return the permissions for a document role as a JSON array of strings.
+ *
+ * Accepts `"owner"`, `"editor"`, or `"viewer"`.
+ * Returns `["read","write","delete","manage","approve"]` etc.
+ * Returns `"[]"` for unknown roles.
+ */
+export function role_permissions(role: string): string;
+
+/**
+ * Convert a collection or document name to a URL-safe slug.
+ *
+ * 1. Lowercase the input.
+ * 2. Strip non-word, non-space, non-hyphen characters.
+ * 3. Replace runs of whitespace with a single hyphen.
+ * 4. Collapse multiple consecutive hyphens into one.
+ * 5. Trim leading and trailing hyphens.
+ * 6. Truncate to 80 characters.
+ *
+ * Returns an empty string if the input is empty or produces no slug characters.
+ */
+export function slugify(name: string): string;

@@ -131,6 +131,14 @@ export type {
   ThreeWayMergeResult,
 } from './patch.js';
 
+// ── RBAC ────────────────────────────────────────────────────────
+export { roleHasPermission, rolePermissions } from './wasm.js';
+export { ROLE_PERMISSIONS } from './types.js';
+export type { DocumentRole, OrgRole, Permission } from './types.js';
+
+// ── Slug Generation ────────────────────────────────────────────
+export { slugify } from './wasm.js';
+
 // ── Vector Normalization ─────────────────────────────────────────
 export { l2Normalize } from './wasm.js';
 
@@ -209,6 +217,8 @@ export type {
 // ── Types ───────────────────────────────────────────────────────
 export type {
   ContentFormat,
+  DocumentEvent,
+  DocumentEventType,
   DocumentMeta,
   VersionMeta,
   VersionSummary,

@@ -457,6 +457,53 @@ export function semanticDiff(sectionsAJson: string, sectionsBJson: string): Sema
   return parsed;
 }
 
+// ── RBAC ────────────────────────────────────────────────────────
+
+/**
+ * Return the permissions for a document role as a JSON array of strings.
+ *
+ * Delegates to crates/llmtxt-core::rbac::role_permissions via WASM.
+ *
+ * @param role - One of `"owner"`, `"editor"`, `"viewer"`.
+ * @returns JSON array string, e.g. `'["read","write","approve"]'`. Returns `"[]"` for unknown roles.
+ */
+export function rolePermissions(role: string): string {
+  return wasmModule.role_permissions(role);
+}
+
+/**
+ * Check whether a document role has a specific permission.
+ *
+ * Delegates to crates/llmtxt-core::rbac::role_has_permission via WASM.
+ *
+ * @param role - One of `"owner"`, `"editor"`, `"viewer"`.
+ * @param permission - One of `"read"`, `"write"`, `"delete"`, `"manage"`, `"approve"`.
+ * @returns `true` when the role grants that permission.
+ */
+export function roleHasPermission(role: string, permission: string): boolean {
+  return wasmModule.role_has_permission(role, permission);
+}
+
+// ── Slug Generation ─────────────────────────────────────────────
+
+/**
+ * Convert a collection or document name to a URL-safe slug.
+ *
+ * Delegates to crates/llmtxt-core::slugify::slugify via WASM.
+ *
+ * @param name - The raw name to slugify.
+ * @returns A lowercase, hyphen-separated slug (max 80 chars).
+ *
+ * @example
+ * ```ts
+ * slugify('Hello World'); // "hello-world"
+ * slugify('My Collection 2024'); // "my-collection-2024"
+ * ```
+ */
+export function slugify(name: string): string {
+  return wasmModule.slugify(name);
+}
+
 // ── Semantic Consensus ──────────────────────────────────────────
 
 /** A cluster of reviewers whose embeddings are mutually similar. */

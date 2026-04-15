@@ -8,35 +8,15 @@
  * The bus is a plain EventEmitter with a single channel: 'document'.
  * This keeps the fan-out logic entirely in the consumers; the bus has
  * zero knowledge of connections or transports.
+ *
+ * DocumentEventType and DocumentEvent are canonical types exported from
+ * the llmtxt SDK (packages/llmtxt/src/types.ts). This file re-exports
+ * them for backward-compatibility with existing backend imports.
  */
 import { EventEmitter } from 'node:events';
+import type { DocumentEventType, DocumentEvent } from 'llmtxt';
 
-// ── Type definitions ─────────────────────────────────────────────────────────
-
-export type DocumentEventType =
-  | 'version.created'
-  | 'state.changed'
-  | 'approval.submitted'
-  | 'approval.rejected'
-  | 'document.created'
-  | 'document.locked'
-  | 'document.archived'
-  | 'contributor.updated';
-
-export type DocumentEvent = {
-  /** Discriminant — consumers can switch on this. */
-  type: DocumentEventType;
-  /** Short URL slug of the affected document. */
-  slug: string;
-  /** Opaque document primary key. */
-  documentId: string;
-  /** Unix timestamp in milliseconds. */
-  timestamp: number;
-  /** userId or agentId that triggered the event. 'system' for auto-actions. */
-  actor: string;
-  /** Event-specific supplemental data. */
-  data: Record<string, unknown>;
-};
+export type { DocumentEventType, DocumentEvent };
 
 // ── Event bus class ──────────────────────────────────────────────────────────
 
