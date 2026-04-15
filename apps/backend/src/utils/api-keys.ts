@@ -11,11 +11,11 @@
  *
  * SHA-256 hashing delegates to crates/llmtxt-core via the llmtxt WASM binding,
  * keeping the crypto primitive in the Rust SSoT.
+ *
+ * Key format constants are defined in packages/llmtxt/src/types.ts (SDK single source of truth).
  */
 import { randomBytes } from 'node:crypto';
-import { hashContent } from 'llmtxt';
-
-const KEY_PREFIX = 'llmtxt_';
+import { hashContent, API_KEY_PREFIX, API_KEY_LENGTH, API_KEY_DISPLAY_LENGTH } from 'llmtxt';
 
 /**
  * Generate a new API key.
@@ -27,10 +27,10 @@ const KEY_PREFIX = 'llmtxt_';
  */
 export function generateApiKey(): { rawKey: string; keyHash: string; keyPrefix: string } {
   const randomPart = randomBytes(32).toString('base64url');
-  const rawKey = `${KEY_PREFIX}${randomPart}`;
+  const rawKey = `${API_KEY_PREFIX}${randomPart}`;
   const keyHash = hashApiKey(rawKey);
   // Display prefix: "llmtxt_" + first 8 chars of the random part
-  const keyPrefix = `${KEY_PREFIX}${randomPart.slice(0, 8)}`;
+  const keyPrefix = `${API_KEY_PREFIX}${randomPart.slice(0, 8)}`;
 
   return { rawKey, keyHash, keyPrefix };
 }
@@ -54,5 +54,5 @@ export function hashApiKey(rawKey: string): string {
  * Used to quickly reject obviously wrong Bearer tokens before hashing.
  */
 export function isApiKeyFormat(token: string): boolean {
-  return token.startsWith(KEY_PREFIX) && token.length === 50;
+  return token.startsWith(API_KEY_PREFIX) && token.length === API_KEY_LENGTH;
 }

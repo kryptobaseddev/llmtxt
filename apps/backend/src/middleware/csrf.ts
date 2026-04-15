@@ -28,8 +28,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import fastifyCsrf from '@fastify/csrf-protection';
 import fastifyCookie from '@fastify/cookie';
-
-const STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'DELETE', 'PATCH']);
+import { STATE_CHANGING_METHODS } from 'llmtxt';
 
 /**
  * Paths that are exempt from CSRF checks.

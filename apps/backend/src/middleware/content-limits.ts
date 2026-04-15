@@ -6,29 +6,16 @@
  *   - Extremely large document uploads exhausting memory/storage
  *   - Runaway document or key accumulation per user
  *   - Oversized patch submissions
+ *
+ * The limit values are defined in packages/llmtxt/src/types.ts (SDK single source of truth).
  */
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { db } from '../db/index.js';
 import { documents } from '../db/schema.js';
 import { eq, sql } from 'drizzle-orm';
+import { CONTENT_LIMITS } from 'llmtxt';
 
-/** Hard content and resource limits. */
-export const CONTENT_LIMITS = {
-  /** Maximum document content size: 10MB. */
-  maxDocumentSize: 10 * 1024 * 1024,
-  /** Maximum patch content size: 1MB. */
-  maxPatchSize: 1 * 1024 * 1024,
-  /** Maximum items in batch requests. */
-  maxBatchSize: 50,
-  /** Maximum version history per document. */
-  maxVersionsPerDocument: 1000,
-  /** Maximum documents owned per user. */
-  maxDocumentsPerUser: 10_000,
-  /** Maximum signed URL tokens per user (future use). */
-  maxWebhooksPerUser: 20,
-  /** Maximum cherry-pick merge sources per request. */
-  maxMergeSources: 10,
-} as const;
+export { CONTENT_LIMITS };
 
 /**
  * Enforce the maximum document content size.

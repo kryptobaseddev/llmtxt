@@ -15,20 +15,11 @@ import { db } from '../db/index.js';
 import { documents, documentLinks, collections, collectionDocuments } from '../db/schema.js';
 import { auth } from '../auth.js';
 import { decompress, generateId } from '../utils/compression.js';
+import { VALID_LINK_TYPES, type LinkType } from 'llmtxt';
 
 // ────────────────────────────────────────────────────────────────
 // Validation schemas
 // ────────────────────────────────────────────────────────────────
-
-const VALID_LINK_TYPES = [
-  'references',
-  'depends_on',
-  'derived_from',
-  'supersedes',
-  'related',
-] as const;
-
-type LinkType = typeof VALID_LINK_TYPES[number];
 
 const createLinkBodySchema = z.object({
   targetSlug: z.string().min(1).max(20),

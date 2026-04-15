@@ -27,8 +27,7 @@ import { db } from '../db/index.js';
 import { auditLogs } from '../db/schema.js';
 import { requireAuth } from './auth.js';
 import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
-
-const STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'DELETE', 'PATCH']);
+import { STATE_CHANGING_METHODS } from 'llmtxt';
 
 /** Paths that should never generate audit log entries. */
 const EXCLUDED_PATH_SET = new Set([

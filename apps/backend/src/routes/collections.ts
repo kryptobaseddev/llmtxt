@@ -17,7 +17,7 @@ import { db } from '../db/index.js';
 import { documents, collections, collectionDocuments } from '../db/schema.js';
 import { auth } from '../auth.js';
 import { decompress, generateId } from '../utils/compression.js';
-import { slugify } from 'llmtxt';
+import { slugify, COLLECTION_EXPORT_SEPARATOR } from 'llmtxt';
 
 // ────────────────────────────────────────────────────────────────
 // Validation schemas
@@ -622,8 +622,7 @@ export async function collectionRoutes(fastify: FastifyInstance) {
         }
       }
 
-      const separator = '\n\n';
-      const combined = parts.join(separator);
+      const combined = parts.join(COLLECTION_EXPORT_SEPARATOR);
 
       const contentType =
         outputFormat === 'json'

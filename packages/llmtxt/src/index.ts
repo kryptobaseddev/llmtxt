@@ -135,6 +135,35 @@ export { roleHasPermission, rolePermissions } from './wasm.js';
 export { ROLE_PERMISSIONS } from './types.js';
 export type { DocumentRole, OrgRole, Permission } from './types.js';
 
+// ── Audit Logging ───────────────────────────────────────────────
+export { STATE_CHANGING_METHODS } from './types.js';
+export type { AuditAction } from './types.js';
+
+// ── Content Limits ──────────────────────────────────────────────
+export { CONTENT_LIMITS } from './types.js';
+
+// ── API Versioning ──────────────────────────────────────────────
+export {
+  API_VERSION_REGISTRY,
+  CURRENT_API_VERSION,
+  LATEST_API_VERSION,
+} from './types.js';
+export type { ApiVersionInfo } from './types.js';
+
+// ── Cross-Document Links ────────────────────────────────────────
+export { VALID_LINK_TYPES } from './types.js';
+export type { LinkType } from './types.js';
+
+// ── Collection Export ───────────────────────────────────────────
+export { COLLECTION_EXPORT_SEPARATOR } from './types.js';
+
+// ── API Key Format ──────────────────────────────────────────────
+export {
+  API_KEY_PREFIX,
+  API_KEY_LENGTH,
+  API_KEY_DISPLAY_LENGTH,
+} from './types.js';
+
 // ── Slug Generation ────────────────────────────────────────────
 export { slugify } from './wasm.js';
 

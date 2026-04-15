@@ -6,29 +6,19 @@
  *   2. Accept header:        Accept: application/vnd.llmtxt.v1+json
  *   3. Custom header:        X-API-Version: 1
  *   4. Default:              latest version (v1)
+ *
+ * Version registry is defined in packages/llmtxt/src/types.ts (SDK single source of truth).
  */
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import {
+  API_VERSION_REGISTRY,
+  CURRENT_API_VERSION,
+  LATEST_API_VERSION,
+  type ApiVersionInfo,
+} from 'llmtxt';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Version registry — add an entry here when a new API version ships
-// ─────────────────────────────────────────────────────────────────────────────
-
-export interface ApiVersionInfo {
-  version: number;
-  deprecated: boolean;
-  /** ISO 8601 date on which this version will stop being served. */
-  sunset?: string;
-}
-
-export const API_VERSION_REGISTRY: Record<number, ApiVersionInfo> = {
-  1: {
-    version: 1,
-    deprecated: false,
-  },
-};
-
-export const CURRENT_API_VERSION = 1;
-export const LATEST_API_VERSION = Math.max(...Object.keys(API_VERSION_REGISTRY).map(Number));
+export { API_VERSION_REGISTRY, CURRENT_API_VERSION, LATEST_API_VERSION };
+export type { ApiVersionInfo };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Fastify module augmentation
