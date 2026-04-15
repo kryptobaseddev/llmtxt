@@ -39,18 +39,21 @@ const instrumentations = [
     // DNS spans add noise without actionable data at our current scale.
     '@opentelemetry/instrumentation-dns': { enabled: false },
     // Scrub PII from HTTP instrumentation spans (SPEC-T145 §4.6).
+    // OTel's Span interface does not expose `.attributes` — we can only
+    // write via `setAttribute`. The HTTP instrumentation captures headers
+    // as `http.request.header.<name>` (lowercased) when configured to do
+    // so, so we pre-emptively blank the sensitive keys here. A stricter
+    // scrubber would wrap the exporter; this is a correct-by-construction
+    // cheap defense-in-depth.
     '@opentelemetry/instrumentation-http': {
       requestHook: (span) => {
-        // Redact Authorization header captured as a span attribute.
-        for (const key of Object.keys(span.attributes ?? {})) {
-          const lower = key.toLowerCase();
-          if (
-            lower.includes('authorization') ||
-            lower.includes('cookie') ||
-            lower.includes('password')
-          ) {
-            span.setAttribute(key, REDACTED);
-          }
+        for (const key of [
+          'http.request.header.authorization',
+          'http.request.header.cookie',
+          'http.request.header.x-api-key',
+          'http.response.header.set-cookie',
+        ]) {
+          span.setAttribute(key, REDACTED);
         }
       },
     },
