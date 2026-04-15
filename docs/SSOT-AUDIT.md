@@ -4,6 +4,81 @@
 > **Scope**: Every file under `apps/backend/src/` and `packages/llmtxt/src/`.
 > **Verdict**: Widespread SSoT violations. 4 HIGH severity (wire compatibility at risk), 13 MEDIUM, 7 LOW.
 > **Date**: 2026-04-14
+>
+> **Note (2026-04-15)**: This audit drove epic T111 (SDK-First Refactor). T112 (NAPI-RS native bindings) was scoped as a complementary effort but deferred 2026-04-15 — WASM remains the sole binding until benchmarks justify native. See `feedback_wasm_only_binding.md` in memory for detailed decision rationale.
+
+## Resolution Status (2026-04-15)
+
+**All 22 violations RESOLVED via epic T111 (SDK-First Refactor)** shipped in 4 waves (commits `bfac086` → `9c33a2a`).
+
+### Resolution Table
+
+| Audit # | Severity | Violation | Resolving Task | Wave | Commit | Status |
+|---------|----------|-----------|-----------------|------|--------|--------|
+| 1 | HIGH | webhooks.ts computeSignature → node:crypto | T113 | A | bfac086 | ✅ RESOLVED |
+| 2 | HIGH | semantic.ts cosineSimilarityTs re-impl | T116 | A | bfac086 | ✅ RESOLVED |
+| 3 | HIGH | api-keys.ts hashApiKey → node:crypto | T114 | A | bfac086 | ✅ RESOLVED |
+| 4 | HIGH | embeddings.ts l2Normalize → Rust norm | T117 | A | bfac086 | ✅ RESOLVED |
+| 5 | MED | sections.ts duplicate parser | T119 + T139 | B+D | 1ae405a, 37f02da | ✅ RESOLVED |
+| 6 | MED | rbac.ts ROLE_PERMISSIONS not in SDK | T127 | B | 2676483 | ✅ RESOLVED |
+| 7 | MED | bus.ts DocumentEventType not in SDK | T128 | B | 2676483 | ✅ RESOLVED |
+| 8 | MED | cross-doc.ts scoreContent duplicate | T121 | B | a70aa93 | ✅ RESOLVED |
+| 9 | MED | semantic.ts embedSections wrong parser | T116 | A | bfac086 | ✅ RESOLVED |
+| 10 | MED | collections.ts slugify not in SDK | T130 | B | 2676483 | ✅ RESOLVED |
+| 11 | MED | disclosure.ts pure TS not WASM-wrapped | T119 | B | 1ae405a | ✅ RESOLVED |
+| 12 | MED | similarity.ts pure TS not WASM-wrapped | T121 | B | a70aa93 | ✅ RESOLVED |
+| 13 | MED | graph.ts pure TS not WASM-wrapped | T122 | B | a70aa93 | ✅ RESOLVED |
+| 14 | MED | validation.ts detectFormat duplicate | T123 | B | a70aa93 | ✅ RESOLVED |
+| 15 | MED | embeddings.ts TF-IDF+FNV re-impl | T125 | B | 0a0a268 | ✅ RESOLVED |
+| 16 | LOW | audit.ts AuditAction not in SDK | T132 | C | 9c33a2a | ✅ RESOLVED |
+| 17 | LOW | csrf.ts + audit.ts STATE_CHANGING_METHODS dup | T140 | C | 9c33a2a | ✅ RESOLVED |
+| 18 | LOW | content-limits.ts CONTENT_LIMITS backend-only | T133 | C | 9c33a2a | ✅ RESOLVED |
+| 19 | LOW | api-version.ts version constants not in SDK | T134 | C | 9c33a2a | ✅ RESOLVED |
+| 20 | LOW | cross-doc.ts VALID_LINK_TYPES not in SDK | T136 | C | 9c33a2a | ✅ RESOLVED |
+| 21 | LOW | collections.ts separator not named constant | T137 | C | 9c33a2a | ✅ RESOLVED |
+| 22 | LOW | api-keys.ts format constants not in SDK | T137 | C | 9c33a2a | ✅ RESOLVED |
+
+### Re-Audit Verification (2026-04-15)
+
+**Crypto & Wire-Critical (Wave A)**: All node:crypto imports removed from apps/backend; canonical implementations in crates/llmtxt-core via WASM binding.
+- ✅ webhooks.ts: `sign_webhook_payload` in core
+- ✅ api-keys.ts: `hash_content` in core
+- ✅ semantic.ts: `cosine_similarity` in core
+- ✅ embeddings.ts: `l2_normalize` in core
+
+**Pure-TS Modules → Rust Core (Wave B)**: packages/llmtxt/src/*.ts now contains ONLY WASM wrappers and type definitions.
+- ✅ disclosure.ts: Canonical implementation in crates/llmtxt-core::disclosure
+- ✅ similarity.ts: Canonical implementation in crates/llmtxt-core::similarity (expanded)
+- ✅ graph.ts: Canonical implementation in crates/llmtxt-core::graph
+- ✅ validation.ts: Canonical implementation in crates/llmtxt-core::validation
+- ✅ embeddings.ts LocalEmbeddingProvider: Canonical implementation in crates/llmtxt-core::tfidf
+
+**Duplicate Algorithm Removals (Wave B+D)**: Single canonical implementations verified.
+- ✅ Markdown parser: crates/llmtxt-core::disclosure (apps/backend/src/utils/sections.ts deleted in T139)
+- ✅ Format detection: crates/llmtxt-core::validation::detect_format (validation.ts/disclosure.ts duplicates removed)
+- ✅ STATE_CHANGING_METHODS: Single export in packages/llmtxt (T140)
+
+**Schema/Type/Constant Exports (Wave C)**: All types/enums/constants surfaced in packages/llmtxt SDK.
+- ✅ T132: AuditAction enum exported
+- ✅ T133: CONTENT_LIMITS exported
+- ✅ T134: API_VERSION_REGISTRY exported
+- ✅ T136: VALID_LINK_TYPES exported
+- ✅ T137: Collection separator named constant; API key format constants exported
+- ✅ T127: RBAC matrix and Permission/Role types exported
+- ✅ T128: DocumentEventType and DocumentEvent exported
+
+**Regression Guard (Wave D)**: ESLint rule enforces no regression.
+- ✅ T142: CI lint rule activated — bans node:crypto createHash/createHmac, yjs, automerge in apps/backend
+
+### Test Coverage
+
+- `packages/llmtxt`: ✅ pnpm build (TypeScript compilation)
+- `apps/backend`: ✅ 67/67 tests passing (all integration tests green)
+- CI validation: ✅ All commits pass GitHub Actions
+
+See `docs/decomposition/T111-decomposition-2026-04-15.md` for original task decomposition and judgment calls.
+
+---
 
 ## Summary Table
 
@@ -38,10 +113,10 @@
 
 | # | Where | Current | Target |
 |---|-------|---------|--------|
-| 1 | `webhooks.ts` computeSignature | `createHmac('sha256', secret)` from `node:crypto` | `crates/llmtxt-core::sign_webhook_payload` via WASM/NAPI |
-| 3 | `api-keys.ts` hashApiKey | `createHash('sha256')` from `node:crypto` | `crates/llmtxt-core::hash_content` (already exists) via WASM/NAPI |
-| 2 | `semantic.ts` cosineSimilarityTs | Inline TS implementation | `crates/llmtxt-core::cosine_similarity` (already exists) via WASM/NAPI |
-| 4 | `embeddings.ts` l2Normalize | Inline TS implementation | `crates/llmtxt-core::l2_normalize` (NEW) via WASM/NAPI |
+| 1 | `webhooks.ts` computeSignature | `createHmac('sha256', secret)` from `node:crypto` | `crates/llmtxt-core::sign_webhook_payload` via WASM |
+| 3 | `api-keys.ts` hashApiKey | `createHash('sha256')` from `node:crypto` | `crates/llmtxt-core::hash_content` (already exists) via WASM |
+| 2 | `semantic.ts` cosineSimilarityTs | Inline TS implementation | `crates/llmtxt-core::cosine_similarity` (already exists) via WASM |
+| 4 | `embeddings.ts` l2Normalize | Inline TS implementation | `crates/llmtxt-core::l2_normalize` (NEW) via WASM |
 
 ### B. Pure-TS re-implementations of Rust-worthy primitives
 
@@ -122,6 +197,6 @@ These files do it right — they import from `llmtxt` (SDK) or pure Fastify/fram
 
 ## Tracking
 
-This audit is tracked as CLEO epic **T111 (SDK-First Refactor)** with sub-tasks. Also references **T112 (NAPI-RS + WASM dual runtime bindings)** which expands the SDK's native-binding coverage.
+This audit is tracked as CLEO epic **T111 (SDK-First Refactor)** with sub-tasks. Epic **T112 (NAPI-RS native bindings)** was scoped as a complementary effort but deferred 2026-04-15 — WASM is the sole binding until benchmarks prove native is needed.
 
-After Wave B completes, re-audit: the goal is `packages/llmtxt/src/*.ts` contains **nothing but WASM/NAPI wrappers and types** — zero algorithm implementations.
+After Wave B completes, re-audit: the goal is `packages/llmtxt/src/*.ts` contains **nothing but WASM wrappers and types** — zero algorithm implementations.
