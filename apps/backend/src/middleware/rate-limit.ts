@@ -131,10 +131,19 @@ export async function registerRateLimiting(app: FastifyInstance) {
     max: (request: FastifyRequest) => getTierMax(request, 'global'),
     timeWindow: '1 minute',
     keyGenerator,
-    // Exempt the health check endpoint from rate limiting
+    // Exempt health and readiness probe endpoints from rate limiting.
+    // /api/ready is included so Railway readiness checks never count toward
+    // the per-IP quota (which could trigger 429 during rolling deploys).
     allowList: (request: FastifyRequest, _key: string) => {
       const url = request.url.split('?')[0];
-      return url === '/api/health' || url === '/health';
+      return (
+        url === '/api/health' ||
+        url === '/health' ||
+        url === '/api/ready' ||
+        url === '/ready' ||
+        url === '/api/metrics' ||
+        url === '/metrics'
+      );
     },
     // Standard rate limit headers on every response
     addHeadersOnExceeding: {

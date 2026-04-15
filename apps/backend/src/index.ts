@@ -29,6 +29,7 @@ import { crossDocRoutes } from './routes/cross-doc.js';
 import { collectionRoutes } from './routes/collections.js';
 import { publicDir, extractSlug, extractSlugWithExtension, handleContentNegotiation, getDocumentWithContent } from './routes/web.js';
 import { v1Routes } from './routes/v1/index.js';
+import { healthRoutes } from './routes/health.js';
 import {
   apiVersionPlugin,
   addVersionResponseHeaders,
@@ -369,6 +370,15 @@ async function main() {
       wildcard: true,
       index: ['index.html'],
     });
+
+    // ──────────────────────────────────────────────────────────────────
+    // Health check routes: /api/health and /api/ready
+    //
+    // Registered early — before versioned routes and legacy routes — so
+    // they are always reachable even if route registration fails later.
+    // Both routes are exempt from auth and rate limiting (see health.ts).
+    // ──────────────────────────────────────────────────────────────────
+    await app.register(healthRoutes, { prefix: '/api' });
 
     // ──────────────────────────────────────────────────────────────────
     // Versioned API routes: /api/v1/*
