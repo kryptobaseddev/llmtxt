@@ -7,7 +7,13 @@
 ## Dependency Graph
 
 ```
-CRITICAL-PATH ROOT DEPS (no blockers):
+FOUNDATIONAL (must precede every other Phase 5-11 epic):
+├── T111 SDK-First Refactor (Wave A crypto fixes — 1-2 weeks)
+└── T112 NAPI-RS Native Bindings (parallel with T111)
+       │
+       └── once stable, Phase 5-11 work proceeds against proven SSoT contract
+
+CRITICAL-PATH ROOT DEPS (no blockers, but inherit T111+T112 contract):
 ├── T076 Verifiable Agent Identity ─────┬──── T085 API Key Scopes
 │                                       ├──── T086 Signing Key Rotation ───┬── T106 Signed Receipts
 │                                       │                                  └── T107 Tamper-Evident Audit
@@ -44,7 +50,7 @@ INDEPENDENT (parallel-ready):
 
 ## Wave Schedule
 
-### Wave 0 — Emergency Fixes (ship this week)
+### Wave 0 — Emergency Fixes + SDK Foundation (ship next 2 weeks)
 
 Priority: drop everything else until these land. Every day they stay open is risk.
 
@@ -52,6 +58,10 @@ Priority: drop everything else until these land. Every day they stay open is ris
 |---|------|---------|
 | T093 | Remove Schema Reset Sentinel | One misconfigured redeploy = total data loss |
 | T108 | Red-Team P0 Security Remediation | Body-parser limit mismatch, ReDoS, graph DoS, default secret fail-fast |
+| **T111** | **SDK-First Refactor (Wave A: HIGH crypto fixes)** | **22 SSoT violations found in audit; 4 are wire-critical crypto** |
+| **T112** | **NAPI-RS Native Bindings** | **Establishes NAPI alongside WASM before Wave B refactors land — same Rust source, two binding outputs** |
+
+T111 and T112 are foundational because every Phase 5-11 epic specifies "X in crates/llmtxt-core, wrapped via WASM/NAPI in packages/llmtxt." That contract must work before any new primitives ship. T111 first proves the existing primitives migrate cleanly; T112 ensures Node consumers (apps/backend) get native speed.
 
 ### Wave 1 — Identity & Event Bus Foundation (6-8 week window)
 

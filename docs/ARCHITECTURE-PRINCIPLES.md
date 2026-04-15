@@ -41,44 +41,83 @@ Ask: **Could a Rust backend (SignalDock, any integrator) reasonably want to use 
 
 ## Principle 2 — packages/llmtxt is the Single Public Surface
 
-### Layered consumption model
+### Layered consumption model with dual native bindings
 
 ```
-                     ┌─────────────────────────────────────────┐
-                     │           crates/llmtxt-core            │
-                     │   (Rust SSoT — portable primitives)     │
-                     └─────────────────┬───────────────────────┘
-                                       │
-               ┌───────────────────────┼───────────────────────┐
-               │                       │                       │
-               ▼                       ▼                       ▼
-     ┌──────────────────┐   ┌────────────────────┐   ┌──────────────────┐
-     │ Rust consumers   │   │ packages/llmtxt    │   │ WASM consumers   │
-     │ (SignalDock,     │   │ (npm, WASM-wrap)   │   │ (browser SDKs,   │
-     │ native backends) │   │                    │   │ edge workers)    │
-     └──────────────────┘   └──────────┬─────────┘   └──────────────────┘
-                                       │
-                          ┌────────────┴────────────┐
-                          ▼                         ▼
-                 ┌────────────────┐       ┌──────────────────┐
-                 │ apps/backend   │       │ CLI / MCP / any  │
-                 │ (api.llmtxt.my)│       │ 3rd-party client │
-                 └────────────────┘       └──────────────────┘
+                     ┌──────────────────────────────────────────────────┐
+                     │              crates/llmtxt-core                  │
+                     │   (Rust SSoT — pure primitives, no I/O)          │
+                     │   #[wasm_bindgen]   #[napi]   plain Rust API     │
+                     └──────────────────────┬───────────────────────────┘
+                                            │
+                  ┌─────────────────────────┼─────────────────────────┐
+                  │                         │                         │
+                  ▼                         ▼                         ▼
+       ┌──────────────────┐    ┌──────────────────────┐    ┌────────────────────┐
+       │ Native Rust      │    │   @llmtxt/native     │    │  @llmtxt/wasm      │
+       │ (SignalDock,     │    │   (NAPI-RS .node)    │    │  (wasm-bindgen)    │
+       │ direct crate use)│    │   per-platform       │    │  universal         │
+       └──────────────────┘    └──────────┬───────────┘    └─────────┬──────────┘
+                                          │                          │
+                                          └────────────┬─────────────┘
+                                                       │
+                                                       ▼
+                                       ┌─────────────────────────────┐
+                                       │     packages/llmtxt         │
+                                       │  (npm, runtime detection)   │
+                                       │  - prefers NAPI on Node     │
+                                       │  - falls back to WASM       │
+                                       │  - identical API surface    │
+                                       └──────────────┬──────────────┘
+                                                      │
+                       ┌──────────────────┬───────────┴──────────────┬──────────────────┐
+                       ▼                  ▼                          ▼                  ▼
+              ┌────────────────┐  ┌──────────────┐    ┌──────────────────┐    ┌─────────────┐
+              │  apps/backend  │  │ apps/frontend│    │  CLI / MCP / 3p  │    │  Browser    │
+              │  (Node)        │  │  (browser)   │    │  Node consumers  │    │  apps       │
+              │  → uses NAPI   │  │  → uses WASM │    │  → uses NAPI     │    │  → WASM     │
+              └────────────────┘  └──────────────┘    └──────────────────┘    └─────────────┘
 ```
+
+### Native binding strategy
+
+| Target | Binding | When | Performance |
+|--------|---------|------|-------------|
+| `crates/llmtxt-core` (pure Rust) | None (just `Cargo.toml` dep) | Any Rust consumer | Native, fastest |
+| `@llmtxt/native` via NAPI-RS | `#[napi]` attribute, `napi build` | Node.js, Bun | Native, no WASM overhead |
+| `@llmtxt/wasm` via wasm-bindgen | `#[wasm_bindgen]` attribute, `wasm-pack` | Browser, Deno, edge, missing native | Universal fallback |
+| `llmtxt-py` via PyO3 (future) | `#[pyfunction]` attribute, `maturin build` | Python consumers | Native, fastest for Python |
+
+`packages/llmtxt` does runtime detection:
+```typescript
+let core: LlmtxtCore;
+try {
+  core = await import('@llmtxt/native');  // try NAPI first on Node
+} catch {
+  core = await import('@llmtxt/wasm');     // fall back to WASM
+}
+export * from core;  // identical API surface either way
+```
+
+This is the same pattern used by `@napi-rs/canvas`, `lightningcss`, `swc`, `rollup-plugin-swc`, `oxc-resolver`, and many other production libraries.
 
 ### Rules
 
-1. **`apps/backend` imports ONLY from `packages/llmtxt`**, never directly from `crates/llmtxt-core` and never from `yjs`/`yrs`/crypto libs directly.
-2. **`packages/llmtxt` imports WASM from the compiled `crates/llmtxt-core` output**, never re-implements primitives in TypeScript.
-3. **The WASM API surface mirrors the Rust API surface 1:1.** No TypeScript-only helpers without a matching Rust function.
-4. **Breaking changes in `crates/llmtxt-core` bump `packages/llmtxt` major version.**
+1. **`apps/backend` imports ONLY from `packages/llmtxt`**, never directly from `crates/llmtxt-core`, never from `@llmtxt/native` or `@llmtxt/wasm` directly, never from `yjs`/`yrs`/crypto libs.
+2. **`packages/llmtxt` imports from `@llmtxt/native` (NAPI) or `@llmtxt/wasm` via runtime detection**, never re-implements primitives in TypeScript.
+3. **NAPI and WASM API surfaces mirror the Rust API surface 1:1.** No TypeScript-only helpers without a matching Rust function. Both binding layers expose the same functions with the same signatures.
+4. **Cross-platform byte-identity is CI-verified.** Same input → same output across Rust native, NAPI, and WASM. Test suite runs all three; release blocks on divergence.
+5. **Breaking changes in `crates/llmtxt-core` bump `packages/llmtxt` major version.**
+6. **Frontend uses `packages/llmtxt` like any other consumer.** No reaching into backend; no separate browser-only implementation.
 
 ### Red flags (reject at review)
 
-- `import crypto from 'node:crypto'` in `apps/backend/**` for anything other than randomUUID, randomBytes for general use
-- `import { ... } from 'yjs'` anywhere in `apps/backend/**`
-- Re-implementing a function that already exists in `crates/llmtxt-core` just because it's inconvenient to reach via WASM
+- `import { createHash, createHmac, ... } from 'node:crypto'` in `apps/backend/**` for anything except `randomUUID`, `randomBytes` (general randomness use is fine; cryptographic hashing/signing is NOT — that's the Rust core's job)
+- `import { ... } from 'yjs'`, `import { ... } from 'automerge'`, `import { ... } from 'yrs'` anywhere in `apps/backend/**` or `packages/llmtxt/src/**` (these primitives belong in `crates/llmtxt-core`)
+- Re-implementing a function that already exists in `crates/llmtxt-core` just because it's inconvenient to reach via WASM/NAPI
 - Adding TypeScript-only "helpers" that have no Rust equivalent (they will drift)
+- `import { ... } from '@llmtxt/native'` or `import { ... } from '@llmtxt/wasm'` outside `packages/llmtxt/src/loader.ts` (consumers should never know which binding is in use)
+- Pure algorithm files in `packages/llmtxt/src/*.ts` that aren't WASM/NAPI wrappers (the audit uncovered `disclosure.ts`, `similarity.ts`, `graph.ts`, `validation.ts` as historical violations — see `docs/SSOT-AUDIT.md`)
 
 ## Principle 3 — apps/backend is a Deployment, Not a Product
 
