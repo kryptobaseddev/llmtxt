@@ -31,6 +31,7 @@ import { db } from '../db/index.js';
 import { webhooks } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
+import { webhookDeliveryTotal } from '../middleware/metrics.js';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -94,6 +95,7 @@ async function deliverWithRetry(
   secret: string,
   failureCount: number,
   payload: string,
+  eventType: string = 'unknown',
 ): Promise<void> {
   let success = false;
 
@@ -112,6 +114,7 @@ async function deliverWithRetry(
       .update(webhooks)
       .set({ failureCount: 0, lastDeliveryAt: now, lastSuccessAt: now })
       .where(eq(webhooks.id, webhookId));
+    webhookDeliveryTotal.inc({ event_type: eventType, result: 'delivered' });
   } else {
     const newFailureCount = failureCount + 1;
     const shouldDisable = newFailureCount >= MAX_FAILURE_COUNT;
@@ -123,6 +126,7 @@ async function deliverWithRetry(
         ...(shouldDisable ? { active: false } : {}),
       })
       .where(eq(webhooks.id, webhookId));
+    webhookDeliveryTotal.inc({ event_type: eventType, result: 'failed' });
   }
 }
 
@@ -178,7 +182,7 @@ async function dispatchToWebhooks(event: DocumentEvent): Promise<void> {
       }
 
       deliveryPromises.push(
-        deliverWithRetry(hook.id, hook.url, hook.secret, hook.failureCount, payload),
+        deliverWithRetry(hook.id, hook.url, hook.secret, hook.failureCount, payload, event.type),
       );
     }
 

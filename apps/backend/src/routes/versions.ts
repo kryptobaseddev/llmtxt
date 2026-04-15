@@ -24,6 +24,7 @@ import { writeRateLimit } from '../middleware/rate-limit.js';
 import { enforceContentSize } from '../middleware/content-limits.js';
 import { eventBus } from '../events/bus.js';
 import { canRead, canWrite } from '../middleware/rbac.js';
+import { versionCreatedTotal } from '../middleware/metrics.js';
 
 /** Try to get the authenticated user from session cookies. */
 async function getOptionalUser(request: FastifyRequest) {
@@ -308,6 +309,9 @@ export async function versionRoutes(fastify: FastifyInstance) {
 
       // Invalidate cache for this document
       invalidateDocumentCache(slug);
+
+      // Increment version created counter (source: 'put' for PUT endpoint)
+      versionCreatedTotal.inc({ source: 'put' });
 
       // Emit version.created AFTER the successful DB write — non-blocking.
       eventBus.emitVersionCreated(slug, doc.id, effectiveCreatedBy || 'anonymous', {

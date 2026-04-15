@@ -43,7 +43,7 @@ import { writeRateLimit } from '../middleware/rate-limit.js';
 import { enforceContentSize, enforceDocumentLimit } from '../middleware/content-limits.js';
 import { eventBus } from '../events/bus.js';
 import { canRead } from '../middleware/rbac.js';
-import { documentCreatedTotal } from '../middleware/metrics.js';
+import { documentCreatedTotal, versionCreatedTotal } from '../middleware/metrics.js';
 
 // Legacy validation schemas (kept for backward compatibility)
 const slugParamsSchema = z.object({
@@ -252,6 +252,9 @@ export async function apiRoutes(fastify: FastifyInstance) {
         createdBy: effectiveCreatedBy,
         changelog: 'Initial version',
       });
+
+      // Increment version created counter (source: 'compress' for initial version in compress endpoint)
+      versionCreatedTotal.inc({ source: 'compress' });
 
       // Create initial contributor record if we have an effective author
       if (effectiveCreatedBy) {
