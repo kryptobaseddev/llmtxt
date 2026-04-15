@@ -25,3 +25,49 @@
 {"id":"rcasd-commit-w0-w1","type":"implementation","status":"complete","task":"Commit RCASD design artifacts (W0+W1)","commit":"2696e8e","files_confirmed":15,"files":["docs/research/T144-migration-safety-ci.md","docs/research/T145-observability-stack.md","docs/research/T146-crdt-yrs-phase2.md","docs/research/T147-ed25519-verified-identity.md","docs/research/T148-document-event-log.md","docs/adr/ADR-T144-migration-safety-ci.md","docs/adr/ADR-T145-observability-stack.md","docs/adr/ADR-T146-crdt-architecture.md","docs/adr/ADR-T147-ed25519-signature-verification.md","docs/adr/ADR-T148-document-event-log.md","docs/spec/SPEC-T144-migration-safety-ci.md","docs/spec/SPEC-T145-observability-stack.md","docs/spec/SPEC-T146-yrs-crdt.md","docs/spec/SPEC-T147-ed25519-identity.md","docs/spec/SPEC-T148-document-event-log.md"],"epic_tree":"docs/red-team-2026-04-15-epic-tree.md","child_tasks":"T189-T232 (43 atomic tasks)","hitl_flags":"7 resolved by orchestrator","push_status":"success","branch":"main","date":"2026-04-15"}
 {"id":"T144-migration-safety-ci","tasks":["T190","T192","T194","T196","T198"],"status":"complete","commit":"9a62596","ci_run":"https://github.com/kryptobaseddev/llmtxt/actions/runs/24473592102","files_created":["apps/backend/scripts/check-migrations.sh","apps/backend/scripts/ci-migrate-check.sh","apps/backend/scripts/run-migrations.ts","apps/backend/drizzle/MIGRATIONS.md"],"files_modified":[".github/workflows/ci.yml","Dockerfile","apps/backend/package.json"],"regression_guards":{"backend_tests":"67/67","lint":"0 warnings","cargo_fmt":"clean","cargo_test_wasm":"2/2"},"output_file":"claudedocs/agent-outputs/T144-migration-safety-ci.md","date":"2026-04-15"}
 {"id":"T145-observability-wave0","tasks":["T210","T200","T206"],"status":"complete","commits":{"T210":"68f2fca","T200":"2b63d16","T206":"fd2a51e"},"tests":{"pass":67,"fail":0,"total":67},"lint":"clean","packages_added":["@opentelemetry/api","@opentelemetry/sdk-node","@opentelemetry/auto-instrumentations-node","@opentelemetry/exporter-trace-otlp-http","prom-client"],"files_created":["apps/backend/src/instrumentation.ts","apps/backend/src/routes/health.ts","apps/backend/src/middleware/metrics.ts"],"files_modified":["apps/backend/src/index.ts","apps/backend/src/middleware/rate-limit.ts","apps/backend/package.json","pnpm-lock.yaml"],"contracts":{"health":"GET /api/health → 200 {status,version,ts}","ready":"GET /api/ready → 200 ok | 503 unavailable+reason","metrics_public":"GET /api/metrics → 200 Prometheus text (no METRICS_TOKEN)","metrics_auth":"GET /api/metrics → 401 without bearer | 200 with correct bearer"},"output_file":"claudedocs/agent-outputs/T145-observability-wave0.md","ts":"2026-04-15T19:21:00Z"}
+{"id":"T212-w3c-trace-context","task":"T212","title":"W3C Trace Context Header Propagation in Webhooks","status":"complete","commit":"7d5d847","files_modified":["apps/backend/src/events/webhooks.ts"],"tests_passed":true,"lint_passed":true,"build_passed":true,"key_changes":["Added context, propagation from @opentelemetry/api","Added X-Llmtxt-Event-Id header with UUID","Called propagation.inject(context.active(), headers)","Maintained backward compatibility with no-op mode"],"acceptance_criteria_met":5,"timestamp":"2026-04-15T20:47:45Z"}
+{"id":"T208-observability","task":"T208","title":"Add 5 domain event counters to prom-client registry","status":"complete","commit":"8df8811","test_count":67,"test_pass":67,"test_fail":0,"counters_added":5,"instrumentation_sites":6,"lint_status":"pass","build_status":"pass"}
+{"id":"T233-postgres-migration-rcasd","task":"T233","type":"rcasd","status":"complete","date":"2026-04-15","docs":["docs/research/T233-postgres-migration.md","docs/adr/ADR-T233-postgres-migration.md","docs/spec/SPEC-T233-postgres-migration.md"],"child_tasks":["T234","T235","T236","T237","T238","T239","T240","T241","T242","T243","T244","T245"],"hitl_required":["T243-production-cutover","T244-T245-volume-destruction"],"t146_t148_interface":"T146 and T148 add tables to schema-pg.ts only after T233 baseline migrations land; must NOT modify existing migration files","key_findings":["conflicts.ts uses SQLite-only sync transaction with behavior:immediate - MUST be converted to async for PG","schema-pg.ts missing versionCount column on documents table - drift must be fixed","tests use raw better-sqlite3 DDL - must be ported to PG harness","postgres-js driver not yet installed - only node-postgres pg is present","no json_extract or jsonb-specific SQL anywhere in codebase"],"dep_chain":"T234+T235 -> T236 -> T237+T238 -> T239 -> T240 -> T241+T242 -> T243 -> T244 -> T245"}
+{"id":"T215-ops-runbook","title":"T215 Implementation: ops/RUNBOOK.md operations runbook","status":"complete","date":"2026-04-15","deliverables":["ops/RUNBOOK.md (408 lines)","ops/alerts/error-rate.yaml (47 lines)"],"acceptance_criteria_met":5,"commits":["9198f52","0f70087"],"summary":"Comprehensive operations runbook for LLMtxt backend observability stack. Covers incident triage playbooks (5 scenarios), end-to-end trace correlation (Tempo/Loki/Sentry), environment variable reference, metrics interpretation, alerting, and credential rotation. Alert rule added for error rate >5% over 5 minutes. All T215 acceptance criteria satisfied."}
+{"id":"T234-postgres-js-dual-client","task":"T234","status":"complete","commit":"20295ed","date":"2026-04-15","files_modified":["apps/backend/package.json","apps/backend/src/db/index.ts","apps/backend/src/routes/conflicts.ts","apps/backend/src/routes/health.ts","pnpm-lock.yaml"],"package_json_diff":{"added":"postgres@^3.4.9","removed":["pg@^8.20.0","@types/pg"]},"gates":{"build":"pass","tests":"67/67","lint":"0 warnings","no_raw_sqlite_imports_outside_db_index":"pass","no_pg_imports":"pass"},"async_migrations":["conflicts.ts persistNewVersion — removed { behavior: immediate }, replaced .run()/.all() with await"],"output_file":"claudedocs/agent-outputs/T234-postgres-js-dual-client.md"}
+{
+  "id": "T236-postgres-generation",
+  "task_id": "T236",
+  "title": "Generate fresh Postgres migration series from schema-pg.ts",
+  "status": "complete",
+  "date": "2026-04-15",
+  "output_path": "claudedocs/agent-outputs/T236-postgres-migration-generation.md",
+  "metrics": {
+    "migration_file_path": "apps/backend/src/db/migrations-pg/20260415210842_swift_roland_deschain/migration.sql",
+    "create_table_count": 22,
+    "create_index_count": 70,
+    "total_statements": 369,
+    "schema_tables_count": 22,
+    "tables_match": true,
+    "sqlite_isms_detected": false,
+    "duplicate_tables": 0,
+    "duplicate_indexes": 0,
+    "build_status": "pass",
+    "lint_status": "pass",
+    "test_count": 67,
+    "test_passed": 67,
+    "test_failed": 0
+  },
+  "acceptance_results": {
+    "migrations_pg_directory_exists": true,
+    "migration_file_exists": true,
+    "creates_all_22_tables": true,
+    "valid_postgresql_syntax": true,
+    "no_duplicate_ddl": true
+  },
+  "dependencies": {
+    "T234": "done",
+    "T235": "done"
+  },
+  "unblocks": [
+    "T238",
+    "T240",
+    "T242"
+  ],
+  "regressions": "all_passed"
+}
