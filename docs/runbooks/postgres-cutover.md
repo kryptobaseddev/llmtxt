@@ -347,6 +347,112 @@ Once stable for 1 hour:
 
 ---
 
+## Post-Cutover: 30-Day SQLite Volume Retention
+
+After successful cutover, the SQLite volume remains mounted as a cold backup for 30 days. This retention window protects against data-loss bugs that may surface post-migration and aligns with typical GDPR incident notification windows.
+
+### Why retain for 30 days
+
+- **Data-loss bugs**: If a migration bug is discovered (e.g., a corruption in the conversion logic, a missing table, or incorrect FK constraint handling), the SQLite snapshot allows forensic inspection and selective recovery of affected rows without re-running the full migration.
+- **GDPR notification timeline**: EU regulations require breach notification within 72 hours of discovery. A 30-day retention window gives 4+ weeks to detect, confirm, and respond to any incident.
+- **Minimal cost**: Railway volume snapshots incur <$1/month storage; retaining for 30 days is negligible operational expense.
+
+### What's retained
+
+The following assets remain available during the 30-day window:
+
+| Asset | Details |
+|-------|---------|
+| **Volume** | Railway volume `llmtxt-volume` (id: `2a43672a-b6ae-4712-8a82-572113df9d6b`) |
+| **Path** | `/app/data/data.db` (SQLite file) |
+| **Snapshot** | Created at T-15min during cutover sequence (named `pre-cutover-YYYY-MM-DD`) |
+| **Status** | Not mounted to production `llmtxt-api` (DATABASE_URL now points to Postgres) |
+
+**Recovery hierarchy** (source of truth for fallback):
+1. Postgres (primary, live)
+2. SQLite snapshot (cold backup, forensic use only)
+3. Nothing (snapshots are deleted after 30 days)
+
+### Access patterns during retention window
+
+The SQLite volume is **NOT mounted** to the production `llmtxt-api` service. To inspect or restore data:
+
+**Inspect locally** (read-only forensics):
+```bash
+# Download the snapshot from Railway
+railway volume download --volume-id 2a43672a-b6ae-4712-8a82-572113df9d6b \
+  --snapshot <snapshot-id> \
+  --path /app/data/data.db \
+  -o ./pre-cutover-backup.db
+
+# Inspect with sqlite3
+sqlite3 ./pre-cutover-backup.db "SELECT COUNT(*) FROM documents;"
+sqlite3 ./pre-cutover-backup.db "SELECT * FROM documents WHERE id = '<known-doc-id>';"
+```
+
+**Full rollback** (if Postgres becomes corrupted):
+1. Re-mount the volume to `llmtxt-api` in Railway dashboard
+2. Revert `DATABASE_URL` in environment variables to `file:///app/data/data.db`
+3. Redeploy
+4. Dual-client logic in T234 automatically switches back to SQLite driver
+
+**Important**: Never manually edit the snapshot or mount it to production unless a data-loss incident is confirmed and the Postgres instance is unrecoverable.
+
+### Destruction procedure (after 30 days)
+
+**Target date**: cutover_date + 30 days  
+**Example**: If cutover occurred on 2026-04-15, destruction date is 2026-05-15.
+
+**Pre-destruction checklist** (must all pass):
+
+- [ ] No production issues attributable to the migration in the last 7 days
+- [ ] All T233 follow-up tasks (e.g., T245: remove better-sqlite3 npm dependency) are shipped
+- [ ] User has explicitly approved deletion (via message, ticket, or runbook acknowledgment)
+
+**Destruction command**:
+```bash
+# In Railway dashboard:
+# 1. Go to Backups → Snapshots
+# 2. Find "pre-cutover-YYYY-MM-DD"
+# 3. Click "..." → Delete
+# OR use CLI:
+railway volume delete --id 2a43672a-b6ae-4712-8a82-572113df9d6b --snapshot <snapshot-id>
+```
+
+**Post-destruction cleanup**:
+```bash
+# In Railway dashboard, llmtxt-api service:
+# 1. Go to Volumes tab
+# 2. If the /app/data mount is still listed, remove it
+# 3. Go to Variables tab
+# 4. Remove any lingering RAILWAY_VOLUME_* env vars (if present)
+# 5. Redeploy to confirm the service is still healthy without the mount
+```
+
+Verify health after cleanup:
+```bash
+curl https://api.llmtxt.my/api/health
+# Expected: 200 OK, { ok: true }
+```
+
+### Calendar reminder template
+
+Paste the following into your calendar or todo system with due date = **cutover_date + 30 days**:
+
+```
+[LLMtxt] T244: Delete SQLite volume snapshot + mount — 30 days post-PG cutover
+Details: Railway volume ID 2a43672a-b6ae-4712-8a82-572113df9d6b
+Checklist: No migration issues in past 7d + T245 shipped + user approval
+```
+
+### Relationship to T245 (better-sqlite3 cleanup)
+
+Task T245 removes the `better-sqlite3` npm dependency from `packages/llmtxt`. This task (T244) ships **before** T245 to preserve the fallback path: during the 30-day retention window, if a critical bug surfaces, the dual-client logic in T234 can still revert to SQLite without needing to re-add the dependency.
+
+After T245 ships (npm package slim down), the SQLite dual-client code path becomes dead code and can be removed in a follow-up cleanup task.
+
+---
+
 ## Rollback (if anything goes wrong during Steps 4–10)
 
 **If you need to revert to SQLite**, follow these steps:
