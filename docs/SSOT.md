@@ -5,7 +5,7 @@
 ## The rule
 
 > **All portable primitives live in `crates/llmtxt-core` (Rust).**
-> **`packages/llmtxt` is a thin wrapper that exposes them via WASM and NAPI-RS.**
+> **`packages/llmtxt` is a thin wrapper that exposes them via WASM.**
 > **`apps/backend` imports ONLY from `packages/llmtxt`.**
 
 That's it. Everything else derives from this.
@@ -45,24 +45,23 @@ A function that could be used by ANY consumer (Rust backend, browser, CLI, 3rd-p
 - Embedding providers (OpenAI/Voyage HTTP clients, ONNX model runners) — SDK-level adapters
 - Markdown→HTML rendering for SSR — backend-only feature
 
-## The three-artifact rule
+## The two-artifact rule
 
-Every new feature produces **three** artifacts:
+Every new feature produces **two** artifacts:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ 1. Rust function in crates/llmtxt-core/src/<module>.rs      │
 │    #[cfg_attr(feature = "wasm", wasm_bindgen)]              │
-│    #[cfg_attr(feature = "napi", napi)]                      │
 │    pub fn my_primitive(input: &str) -> Result<String, Err>  │
 └─────────────────────────────────────────────────────────────┘
                             │
-                            ▼ built by wasm-pack AND napi build
+                            ▼ built by wasm-pack
 ┌─────────────────────────────────────────────────────────────┐
 │ 2. TypeScript wrapper in packages/llmtxt/src/wasm.ts        │
 │    export function myPrimitive(input: string): string {     │
-│      return core.my_primitive(input);  // core = runtime     │
-│    }                                      detected (NAPI/WASM)│
+│      return core.my_primitive(input);  // core = WASM       │
+│    }                                                         │
 └─────────────────────────────────────────────────────────────┘
                             │
                             ▼
@@ -79,26 +78,24 @@ Every new feature produces **three** artifacts:
 
 Every primitive has a test that runs the SAME INPUT through:
 - Native Rust (`cargo test`)
-- NAPI binding (`node --require ./native.node`)
 - WASM binding (`node --import tsx src/wasm.ts`)
 
-All three must produce **byte-identical output**. CI fails the release if they diverge.
+Both must produce **byte-identical output**. CI fails the release if they diverge.
 
 ## Why
 
 1. **SignalDock** and any other Rust backend can `cargo add llmtxt-core` and use primitives directly, without depending on the hosted API.
-2. **Browser and edge consumers** (frontend, Cloudflare Workers, Deno) get the same functions via WASM.
-3. **Node backends** (apps/backend) get native-speed NAPI bindings — 3-10× faster than WASM for CPU-heavy ops.
-4. **Future Python/Go/Rust SDKs** (T097) compile against the same Rust source.
-5. **No drift**: if the TS implementation of `compress` differed from the Rust one, stored blobs would become unreadable by one side.
+2. **All JS consumers** (browser, Node, Cloudflare Workers, Deno, edge) get the same functions via WASM.
+3. **Future Python/Go/Rust SDKs** (T097) compile against the same Rust source.
+4. **No drift**: if the TS implementation of `compress` differed from the Rust one, stored blobs would become unreadable by one side.
 
 ## How I failed this before
 
 Owner caught two separate violations:
 
-1. **2026-04-14 morning** — Wrote T083 (CRDT) as "integrate Y.js in backend." Y.js is JavaScript-only. Rust consumers would be locked out. **Fix**: Use Yrs (Y.js ported to Rust by same author). Primitive lives in `llmtxt-core`, consumed via WASM/NAPI.
+1. **2026-04-14 morning** — Wrote T083 (CRDT) as "integrate Y.js in backend." Y.js is JavaScript-only. Rust consumers would be locked out. **Fix**: Use Yrs (Y.js ported to Rust by same author). Primitive lives in `llmtxt-core`, consumed via WASM.
 
-2. **2026-04-14 afternoon** — Audit found **22 violations** of this rule across shipped and planned code. See `docs/SSOT-AUDIT.md`. Created T111 (SDK-First Refactor) to migrate all 22 and T112 (NAPI-RS) to add native Node bindings.
+2. **2026-04-14 afternoon** — Audit found **22 violations** of this rule across shipped and planned code. See `docs/SSOT-AUDIT.md`. Created T111 (SDK-First Refactor) to migrate all 22. T112 (NAPI-RS native bindings) was scoped but deferred 2026-04-15 pending benchmark evidence that WASM is a bottleneck.
 
 ## Session recovery
 
@@ -119,4 +116,4 @@ That's enough context to resume without losing the plot.
 
 ## TL;DR
 
-**SSoT = crates/llmtxt-core. Everything portable lives there. packages/llmtxt wraps it. apps/backend imports only from the wrapper. Yrs not Y.js. NAPI alongside WASM. Three artifacts per feature. CI verifies byte-identity.**
+**SSoT = crates/llmtxt-core. Everything portable lives there. packages/llmtxt wraps it via WASM. apps/backend imports only from the wrapper. Yrs not Y.js. WASM as the sole JS binding (NAPI-RS deferred). Two artifacts per feature. CI verifies byte-identity.**

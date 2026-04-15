@@ -8,8 +8,7 @@
 
 ```
 FOUNDATIONAL (must precede every other Phase 5-11 epic):
-├── T111 SDK-First Refactor (Wave A crypto fixes — 1-2 weeks)
-└── T112 NAPI-RS Native Bindings (parallel with T111)
+└── T111 SDK-First Refactor (Wave A crypto fixes — 1-2 weeks)
        │
        └── once stable, Phase 5-11 work proceeds against proven SSoT contract
 
@@ -59,9 +58,9 @@ Priority: drop everything else until these land. Every day they stay open is ris
 | T093 | Remove Schema Reset Sentinel | One misconfigured redeploy = total data loss |
 | T108 | Red-Team P0 Security Remediation | Body-parser limit mismatch, ReDoS, graph DoS, default secret fail-fast |
 | **T111** | **SDK-First Refactor (Wave A: HIGH crypto fixes)** | **22 SSoT violations found in audit; 4 are wire-critical crypto** |
-| **T112** | **NAPI-RS Native Bindings** | **Establishes NAPI alongside WASM before Wave B refactors land — same Rust source, two binding outputs** |
+| T112 | NAPI-RS Native Bindings | **DEFERRED 2026-04-15** — reactivate on benchmark evidence |
 
-T111 and T112 are foundational because every Phase 5-11 epic specifies "X in crates/llmtxt-core, wrapped via WASM/NAPI in packages/llmtxt." That contract must work before any new primitives ship. T111 first proves the existing primitives migrate cleanly; T112 ensures Node consumers (apps/backend) get native speed.
+T111 is foundational because every Phase 5-11 epic specifies "X in crates/llmtxt-core, wrapped via WASM in packages/llmtxt." That contract must work before any new primitives ship. T111 first proves the existing primitives migrate cleanly. T112 (native bindings) was scoped as a parallel effort but is deferred pending benchmark evidence that WASM is a bottleneck on a hot-path operation.
 
 ### Wave 1 — Identity & Event Bus Foundation (6-8 week window)
 

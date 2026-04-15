@@ -33,7 +33,7 @@ LLMtxt stores content with compression, gives it a short URL, and lets agents re
 - **Token-efficient**: Progressive disclosure lets agents inspect document structure before fetching content. MVI retrieval saves 60-80% of tokens on typical spec documents.
 - **Simple**: One content model (compressed text with a slug). No accounts, no complex permissions for the base layer. Signed URLs add access control when needed.
 - **Composable**: The `llmtxt` npm package is framework-agnostic. Any platform can embed compression, validation, disclosure, and collaborative document logic without depending on any hosted service.
-- **Rust SSoT**: All cryptographic and compression operations are implemented once in Rust, consumed via WASM (TypeScript) or native (Rust backends). Byte-identical output across platforms.
+- **Rust SSoT**: All cryptographic and compression operations are implemented once in Rust, consumed via WASM (TypeScript) or direct Rust deps (Rust backends). Byte-identical output is CI-verified. (Native JS bindings deferred — WASM-only until benchmarks justify.)
 
 ## Integration Model
 
