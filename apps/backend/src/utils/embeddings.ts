@@ -18,7 +18,7 @@
  * via the llmtxt WASM binding (audit item #4 fix).
  */
 
-import { l2Normalize as wasmL2Normalize } from 'llmtxt';
+import { tfidfEmbedBatch } from 'llmtxt';
 
 // ── Interface ──────────────────────────────────────────────────────────────
 
@@ -134,14 +134,12 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
 /**
  * Lightweight TF-IDF vectorizer for offline / dev use.
  *
- * Algorithm:
- * 1. Tokenise each document into lowercase word n-grams (unigrams + bigrams).
- * 2. Build a global vocabulary from all input documents.
- * 3. Compute TF (term-frequency normalised by doc length) per document.
- * 4. Compute IDF (log(N / df + 1)) across the batch.
- * 5. Multiply TF × IDF to produce a sparse vector.
- * 6. Project down to `dimensions` using a deterministic hash (FNV-1a mod dims).
- * 7. L2-normalise the projected vector.
+ * Delegates to `crates/llmtxt-core::tfidf::tfidf_embed_batch_wasm` via the
+ * `llmtxt` WASM binding (audit item #15 fix). The algorithm is identical to
+ * the previous TypeScript implementation:
+ * 1. Tokenise into lowercase word unigrams + bigrams.
+ * 2. Build global vocabulary, compute TF, IDF (smooth), project via FNV-1a.
+ * 3. L2-normalise.
  *
  * This is intentionally approximate — sufficient for testing and development,
  * NOT a replacement for neural embeddings in production.
@@ -152,76 +150,8 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
 
   async embed(texts: string[]): Promise<number[][]> {
     if (texts.length === 0) return [];
-
-    const tokenised = texts.map(tokenise);
-    const vocab = buildVocab(tokenised);
-    const N = texts.length;
-
-    return tokenised.map(tokens => {
-      const tf = computeTf(tokens);
-      const vec = new Float64Array(this.dimensions);
-
-      for (const [term, tfVal] of tf.entries()) {
-        const df = vocab.get(term) ?? 1;
-        const idf = Math.log((N + 1) / (df + 1)) + 1;
-        const weight = tfVal * idf;
-        const bucket = fnv1aHash(term) % this.dimensions;
-        vec[bucket] += weight;
-      }
-
-      return JSON.parse(wasmL2Normalize(JSON.stringify(Array.from(vec)))) as number[];
-    });
+    return tfidfEmbedBatch(texts, this.dimensions);
   }
-}
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-function tokenise(text: string): string[] {
-  const words = text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .split(/\s+/)
-    .filter(Boolean);
-
-  const tokens: string[] = [...words];
-  for (let i = 0; i < words.length - 1; i++) {
-    tokens.push(`${words[i]}_${words[i + 1]}`);
-  }
-  return tokens;
-}
-
-function buildVocab(tokenised: string[][]): Map<string, number> {
-  const df = new Map<string, number>();
-  for (const tokens of tokenised) {
-    const seen = new Set(tokens);
-    for (const t of seen) {
-      df.set(t, (df.get(t) ?? 0) + 1);
-    }
-  }
-  return df;
-}
-
-function computeTf(tokens: string[]): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const t of tokens) {
-    counts.set(t, (counts.get(t) ?? 0) + 1);
-  }
-  const total = tokens.length || 1;
-  const tf = new Map<string, number>();
-  for (const [term, count] of counts.entries()) {
-    tf.set(term, count / total);
-  }
-  return tf;
-}
-
-function fnv1aHash(str: string): number {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < str.length; i++) {
-    hash ^= str.charCodeAt(i);
-    // Simulate 32-bit unsigned multiplication.
-    hash = (Math.imul(hash, 0x01000193) >>> 0);
-  }
-  return hash;
 }
 
 function sleep(ms: number): Promise<void> {
