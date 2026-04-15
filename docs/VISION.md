@@ -308,6 +308,150 @@ See `RED-TEAM-ANALYSIS.md` for the honest assessment that drove these phases.
 - Target: Hash chain (each entry includes previous hash) + periodic Merkle root published. Tampering detectable.
 - Why: Required for any regulated-industry use.
 
+## Phase 12+ — Layered Roadmap from 2026-04-15 Red-Team Analysis
+
+> **Source**: `docs/RED-TEAM-ANALYSIS-2026-04-15.md` (supersedes `docs/RED-TEAM-ANALYSIS.md`)
+>
+> **Honest Assessment**: LLMtxt today scores **5.3/10** (up from 4.2/10 after T111 SDK-first refactor). SOTA peers (Notion, Liveblocks, Convex, PartyKit) score 7.5–8.5. The roadmap below is the credible engineering path to 8.0/10 if Layers 1–3 execute. This is not a marketing claim; it is a measured gap analysis.
+
+### Score Progression
+
+| Version | Composite | Drivers |
+|---------|-----------|---------|
+| 2026-04-14 | 4.2 | Phase 1–4 shipped; multi-agent core unbuilt; observability zero |
+| 2026-04-15 (post-T111) | 5.3 | T111 SDK boundary restored; T093 schema-reset footgun removed; T108 P0 security remediated; CI hardening landed; multi-agent core still zero |
+| Target (post-Layers-1–3) | 8.0 | CRDT merge, verified identity, event ordering, observability, backup/DR, Byzantine resistance |
+
+### Refined Guiding Star (7 Properties)
+
+Every future feature advances one of these:
+
+| Property | Meaning | Layers |
+|----------|---------|--------|
+| Know what is true now | Current state, no stale reads | Layer 1 (MA-7, MA-2), Layer 2 (OPS-1) |
+| Know who else is here | Presence, capabilities, activity | Layer 1 (MA-2, MA-4) |
+| Know what changed | Differential updates since offset | Layer 1 (MA-6), Layer 5 (DIFF-1) |
+| Contribute safely | Turn-taking, conflict-free merge, signed identity, scoped perms | Layer 1 (MA-1, MA-2, MA-5), Layer 3 (SEC-5, SEC-8) |
+| Verify nothing was tampered with | Cryptographic chain, byte-identity across runtimes | Layer 1 (MA-2), Layer 3 (SEC-3) |
+| Lose nothing on failure | Durable, replicated, restore-tested | Layer 2 (OPS-2, OPS-3) |
+| Not impede others | Rate limits, fair scheduling, no blocking | Layer 1 (MA-7), Layer 4 (DX), Layer 2 (OPS-4) |
+
+### Layer-by-Layer Feature Catalog
+
+#### Layer 1 — Multi-Agent Foundations (10 epics)
+
+Cannot claim "multi-agent" without these. Enables all downstream work.
+
+| Epic | Title | What it delivers | Wave | Status |
+|------|-------|------------------|------|--------|
+| MA-1 | CRDT Collaboration Core | Section-level Yrs integration; real-time deltas; conflict-free concurrent edits | W1 | EXTENDS T083 |
+| MA-2 | Verified Agent Identity | Ed25519 keypairs; signed submissions; cryptographic receipts | W1 | EXTENDS T076 |
+| MA-3 | Agent Capability Manifest | `/.well-known/agents/{id}` discovery; supported ops; schema versions | W1 | NEW |
+| MA-4 | Presence + Awareness | Who is editing now; cursor positions; selection ranges per section | W2 | EXTENDS T084 |
+| MA-5 | Turn-Taking Leases | Claim section X for N seconds; auto-release; conflict on overlap | W2 | NEW |
+| MA-6 | Differential Subscriptions | `?since=<event_seq>` returns deltas; agents stream from offset | W2 | EXTENDS T082 |
+| MA-7 | Event Ordering Guarantees | Per-document monotonic event log; replay; idempotent event IDs | W1 | NEW |
+| MA-8 | Byzantine Resistance | Multi-sig thresholds; signature on each state transition; tamper-evident chain | W7 | EXTENDS T108 |
+| MA-9 | Shared Scratchpad / Comments | Ephemeral comments per section; agent-to-agent threads; resolved/open state | W3 | EXTENDS T088 |
+| MA-10 | Agent-to-Agent Direct Messaging | Conduit channel between two agents about a doc (not just webhooks-to-URLs) | W3 | NEW |
+
+#### Layer 2 — Operational Reliability (10 epics)
+
+Cannot claim "production-ready" without these. Prerequisites for enterprise deployments.
+
+| Epic | Title | What it delivers | Wave | Status |
+|------|-------|------------------|------|--------|
+| OPS-1 | Observability Stack | Pino → Loki/Datadog; OpenTelemetry traces; Sentry; metrics endpoint | W0 | EXTENDS T089 |
+| OPS-2 | Backup + Point-in-Time Recovery | Litestream/pgbackrest; daily snapshots to S3; RTO ≤1hr, RPO ≤5min | W4 | EXTENDS T091 |
+| OPS-3 | Replication / Read Replicas | Async replicas on PostgreSQL; SQLite single-region documented | W4 | NEW |
+| OPS-4 | SLO/SLI Definition | p50/p95/p99 latency targets; error budget; alert routing | W0 | NEW |
+| OPS-5 | Graceful Shutdown + Drain | SIGTERM handler; finish in-flight requests; close DB cleanly | W4 | EXTENDS T092 |
+| OPS-6 | Migration Safety in CI | Run `drizzle-kit migrate` on fresh sqlite in every PR; reject duplicates | W0 | NEW |
+| OPS-7 | Strict Release Runbook | Pre-publish checklist; provenance enforced; CHANGELOG-of-record validated | W0 | NEW |
+| OPS-8 | Chaos / Fault Injection Tests | Kill DB mid-write; partition WS; clock skew; full disk; verify recovery | W4 | NEW |
+| OPS-9 | Load Tests + Benchmarks | k6/wrk scripts on hot paths; published baseline; regression-tested in CI | W4 | NEW |
+| OPS-10 | Secret Rotation Runbook | API_KEY_SECRET, SESSION_SECRET, tokens automated where possible | W1 | EXTENDS T090 |
+
+#### Layer 3 — Security Hardening (8 epics)
+
+Table-stakes for 2026. Prerequisite for regulated-industry use.
+
+| Epic | Title | What it delivers | Wave | Status |
+|------|-------|------------------|------|--------|
+| SEC-1 | CSP + HSTS + COEP | Content-Security-Policy, Cross-Origin-Embedder-Policy, HSTS preload verification | W3 | NEW |
+| SEC-2 | Markdown XSS Sanitization E2E | Validate every render path; fuzz with OWASP payloads | W3 | NEW |
+| SEC-3 | Tamper-Evident Audit Log | Hash chain over events; merkle root committed daily to external timestamp | W7 | EXTENDS T108 |
+| SEC-4 | Webhook Delivery Hardening | Exponential backoff; dead-letter queue; consumer-side replay protection | W3 | NEW |
+| SEC-5 | Row-Level Security (PG) | RLS policies enforce org/role/visibility at DB layer, not just app | W3 | NEW |
+| SEC-6 | Anonymous Mode Threat Model | Document what anon CAN and CANNOT do; aggressive rate-limit; session expiry contract | W3 | NEW |
+| SEC-7 | PII Handling + GDPR Readiness | Identify PII; retention policy; right-to-erasure; export-my-data endpoint | W4 | EXTENDS T094 |
+| SEC-8 | API Key Scopes Enforcement | scopes:* is placeholder today; implement scope-by-route enforcement | W2 | EXTENDS T085 |
+
+#### Layer 4 — Developer Experience (7 epics)
+
+Make the platform discoverable and usable by non-Rust, non-TS teams.
+
+| Epic | Title | What it delivers | Wave | Status |
+|------|-------|------------------|------|--------|
+| DX-1 | OpenAPI 3.1 Auto-Generated | Forge-ts from routes; `/openapi.json` + Swagger UI at `/docs/api`; Postman | W5 | EXTENDS T095 |
+| DX-2 | Multi-Language SDKs | Python (PyO3), Go (codegen), Rust (native), TS (existing) | W5 | EXTENDS T097 |
+| DX-3 | CLI for Agents | `llmtxt` CLI: auth, submit version, fetch sections, watch; CI-reusable | W5 | EXTENDS T098 |
+| DX-4 | Reference Agent Implementations | Worked examples: write-only, review, consensus, summarizer bots in `examples/` | W5 | NEW |
+| DX-5 | Local Dev with Realistic Data | Seed script, fixtures, "spawn 5 fake agents" simulator | W5 | NEW |
+| DX-6 | Error Message Catalog | Every error code has a docs page: "what happened, why, what to do" | W5 | NEW |
+| DX-7 | Forge-ts Coverage Gate | TSDoc as CI gate; doctest as test runner; lock against drift | W5 | NEW |
+
+#### Layer 5 — Differentiated Capabilities (8 epics)
+
+These would matter competitively. Most depend on Layer 1 shipping first.
+
+| Epic | Title | What it delivers | Wave | Status |
+|------|-------|------------------|------|--------|
+| DIFF-1 | Truly Differential Disclosure | `?since=<event_seq>` returns delta-only; subscribe to "section X only" | W2 | EXTENDS prior finding |
+| DIFF-2 | Embedding-Based Semantic Search | Real embeddings (sentence-transformers); vector DB (qdrant/pgvector); cross-doc search | W6 | EXTENDS T102 |
+| DIFF-3 | Cross-Document Graph Queries | "Show me docs linking to X"; backlinks; topic clusters | W6 | EXTENDS T122 |
+| DIFF-4 | Block / Suggestion Mode | Inline suggestions with accept/reject; multi-agent threads | W6 | NEW |
+| DIFF-5 | Snapshot Diff with Operational Semantics | "Agent X added clause Y at T+12s" not just "line A→B" | W6 | NEW |
+| DIFF-6 | Federated Documents | Doc on instance A references/pulls from instance B; cross-instance auth | W6 | NEW |
+| DIFF-7 | Time-Travel + Branch | Git-like branches per doc; merge between branches; per-branch rosters | W5 | EXTENDS versioning system |
+| DIFF-8 | LLM-Aware Compression | Adaptive zstd dictionaries per doc-cluster; better than generic zlib | W6 | EXTENDS T100 |
+
+#### Layer 6 — Compliance / Trust (5 epics)
+
+Enterprise gate-keepers. Ship after core is proven.
+
+| Epic | Title | What it delivers | Wave | Status |
+|------|-------|------------------|------|--------|
+| COMP-1 | SOC 2 Type 1 Readiness | Control inventory; gap analysis; remediation plan | W6 | NEW |
+| COMP-2 | Data Residency Options | Multi-region deploy plan; document where tenant data lives | W6 | NEW |
+| COMP-3 | Audit Log Retention + Export | 7-year retention with archive tier; legal-hold flag; JSON/CSV export | W6 | EXTENDS SEC-3 |
+| COMP-4 | Right-to-Deletion Endpoint | DELETE /api/me cascades; 30-day grace; documented | W4 | EXTENDS T094 |
+| COMP-5 | Sub-Processor List + DPA Template | Public list (Cloudflare, Railway, npm, etc.); DPA on request | W6 | NEW |
+
+### Wave Schedule — Ship Order
+
+The dependency analysis from `docs/RED-TEAM-ANALYSIS-2026-04-15.md` (Dependency Order section) drives this wave sequence.
+
+| Wave | Label | Epics | Rationale | Parallel agents |
+|------|-------|-------|-----------|-----------------|
+| W0 | Clear Blockers | T093, T108, OPS-1 MVP, OPS-6, OPS-7 | Cannot ship anything safely without observability, migration safety, release discipline, and footgun removal | 2–3 in parallel |
+| W1 | Multi-Agent Roots | MA-1 (CRDT), MA-2 (verified identity), MA-7 (event ordering), T076, T077, T090, OPS-10 | Three pillars everything else depends on; secret rotation prerequisite for identity in prod | 3 in parallel |
+| W2 | Presence + Diff | MA-4, MA-6, DIFF-1, T082, T078, T110, SEC-8 | Now have CRDT + identity + events; wire presence + delta subscriptions | 6 in parallel |
+| W3 | Security Hardening | SEC-1, SEC-2, SEC-4, SEC-5, SEC-6, MA-9 (scratchpad) | After core works, lock it down | 6 in parallel |
+| W4 | Ops Maturity | OPS-2, OPS-3, OPS-5, OPS-8, OPS-9, SEC-7, COMP-4, MA-9, MA-10 | Backup, DR, graceful deployment, chaos testing | 8 in parallel |
+| W5 | Ecosystem & DX | T095, DX-1, DX-2, DX-3, DX-4, DX-5, DX-6, DX-7, DIFF-7, T096, T098 | Publish the platform; then unlock downstream SDK consumers | 10 in parallel |
+| W6 | Advanced Semantics | DIFF-2, DIFF-3, DIFF-4, DIFF-5, DIFF-6, DIFF-8, COMP-1, COMP-2, COMP-3, COMP-5 | Differentiation + compliance; depends on Layer 1 proven | 10 in parallel |
+
+### Honest Prose Conclusion
+
+LLMtxt today (post-T111) is **5.3/10**: well-architected SDK boundary, proven progressive-disclosure pattern, reliable versioning primitives, but missing the multi-agent collaboration core (CRDT, verified identity, event ordering), operational observability, and Byzantine-resistant consensus.
+
+This roadmap is the credible engineering path to **8.0/10**. Layers 1–3 (multi-agent foundations, operational reliability, security hardening) are load-bearing. They define the gap to SOTA peers like Notion, Liveblocks, and Convex. Layers 4–6 are differentiation and ecosystem reach.
+
+Execution discipline is proven: T111 was hard, careful work. The deploy-safety fixes today are lessons recorded. The 6–12 month timeline to Layers 1–3 complete is achievable if focus holds.
+
+The honest claim is not "LLMtxt will be the best ever." It is "**If Layers 1–3 ship, LLMtxt will be a genuine SOTA multi-agent document substrate worthy of enterprise adoption.**" The roadmap is not speculation; the work is identified, sized, and sequenced. The only unknown is execution discipline.
+
 ## Non-Goals
 
 - Live cursor sync (collaboration is version-based with sequential patches, not real-time cursors — but real-time version notifications and presence primitives are in scope)

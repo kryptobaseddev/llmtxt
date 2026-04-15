@@ -190,3 +190,80 @@ This is the "multi-agent collaboration" claim made real.
 | Messaging / chat protocol | Not the role; slugs are passed *by* messaging systems |
 | Built-in LLM inference | Embedding provider is the only ML integration |
 | Consensus as literal blockchain | Reputation + signed receipts is sufficient; don't burn trees |
+
+## Wave 0+ from 2026-04-15 Red-Team Analysis
+
+> **Source**: `docs/RED-TEAM-ANALYSIS-2026-04-15.md` § Dependency Order and § Layer-by-Layer Feature Catalog
+>
+> This section refines the Wave sequence below, mapping to the 6-layer roadmap (Layers 1–6, Waves W0–W6).
+
+### Dependency Tree (Refined 2026-04-15)
+
+**Three-root dependency structure:**
+
+```
+LAYER 1 ROOTS (Multi-Agent Foundations):
+  ├── MA-1: CRDT ──────┬─→ MA-4 (presence), MA-6 (diff subs), DIFF-1, DIFF-7
+  │                   └─→ MA-9 (scratchpad), MA-10 (direct message)
+  │
+  ├── MA-2: Verified Identity ──┬─→ MA-3 (capability manifest), MA-8 (Byzantine)
+  │                             ├─→ SEC-3 (tamper-evident), T086 (key rotation)
+  │                             └─→ T105 (reputation)
+  │
+  └── MA-7: Event Ordering ─┬─→ MA-4, MA-6, MA-9, OPS-1 (trace correlation)
+                           └─→ SEC-4 (webhook delivery)
+
+LAYER 2 ROOTS (Ops Reliability):
+  ├── OPS-1: Observability ──────→ OPS-4 (SLI), OPS-8 (chaos), troubleshooting flows
+  ├── OPS-6: Migration Safety CI ──→ all future schema work
+  └── OPS-2/3: Backup/Replication ──→ COMP-2 (residency)
+
+LAYER 3 ROOTS (Security):
+  ├── SEC-3: Tamper-Evident ──→ depends on MA-2 (signatures)
+  └── SEC-5: RLS ──→ already using PostgreSQL (shipped in Phase 2)
+```
+
+**Cross-layer dependencies:**
+
+| Feature | Root dependencies | Why order matters |
+|---------|------------------|---|
+| MA-4 (presence) | MA-1 + MA-7 | CRDT + event log required to track presence diffs |
+| MA-6 (diff subs) | MA-1 + MA-7 | CRDT + event log required to compute deltas |
+| DIFF-1 (truly differential disclosure) | MA-6 + DIFF-2? | Subscribers need CRDT changes + optionally embeddings |
+| T085 (API scopes) | MA-2 (identity) | Know WHO before enforcing scope |
+| T086 (key rotation) | MA-2 (identity) | Build on signature infrastructure |
+| SEC-3 (tamper-evident) | MA-2 + MA-7 | Need signatures (MA-2) and event monotonicity (MA-7) |
+| COMP-1 (SOC2) | OPS-1, OPS-2, SEC-3, SEC-7 | Control inventory after ops + security foundation |
+
+### Wave Schedule — Refined 2026-04-15
+
+| Wave | Epics | Dependency reason | Ship window |
+|------|-------|---|---|
+| **W0** | T093 (schema-reset removal), T108 (P0 security), OPS-1 (observability MVP), OPS-6 (migration CI), OPS-7 (release discipline) | Cannot ship anything safely. Observability required for debugging Wave 1. Migration safety required before any schema change. Release discipline required before publishing. T093 removes production footgun. | Week 1–2 |
+| **W1** | MA-1 (CRDT), MA-2 (verified identity), MA-7 (event ordering), T076, T077, T090 (secrets), OPS-10 (rotation runbook) | Three pillars: CRDT + identity + event log. Everything downstream depends on these. Secret rotation prerequisite before shipping identity in production. | Week 3–10 |
+| **W2** | MA-3 (capability manifest), T085 (scope enforcement), MA-4 (presence), MA-6 (diff subs), T082 (differential subscriptions), T078 (cursor-based replay), T110 (distributed rate limit), SEC-8 (scope enforcement) | All depend on W1 roots (MA-1, MA-2, MA-7). Can parallelize. Order within W2: T085/SEC-8 first (simple, unlocks developer trust), then MA-4/MA-6 (complex, need all W1 roots). | Week 10–16 |
+| **W3** | MA-5 (turn-taking), MA-9 (scratchpad), MA-10 (direct messaging), SEC-1 (CSP), SEC-2 (XSS hardening), SEC-4 (webhook hardening), SEC-5 (RLS), SEC-6 (anon threat model) | Coordination features (MA) now have foundation (W1). Security hardening (SEC) applies post-foundation. All independent in W3. | Week 17–22 |
+| **W4** | OPS-2 (backup), OPS-3 (replication), OPS-5 (graceful shutdown), OPS-8 (chaos), OPS-9 (load tests), SEC-7 (PII/GDPR), COMP-4 (right-to-delete) | Ops maturity and legal readiness. Can run in parallel; no hard ordering. | Week 23–28 |
+| **W5** | T095 (OpenAPI), DX-1–7 (SDK, CLI, examples, docs), DIFF-7 (time-travel), T096 (MCP), T098 (CLI), T099 (llms.txt) | DX-1 (OpenAPI) gates T097 (SDK generation). Others parallel. Focus: publish the platform as-is post-W1. | Week 29–36 |
+| **W6** | DIFF-2 (embeddings), DIFF-3 (graph), DIFF-4 (suggestions), DIFF-5 (operational diff), DIFF-6 (federation), DIFF-8 (LLM compression), COMP-1–5 (SOC2, residency, retention, DPA) | Advanced semantics + compliance. All depend on W1 (identity, CRDT, events) being proven. | Week 37–48 |
+
+### Risk & Contingency
+
+| Risk | Mitigation |
+|------|-----------|
+| W1 takes longer than 8 weeks | Parallelize MA-1, MA-2, MA-7 strictly; hire for CRDT expertise if needed; consider Y.js community support |
+| MA-1 (CRDT) scope creeps | Scope MA-1 to section content only; defer presence cursors to MA-4; defer branching logic to DIFF-7 |
+| W0 observability MVP too thin | Start with Pino → Loki only; defer Sentry + full OTel to W4 |
+| Deploy safety (W0) insufficient | Add migration dry-run to CI; pre-deploy smoke tests; documented rollback playbook |
+
+### Success Criteria Per Wave
+
+| Wave | Success means | Validation |
+|------|---|---|
+| W0 | Observability is live; CI rejects duplicate migrations; release is auditable; T093 ships | Logs flow to Loki; CI enforces migration checks; 3x release with provenance; no data loss on deploy |
+| W1 | CRDT auto-merges concurrent edits; agent identity is signature-verified; event log survives reconnect | Cargo tests + WASM tests pass; API gate enforces signature verification; WS subscribers recover from offset |
+| W2 | Agents can see presence; API scopes are enforced; delta subscriptions work without full re-fetch | Agent presence test; scope violation returns 403; delta payload <50% of full section |
+| W3 | Turn-taking prevents overlapping section claims; security headers are deployed; anon mode is bounded | Lease conflict detected; CSP blocks inline scripts; anon quota is enforced per RFC |
+| W4 | Backup restore tested; chaos test kills DB and system recovers; GDPR export produces valid JSON | RTO ≤1hr measured; kill-DB test passes; export contains all user data; no orphaned records |
+| W5 | OpenAPI spec is live; Python/Go SDKs are published; agents can list docs and diff sections via CLI | `/openapi.json` loads in Swagger; sdks on PyPI/pkg.go.dev; `llmtxt ls` and `llmtxt diff` work |
+| W6 | Embeddings are live; docs can reference other docs; SOC2 gap list is public | Semantic diff shows similarity >0.8 for paraphrases; backlinks render; SOC2 roadmap published |
