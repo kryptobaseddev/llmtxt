@@ -121,6 +121,14 @@ The core primitives (compression, disclosure, versioning, diff, merge) are shipp
 - Target: Embedding-based semantic similarity for diff operations. Consensus detection based on meaning, not character matching. Semantic section alignment.
 - Why: Two agents expressing the same architecture in different words show as 100% divergent. Limits the value of consensus metrics for real-world document review.
 
+## Architecture Principle (Load-Bearing)
+
+> **The SDK is the product. The hosted app is one instance of it.**
+
+All portable primitives live in `crates/llmtxt-core` (Rust SSoT). `packages/llmtxt` wraps them via WASM. `apps/backend` imports only from `packages/llmtxt` — never from the core directly, never re-implements primitives. SignalDock and any other Rust consumer uses `llmtxt-core` natively. Browser/edge consumers use the WASM-wrapped SDK. Byte-identical output is a CI-verified promise.
+
+See `docs/ARCHITECTURE-PRINCIPLES.md` for the full normative document. Every Phase 5-11 epic conforms.
+
 ## Guiding Star
 
 > **No agent should ever lose work, duplicate work, or act on stale information.**
