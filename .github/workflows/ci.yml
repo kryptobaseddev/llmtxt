@@ -32,6 +32,22 @@ jobs:
   typescript:
     name: TypeScript (build + typecheck)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: llmtxt_test
+        options: >-
+          --health-cmd "pg_isready -U test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      DATABASE_URL_PG: postgres://test:test@localhost:5432/llmtxt_test
     steps:
       - uses: actions/checkout@v4
 
