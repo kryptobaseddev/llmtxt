@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026.4.4] - 2026-04-15
+
+### Changed — SDK-First Refactor (T111)
+
+All 22 violations from `docs/SSOT-AUDIT.md` resolved. This release consolidates all portable primitives into `crates/llmtxt-core` as the canonical Single Source of Truth (SSoT). Backward-compatible WASM exports via `packages/llmtxt`.
+
+**Primitives migrated from TypeScript to Rust** (WASM-exported via `packages/llmtxt`):
+- `crypto::sign_webhook_payload` — HMAC-SHA256 for webhook signing (replaces backend `createHmac`)
+- `normalize::l2_normalize` — L2 vector normalization (replaces backend inline TS)
+- `slugify::slugify` — URL slug generation (replaces backend inline TS)
+- `rbac` module — `ROLE_PERMISSIONS` matrix lookups, permission validation
+- `validation` module — `detect_format`, `contains_binary_content`, `find_overlong_line`
+- `graph` module — mention/tag/directive extraction, graph building, ranked lookups
+- `similarity` module — n-grams, Jaccard similarity, text/content comparison, min-hash
+- `disclosure` module — markdown/code/json/text parsers, section search, JSONPath, overview generation
+- `tfidf` module — FNV1a hashing, TF-IDF batch embedding
+
+**Testing**: 122 → 278 cargo tests (+156 new). Byte-identity verification: every migrated primitive verified Rust output == original TypeScript for ≥3 test vectors. Zero regression in backend test suite (67/67).
+
 ## [2026.4.3] - 2026-04-13
 
 ### Added
