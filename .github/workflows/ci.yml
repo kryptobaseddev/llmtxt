@@ -142,9 +142,10 @@ jobs:
         working-directory: apps/backend
         run: pnpm run openapi:gen
 
-      - name: Fail if spec is out of sync
+      - name: Fail if OpenAPI spec is out of sync
+        # Postman collection excluded — its UUIDs regenerate nondeterministically
         run: |
-          git diff --exit-code apps/backend/openapi.json apps/backend/postman-collection.json || {
-            echo "ERROR: OpenAPI/Postman artifacts are out of sync. Run 'pnpm --filter backend run openapi:gen' and commit."
+          git diff --exit-code apps/backend/openapi.json apps/docs/public/api/openapi.json || {
+            echo "ERROR: openapi.json is out of sync. Run 'pnpm --filter backend run openapi:gen' and commit."
             exit 1
           }
