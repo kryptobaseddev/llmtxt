@@ -216,6 +216,14 @@ export const documents = pgTable(
      * Avoids a full-table scan on document_events for sequence assignment.
      */
     eventSeqCounter: bigint('event_seq_counter', { mode: 'bigint' }).notNull().default(BigInt(0)),
+
+    // ── W3/T152 BFT config ──
+    /**
+     * Byzantine fault tolerance f: maximum number of Byzantine validators to tolerate.
+     * Quorum = 2f+1. Default f=1 → quorum 3.
+     * 0 means no Byzantine tolerance (any single approval suffices, backward-compat mode).
+     */
+    bftF: integer('bft_f').notNull().default(1),
   },
   (table) => ({
     slugIdx: index('documents_slug_idx').on(table.slug),
@@ -327,6 +335,13 @@ export const stateTransitions = pgTable(
  *
  * Maps directly to the SDK Review interface from consensus.ts.
  * Each row is one review action; the latest per reviewer wins.
+ *
+ * W3/T251 extensions:
+ *   - sig_hex: Ed25519 signature over canonical_payload (128-char hex)
+ *   - canonical_payload: the exact bytes that were signed (for audit/replay)
+ *   - chain_hash: SHA-256 hash chaining this approval to the previous one
+ *   - prev_chain_hash: hash of the previous approval in the chain
+ *   - bft_f: per-document BFT fault tolerance f at time of approval
  */
 export const approvals = pgTable(
   'approvals',
@@ -345,6 +360,17 @@ export const approvals = pgTable(
     reason: text('reason'),
     /** Version number the review applies to. Stale if document changed since. */
     atVersion: integer('at_version').notNull(),
+    // ── W3/T251 BFT fields ──
+    /** Ed25519 signature over canonical_payload (128-char lowercase hex). Null for unsigned. */
+    sigHex: text('sig_hex'),
+    /** Canonical payload that was signed (UTF-8). Null for unsigned approvals. */
+    canonicalPayload: text('canonical_payload'),
+    /** SHA-256 chain hash: hex of SHA-256(prev_chain_hash_bytes || approval_json_bytes). */
+    chainHash: text('chain_hash'),
+    /** Hash of the previous approval's chain_hash. Null for the first in chain. */
+    prevChainHash: text('prev_chain_hash'),
+    /** BFT fault tolerance f value in effect when approval was processed. Default 1. */
+    bftF: integer('bft_f').notNull().default(1),
   },
   (table) => ({
     documentIdIdx: index('approvals_document_id_idx').on(table.documentId),
@@ -1071,6 +1097,44 @@ export const agentPubkeys = pgTable(
  * request whose nonce already appears here. A background job purges entries
  * older than 24 hours (the TTL for nonce validity).
  */
+// ────────────────────────────────────────────────────────────────
+// W2 Leases: Section leases (advisory turn-taking)
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Section leases — advisory locks for section turn-taking.
+ *
+ * Leases are cooperative signals only. The CRDT layer still accepts writes
+ * from non-holders; a 409 from POST /lease is a social signal, not a hard
+ * block. TTL is enforced server-side by the expiry background job.
+ */
+export const sectionLeases = pgTable(
+  'section_leases',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** Document slug (FK → documents.slug). */
+    docId: text('doc_id')
+      .notNull()
+      .references(() => documents.slug, { onDelete: 'cascade' }),
+    /** Section identifier. */
+    sectionId: text('section_id').notNull(),
+    /** Agent ID of the lease holder. */
+    holderAgentId: text('holder_agent_id').notNull(),
+    /** When the lease was acquired. */
+    acquiredAt: timestamp('acquired_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+    /** When the lease expires. Must be checked server-side; row is soft-expired until TTL job removes it. */
+    expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
+    /** Optional human-readable reason for holding the lease. */
+    reason: text('reason'),
+  },
+  (table) => ({
+    /** Fast active-lease lookup by (docId, sectionId). */
+    docSectionIdx: index('section_leases_doc_section_idx').on(table.docId, table.sectionId),
+    /** Fast expiry job sweep: find expired leases. */
+    expiresAtIdx: index('section_leases_expires_at_idx').on(table.expiresAt),
+  })
+);
+
 export const agentSignatureNonces = pgTable(
   'agent_signature_nonces',
   {
@@ -1085,6 +1149,48 @@ export const agentSignatureNonces = pgTable(
       table.agentId,
       table.firstSeen
     ),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
+// W3 A2A: Agent inbox messages (T154 HTTP inbox transport)
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Agent inbox messages — ephemeral A2A message store.
+ *
+ * Messages are stored for up to 48 hours. The recipient polls
+ * GET /api/v1/agents/:id/inbox or subscribes to SSE.
+ * Each message is a signed A2AMessage envelope (JSON).
+ *
+ * Background job purges rows where expires_at < now().
+ */
+export const agentInboxMessages = pgTable(
+  'agent_inbox_messages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** Recipient agent identifier. */
+    toAgentId: text('to_agent_id').notNull(),
+    /** Sender agent identifier. */
+    fromAgentId: text('from_agent_id').notNull(),
+    /** Full A2AMessage JSON envelope (includes signature). */
+    envelopeJson: jsonb('envelope_json').notNull(),
+    /** Nonce from the A2AMessage (for dedup). */
+    nonce: text('nonce').notNull().unique(),
+    /** When this message was received by the server (unix ms). */
+    receivedAt: bigint('received_at', { mode: 'number' }).notNull(),
+    /** When this message expires (unix ms). Default: receivedAt + 48h. */
+    expiresAt: bigint('expires_at', { mode: 'number' }).notNull(),
+    /** Whether the recipient has read/acknowledged this message. */
+    read: boolean('read').notNull().default(false),
+  },
+  (table) => ({
+    /** Fast inbox poll: messages for a specific recipient. */
+    toAgentIdx: index('agent_inbox_to_agent_idx').on(table.toAgentId, table.receivedAt),
+    /** Purge job: find expired messages. */
+    expiresAtIdx: index('agent_inbox_expires_at_idx').on(table.expiresAt),
+    /** Dedup by nonce (unique constraint above handles this). */
+    nonceIdx: uniqueIndex('agent_inbox_nonce_idx').on(table.nonce),
   })
 );
 
@@ -1142,6 +1248,10 @@ export type AgentPubkey = typeof agentPubkeys.$inferSelect;
 export type NewAgentPubkey = typeof agentPubkeys.$inferInsert;
 export type AgentSignatureNonce = typeof agentSignatureNonces.$inferSelect;
 export type NewAgentSignatureNonce = typeof agentSignatureNonces.$inferInsert;
+export type SectionLease = typeof sectionLeases.$inferSelect;
+export type NewSectionLease = typeof sectionLeases.$inferInsert;
+export type AgentInboxMessage = typeof agentInboxMessages.$inferSelect;
+export type NewAgentInboxMessage = typeof agentInboxMessages.$inferInsert;
 
 // ────────────────────────────────────────────────────────────────
 // Export Zod schemas for validation
@@ -1197,6 +1307,8 @@ export const insertAgentPubkeySchema = createInsertSchema(agentPubkeys);
 export const selectAgentPubkeySchema = createSelectSchema(agentPubkeys);
 export const insertAgentSignatureNonceSchema = createInsertSchema(agentSignatureNonces);
 export const selectAgentSignatureNonceSchema = createSelectSchema(agentSignatureNonces);
+export const insertAgentInboxMessageSchema = createInsertSchema(agentInboxMessages);
+export const selectAgentInboxMessageSchema = createSelectSchema(agentInboxMessages);
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type SelectUser = z.infer<typeof selectUserSchema>;

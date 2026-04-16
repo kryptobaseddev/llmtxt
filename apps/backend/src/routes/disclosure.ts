@@ -421,7 +421,7 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
    */
   fastify.get<{
     Params: { slug: string; name: string };
-    Querystring: { depth?: string };
+    Querystring: { depth?: string; since?: string };
   }>('/documents/:slug/sections/:name', { preHandler: [canRead] }, async (
     request,
     reply,
@@ -429,6 +429,41 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
     const { slug } = slugSchema.parse({ slug: request.params.slug });
     const { name } = sectionQuery.parse({ name: request.params.name });
     const depthAll = request.query.depth === 'all';
+
+    // ── T299: Differential delta mode (?since=<seq>) ──────────────────────
+    // When ?since is provided, return a SectionDelta instead of full content.
+    const sinceParam = request.query.since;
+    if (sinceParam !== undefined) {
+      const since = parseInt(sinceParam, 10);
+      if (isNaN(since) || since < 0) {
+        return reply.status(400).send({ error: 'since must be a non-negative integer' });
+      }
+
+      // Resolve document for currentSeq
+      const doc = await resolveDocument(slug, shouldSkipCache(request));
+      if (!doc) {
+        return reply.status(404).send({ error: 'Document not found' });
+      }
+
+      // Import diff helper (lazy to avoid circular deps in tests)
+      const { computeSectionDelta } = await import('../subscriptions/diff-helper.js');
+      const { db } = await import('../db/index.js');
+
+      const delta = await computeSectionDelta(db, slug, name, since);
+
+      // Get currentSeq from DB
+      const { documentEvents } = await import('../db/schema-pg.js');
+      const { max } = await import('drizzle-orm');
+      const maxResult = await db
+        .select({ maxSeq: max(documentEvents.seq) })
+        .from(documentEvents)
+        .where((await import('drizzle-orm')).eq(documentEvents.documentId, slug));
+      const currentSeq = Number(maxResult[0]?.maxSeq ?? BigInt(0));
+
+      reply.header('Cache-Control', 'no-store');
+      return reply.status(200).send({ delta, currentSeq });
+    }
+    // ── End T299 ──────────────────────────────────────────────────────────
 
     const doc = await resolveDocument(slug, shouldSkipCache(request));
     if (!doc) {

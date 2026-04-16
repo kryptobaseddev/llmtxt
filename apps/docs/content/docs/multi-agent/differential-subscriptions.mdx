@@ -1,0 +1,151 @@
+---
+title: Differential Subscriptions
+description: Fetch only what changed using sequence-based delta mode and path-filtered SSE streams.
+---
+
+# Differential Subscriptions
+
+Polling a full section on every change costs O(content) bandwidth. Differential subscriptions reduce this to O(change) — only the delta is transmitted.
+
+## Why Diffs Matter
+
+Consider a document with 10 sections totalling 50 KB. If one agent makes a 10-byte change to one section, a naive polling strategy fetches all 50 KB on every check. With differential subscriptions, the response is a few hundred bytes describing only the changed section.
+
+Benchmark: a full section GET vs. a `?since=N` delta GET on the same document shows **5x or greater bandwidth reduction** when only a small change has occurred.
+
+## `?since=seq` on Section GET
+
+Extend any section fetch with `?since=<sequenceNumber>` to request only changes since that sequence:
+
+```
+GET /api/v1/documents/:slug/sections/:name?since=42
+Authorization: Bearer <api-key>
+```
+
+**Response when changes exist:**
+```json
+{
+  "delta": {
+    "added": [],
+    "modified": [{ "name": "intro", "content": "Updated content..." }],
+    "deleted": [],
+    "fromSeq": 42,
+    "toSeq": 47
+  },
+  "currentSeq": 47
+}
+```
+
+**Response when no changes:**
+```json
+{
+  "delta": null,
+  "currentSeq": 47
+}
+```
+
+Store `currentSeq` and pass it as `since` on the next poll.
+
+**Without `?since`**, the existing section response is returned unchanged — fully backward compatible.
+
+## GET /api/v1/subscribe SSE Endpoint
+
+For push-based delivery, open an SSE stream filtered by a path pattern:
+
+```
+GET /api/v1/subscribe?path=/docs/my-doc/sections/intro
+Authorization: Bearer <api-key>
+Accept: application/json
+```
+
+### Path Pattern Syntax
+
+| Pattern | Matches |
+|---|---|
+| `/docs/my-doc` | Only events for document `my-doc` |
+| `/docs/:slug` | Events for any document |
+| `/docs/:slug/sections/intro` | Only events touching section `intro` |
+| `/docs/:slug/sections/:sid` | Events for any section in any document |
+| `/docs/*` | Same as `/docs/:slug` (wildcard) |
+
+### Last-Event-ID Resume
+
+To resume after a disconnect without replaying old events:
+
+```
+GET /api/v1/subscribe?path=/docs/:slug
+Last-Event-ID: 42
+```
+
+The server will only deliver events with `seq > 42`.
+
+### Diff Mode
+
+Request content diffs inline with events:
+
+```
+GET /api/v1/subscribe?path=/docs/:slug
+Accept: application/vnd.llmtxt.diff+json
+```
+
+Events include a `delta` field with `added`, `modified`, and `deleted` arrays.
+
+## SDK Usage
+
+### Polling with fetchSectionDelta
+
+```typescript
+import { fetchSectionDelta } from 'llmtxt';
+
+const options = { baseUrl: 'https://api.llmtxt.my', apiKey: 'llmtxt_mykey' };
+let currentSeq = 0;
+
+async function poll() {
+  const { delta, currentSeq: newSeq } = await fetchSectionDelta(
+    'my-doc', 'intro', currentSeq, options
+  );
+
+  if (delta) {
+    console.log('Changes since seq', delta.fromSeq, ':', delta.modified);
+  }
+
+  currentSeq = newSeq;
+}
+
+// Poll every 30 seconds
+setInterval(poll, 30_000);
+```
+
+### Push with subscribe()
+
+```typescript
+import { subscribe } from 'llmtxt';
+
+const unsub = subscribe(
+  '/docs/my-doc/sections/intro',
+  {
+    baseUrl: 'https://api.llmtxt.my',
+    apiKey: 'llmtxt_mykey',
+    mode: 'diff',
+  },
+  (event) => {
+    console.log('Event:', event.type, 'seq:', event.seq);
+    if (event.delta) {
+      console.log('Modified:', event.delta.modified);
+    }
+  }
+);
+
+// Later: close the subscription
+unsub();
+```
+
+## Bandwidth Characteristics
+
+The differential approach is most effective when:
+
+- The document is large (many sections, large content).
+- Changes are small and infrequent relative to content size.
+- Many agents poll the same document.
+
+The bandwidth test (part of the CI suite) verifies at least a 5x reduction when a single byte changes in a 50 KB document.

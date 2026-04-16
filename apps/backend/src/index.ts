@@ -56,6 +56,7 @@ import { agentSignaturePlugin } from './middleware/agent-signature-plugin.js';
 import { startNonceCleanup } from './middleware/verify-agent-signature.js';
 import { presenceRegistry } from './presence/registry.js';
 import { presenceRoutes } from './routes/presence.js';
+import { startLeaseExpiryJob } from './leases/expiry-job.js';
 import { logger as pinoLogger } from './lib/logger.js';
 import { registerObservabilityHooks } from './middleware/observability.js';
 
@@ -514,6 +515,11 @@ async function main() {
     const presenceExpiryTimer = setInterval(() => presenceRegistry.expire(), 10_000);
     // Ensure the timer does not prevent process exit
     presenceExpiryTimer.unref?.();
+
+    // ── Lease TTL expiry job (T284) ────────────────────────────────────────────
+    // Runs every 15 seconds; deletes expired section_leases rows and emits events.
+    const leaseExpiryTimer = startLeaseExpiryJob();
+    leaseExpiryTimer.unref?.();
 
     // Register error handler
     app.setErrorHandler((error: unknown, request, reply) => {

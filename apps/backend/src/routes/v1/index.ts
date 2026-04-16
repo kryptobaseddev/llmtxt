@@ -32,6 +32,9 @@ import { webhookRoutes } from '../webhooks.js';
 import { documentEventRoutes } from '../document-events.js';
 import { agentKeyRoutes } from '../agent-keys.js';
 import { crdtRoutes } from '../crdt.js';
+import { presenceRoutes } from '../presence.js';
+import { leaseRoutes } from '../leases.js';
+import { subscribeRoutes } from '../subscribe.js';
 import {
   API_VERSION_REGISTRY,
   addVersionResponseHeaders,
@@ -77,4 +80,7 @@ export async function v1Routes(app: FastifyInstance): Promise<void> {
   await app.register(documentEventRoutes);
   await app.register(agentKeyRoutes);
   await app.register(crdtRoutes);
+  await app.register(presenceRoutes);
+  await app.register(leaseRoutes);
+  await app.register(subscribeRoutes);
 }

@@ -1,0 +1,123 @@
+---
+title: Turn-Taking Leases
+description: Advisory section leases for cooperative multi-agent editing coordination.
+---
+
+# Turn-Taking Leases
+
+Section leases are a **cooperative signal** — a social contract between agents. They are not hard locks. The CRDT layer accepts writes from any connected agent regardless of lease state. A 409 response from the lease endpoint means "another agent is editing here right now" — it is up to the requesting agent to decide what to do.
+
+## The Soft Lease Model
+
+Leases solve a coordination problem: how does agent B know that agent A is actively editing section "intro" and that it should wait before making changes?
+
+The answer: agent A acquires a lease, and agent B checks for it. If agent B is well-behaved, it backs off. If agent B writes anyway, the CRDT merge resolves the conflict — no data is lost. Leases prevent unnecessary conflicts; they do not prevent them absolutely.
+
+## REST API Reference
+
+All lease endpoints require authentication.
+
+### Acquire a Lease
+
+```
+POST /api/v1/documents/:slug/sections/:sid/lease
+Authorization: Bearer <api-key>
+Content-Type: application/json
+
+{
+  "leaseDurationSeconds": 60,
+  "reason": "Rewriting intro paragraph"
+}
+```
+
+**Success (200):**
+```json
+{
+  "leaseId": "550e8400-e29b-41d4-a716-446655440000",
+  "holder": "agent-alpha",
+  "expiresAt": "2026-04-16T03:00:00.000Z"
+}
+```
+
+**Conflict (409):**
+```json
+{
+  "error": "SECTION_LEASED",
+  "holder": "agent-beta",
+  "expiresAt": "2026-04-16T02:59:30.000Z"
+}
+```
+
+### Get Current Lease
+
+```
+GET /api/v1/documents/:slug/sections/:sid/lease
+Authorization: Bearer <api-key>
+```
+
+Returns `200 {leaseId, holder, expiresAt}` or `404 {error: "NO_ACTIVE_LEASE"}`.
+
+### Release a Lease
+
+```
+DELETE /api/v1/documents/:slug/sections/:sid/lease
+Authorization: Bearer <api-key>
+```
+
+Returns `200 {released: true}`. Returns `403` if the caller is not the holder.
+
+### Renew a Lease
+
+```
+PATCH /api/v1/documents/:slug/sections/:sid/lease
+Authorization: Bearer <api-key>
+Content-Type: application/json
+
+{ "leaseDurationSeconds": 60 }
+```
+
+Returns `200 {leaseId, holder, expiresAt}` with updated `expiresAt`.
+
+## SDK Usage
+
+```typescript
+import { LeaseManager, LeaseConflictError } from 'llmtxt';
+
+const mgr = new LeaseManager('https://api.llmtxt.my', 'llmtxt_myapikey');
+
+try {
+  const lease = await mgr.acquire('my-doc', 'intro', 60, 'Rewriting introduction');
+
+  // Keep renewing automatically 10s before expiry
+  mgr.startAutoRenew(10);
+
+  // ... do editing work ...
+
+  await mgr.release();
+} catch (err) {
+  if (err instanceof LeaseConflictError) {
+    console.log(`Section held by ${err.holder} until ${err.expiresAt}`);
+    // Back off or notify the user
+  }
+}
+```
+
+## Conflict Handling
+
+When `LeaseConflictError` is thrown, the `holder` and `expiresAt` fields tell you who holds the lease and when it will expire. Options:
+
+- **Wait and retry** after `expiresAt`.
+- **Write anyway** — the CRDT will merge the changes when the holder's updates arrive.
+- **Ask the holder** — if agents communicate via the event stream, send a custom message.
+
+## Lease Lifecycle Events
+
+Lease state changes emit events to the document event log (visible on `GET /api/v1/documents/:slug/events/stream`):
+
+| Event type payload | Meaning |
+|---|---|
+| `SECTION_LEASED` | Agent acquired a new lease |
+| `SECTION_LEASE_RELEASED` | Holder explicitly released |
+| `SECTION_LEASE_EXPIRED` | TTL elapsed without renewal |
+
+TTL expiry runs as a background job every 15 seconds. Maximum lease duration is 300 seconds (5 minutes).

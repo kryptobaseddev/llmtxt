@@ -45,6 +45,7 @@ import { auth } from '../auth.js';
 import { db } from '../db/index.js';
 import { documents } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
+import { presenceRegistry } from '../presence/registry.js';
 import {
   crdt_state_vector,
   crdt_diff_update,
@@ -59,8 +60,18 @@ import { publishCrdtUpdate, subscribeCrdtUpdates } from '../realtime/redis-pubsu
 const SYNC_STEP_1 = 0x00; // client → server: state vector
 const SYNC_STEP_2 = 0x01; // server → client: diff update
 const MSG_UPDATE   = 0x02; // bidirectional: incremental update
+const MSG_AWARENESS = 0x01; // y-sync awareness message type prefix (second byte after 0x00 framing in awareness subprotocol)
+
+// y-sync protocol: awareness messages are prefixed with byte 0x01 when using a
+// multiplexed framing where 0x00=sync, 0x01=awareness. However, this backend
+// uses a simpler framing: messages starting with 0x03 are awareness (chosen to
+// avoid collision with SYNC_STEP_1=0x00, SYNC_STEP_2=0x01, MSG_UPDATE=0x02).
+const MSG_AWARENESS_RELAY = 0x03; // awareness relay message type
 
 const SUBPROTOCOL = 'yjs-sync-v1';
+
+// Re-export awareness constant for external reference
+export { MSG_AWARENESS_RELAY };
 
 // ── In-process session registry ───────────────────────────────────────────────
 
@@ -114,6 +125,50 @@ function broadcastLocal(
       // Socket may have closed between the check and send
     }
   }
+}
+
+/**
+ * Broadcast awareness update bytes to all other connections in the same room.
+ * Does NOT decode the awareness state — raw relay only (T256 AC).
+ */
+export function broadcastAwareness(
+  documentId: string,
+  sectionId: string,
+  updateBytes: Buffer,
+  excludeClientId: string,
+): void {
+  const key = sessionKey(documentId, sectionId);
+  const set = activeSessions.get(key);
+  if (!set) return;
+  const frame = framed(MSG_AWARENESS_RELAY, updateBytes);
+  for (const entry of set) {
+    if (entry.clientId === excludeClientId) continue;
+    try {
+      entry.socket.send(frame);
+    } catch {
+      // Socket may have closed
+    }
+  }
+}
+
+/**
+ * Handle an awareness message from a client. Relay raw bytes to peers
+ * and upsert the presence registry entry.
+ *
+ * The awareness payload is NOT decoded server-side — we relay the raw bytes
+ * to all other peers in the same (docId, sectionId) room.
+ */
+export function handleAwarenessMessage(
+  clientId: string,
+  documentId: string,
+  sectionId: string,
+  updateBytes: Buffer,
+): void {
+  // Update presence registry (best-effort: no section/cursor decode here)
+  presenceRegistry.upsert(clientId, documentId, sectionId);
+
+  // Fan out to all other local sessions
+  broadcastAwareness(documentId, sectionId, updateBytes, clientId);
 }
 
 /**
@@ -331,6 +386,10 @@ export async function wsCrdtRoutes(app: FastifyInstance): Promise<void> {
           } else if (msgType === SYNC_STEP_2) {
             // Server never expects SyncStep2 from client in this simplified protocol
             // (full sync bidirectional is future work). Ignore.
+          } else if (msgType === MSG_AWARENESS_RELAY) {
+            // Awareness message: relay raw bytes to all other peers in the same room.
+            // Update presence registry (no server-side awareness decode).
+            handleAwarenessMessage(user.id, slug, sid, payload);
           }
         },
       );

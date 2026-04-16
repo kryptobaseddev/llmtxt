@@ -326,3 +326,15 @@ export type { SignatureHeaders, CanonicalPayloadOptions } from './identity.js';
 // ── CRDT Collaborative Editing (T211) ────────────────────────────────────────
 export { subscribeSection, getSectionText } from './crdt.js';
 export type { SectionDelta, Unsubscribe, SubscribeSectionOptions } from './crdt.js';
+
+// ── Awareness (T257) ─────────────────────────────────────────────────────────
+export { setLocalAwarenessState, onAwarenessChange, getAwarenessStates } from './awareness.js';
+export type { AwarenessState, AwarenessEvent, AwarenessEventType } from './awareness.js';
+
+// ── Leases (T285) ────────────────────────────────────────────────────────────
+export { LeaseManager, LeaseConflictError } from './leases.js';
+export type { Lease, LeaseOptions } from './leases.js';
+
+// ── Subscriptions / Differential (T301) ──────────────────────────────────────
+export { subscribe, fetchSectionDelta } from './subscriptions.js';
+export type { SubscribeOptions, SubscriptionEvent, SectionDeltaResponse } from './subscriptions.js';
