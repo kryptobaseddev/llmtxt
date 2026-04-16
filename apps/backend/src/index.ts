@@ -50,7 +50,6 @@ import { registerCsrf } from './middleware/csrf.js';
 import { registerAuditLogging, auditLogRoutes } from './middleware/audit.js';
 import { registerRateLimiting } from './middleware/rate-limit.js';
 import { registerMetrics } from './middleware/metrics.js';
-import { agentKeyRoutes } from './routes/agent-keys.js';
 import { wellKnownAgentsRoutes } from './routes/well-known-agents.js';
 import { agentSignaturePlugin } from './middleware/agent-signature-plugin.js';
 import { startNonceCleanup } from './middleware/verify-agent-signature.js';
@@ -428,10 +427,12 @@ async function main() {
     // ──────────────────────────────────────────────────────────────────
     // Register agent signature middleware globally (scoped by method+path in plugin)
     await app.register(agentSignaturePlugin);
-    // Key management under /api/v1/agents/keys
-    await app.register(agentKeyRoutes, { prefix: '/api/v1' });
-    await app.register(agentKeyRoutes, { prefix: '/api' });
-    // Well-known public key discovery
+    // NOTE: agentKeyRoutes is registered inside v1Routes (see below), so no
+    // standalone /api/v1 registration is needed — doing so causes
+    // FST_ERR_DUPLICATED_ROUTE. T147 is a new feature (never shipped under
+    // /api without a version prefix), so we deliberately do NOT alias it to
+    // the legacy /api scope either.
+    // Well-known public key discovery (mounted at root /.well-known/...)
     await app.register(wellKnownAgentsRoutes);
     // Start background nonce cleanup (once)
     startNonceCleanup();
