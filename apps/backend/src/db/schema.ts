@@ -1,5 +1,5 @@
 // Drizzle ORM database schema for LLMtxt
-import { sqliteTable, text, integer, blob, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, blob, index, uniqueIndex, primaryKey } from 'drizzle-orm/sqlite-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import type { z } from 'zod';
 
@@ -897,6 +897,125 @@ export const collectionDocuments = sqliteTable(
 );
 
 // ────────────────────────────────────────────────────────────────
+// W1 CRDT: Section CRDT states (SQLite mirror)
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * SQLite mirror of section_crdt_states.
+ * bytea → blob('bytes'), timestamptz → integer (unix ms), composite PK via primaryKey.
+ */
+export const sectionCrdtStates = sqliteTable(
+  'section_crdt_states',
+  {
+    documentId: text('document_id').notNull(),
+    sectionId: text('section_id').notNull(),
+    clock: integer('clock').notNull().default(0),
+    updatedAt: integer('updated_at').notNull().$defaultFn(() => Date.now()),
+    /** Full consolidated Yjs state vector (binary). */
+    yrsState: blob('yrs_state', { mode: 'buffer' }).notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.documentId, table.sectionId] }),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
+// W1 CRDT: Section CRDT updates (SQLite mirror)
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * SQLite mirror of section_crdt_updates.
+ */
+export const sectionCrdtUpdates = sqliteTable(
+  'section_crdt_updates',
+  {
+    id: text('id').primaryKey(),
+    documentId: text('document_id').notNull(),
+    sectionId: text('section_id').notNull(),
+    /** Raw Yjs update message binary. */
+    updateBlob: blob('update_blob', { mode: 'buffer' }).notNull(),
+    clientId: text('client_id').notNull(),
+    seq: integer('seq').notNull(),
+    createdAt: integer('created_at').notNull().$defaultFn(() => Date.now()),
+  },
+  (table) => ({
+    docSectionSeqIdx: index('section_crdt_updates_doc_section_seq_idx').on(
+      table.documentId,
+      table.sectionId,
+      table.seq
+    ),
+    docSectionCreatedAtIdx: index('section_crdt_updates_doc_section_created_at_idx').on(
+      table.documentId,
+      table.sectionId,
+      table.createdAt
+    ),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
+// W1 Events: Document event log (SQLite mirror)
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * SQLite mirror of document_events.
+ * jsonb → text with { mode: 'json' }, bytea → blob('bytes').
+ */
+export const documentEvents = sqliteTable(
+  'document_events',
+  {
+    id: text('id').primaryKey(),
+    documentId: text('document_id').notNull(),
+    seq: integer('seq').notNull(),
+    eventType: text('event_type').notNull(),
+    actorId: text('actor_id').notNull(),
+    payloadJson: text('payload_json', { mode: 'json' }).notNull(),
+    idempotencyKey: text('idempotency_key'),
+    createdAt: integer('created_at').notNull().$defaultFn(() => Date.now()),
+    prevHash: blob('prev_hash', { mode: 'buffer' }),
+  },
+  (table) => ({
+    uniqueDocSeq: uniqueIndex('document_events_doc_seq_unique').on(table.documentId, table.seq),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
+// W1 Identity: Agent public keys (SQLite mirror)
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * SQLite mirror of agent_pubkeys.
+ */
+export const agentPubkeys = sqliteTable('agent_pubkeys', {
+  id: text('id').primaryKey(),
+  agentId: text('agent_id').unique().notNull(),
+  pubkey: blob('pubkey', { mode: 'buffer' }).notNull(),
+  createdAt: integer('created_at').notNull().$defaultFn(() => Date.now()),
+  revokedAt: integer('revoked_at'),
+});
+
+// ────────────────────────────────────────────────────────────────
+// W1 Identity: Agent signature nonces (SQLite mirror)
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * SQLite mirror of agent_signature_nonces.
+ */
+export const agentSignatureNonces = sqliteTable(
+  'agent_signature_nonces',
+  {
+    nonce: text('nonce').primaryKey(),
+    agentId: text('agent_id').notNull(),
+    firstSeen: integer('first_seen').notNull().$defaultFn(() => Date.now()),
+  },
+  (table) => ({
+    agentFirstSeenIdx: index('agent_signature_nonces_agent_first_seen_idx').on(
+      table.agentId,
+      table.firstSeen
+    ),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
 // Export TypeScript types
 // ────────────────────────────────────────────────────────────────
 
@@ -940,6 +1059,16 @@ export type Collection = typeof collections.$inferSelect;
 export type NewCollection = typeof collections.$inferInsert;
 export type CollectionDocument = typeof collectionDocuments.$inferSelect;
 export type NewCollectionDocument = typeof collectionDocuments.$inferInsert;
+export type SectionCrdtState = typeof sectionCrdtStates.$inferSelect;
+export type NewSectionCrdtState = typeof sectionCrdtStates.$inferInsert;
+export type SectionCrdtUpdate = typeof sectionCrdtUpdates.$inferSelect;
+export type NewSectionCrdtUpdate = typeof sectionCrdtUpdates.$inferInsert;
+export type DocumentEvent = typeof documentEvents.$inferSelect;
+export type NewDocumentEvent = typeof documentEvents.$inferInsert;
+export type AgentPubkey = typeof agentPubkeys.$inferSelect;
+export type NewAgentPubkey = typeof agentPubkeys.$inferInsert;
+export type AgentSignatureNonce = typeof agentSignatureNonces.$inferSelect;
+export type NewAgentSignatureNonce = typeof agentSignatureNonces.$inferInsert;
 
 // ────────────────────────────────────────────────────────────────
 // Export Zod schemas for validation

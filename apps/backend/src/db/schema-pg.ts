@@ -9,6 +9,9 @@ import {
   index,
   uniqueIndex,
   customType,
+  uuid,
+  jsonb,
+  primaryKey,
 } from 'drizzle-orm/pg-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import type { z } from 'zod';
@@ -907,6 +910,176 @@ export const collectionDocuments = pgTable(
 );
 
 // ────────────────────────────────────────────────────────────────
+// W1 CRDT: Section CRDT states
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Section CRDT states — consolidated Yjs state vector per (document, section).
+ *
+ * Stores the full Yjs document state after applying all updates. Updated
+ * atomically when updates are compacted. FK references documents.slug
+ * (the public-facing identifier used in CRDT operations).
+ */
+export const sectionCrdtStates = pgTable(
+  'section_crdt_states',
+  {
+    documentId: text('document_id')
+      .notNull()
+      .references(() => documents.slug, { onDelete: 'cascade' }),
+    sectionId: text('section_id').notNull(),
+    /** Logical clock — incremented on each state compaction. */
+    clock: integer('clock').notNull().default(0),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    /** Full consolidated Yjs state vector (binary). */
+    yrsState: bytea('yrs_state').notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.documentId, table.sectionId], name: 'section_crdt_states_pk' }),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
+// W1 CRDT: Section CRDT updates
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Section CRDT updates — raw Yjs update messages pending compaction.
+ *
+ * Each row is one Yjs update message from a client. Updates are compacted
+ * into section_crdt_states by a background job. FK on document_id alone
+ * (cascade alignment mirrors states table via document_id).
+ */
+export const sectionCrdtUpdates = pgTable(
+  'section_crdt_updates',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    documentId: text('document_id').notNull(),
+    sectionId: text('section_id').notNull(),
+    /** Raw Yjs update message binary. */
+    updateBlob: bytea('update_blob').notNull(),
+    /** Agent ID that produced this update. */
+    clientId: text('client_id').notNull(),
+    /** Monotonically increasing per (document_id, section_id). */
+    seq: bigint('seq', { mode: 'bigint' }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    docSectionSeqIdx: index('section_crdt_updates_doc_section_seq_idx').on(
+      table.documentId,
+      table.sectionId,
+      table.seq
+    ),
+    docSectionCreatedAtIdx: index('section_crdt_updates_doc_section_created_at_idx').on(
+      table.documentId,
+      table.sectionId,
+      table.createdAt
+    ),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
+// W1 Events: Document event log
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Document events — append-only event log with hash chain for integrity.
+ *
+ * Every significant operation on a document emits an event here. The
+ * prev_hash column links each event to its predecessor, forming a
+ * tamper-evident chain. The first event per document has prev_hash = NULL.
+ *
+ * Partial unique index on (document_id, idempotency_key) WHERE
+ * idempotency_key IS NOT NULL is added via raw-SQL follow-up migration.
+ */
+export const documentEvents = pgTable(
+  'document_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    documentId: text('document_id')
+      .notNull()
+      .references(() => documents.slug, { onDelete: 'cascade' }),
+    /** Monotonically increasing per document. */
+    seq: bigint('seq', { mode: 'bigint' }).notNull(),
+    /** Structured event type, e.g. 'version.created', 'state.changed'. */
+    eventType: text('event_type').notNull(),
+    /** Agent or user that caused the event. */
+    actorId: text('actor_id').notNull(),
+    /** Event-specific JSON payload. */
+    payloadJson: jsonb('payload_json').notNull(),
+    /** Client-supplied idempotency key (nullable). */
+    idempotencyKey: text('idempotency_key'),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    /** SHA-256 of the previous event; NULL for the first event in a chain. */
+    prevHash: bytea('prev_hash'),
+  },
+  (table) => ({
+    uniqueDocSeq: uniqueIndex('document_events_doc_seq_unique').on(table.documentId, table.seq),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
+// W1 Identity: Agent public keys
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Agent public keys — Ed25519 (or equivalent) pubkeys for agent signature
+ * verification. Each agent_id maps to exactly one active pubkey at a time.
+ * Revocation is soft: set revoked_at to the revocation timestamp.
+ *
+ * CHECK constraint (octet_length(pubkey) = 32) is added via raw-SQL
+ * follow-up migration because Drizzle cannot express this in schema alone.
+ */
+export const agentPubkeys = pgTable(
+  'agent_pubkeys',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** Unique agent identifier. */
+    agentId: text('agent_id').unique().notNull(),
+    /** Raw 32-byte public key. */
+    pubkey: bytea('pubkey').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    /** Null = active; set to revocation timestamp when key is revoked. */
+    revokedAt: timestamp('revoked_at', { withTimezone: true, mode: 'date' }),
+  }
+);
+
+// ────────────────────────────────────────────────────────────────
+// W1 Identity: Agent signature nonces (replay prevention)
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Agent signature nonces — append-only nonce store for replay attack prevention.
+ *
+ * Each nonce is recorded on first use. Verification middleware rejects any
+ * request whose nonce already appears here. A background job purges entries
+ * older than 24 hours (the TTL for nonce validity).
+ */
+export const agentSignatureNonces = pgTable(
+  'agent_signature_nonces',
+  {
+    nonce: text('nonce').primaryKey(),
+    agentId: text('agent_id').notNull(),
+    firstSeen: timestamp('first_seen', { withTimezone: true, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    agentFirstSeenIdx: index('agent_signature_nonces_agent_first_seen_idx').on(
+      table.agentId,
+      table.firstSeen
+    ),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
 // Export TypeScript types
 // ────────────────────────────────────────────────────────────────
 
@@ -950,6 +1123,16 @@ export type Collection = typeof collections.$inferSelect;
 export type NewCollection = typeof collections.$inferInsert;
 export type CollectionDocument = typeof collectionDocuments.$inferSelect;
 export type NewCollectionDocument = typeof collectionDocuments.$inferInsert;
+export type SectionCrdtState = typeof sectionCrdtStates.$inferSelect;
+export type NewSectionCrdtState = typeof sectionCrdtStates.$inferInsert;
+export type SectionCrdtUpdate = typeof sectionCrdtUpdates.$inferSelect;
+export type NewSectionCrdtUpdate = typeof sectionCrdtUpdates.$inferInsert;
+export type DocumentEvent = typeof documentEvents.$inferSelect;
+export type NewDocumentEvent = typeof documentEvents.$inferInsert;
+export type AgentPubkey = typeof agentPubkeys.$inferSelect;
+export type NewAgentPubkey = typeof agentPubkeys.$inferInsert;
+export type AgentSignatureNonce = typeof agentSignatureNonces.$inferSelect;
+export type NewAgentSignatureNonce = typeof agentSignatureNonces.$inferInsert;
 
 // ────────────────────────────────────────────────────────────────
 // Export Zod schemas for validation
@@ -995,6 +1178,16 @@ export const insertCollectionSchema = createInsertSchema(collections);
 export const selectCollectionSchema = createSelectSchema(collections);
 export const insertCollectionDocumentSchema = createInsertSchema(collectionDocuments);
 export const selectCollectionDocumentSchema = createSelectSchema(collectionDocuments);
+export const insertSectionCrdtStateSchema = createInsertSchema(sectionCrdtStates);
+export const selectSectionCrdtStateSchema = createSelectSchema(sectionCrdtStates);
+export const insertSectionCrdtUpdateSchema = createInsertSchema(sectionCrdtUpdates);
+export const selectSectionCrdtUpdateSchema = createSelectSchema(sectionCrdtUpdates);
+export const insertDocumentEventSchema = createInsertSchema(documentEvents);
+export const selectDocumentEventSchema = createSelectSchema(documentEvents);
+export const insertAgentPubkeySchema = createInsertSchema(agentPubkeys);
+export const selectAgentPubkeySchema = createSelectSchema(agentPubkeys);
+export const insertAgentSignatureNonceSchema = createInsertSchema(agentSignatureNonces);
+export const selectAgentSignatureNonceSchema = createSelectSchema(agentSignatureNonces);
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type SelectUser = z.infer<typeof selectUserSchema>;
@@ -1036,3 +1229,13 @@ export type InsertCollection = z.infer<typeof insertCollectionSchema>;
 export type SelectCollection = z.infer<typeof selectCollectionSchema>;
 export type InsertCollectionDocument = z.infer<typeof insertCollectionDocumentSchema>;
 export type SelectCollectionDocument = z.infer<typeof selectCollectionDocumentSchema>;
+export type InsertSectionCrdtState = z.infer<typeof insertSectionCrdtStateSchema>;
+export type SelectSectionCrdtState = z.infer<typeof selectSectionCrdtStateSchema>;
+export type InsertSectionCrdtUpdate = z.infer<typeof insertSectionCrdtUpdateSchema>;
+export type SelectSectionCrdtUpdate = z.infer<typeof selectSectionCrdtUpdateSchema>;
+export type InsertDocumentEvent = z.infer<typeof insertDocumentEventSchema>;
+export type SelectDocumentEvent = z.infer<typeof selectDocumentEventSchema>;
+export type InsertAgentPubkey = z.infer<typeof insertAgentPubkeySchema>;
+export type SelectAgentPubkey = z.infer<typeof selectAgentPubkeySchema>;
+export type InsertAgentSignatureNonce = z.infer<typeof insertAgentSignatureNonceSchema>;
+export type SelectAgentSignatureNonce = z.infer<typeof selectAgentSignatureNonceSchema>;
