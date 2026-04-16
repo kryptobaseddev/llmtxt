@@ -25,10 +25,12 @@ import { wsRoutes } from './routes/ws.js';
 import { sseRoutes } from './routes/sse.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import { startWebhookWorker } from './events/webhooks.js';
+import { startEventLogJobs } from './jobs/event-log-compaction.js';
 import { crossDocRoutes } from './routes/cross-doc.js';
 import { collectionRoutes } from './routes/collections.js';
 import { publicDir, extractSlug, extractSlugWithExtension, handleContentNegotiation, getDocumentWithContent } from './routes/web.js';
 import { v1Routes } from './routes/v1/index.js';
+import { documentEventRoutes } from './routes/document-events.js';
 import { healthRoutes } from './routes/health.js';
 import {
   apiVersionPlugin,
@@ -446,6 +448,7 @@ async function main() {
       await legacyScope.register(semanticRoutes);
       await legacyScope.register(crossDocRoutes);
       await legacyScope.register(collectionRoutes);
+      await legacyScope.register(documentEventRoutes);
     }, { prefix: '/api' });
 
     // ──────────────────────────────────────────────────────────────────
@@ -459,6 +462,9 @@ async function main() {
 
     // Start the webhook delivery worker (attaches a single event-bus listener).
     startWebhookWorker();
+
+    // Start event log background jobs (compaction + chain validation).
+    startEventLogJobs();
 
     // Register error handler
     app.setErrorHandler((error: unknown, request, reply) => {
