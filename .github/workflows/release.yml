@@ -1,16 +1,26 @@
-name: Release llmtxt
+name: Release
+
+# Single release workflow handling both the npm package (llmtxt) and the
+# Rust crate (llmtxt-core). crates.io trusted-publisher config is keyed on
+# this filename (release.yml), so keep both publishes under this file.
+#
+# Tag conventions (see memory/reference_release_workflow.md):
+#   core-v<VERSION>        → publishes packages/llmtxt to npm
+#   llmtxt-core-v<VERSION> → publishes crates/llmtxt-core to crates.io via OIDC
 
 on:
   push:
     tags:
       - 'core-v*'
+      - 'llmtxt-core-v*'
 
 permissions:
   contents: write
   id-token: write
 
 jobs:
-  publish:
+  publish-npm:
+    if: startsWith(github.ref_name, 'core-v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -94,5 +104,80 @@ jobs:
           else
             gh release create "${GITHUB_REF_NAME}" \
               --title "llmtxt v${VERSION}" \
+              --notes "${NOTES}"
+          fi
+
+  # crates.io publish via OIDC trusted publishing. No CARGO_REGISTRY_TOKEN.
+  # Triggered by llmtxt-core-v* tag.
+  publish-crates:
+    if: startsWith(github.ref_name, 'llmtxt-core-v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#llmtxt-core-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Check if version already published on crates.io
+        id: crates_check
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://crates.io/api/v1/crates/llmtxt-core/${VERSION}")
+          if [ "$STATUS" = "200" ]; then
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate crate
+        working-directory: crates/llmtxt-core
+        run: cargo test
+
+      - name: Package crate
+        if: steps.crates_check.outputs.already_published != 'true'
+        working-directory: crates/llmtxt-core
+        run: cargo package --allow-dirty
+
+      - name: Authenticate to crates.io via OIDC
+        if: steps.crates_check.outputs.already_published != 'true'
+        uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+
+      - name: Publish to crates.io
+        if: steps.crates_check.outputs.already_published != 'true'
+        working-directory: crates/llmtxt-core
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        run: cargo publish
+
+      - name: Extract changelog for this version
+        id: crate_changelog
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          NOTES=$(sed -n "/^## \[${VERSION}\]/,/^## \[/p" crates/llmtxt-core/CHANGELOG.md | sed '$ d')
+          if [ -z "$NOTES" ]; then
+            NOTES="Release llmtxt-core v${VERSION}"
+          fi
+          echo "notes<<CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
+          echo "$NOTES" >> "$GITHUB_OUTPUT"
+          echo "CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          NOTES: ${{ steps.crate_changelog.outputs.notes }}
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            echo "Release ${GITHUB_REF_NAME} already exists — skipping"
+          else
+            gh release create "${GITHUB_REF_NAME}" \
+              --title "llmtxt-core v${VERSION}" \
               --notes "${NOTES}"
           fi
