@@ -24,7 +24,7 @@
 
 import path from 'node:path';
 import { readFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import type { Backend, Document, CreateDocumentParams, ListResult } from '../../core/backend.js';
 import { PostgresBackend } from '../../pg/pg-backend.js';
@@ -105,7 +105,7 @@ async function appendDocumentEventStub(
 
   // We need the schema table objects. Import dynamically from apps/backend.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const schemaPg = (await import('../../../../../../apps/backend/src/db/schema-pg.js' as any)) as any;
+  const schemaPg = (await import(pathToFileURL(path.join(BACKEND_ROOT, 'db/schema-pg.js')).href as any)) as any;
   const { documentEvents, documents } = schemaPg;
 
   // Atomically increment seq counter on the documents row (keyed by slug or id)
@@ -829,7 +829,7 @@ export async function createPgBackend(): Promise<PgBackendHandle> {
 
   // Import schema-pg dynamically (avoids cross-package static import during build)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const schemaPg = (await import('../../../../../../apps/backend/src/db/schema-pg.js' as any)) as any;
+  const schemaPg = (await import(pathToFileURL(path.join(BACKEND_ROOT, 'db/schema-pg.js')).href as any)) as any;
 
   // Create PostgresBackend with the suite connection string
   const inner = new PostgresBackend({
