@@ -1,5 +1,5 @@
 /**
- * Scratchpad routes — W3/T153.
+ * Scratchpad routes — W3/T153 / T353 Wave C.
  *
  * POST /api/v1/documents/:slug/scratchpad       — publish a message
  * GET  /api/v1/documents/:slug/scratchpad       — read messages (poll)
@@ -8,11 +8,16 @@
  * Transport: Redis Streams (XADD / XREAD) with 24h TTL.
  * Fallback: in-memory EventEmitter when REDIS_URL is not set.
  * Rate limit: writeRateLimit per agent.
+ *
+ * Wave C:
+ *  - Document existence check via fastify.backendCore.getDocumentBySlug (zero Drizzle)
+ *  - publishScratchpad/readScratchpad/subscribeScratchpad lib functions kept as-is:
+ *    the Backend ScratchpadOps uses agent-inbox semantics (toAgentId/fromAgentId),
+ *    while this route uses document-scoped broadcast channels — the semantics differ.
+ *    The lib functions are Redis/in-memory transport, not Drizzle, so direct import is
+ *    acceptable (no DB boundary violation). This is documented in the T353 manifest.
  */
 import type { FastifyInstance } from 'fastify';
-import { eq } from 'drizzle-orm';
-import { db } from '../db/index.js';
-import { documents } from '../db/schema.js';
 import { canRead } from '../middleware/rbac.js';
 import { writeRateLimit } from '../middleware/rate-limit.js';
 import {
@@ -45,12 +50,8 @@ export async function scratchpadRoutes(fastify: FastifyInstance): Promise<void> 
         return reply.status(400).send({ error: 'Bad Request', message: 'content is required' });
       }
 
-      // Verify document exists
-      const [doc] = await db
-        .select({ id: documents.id })
-        .from(documents)
-        .where(eq(documents.slug, slug))
-        .limit(1);
+      // Verify document exists via backendCore (zero Drizzle)
+      const doc = await fastify.backendCore.getDocumentBySlug(slug);
       if (!doc) return reply.status(404).send({ error: 'Not Found' });
 
       const agentId = request.user?.id ?? 'anonymous';
@@ -85,11 +86,8 @@ export async function scratchpadRoutes(fastify: FastifyInstance): Promise<void> 
       const { slug } = request.params;
       const { last_id, limit, thread_id } = request.query;
 
-      const [doc] = await db
-        .select({ id: documents.id })
-        .from(documents)
-        .where(eq(documents.slug, slug))
-        .limit(1);
+      // Verify document exists via backendCore (zero Drizzle)
+      const doc = await fastify.backendCore.getDocumentBySlug(slug);
       if (!doc) return reply.status(404).send({ error: 'Not Found' });
 
       const msgs = await readScratchpad(slug, {
@@ -123,11 +121,8 @@ export async function scratchpadRoutes(fastify: FastifyInstance): Promise<void> 
       const { slug } = request.params;
       const { last_id, thread_id } = request.query;
 
-      const [doc] = await db
-        .select({ id: documents.id })
-        .from(documents)
-        .where(eq(documents.slug, slug))
-        .limit(1);
+      // Verify document exists via backendCore (zero Drizzle)
+      const doc = await fastify.backendCore.getDocumentBySlug(slug);
       if (!doc) return reply.status(404).send({ error: 'Not Found' });
 
       // SSE headers

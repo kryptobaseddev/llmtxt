@@ -1,5 +1,5 @@
 /**
- * Presence REST endpoint — T266.
+ * Presence REST endpoint — T266 / T353 Wave C.
  *
  * GET /api/v1/documents/:slug/presence
  *   Returns the list of agents currently active (within last 30s) in the
@@ -10,14 +10,15 @@
  *   [ { agentId, section, cursorOffset?, lastSeen } ]
  *
  * lastSeen is serialized as an ISO8601 string for interoperability.
+ *
+ * Wave C: Delegated to fastify.backendCore.listPresence (in-memory registry).
+ * presenceRegistry import retained since listPresence is a thin delegate to it.
+ * Zero direct Drizzle for presence read operation.
+ * Document existence check still uses backendCore.getDocumentBySlug.
  */
 
 import type { FastifyInstance } from 'fastify';
-import { eq } from 'drizzle-orm';
-import { db } from '../db/index.js';
-import { documents } from '../db/schema-pg.js';
 import { canRead } from '../middleware/rbac.js';
-import { presenceRegistry } from '../presence/registry.js';
 
 // ── Route registration ────────────────────────────────────────────────────────
 
@@ -34,26 +35,23 @@ export async function presenceRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const { slug } = request.params;
 
-      // Verify document exists
-      const docRows = await db
-        .select({ id: documents.id })
-        .from(documents)
-        .where(eq(documents.slug, slug))
-        .limit(1);
-
-      if (docRows.length === 0) {
+      // Verify document exists via backendCore
+      const doc = await app.backendCore.getDocumentBySlug(slug);
+      if (!doc) {
         return reply.status(404).send({ error: 'Document not found' });
       }
 
-      // Retrieve presence entries from the in-memory registry
-      const records = presenceRegistry.getByDoc(slug);
+      // Retrieve presence entries via backendCore (delegates to presenceRegistry)
+      const entries = await app.backendCore.listPresence(slug);
 
-      // Serialize lastSeen as ISO8601 string
-      const body = records.map((r) => ({
-        agentId: r.agentId,
-        section: r.section,
-        ...(r.cursorOffset !== undefined ? { cursorOffset: r.cursorOffset } : {}),
-        lastSeen: new Date(r.lastSeen).toISOString(),
+      // Serialize lastSeen as ISO8601 string; extract section/cursorOffset from meta
+      const body = entries.map((e) => ({
+        agentId: e.agentId,
+        section: (e.meta?.section as string | undefined) ?? '',
+        ...(e.meta?.cursorOffset !== undefined
+          ? { cursorOffset: e.meta.cursorOffset as number }
+          : {}),
+        lastSeen: new Date(e.lastSeen).toISOString(),
       }));
 
       reply.header('Cache-Control', 'no-store');
