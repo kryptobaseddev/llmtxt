@@ -1,0 +1,83 @@
+name: Backup — Nightly (03:00 UTC)
+
+on:
+  schedule:
+    # Every day at 03:00 UTC
+    - cron: '0 3 * * *'
+  # Allow manual trigger for testing / ad-hoc backup
+  workflow_dispatch:
+    inputs:
+      prefix:
+        description: 'Backup prefix override (daily|weekly|monthly)'
+        required: false
+        default: 'daily'
+
+jobs:
+  pg-backup:
+    name: Postgres backup -> S3/R2
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install age
+        run: |
+          AGE_VERSION="v1.2.0"
+          curl -fsSL "https://github.com/FiloSottile/age/releases/download/${AGE_VERSION}/age-${AGE_VERSION}-linux-amd64.tar.gz" \
+            | tar -xz --strip-components=1 -C /usr/local/bin/ age/age age/age-keygen
+          age --version
+
+      - name: Install postgresql-client
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q postgresql-client
+
+      - name: Run backup
+        id: backup
+        env:
+          DATABASE_URL_PG: ${{ secrets.DATABASE_URL_PG }}
+          BACKUP_AGE_RECIPIENT: ${{ secrets.BACKUP_AGE_RECIPIENT }}
+          BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_AWS_SECRET_ACCESS_KEY }}
+          # For Cloudflare R2, uncomment and set this secret:
+          # AWS_ENDPOINT_URL: ${{ secrets.BACKUP_AWS_ENDPOINT_URL }}
+          AWS_DEFAULT_REGION: us-east-1
+          BACKUP_PREFIX: ${{ github.event.inputs.prefix || 'daily' }}
+        run: bash apps/backend/scripts/pg-backup.sh
+
+      # ---- B.10: Auto-close any open backup-failure issues on success ----
+      - name: Close open backup-failure issues (success)
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          OPEN_ISSUES=$(gh issue list \
+            --label "backup-failure" \
+            --state open \
+            --json number \
+            --jq '.[].number' 2>/dev/null || true)
+          for issue_number in ${OPEN_ISSUES}; do
+            echo "Closing resolved backup issue #${issue_number}"
+            gh issue close "${issue_number}" \
+              --comment "Backup succeeded -- auto-closed."
+          done
+
+      # ---- B.10: Create GH issue on failure ----
+      - name: Alert on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+          REPO: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          RUN_URL="${SERVER_URL}/${REPO}/actions/runs/${RUN_ID}"
+          RUNBOOK_URL="${SERVER_URL}/${REPO}/blob/main/docs/ops/backup-restore-runbook.md"
+          BODY="Nightly Backup Failed\n\nDate: ${DATE}\nRun: ${RUN_URL}\n\nThe nightly Postgres backup job failed. Last successful backup may be over 24h old.\n\nImmediate Actions:\n1. Check the failed run for error details: ${RUN_URL}\n2. Follow the Backup and Restore Runbook: ${RUNBOOK_URL}\n3. If data loss is suspected, escalate immediately.\n\nThis issue will auto-close when the next successful backup completes."
+          printf '%b' "${BODY}" | gh issue create \
+            --title "BACKUP FAILURE: Nightly backup failed ${DATE}" \
+            --label "backup-failure,ops-alert" \
+            --body-file -

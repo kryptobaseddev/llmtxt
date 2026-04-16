@@ -1,0 +1,37 @@
+name: Backup — Monthly Promotion (first Saturday 05:00 UTC)
+
+on:
+  schedule:
+    # First Saturday of each month at 05:00 UTC
+    # Note: GitHub cron does not support "first Saturday" natively.
+    # "1-7 * 6" runs every Saturday in days 1-7 (first week), covering first Saturday.
+    - cron: '0 5 1-7 * 6'
+  workflow_dispatch: {}
+
+jobs:
+  promote-monthly:
+    name: Promote first-Saturday daily to monthly
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Promote daily backup to monthly
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_AWS_SECRET_ACCESS_KEY }}
+          BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+        run: |
+          BUCKET="${BACKUP_S3_BUCKET}"
+          TODAY=$(date -u +%Y-%m-%d)
+          MONTH_KEY=$(date -u +%Y-%m)
+          SRC_KEY="daily/${TODAY}.sql.age"
+          DST_KEY="monthly/${MONTH_KEY}.sql.age"
+          SRC_HASH="daily/${TODAY}.sql.age.sha256"
+          DST_HASH="monthly/${MONTH_KEY}.sql.age.sha256"
+
+          echo "Promoting s3://${BUCKET}/${SRC_KEY} -> s3://${BUCKET}/${DST_KEY}"
+          aws s3 cp "s3://${BUCKET}/${SRC_KEY}" "s3://${BUCKET}/${DST_KEY}"
+          aws s3 cp "s3://${BUCKET}/${SRC_HASH}" "s3://${BUCKET}/${DST_HASH}"
+          echo "Monthly promotion complete: ${DST_KEY}"

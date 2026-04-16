@@ -1,0 +1,36 @@
+name: Backup — Weekly Promotion (Saturday 04:00 UTC)
+
+on:
+  schedule:
+    # Every Saturday at 04:00 UTC (after the 03:00 nightly daily backup)
+    - cron: '0 4 * * 6'
+  workflow_dispatch: {}
+
+jobs:
+  promote-weekly:
+    name: Promote Saturday daily to weekly
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Promote daily backup to weekly
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_AWS_SECRET_ACCESS_KEY }}
+          BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+          # For R2, set: AWS_ENDPOINT_URL via BACKUP_AWS_ENDPOINT_URL secret
+        run: |
+          BUCKET="${BACKUP_S3_BUCKET}"
+          TODAY=$(date -u +%Y-%m-%d)
+          WEEK_KEY=$(date -u +%G-W%V)
+          SRC_KEY="daily/${TODAY}.sql.age"
+          DST_KEY="weekly/${WEEK_KEY}.sql.age"
+          SRC_HASH="daily/${TODAY}.sql.age.sha256"
+          DST_HASH="weekly/${WEEK_KEY}.sql.age.sha256"
+
+          echo "Promoting s3://${BUCKET}/${SRC_KEY} -> s3://${BUCKET}/${DST_KEY}"
+          aws s3 cp "s3://${BUCKET}/${SRC_KEY}" "s3://${BUCKET}/${DST_KEY}"
+          aws s3 cp "s3://${BUCKET}/${SRC_HASH}" "s3://${BUCKET}/${DST_HASH}"
+          echo "Weekly promotion complete: ${DST_KEY}"
