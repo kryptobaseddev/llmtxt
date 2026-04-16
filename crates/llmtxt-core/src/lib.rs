@@ -159,6 +159,20 @@ pub use disclosure::{
 pub mod tfidf;
 pub use tfidf::{fnv1a_hash, tfidf_embed};
 
+pub mod identity;
+pub use identity::{body_hash, canonical_payload, keygen, sign_submission, verify_submission};
+
+// ── CRDT (Yrs-backed section-level CRDTs) ────────────────────────────────────
+#[cfg(feature = "crdt")]
+pub mod crdt;
+#[cfg(all(feature = "crdt", not(target_arch = "wasm32")))]
+pub use crdt::crdt_get_text;
+#[cfg(feature = "crdt")]
+pub use crdt::{
+    crdt_apply_update, crdt_diff_update, crdt_encode_state_as_update, crdt_merge_updates,
+    crdt_new_doc, crdt_state_vector,
+};
+
 // ── Semantic Diff (WASM) ─────────────────────────────────────────
 
 /// WASM binding for [`semantic_diff`].
