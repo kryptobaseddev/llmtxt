@@ -25,11 +25,13 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Migration SQL path relative to this helper
-const MIGRATION_SQL_PATH = path.resolve(
-  __dirname,
-  '../../db/migrations-pg/20260415210842_swift_roland_deschain/migration.sql',
-);
+// Migration SQL paths — applied in chronological order
+const MIGRATION_SQL_PATHS = [
+  path.resolve(__dirname, '../../db/migrations-pg/20260415210842_swift_roland_deschain/migration.sql'),
+  path.resolve(__dirname, '../../db/migrations-pg/20260415235846_square_sentinel/migration.sql'),
+  path.resolve(__dirname, '../../db/migrations-pg/20260416000001_w1_constraints/migration.sql'),
+  path.resolve(__dirname, '../../db/migrations-pg/20260416000002_event_seq_counter/migration.sql'),
+];
 
 // ────────────────────────────────────────────────────────────────────────────
 // Types
@@ -400,16 +402,19 @@ async function createPgTestDb(): Promise<TestDbContext> {
     },
   });
 
-  // Read and execute PG migration SQL — split on the Drizzle statement-break
-  // marker (`--> statement-breakpoint`) and execute each statement individually.
-  const migrationSql = await readFile(MIGRATION_SQL_PATH, 'utf-8');
-  const statements = migrationSql
-    .split('--> statement-breakpoint')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+  // Read and execute PG migration SQL files in order.
+  // Each file is split on the Drizzle statement-break marker
+  // (`--> statement-breakpoint`) and executed statement-by-statement.
+  for (const migPath of MIGRATION_SQL_PATHS) {
+    const migrationSql = await readFile(migPath, 'utf-8');
+    const statements = migrationSql
+      .split('--> statement-breakpoint')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
 
-  for (const stmt of statements) {
-    await suiteSql.unsafe(stmt);
+    for (const stmt of statements) {
+      await suiteSql.unsafe(stmt);
+    }
   }
 
   const db = drizzle({ client: suiteSql, schema: pgSchema });

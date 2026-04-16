@@ -207,6 +207,15 @@ export const documents = pgTable(
      * 'org'     — members of any associated organization can read.
      */
     visibility: text('visibility').notNull().default('public'),
+
+    // ── Event log counter (T226) ──
+    /**
+     * Monotonically increasing sequence counter for the document event log.
+     * Incremented atomically on each appendDocumentEvent call via
+     * `UPDATE documents SET event_seq_counter = event_seq_counter + 1 WHERE slug=$1 RETURNING event_seq_counter`.
+     * Avoids a full-table scan on document_events for sequence assignment.
+     */
+    eventSeqCounter: bigint('event_seq_counter', { mode: 'bigint' }).notNull().default(BigInt(0)),
   },
   (table) => ({
     slugIdx: index('documents_slug_idx').on(table.slug),
