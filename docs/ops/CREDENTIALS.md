@@ -9,8 +9,9 @@
 
 ## Table of Contents
 
-1. [Service Login Summary](#service-login-summary)
-2. [Service Details](#service-details)
+1. [Environment Variable Reference Policy](#environment-variable-reference-policy)
+2. [Service Login Summary](#service-login-summary)
+3. [Service Details](#service-details)
    - [Grafana](#grafana)
    - [GlitchTip](#glitchtip)
    - [Prometheus](#prometheus)
@@ -22,10 +23,95 @@
    - [llmtxt-api (Backend)](#llmtxt-api-backend)
    - [llmtxt-frontend](#llmtxt-frontend)
    - [llmtxt-docs](#llmtxt-docs)
-3. [Environment Variables Reference](#environment-variables-reference)
-4. [Owner Action Checklist (First-Time Setup)](#owner-action-checklist-first-time-setup)
-5. [Recovery Procedures](#recovery-procedures)
-6. [Secret Storage Policy](#secret-storage-policy)
+4. [Environment Variables Reference](#environment-variables-reference)
+5. [Owner Action Checklist (First-Time Setup)](#owner-action-checklist-first-time-setup)
+6. [Recovery Procedures](#recovery-procedures)
+7. [Secret Storage Policy](#secret-storage-policy)
+
+---
+
+## Environment Variable Reference Policy
+
+**Mandatory rule:** Every env var that points to another Railway service MUST use a
+Railway Reference Variable — never a hardcoded hostname or URL.
+
+Hardcoded URLs break silently whenever Railway redeploys a service and rotates its
+public domain, or when a service is renamed.  Reference Variables are resolved at
+deploy time from the live Railway service graph, so they stay correct automatically.
+
+### Correct patterns
+
+| Use case | Store this value |
+|----------|-----------------|
+| Public URL surfaced to a browser (iframe, link, SvelteKit env) | `https://${{Service.RAILWAY_PUBLIC_DOMAIN}}` |
+| Internal backend-to-backend endpoint (private Railway network) | `http://${{Service.RAILWAY_PRIVATE_DOMAIN}}:<literal-port>` |
+| Credential from another service (DB, Redis, etc.) | `${{Service.EXPOSED_VAR}}` e.g. `${{Postgres.DATABASE_URL}}` |
+| Ports | Always a literal number — never `${{Service.PORT}}` for cross-service wiring (see PORT pitfall below) |
+
+### `RAILWAY_PUBLIC_DOMAIN` vs `RAILWAY_PRIVATE_DOMAIN`
+
+| Variable | Resolves to | When to use |
+|----------|-------------|-------------|
+| `${{Service.RAILWAY_PUBLIC_DOMAIN}}` | The Railway-generated public hostname (e.g. `grafana-production-85af.up.railway.app`) | Anywhere a browser or external client needs to reach the service |
+| `${{Service.RAILWAY_PRIVATE_DOMAIN}}` | The stable private hostname on Railway's internal network (e.g. `grafana.railway.internal`) | Backend-to-backend calls that never leave Railway's network — faster, free, no TLS overhead |
+
+Use private domains for all internal traffic.  Use public domains only when
+a browser or the SvelteKit/Vite build process needs to reach the service.
+
+### PORT pitfall — never use `${{Service.PORT}}` for protocol-specific ports
+
+`${{Service.PORT}}` exposes the single `PORT` env var a service publishes to Railway's
+health-check system.  This is almost never the port you want for cross-service wiring.
+
+**Example that burned us:** OTel Collector publishes `PORT=13133` (its health-check
+port).  Setting `OTEL_EXPORTER_OTLP_ENDPOINT=http://${{OtelCollector.RAILWAY_PRIVATE_DOMAIN}}:${{OtelCollector.PORT}}`
+silently routed all traces to the health endpoint instead of the OTLP HTTP ingress,
+dropping every span with no error in the sending service.
+
+**Correct form — always use a literal port number:**
+```
+OTEL_EXPORTER_OTLP_ENDPOINT=http://${{OtelCollector.RAILWAY_PRIVATE_DOMAIN}}:4318
+```
+
+Well-known port constants for this stack:
+
+| Service | Protocol | Literal port |
+|---------|----------|--------------|
+| OtelCollector | OTLP/HTTP ingress | `4318` |
+| OtelCollector | OTLP/gRPC egress | `4317` |
+| OtelCollector | Health check | `13133` |
+| Loki | HTTP push/query | `3100` |
+| Tempo | HTTP query | `3200` |
+| Prometheus | HTTP scrape/query | `9090` |
+| Grafana | HTTP dashboard | `3000` |
+| GlitchTip | HTTP | `8000` |
+
+### Worked example — wiring frontend PUBLIC_* env vars
+
+```bash
+railway variables --service llmtxt-frontend \
+  --set 'PUBLIC_GRAFANA_URL=https://${{Grafana.RAILWAY_PUBLIC_DOMAIN}}' \
+  --set 'PUBLIC_PROMETHEUS_URL=https://${{Prometheus.RAILWAY_PUBLIC_DOMAIN}}' \
+  --set 'PUBLIC_GLITCHTIP_URL=https://${{GlitchTip.RAILWAY_PUBLIC_DOMAIN}}'
+```
+
+### Reading back stored values — `--kv` shows resolved output, not raw templates
+
+`railway variables --service <name> --kv` displays the **resolved** value for
+convenience.  It does NOT mean the reference was expanded and stored as a literal URL.
+The raw reference template (`${{Service.RAILWAY_PUBLIC_DOMAIN}}`) is what Railway
+stores internally; it re-resolves at every deploy.  This means:
+
+- If you rotate a domain or rename a service, redeploying dependent services picks
+  up the new resolved value automatically.
+- The `--kv` output is useful for verifying what a service sees at runtime, but it
+  should not be copy-pasted back into `railway variables --set` as a hardcoded URL.
+
+### Service table notation
+
+Throughout the service tables below:
+- **(reference)** = value stored as a Railway Reference Variable (e.g. `${{Postgres.DATABASE_URL}}`)
+- **(literal)** = value stored as a plain string (ports, flags, manually-managed secrets)
 
 ---
 
@@ -359,10 +445,18 @@ No credentials to manage. The frontend is a static SPA deployed from `apps/front
 
 **Env vars (set on Railway service):**
 ```
-VITE_API_BASE                = https://api.llmtxt.my
-PUBLIC_GRAFANA_URL           = https://grafana-production-85af.up.railway.app
-PUBLIC_GLITCHTIP_URL         = https://glitchtip-production-00c4.up.railway.app
-PUBLIC_PROMETHEUS_URL        = https://prometheus-production-f652.up.railway.app
+VITE_API_BASE                = https://api.llmtxt.my                            (literal — custom domain, not generated)
+PUBLIC_GRAFANA_URL           = https://${{Grafana.RAILWAY_PUBLIC_DOMAIN}}        (reference)
+PUBLIC_GLITCHTIP_URL         = https://${{GlitchTip.RAILWAY_PUBLIC_DOMAIN}}      (reference)
+PUBLIC_PROMETHEUS_URL        = https://${{Prometheus.RAILWAY_PUBLIC_DOMAIN}}     (reference)
+```
+
+Set or update via CLI:
+```bash
+railway variables --service llmtxt-frontend \
+  --set 'PUBLIC_GRAFANA_URL=https://${{Grafana.RAILWAY_PUBLIC_DOMAIN}}' \
+  --set 'PUBLIC_GLITCHTIP_URL=https://${{GlitchTip.RAILWAY_PUBLIC_DOMAIN}}' \
+  --set 'PUBLIC_PROMETHEUS_URL=https://${{Prometheus.RAILWAY_PUBLIC_DOMAIN}}'
 ```
 
 ---
@@ -382,65 +476,68 @@ No credentials to manage. Docs are deployed from `apps/docs`.
 
 ### llmtxt-api — Required Variables
 
-| Variable | Railway Reference Variable | Purpose |
-|----------|---------------------------|---------|
-| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` | Postgres connection string |
-| `REDIS_URL` | `${{Redis.REDIS_URL}}` | Redis connection string |
-| `REDIS_HOST` | `${{Redis.REDISHOST}}` | Redis hostname (used by some internal clients) |
-| `REDIS_PASSWORD` | `${{Redis.REDISPASSWORD}}` | Redis password |
-| `REDIS_PORT` | `${{Redis.REDISPORT}}` | Redis port |
-| `BETTER_AUTH_SECRET` | (manually set) | Signs BetterAuth sessions; rotate to invalidate all sessions |
-| `BETTER_AUTH_URL` | (manually set) | Public API URL, e.g. `https://api.llmtxt.my` |
-| `SIGNING_SECRET` | (manually set) | Signs webhook payloads and internal tokens |
-| `CORS_ORIGIN` | (manually set) | Allowed CORS origin(s), e.g. `https://www.llmtxt.my` |
-| `SENTRY_DSN` | `${{GlitchTip.GLITCHTIP_PUBLIC_DSN}}` (or manually set) | GlitchTip error tracking DSN |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | `${{OtelCollector.RAILWAY_PRIVATE_DOMAIN}}:4318` | OTel trace export endpoint |
-| `OTEL_SERVICE_NAME` | (manually set) | Service name in traces, e.g. `llmtxt-api` |
-| `OTEL_RESOURCE_ATTRIBUTES` | (manually set) | Extra trace attributes, e.g. `service.version=2026.4.4,deployment.environment=production` |
-| `LOKI_HOST` | `${{Loki.RAILWAY_PRIVATE_DOMAIN}}:3100` | Loki log push endpoint |
-| `METRICS_TOKEN` | (manually set) | Bearer token for `/api/metrics` endpoint |
-| `CACHE_TTL` | (manually set) | In-memory cache TTL in ms (default: 86400000) |
-| `CACHE_MAX_SIZE` | (manually set) | In-memory LRU cache max entries (default: 1000) |
+| Variable | Value / Reference | Purpose |
+|----------|-------------------|---------|
+| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` (reference) | Postgres connection string |
+| `REDIS_URL` | `${{Redis.REDIS_URL}}` (reference) | Redis connection string |
+| `REDIS_HOST` | `${{Redis.REDISHOST}}` (reference) | Redis hostname (used by some internal clients) |
+| `REDIS_PASSWORD` | `${{Redis.REDISPASSWORD}}` (reference) | Redis password |
+| `REDIS_PORT` | `${{Redis.REDISPORT}}` (reference) | Redis port |
+| `BETTER_AUTH_SECRET` | (literal — manually set) | Signs BetterAuth sessions; rotate to invalidate all sessions |
+| `BETTER_AUTH_URL` | `https://api.llmtxt.my` (literal — custom domain) | Public API URL |
+| `SIGNING_SECRET` | (literal — manually set) | Signs webhook payloads and internal tokens |
+| `CORS_ORIGIN` | `https://www.llmtxt.my` (literal — custom domain) | Allowed CORS origin(s) |
+| `SENTRY_DSN` | `${{GlitchTip.GLITCHTIP_PUBLIC_DSN}}` (reference, or manually set) | GlitchTip error tracking DSN |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://${{OtelCollector.RAILWAY_PRIVATE_DOMAIN}}:4318` (reference + literal port) | OTel trace export endpoint — port 4318 is OTLP/HTTP, NOT `${{OtelCollector.PORT}}` (that is 13133, the health-check port) |
+| `OTEL_SERVICE_NAME` | `llmtxt-api` (literal) | Service name in traces |
+| `OTEL_RESOURCE_ATTRIBUTES` | (literal — manually set) | Extra trace attributes, e.g. `service.version=2026.4.4,deployment.environment=production` |
+| `LOKI_HOST` | `${{Loki.RAILWAY_PRIVATE_DOMAIN}}` (reference) | Loki private hostname — port 3100 appended in code |
+| `METRICS_TOKEN` | (literal — manually set) | Bearer token for `/api/metrics` endpoint |
+| `CACHE_TTL` | (literal — manually set) | In-memory cache TTL in ms (default: 86400000) |
+| `CACHE_MAX_SIZE` | (literal — manually set) | In-memory LRU cache max entries (default: 1000) |
 
 ### GlitchTip — Required Variables
 
-| Variable | Railway Reference Variable | Purpose |
-|----------|---------------------------|---------|
-| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` | Postgres connection string |
-| `REDIS_URL` | `${{Redis.REDIS_URL}}` | Redis connection string |
-| `SECRET_KEY` | (manually set) | Django secret key (generate: `openssl rand -hex 32`) |
-| `GLITCHTIP_DOMAIN` | `https://${{RAILWAY_PUBLIC_DOMAIN}}` | Public domain for DSN generation |
-| `DEFAULT_FROM_EMAIL` | (manually set) | From address for email alerts |
-| `ENABLE_USER_REGISTRATION` | (manually set) | Set `False` to lock down signups |
-| `CELERY_WORKER_CONCURRENCY` | (manually set) | Celery worker threads (default: 2) |
+| Variable | Value / Reference | Purpose |
+|----------|-------------------|---------|
+| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` (reference) | Postgres connection string |
+| `REDIS_URL` | `${{Redis.REDIS_URL}}` (reference) | Redis connection string |
+| `SECRET_KEY` | (literal — manually set) | Django secret key (generate: `openssl rand -hex 32`) |
+| `GLITCHTIP_DOMAIN` | `https://${{RAILWAY_PUBLIC_DOMAIN}}` (reference — GlitchTip's own public domain) | Public domain for DSN generation |
+| `DEFAULT_FROM_EMAIL` | (literal — manually set) | From address for email alerts |
+| `ENABLE_USER_REGISTRATION` | `False` (literal) | Lock down signups |
+| `CELERY_WORKER_CONCURRENCY` | `2` (literal) | Celery worker threads |
 
 ### Grafana — Required Variables
 
 | Variable | Value / Reference | Purpose |
 |----------|-------------------|---------|
-| `GF_SECURITY_ADMIN_USER` | `admin` | Admin username |
-| `GF_SECURITY_ADMIN_PASSWORD` | (manually set) | Admin password |
-| `GF_AUTH_ANONYMOUS_ENABLED` | `false` | Disable anonymous access |
-| `GF_SERVER_DOMAIN` | Railway public domain | Grafana base domain |
-| `GF_SERVER_ROOT_URL` | `https://<domain>` | Full root URL |
-| `LOKI_HOST` | `${{Loki.RAILWAY_PRIVATE_DOMAIN}}` | Loki datasource hostname |
-| `PROMETHEUS_HOST` | `${{Prometheus.RAILWAY_PRIVATE_DOMAIN}}` | Prometheus datasource hostname |
-| `TEMPO_HOST` | `${{Tempo.RAILWAY_PRIVATE_DOMAIN}}` | Tempo datasource hostname |
-| `GF_FEATURE_TOGGLES_ENABLE` | `traceqlEditor` | Enable TraceQL query editor |
+| `GF_SECURITY_ADMIN_USER` | `admin` (literal) | Admin username |
+| `GF_SECURITY_ADMIN_PASSWORD` | (literal — manually set) | Admin password |
+| `GF_AUTH_ANONYMOUS_ENABLED` | `false` (literal) | Disable anonymous access |
+| `GF_SERVER_DOMAIN` | `${{RAILWAY_PUBLIC_DOMAIN}}` (reference — Grafana's own public domain) | Grafana base domain |
+| `GF_SERVER_ROOT_URL` | `https://${{RAILWAY_PUBLIC_DOMAIN}}` (reference) | Full root URL |
+| `LOKI_HOST` | `${{Loki.RAILWAY_PRIVATE_DOMAIN}}` (reference) | Loki datasource hostname |
+| `PROMETHEUS_HOST` | `${{Prometheus.RAILWAY_PRIVATE_DOMAIN}}` (reference) | Prometheus datasource hostname |
+| `TEMPO_HOST` | `${{Tempo.RAILWAY_PRIVATE_DOMAIN}}` (reference) | Tempo datasource hostname |
+| `GF_FEATURE_TOGGLES_ENABLE` | `traceqlEditor` (literal) | Enable TraceQL query editor |
 
 ### OtelCollector — Required Variables
 
 | Variable | Value / Reference | Purpose |
 |----------|-------------------|---------|
-| `LOKI_HOST` | `${{Loki.RAILWAY_PRIVATE_DOMAIN}}` | Loki push target |
-| `TEMPO_HOST` | `${{Tempo.RAILWAY_PRIVATE_DOMAIN}}` | Tempo push target |
-| `PORT` | `13133` | Health check port |
+| `LOKI_HOST` | `${{Loki.RAILWAY_PRIVATE_DOMAIN}}` (reference) | Loki push target |
+| `TEMPO_HOST` | `${{Tempo.RAILWAY_PRIVATE_DOMAIN}}` (reference) | Tempo push target |
+| `PORT` | `13133` (literal) | Health-check port exposed to Railway — NOT the OTLP ports (4317/4318) |
 
 ### llmtxt-frontend — Required Variables
 
 | Variable | Value / Reference | Purpose |
 |----------|-------------------|---------|
-| `VITE_API_BASE` | `https://api.llmtxt.my` | Backend API base URL for SPA |
+| `VITE_API_BASE` | `https://api.llmtxt.my` (literal — custom domain) | Backend API base URL for SPA |
+| `PUBLIC_GRAFANA_URL` | `https://${{Grafana.RAILWAY_PUBLIC_DOMAIN}}` (reference) | Grafana dashboard URL surfaced to browser |
+| `PUBLIC_GLITCHTIP_URL` | `https://${{GlitchTip.RAILWAY_PUBLIC_DOMAIN}}` (reference) | GlitchTip error-tracking URL surfaced to browser |
+| `PUBLIC_PROMETHEUS_URL` | `https://${{Prometheus.RAILWAY_PUBLIC_DOMAIN}}` (reference) | Prometheus URL surfaced to browser |
 
 ---
 
