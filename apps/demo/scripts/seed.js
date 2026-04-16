@@ -31,7 +31,10 @@ This document is maintained by four AI agents collaborating in real time.
 Agents communicate via A2A message envelopes — each message is signed by the sender.
 `;
 
-  const result = await agent.createDocument(initial, { format: 'markdown' });
+  // bft_f=0 → quorum = 2*0+1 = 1 (ConsensusBot alone can approve).
+  // The backend column default is bft_f=1 (quorum=3), which would require
+  // 3 separate approvals — more than the single-bot demo can provide. (T369 fix)
+  const result = await agent.createDocument(initial, { format: 'markdown', bft_f: 0 });
   const slug = result.slug;
 
   console.log(`DEMO_SLUG=${slug}`);

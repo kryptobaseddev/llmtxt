@@ -34,6 +34,9 @@ class ConsensusBot extends AgentBase {
     /** Map<versionKey, { approved: number, rejected: number, reviewers: Set<string> }> */
     this._votes = new Map();
     this._approvedVersions = new Set();
+    /** unix ms timestamp recorded just before run() starts polling — used to
+     *  filter out stale inbox messages from prior test runs (T369 fix). */
+    this._startTime = null;
   }
 
   async run() {
@@ -44,9 +47,13 @@ class ConsensusBot extends AgentBase {
       process.exit(1);
     }
 
+    // Record start time BEFORE the first poll so we skip any messages that
+    // arrived before this run began (stale messages from prior test runs).
+    this._startTime = Date.now();
+
     this.log(`Monitoring consensus for document: ${this.slug}`);
 
-    const deadline = Date.now() + DEMO_DURATION_MS;
+    const deadline = this._startTime + DEMO_DURATION_MS;
 
     while (Date.now() < deadline) {
       await this._processPendingMessages();
@@ -58,7 +65,9 @@ class ConsensusBot extends AgentBase {
   }
 
   async _processPendingMessages() {
-    const messages = await this.pollInbox();
+    // Pass startTime as `since` so we only process messages from THIS run,
+    // not stale messages from prior runs that are still in the inbox queue.
+    const messages = await this.pollInbox({ since: this._startTime });
     for (const msg of messages) {
       try {
         await this._handleMessage(msg);

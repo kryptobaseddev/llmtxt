@@ -169,6 +169,9 @@ export async function apiRoutes(fastify: FastifyInstance) {
       const rawBody = request.body as Record<string, unknown>;
       const bodyCreatedBy = typeof rawBody.createdBy === 'string' ? rawBody.createdBy : null;
       const bodyAgentId = typeof rawBody.agentId === 'string' ? rawBody.agentId : null;
+      // bft_f: per-document BFT fault-tolerance config (T369 fix).
+      // Pass through to createDocument so demo documents can be seeded with bft_f=0.
+      const bodyBftF = typeof rawBody.bft_f === 'number' ? rawBody.bft_f : undefined;
 
       // Step 2: Validate schema parameter if provided
       if (schema && !isPredefinedSchema(schema)) {
@@ -230,6 +233,8 @@ export async function apiRoutes(fastify: FastifyInstance) {
         tokenCount,
         ownerId: user?.id ?? null,
         isAnonymous: user ? ((user as Record<string, unknown>).isAnonymous === true) : false,
+        // bftF: optional; undefined lets schema default (1) apply
+        ...(bodyBftF !== undefined ? { bftF: bodyBftF } : {}),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 

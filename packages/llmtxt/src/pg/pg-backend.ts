@@ -506,6 +506,9 @@ export class PostgresBackend implements Backend {
     const createdBy = (p.createdBy as string | null) ?? null;
     const ownerId = (p.ownerId as string | null) ?? null;
     const isAnonymous = (p.isAnonymous as boolean) ?? false;
+    // bftF: extended field passed from compress route for demo/test documents.
+    // Default 1 matches the schema column default; pass 0 for single-bot demos.
+    const bftF = typeof p.bftF === 'number' ? p.bftF : undefined;
 
     await this._db.transaction(async (tx: unknown) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -526,6 +529,8 @@ export class PostgresBackend implements Backend {
         currentVersion: 1,
         ownerId,
         isAnonymous,
+        // Only include bftF when explicitly supplied; let schema default handle omitted case.
+        ...(bftF !== undefined ? { bftF } : {}),
       });
 
       // 2. Insert version 1 (initial version)

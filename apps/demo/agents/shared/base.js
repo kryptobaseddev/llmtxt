@@ -171,15 +171,28 @@ export class AgentBase {
 
   // ── Document helpers ──────────────────────────────────────────────────────
 
-  /** Create a new document. Returns { slug, ... } */
+  /**
+   * Create a new document. Returns { slug, ... }
+   *
+   * @param {string} content
+   * @param {object} [opts]
+   * @param {string} [opts.format]   Content format (default: 'markdown')
+   * @param {number} [opts.bft_f]    BFT fault-tolerance f value; quorum = 2f+1.
+   *                                 Default (1) requires 3 approvals. Pass 0 for
+   *                                 single-bot demos where 1 approval suffices.
+   */
   async createDocument(content, opts = {}) {
+    const body = {
+      content,
+      format: opts.format ?? 'markdown',
+      createdBy: this.agentId,
+    };
+    if (typeof opts.bft_f === 'number') {
+      body.bft_f = opts.bft_f;
+    }
     return this._api('/api/v1/compress', {
       method: 'POST',
-      body: JSON.stringify({
-        content,
-        format: opts.format ?? 'markdown',
-        createdBy: this.agentId,
-      }),
+      body: JSON.stringify(body),
     });
   }
 
@@ -345,12 +358,26 @@ export class AgentBase {
 
   /**
    * Poll this agent's inbox for messages.
+   *
+   * @param {object} [opts]
+   * @param {number} [opts.since]  Only return messages received after this unix ms timestamp.
+   *                               Passed as ?since= query param — the server filters by receivedAt.
+   *                               Use this to avoid replaying messages from prior test runs.
    * @returns {Promise<Array>}
    */
-  async pollInbox() {
+  async pollInbox({ since } = {}) {
     try {
-      const result = await this._api(`/api/v1/agents/${encodeURIComponent(this.agentId)}/inbox`);
-      return Array.isArray(result) ? result : (result.messages ?? []);
+      const qs = since != null ? `?since=${encodeURIComponent(since)}` : '';
+      const result = await this._api(`/api/v1/agents/${encodeURIComponent(this.agentId)}/inbox${qs}`);
+      const messages = Array.isArray(result) ? result : (result.messages ?? []);
+      // Client-side filter: even if the server ignores `since`, discard stale messages.
+      if (since != null) {
+        return messages.filter((m) => {
+          const ts = m.received_at ?? m.receivedAt ?? m.createdAt ?? 0;
+          return ts >= since;
+        });
+      }
+      return messages;
     } catch {
       return [];
     }
