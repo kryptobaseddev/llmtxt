@@ -47,6 +47,10 @@ export const DOCUMENT_EVENT_TYPES = [
   'approval.rejected',
   'section.edited',
   'event.compacted',
+  // W3/T152 BFT events
+  'bft.approval_submitted',
+  'bft.byzantine_slash',
+  'bft.quorum_reached',
 ] as const;
 
 export type DocumentEventLogType = (typeof DOCUMENT_EVENT_TYPES)[number];

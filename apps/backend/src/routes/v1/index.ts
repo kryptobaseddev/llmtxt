@@ -35,6 +35,9 @@ import { crdtRoutes } from '../crdt.js';
 import { presenceRoutes } from '../presence.js';
 import { leaseRoutes } from '../leases.js';
 import { subscribeRoutes } from '../subscribe.js';
+import { bftRoutes } from '../bft.js';
+import { scratchpadRoutes } from '../scratchpad.js';
+import { a2aRoutes } from '../a2a.js';
 import {
   API_VERSION_REGISTRY,
   addVersionResponseHeaders,
@@ -83,4 +86,8 @@ export async function v1Routes(app: FastifyInstance): Promise<void> {
   await app.register(presenceRoutes);
   await app.register(leaseRoutes);
   await app.register(subscribeRoutes);
+  // W3: Byzantine consensus, scratchpad messaging, A2A inbox
+  await app.register(bftRoutes);
+  await app.register(scratchpadRoutes);
+  await app.register(a2aRoutes);
 }

@@ -162,6 +162,14 @@ pub use tfidf::{fnv1a_hash, tfidf_embed};
 pub mod identity;
 pub use identity::{body_hash, canonical_payload, keygen, sign_submission, verify_submission};
 
+pub mod bft;
+pub use bft::{
+    ChainedEvent, bft_check, bft_max_faults, bft_quorum, hash_chain_extend, verify_chain,
+};
+
+pub mod a2a;
+pub use a2a::A2AMessage;
+
 #[cfg(feature = "crdt")]
 pub mod crdt;
 
