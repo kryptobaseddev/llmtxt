@@ -6,7 +6,11 @@ settings:
 
 importers:
 
-  .: {}
+  .:
+    devDependencies:
+      '@forge-ts/cli':
+        specifier: ^0.21.1
+        version: 0.21.1(@grpc/grpc-js@1.14.3)
 
   apps/backend:
     dependencies:

@@ -20,5 +20,8 @@
       "esbuild",
       "onnxruntime-node"
     ]
+  },
+  "devDependencies": {
+    "@forge-ts/cli": "^0.21.1"
   }
 }
