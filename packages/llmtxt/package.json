@@ -92,6 +92,7 @@
     "@forge-ts/enforcer": "^0.21.1",
     "@forge-ts/gen": "^0.21.1",
     "@types/node": "^22.19.15",
+    "drizzle-kit": "1.0.0-beta.9-e89174b",
     "typescript": "^5.9.3"
   },
   "engines": {
@@ -109,5 +110,10 @@
   "homepage": "https://github.com/kryptobaseddev/llmtxt/tree/main/packages/llmtxt",
   "bugs": {
     "url": "https://github.com/kryptobaseddev/llmtxt/issues"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^12.8.0",
+    "drizzle-orm": "1.0.0-beta.9-e89174b",
+    "drizzle-zod": "0.7.0"
   }
 }
