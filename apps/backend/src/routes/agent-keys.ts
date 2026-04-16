@@ -23,7 +23,7 @@ import { hashContent } from 'llmtxt';
 import { db } from '../db/index.js';
 import { agentPubkeys } from '../db/schema.js';
 import { requireAuth } from '../middleware/auth.js';
-import { generateId } from '../utils/compression.js';
+// generateId import removed — agent_pubkeys uses Postgres UUID defaultRandom()
 
 // Noble ed25519 v3 requires setting the hash function in Node.js:
 // https://github.com/paulmillr/noble-ed25519#usage
@@ -157,22 +157,20 @@ export async function agentKeyRoutes(fastify: FastifyInstance) {
 
       const pubkeyLower = pubkey_hex.toLowerCase();
       const fingerprint = computeFingerprint(pubkeyLower);
-      const id = generateId();
       const now = Date.now();
 
-      // Insert new key
+      // Insert new key — let Postgres generate the UUID primary key via defaultRandom()
       await db.insert(agentPubkeys).values({
-        id,
         agentId: agent_id,
         pubkey: Buffer.from(pubkeyLower, 'hex'),
         createdAt: now as unknown as Date,
       });
 
-      // Fetch back for consistent response
+      // Fetch back by agent_id (since we don't have the generated UUID)
       const [row] = await db
         .select()
         .from(agentPubkeys)
-        .where(eq(agentPubkeys.id, id))
+        .where(eq(agentPubkeys.agentId, agent_id))
         .limit(1);
 
       return reply.status(201).send({
