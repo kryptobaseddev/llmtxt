@@ -1,6 +1,6 @@
 {
   "name": "llmtxt",
-  "version": "2026.4.4",
+  "version": "2026.4.5",
   "description": "Primitives and SDK for LLM agent content workflows: compression, patching, progressive disclosure, signed URLs, collaborative document lifecycle, and retrieval planning",
   "type": "module",
   "main": "dist/index.js",

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026.4.5] - 2026-04-16
+
+This release ships the full Round 1+2+3 multi-agent foundation: CRDT/Yrs, signed Ed25519 identity, append-only event log, real-time presence/leases/diff-subscriptions (W1+W2), BFT consensus, agent scratchpad, A2A envelope routing (W3), a self-hosted observability stack (Grafana / Loki / Tempo / Prometheus / OTel collector / GlitchTip on Railway), OpenAPI schema generation with forge-ts integration, local semantic embeddings via pgvector + ONNX, four reference agents plus a `/demo` page, and a fully portable SDK offering `LocalBackend`, `RemoteBackend`, and `llmtxt` CLI — including a complete CLEO integration example. Also upgrades drizzle-orm/kit to `1.0.0-beta.21` and zod to `^4`.
+
 ### Added — Portable SDK / LocalBackend (T317)
 
 **T332: RemoteBackend** (`llmtxt/remote`) — thin HTTP/WS client implementing the
@@ -43,6 +47,10 @@ to `package.json` exports map with `types` + `import` entries.
 
 **Build**: `build` script now copies `src/local/migrations` into `dist/local/migrations`
 so the CLI and embedded consumers find migrations at runtime.
+
+### Fixed
+
+- **Migration idempotency** (7df5795): W2 leases (`20260416021212_natural_shiva`) and W3 BFT/A2A inbox (`20260416030000_w3_bft_a2a_inbox`) Postgres migrations are now fully idempotent — all `CREATE TABLE` / `CREATE INDEX` / `ADD CONSTRAINT` statements use `IF NOT EXISTS` guards and a redundant `ALTER TABLE` that caused Railway crash-loops on retry is removed.
 
 ## [2026.4.4] - 2026-04-15
 
@@ -189,7 +197,12 @@ T112 (NAPI-RS native bindings) deferred 2026-04-15 pending production benchmark 
 - **cache**: generic LRU cache with configurable TTL, max size, and hit/miss statistics
 - **signed-url**: HMAC-SHA256 signed URL generation and verification -- conversation-scoped, time-limited, with timing-safe comparison
 
-[Unreleased]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.0...HEAD
+[Unreleased]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.5...HEAD
+[2026.4.5]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.4...core-v2026.4.5
+[2026.4.4]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.3...core-v2026.4.4
+[2026.4.3]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.2...core-v2026.4.3
+[2026.4.2]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.1...core-v2026.4.2
+[2026.4.1]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.0...core-v2026.4.1
 [2026.4.0]: https://github.com/kryptobaseddev/llmtxt/releases/tag/core-v2026.4.0
 [2026.3.1]: https://github.com/kryptobaseddev/llmtxt/releases/tag/core-v2026.3.1
 [2026.3.0]: https://github.com/kryptobaseddev/llmtxt/releases/tag/core-v2026.3.0

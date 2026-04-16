@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026.4.5] - 2026-04-16
+
+### Added — W1+W2+W3 Multi-Agent Primitives
+
+- **`crdt` module** (T189+T191): Yrs-backed CRDT document primitives — `YDoc` wrapper, awareness/state-vector exchange, update encoding/decoding, WASM-exported helpers. Enabled via `crdt` feature flag.
+- **`identity` module** (T217): Ed25519 keypair generation, document signing, signature verification, DID-lite identity serialisation. WASM-exported `sign_document` / `verify_document_signature`.
+- **`bft` module**: Byzantine-fault-tolerant consensus primitives — `BftRound`, vote aggregation, threshold evaluation, equivocation detection. Pure Rust, WASM-exported.
+- **`a2a` module**: A2A envelope construction and routing primitives — signed payloads, envelope verification, nonce deduplication helpers.
+- **`embeddings` primitives**: vocabulary building, ONNX-compatible embedding input preparation (companion to `packages/llmtxt`'s ONNX runtime provider).
+
+### Changed
+
+- `Cargo.toml` `version` bumped to `2026.4.5`
+- `yrs` optional dependency enabled on `crdt` feature (does not affect default `wasm` build)
+- All new modules gated correctly so WASM build with `--features wasm` remains clean (no `tokio` pull)
+
 ## [2026.4.4] - 2026-04-15
 
 ### Changed — SDK-First Refactor (T111)
@@ -108,6 +124,13 @@ All 22 violations from `docs/SSOT-AUDIT.md` resolved. This release consolidates 
 - `is_expired` off-by-one on boundary timestamps (signaldock-core-agent review)
 - WASM feature flag gating — native consumers no longer pull wasm-bindgen
 
-[Unreleased]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.3.0...HEAD
+[Unreleased]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.5...HEAD
+[2026.4.5]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.4...llmtxt-core-v2026.4.5
+[2026.4.4]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.3...llmtxt-core-v2026.4.4
+[2026.4.3]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.2...llmtxt-core-v2026.4.3
+[2026.4.2]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.1...llmtxt-core-v2026.4.2
+[2026.4.1]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.0...llmtxt-core-v2026.4.1
+[2026.4.0]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.3.1...llmtxt-core-v2026.4.0
+[2026.3.1]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.3.0...llmtxt-core-v2026.3.1
 [2026.3.0]: https://github.com/kryptobaseddev/llmtxt/releases/tag/llmtxt-core-v2026.3.0
 [0.2.0]: https://github.com/kryptobaseddev/llmtxt/releases/tag/llmtxt-core-v0.2.0
