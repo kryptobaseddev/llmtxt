@@ -1,0 +1,79 @@
+name: Release Backend (Sentry source maps)
+
+on:
+  push:
+    tags:
+      - 'backend-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  sentry-upload:
+    name: Build + Sentry source-map upload
+    runs-on: ubuntu-latest
+    env:
+      HAS_SENTRY_AUTH: ${{ secrets.SENTRY_AUTH_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Enable source maps for the production build so Sentry can symbolicate
+      # TypeScript stack traces back to source lines.
+      - name: Build backend with source maps
+        working-directory: apps/backend
+        run: |
+          node -e "
+            const fs = require('fs');
+            const cfg = JSON.parse(fs.readFileSync('tsconfig.json', 'utf8'));
+            cfg.compilerOptions.sourceMap = true;
+            fs.writeFileSync('tsconfig.build.json', JSON.stringify(cfg, null, 2));
+          "
+          pnpm exec tsc --project tsconfig.build.json
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#backend-v}" >> "$GITHUB_OUTPUT"
+
+      # Upload source maps to Sentry so stack traces are symbolicated.
+      # Skipped with a warning when SENTRY_AUTH_TOKEN secret is not configured.
+      - name: Upload source maps to Sentry
+        if: ${{ env.HAS_SENTRY_AUTH == 'true' }}
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          VERSION: ${{ steps.version.outputs.version }}
+        working-directory: apps/backend
+        run: |
+          pnpm exec sentry-cli sourcemaps upload \
+            --release "llmtxt-backend@${VERSION}" \
+            --dist "${GITHUB_SHA}" \
+            dist/
+
+      - name: Warn if Sentry upload skipped
+        if: ${{ env.HAS_SENTRY_AUTH != 'true' }}
+        run: |
+          echo "::warning::SENTRY_AUTH_TOKEN secret is not set — Sentry source-map upload was skipped. Set SENTRY_AUTH_TOKEN, SENTRY_ORG, and SENTRY_PROJECT secrets to enable symbolicated stack traces."
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            echo "Release ${GITHUB_REF_NAME} already exists — skipping"
+          else
+            gh release create "${GITHUB_REF_NAME}" \
+              --title "llmtxt-backend v${VERSION}" \
+              --notes "Backend release v${VERSION}"
+          fi
