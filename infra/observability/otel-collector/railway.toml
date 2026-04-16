@@ -3,6 +3,8 @@ builder = "dockerfile"
 dockerfilePath = "Dockerfile"
 
 [deploy]
+# health_check extension listens on port 13133 (set PORT=13133 in Railway env).
+# The OTLP receivers (4317/4318) remain accessible via Railway internal network.
 healthcheckPath = "/"
 healthcheckTimeout = 30
 restartPolicyType = "on_failure"
