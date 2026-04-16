@@ -158,3 +158,129 @@ verified) → quorum check → transition to APPROVED.
 | T308-b: consensus-bot bftApprove always 401 | agentId vs user UUID mismatch in BFT sig verify | bft.ts + base.js | Fixed (commit 78c2c9d) |
 
 Backend tests: 156/156 | SDK tests: 30/30 | Lint: clean
+
+---
+
+## T373: X-Server-Receipt still not emitted (Fastify plugin encapsulation)
+
+### Root Cause Analysis
+
+Even after registering `agentSignaturePlugin` inside `v1Routes` via `app.register(agentSignaturePlugin)`,
+Fastify's encapsulation model scoped the hooks to the grandchild plugin context only. When v1Routes
+then called `app.register(versionRoutes)`, `app.register(a2aRoutes)`, etc., each of those created
+their own sibling child scopes. The `onRequest` and `onSend` hooks registered inside
+`agentSignaturePlugin` were invisible to those sibling scopes — Fastify hook inheritance only flows
+downward (parent → child), not laterally (sibling → sibling).
+
+The root cause was that `agentSignaturePlugin` was an encapsulated plugin (the default). Fastify
+isolates encapsulated plugins: hooks registered inside never escape to the parent.
+
+### Fix Applied
+
+`apps/backend/src/middleware/agent-signature-plugin.ts`:
+- Added `import fp from 'fastify-plugin'`
+- Renamed inner function to `agentSignaturePluginImpl`
+- Exported `agentSignaturePlugin = fp(agentSignaturePluginImpl, { name: 'agent-signature', fastify: '5.x' })`
+
+`apps/backend/package.json`:
+- Added `fastify-plugin` dependency (installed via `pnpm --filter @llmtxt/backend add fastify-plugin`)
+
+The `fp()` wrapper marks the plugin as "transparent" (non-encapsulated). Hooks it registers
+propagate to the parent scope (v1Routes), so all route modules registered within v1Routes inherit
+both `onRequest` (signature verify) and `onSend` (X-Server-Receipt header + receipt body) hooks.
+
+### Verification
+
+Build: `tsc` exits 0.
+Tests: 156/156 (backend), 30/30 (SDK), lint clean.
+Commit: `ff0d75e`
+
+Live verify: `curl -X PUT https://api.llmtxt.my/api/v1/documents/<slug> -H "Authorization: Bearer <key>" -H "Content-Type: application/json" -H "X-Agent-Id: test" -d '{"content":"smoke","agentId":"test"}' -i | grep -iE "x-server-receipt|x-correlation"` must return `X-Server-Receipt: <hex>`.
+
+---
+
+## T374: Inbox FIFO queue has 154 stale messages from prior runs
+
+### Root Cause Analysis
+
+`GET /api/v1/agents/:id/inbox` uses `ORDER BY received_at ASC` (oldest first). With 154 stale
+messages from prior test runs, current-run messages were at position 150+ in the queue. The default
+`limit=50` query returned only stale messages; fresh messages were never surfaced. Client-side
+`since` filtering in consensus-bot couldn't help because those messages never appeared in the
+returned 50.
+
+### Fix Applied
+
+**`packages/llmtxt/src/core/backend.ts`** — interface:
+- Extended `pollA2AInbox` signature with optional `since?: number` and `order?: 'asc' | 'desc'` params.
+
+**`packages/llmtxt/src/pg/pg-backend.ts`** — PostgresBackend:
+- Changed default `ORDER BY received_at DESC` (newest first).
+- Added dynamic `since` WHERE condition: `gt(agentInboxMessages.receivedAt, since)` when provided.
+- Clamped limit to max 500.
+
+**`packages/llmtxt/src/local/local-backend.ts`** — LocalBackend:
+- Matched new signature with `since` + `order` params.
+- Applied `since` filter in post-query `.filter()`.
+
+**`packages/llmtxt/src/remote/remote-backend.ts`** — RemoteBackend:
+- Matched new signature; passes `since` and `order` as query params to the remote API.
+
+**`apps/backend/src/routes/a2a.ts`** — route handler:
+- Accepts `?since=<ms>`, `?limit=<n>` (max 500), `?order=asc|desc` query params.
+- Passes all to `fastify.backendCore.pollA2AInbox`.
+- Added `DELETE /agents/:id/inbox/:messageId` endpoint so agents can drain the backlog after processing.
+
+### Verification
+
+Build: `tsc` exits 0. Tests: 156/156, 30/30. Lint: clean. Commit: `4ef1e3a`.
+
+Live verify: `curl "https://api.llmtxt.my/api/v1/agents/consensusbot-demo/inbox?order=desc&limit=5"` returns 5 newest messages.
+
+---
+
+## T375: CRDT WS auth param mismatch
+
+### Root Cause Analysis
+
+`apps/demo/agents/observer-bot.js` connects with `ws://.../collab?apiKey=<key>`. The auth resolver
+in `apps/backend/src/routes/ws-crdt.ts` (`resolveWsUser`) only read `request.query['token']`. With
+`?apiKey=` the `token` variable was `undefined`, so `Authorization: Bearer undefined` was never set,
+the session lookup returned `null`, and the socket was closed with code `4401`.
+
+### Fix Applied
+
+`apps/backend/src/routes/ws-crdt.ts` — one-line change in `resolveWsUser`:
+
+```ts
+// Before:
+const token = request.query['token'];
+
+// After (T375):
+const token = request.query['token'] ?? request.query['apiKey'];
+```
+
+Both `?token=` (canonical) and `?apiKey=` (observer-bot/legacy) are now accepted. No client-side
+changes needed. Option B was chosen (accept both) to avoid breaking either calling convention.
+
+### Verification
+
+Build: `tsc` exits 0. Tests: 156/156, 30/30. Lint: clean. Commit: `0d05371`.
+
+Live verify: `wscat -c "wss://api.llmtxt.my/api/v1/documents/<slug>/sections/<slug>/collab?apiKey=<key>"` should handshake without 4401 close.
+
+---
+
+## Final Summary (all bugs including T373/T374/T375)
+
+| Bug | Root Cause | Fix Location | Commit |
+|-----|-----------|-------------|--------|
+| T308-a: X-Server-Receipt missing on BFT approve | Pattern missing in WRITE_ROUTE_PATTERNS | agent-signature-plugin.ts | e5a76f6 |
+| T308-a: CORS blocked header | exposedHeaders/allowedHeaders incomplete | index.ts | e5a76f6 |
+| T308-a: Insecure HMAC | SERVER_RECEIPT_SECRET not set | Railway variables | manual |
+| T308-b: bftApprove always 401 | agentId vs user UUID mismatch | bft.ts + base.js | 78c2c9d |
+| T373: X-Server-Receipt still missing | Fastify plugin encapsulation (child scope) | agent-signature-plugin.ts + package.json | ff0d75e |
+| T374: 154 stale inbox messages block new ones | ORDER BY ASC + no since filter | pg-backend.ts + a2a.ts + all backends | 4ef1e3a |
+| T375: CRDT WS 4401 on apiKey param | resolveWsUser only reads ?token, not ?apiKey | ws-crdt.ts | 0d05371 |
+
+Backend tests: 156/156 | SDK tests: 30/30 | Lint: clean | Pushed: main @ 0d05371
