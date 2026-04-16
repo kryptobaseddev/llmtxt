@@ -1,7 +1,7 @@
 {
   "item": [
     {
-      "id": "ab460d3b-7256-4cef-b97f-a0afc868848f",
+      "id": "3b6a123f-fc43-4e24-ae0c-d88cc4e1bfef",
       "name": "diff-helper",
       "description": {
         "content": "",
@@ -11,7 +11,7 @@
       "event": []
     },
     {
-      "id": "b16b6df3-baba-4a4b-a601-97cc5493ac6e",
+      "id": "80ec276f-103d-47ad-84cb-fef2ea87889d",
       "name": "document-events",
       "description": {
         "content": "",
@@ -21,7 +21,7 @@
       "event": []
     },
     {
-      "id": "fc9d853c-0da5-4a85-a097-35d2ec1e04b6",
+      "id": "c4e0da62-e7d1-4069-a540-73be55d2ab7b",
       "name": "embeddings",
       "description": {
         "content": "",
@@ -31,7 +31,7 @@
       "event": []
     },
     {
-      "id": "18a977a2-fce3-4576-9bdc-c48ec305a0b5",
+      "id": "e920b862-442a-42c7-801b-f4ade590be3f",
       "name": "lease-service",
       "description": {
         "content": "",
@@ -41,7 +41,7 @@
       "event": []
     },
     {
-      "id": "a9cf2d03-242d-4547-be4a-8e75cafe4cbe",
+      "id": "b8ee4f73-4636-49c1-867c-b5d8ecece37d",
       "name": "persistence",
       "description": {
         "content": "",
@@ -51,7 +51,7 @@
       "event": []
     },
     {
-      "id": "3d656bde-1e1c-4998-9983-c5b1ceb9be14",
+      "id": "0a259ace-9044-4488-a68b-a7bb3b53c283",
       "name": "registry",
       "description": {
         "content": "",
@@ -61,7 +61,7 @@
       "event": []
     },
     {
-      "id": "38198f0a-0ffe-453c-a28e-d493f25f04a2",
+      "id": "c4d4c11b-650b-4ea1-aa7f-e6208ed4d3f9",
       "name": "schema",
       "description": {
         "content": "",
@@ -71,7 +71,7 @@
       "event": []
     },
     {
-      "id": "7a3675b6-0505-47d6-ad0c-02b6d4e13aa7",
+      "id": "635f3db7-f504-44c0-aa31-edcca74b3a82",
       "name": "schema-pg",
       "description": {
         "content": "",
@@ -81,7 +81,7 @@
       "event": []
     },
     {
-      "id": "4fa2bd3a-71cb-4ebe-b98d-7d6d9f7e0df2",
+      "id": "0c553d84-26d8-4853-b77d-555a43546998",
       "name": "scratchpad",
       "description": {
         "content": "",
@@ -91,7 +91,7 @@
       "event": []
     },
     {
-      "id": "68b2c595-6e08-492f-8b5b-49e53124e7c7",
+      "id": "60212f18-6a7e-4cfa-967d-a94db121157f",
       "name": "test-db",
       "description": {
         "content": "",
@@ -101,7 +101,7 @@
       "event": []
     },
     {
-      "id": "889a7bcb-c19a-4840-ad28-e9d3d7f9c2e6",
+      "id": "5927cb99-815d-49b1-a5f7-3d37d3b430e3",
       "name": "openapi-manifest",
       "description": {
         "content": "",
@@ -109,7 +109,7 @@
       },
       "item": [
         {
-          "id": "138c150e-7c0d-40c0-929c-df05df87a293",
+          "id": "457eed0a-7459-447d-8fa0-8d268c3bca43",
           "name": "Compress and store a document.  Accepts plaintext, JSON, or Markdown. Auto-detects format when `format` is omitted. Returns a slug that uniquely identifies the stored document.",
           "request": {
             "name": "Compress and store a document.  Accepts plaintext, JSON, or Markdown. Auto-detects format when `format` is omitted. Returns a slug that uniquely identifies the stored document.",
@@ -138,7 +138,7 @@
           }
         },
         {
-          "id": "739f6295-d280-44d3-a7d2-45063a193e55",
+          "id": "da06c2c8-3d10-4ab8-8908-edcd70c1c5a8",
           "name": "WebSocket endpoint for legacy real-time document event streaming.",
           "request": {
             "name": "WebSocket endpoint for legacy real-time document event streaming.",
@@ -176,7 +176,7 @@
           }
         },
         {
-          "id": "d3168e54-7094-4db1-a1d9-6ebc6a23aebd",
+          "id": "3074abea-3d86-4061-aaf1-7f13cd27faad",
           "name": "Update a document (creates a new version).  Increments `currentVersion`, stores the new compressed content as a version record, updates contributors, and invalidates cache.",
           "request": {
             "name": "Update a document (creates a new version).  Increments `currentVersion`, stores the new compressed content as a version record, updates contributors, and invalidates cache.",
@@ -214,7 +214,7 @@
           }
         },
         {
-          "id": "5db66d1e-4a92-41c4-ab86-1ffbec759ee9",
+          "id": "f091978e-be4d-4a4d-afef-4d8b26e6ee18",
           "name": "Decompress a document body via POST.  Alternative to GET when the slug must be sent as a body parameter.",
           "request": {
             "name": "Decompress a document body via POST.  Alternative to GET when the slug must be sent as a body parameter.",
@@ -243,7 +243,7 @@
           }
         },
         {
-          "id": "6d366779-55a4-46be-94d5-86167207f84c",
+          "id": "9ebc1bc4-6f70-4796-a268-0e4c0c5e554c",
           "name": "Validate content against a predefined schema without storing it.",
           "request": {
             "name": "Validate content against a predefined schema without storing it.",
@@ -272,7 +272,7 @@
           }
         },
         {
-          "id": "f53aa8ec-9374-437b-b2f4-14b193c67959",
+          "id": "35bfaf75-b0d2-4511-8f92-16e5eef1e939",
           "name": "List all documents owned by the authenticated user.",
           "request": {
             "name": "List all documents owned by the authenticated user.",
@@ -302,7 +302,7 @@
           }
         },
         {
-          "id": "a7438cf0-b397-44a5-b32f-ce8071b01953",
+          "id": "db812af8-96b8-4ab0-b0b0-dec2f9cf8787",
           "name": "List available predefined validation schemas.",
           "request": {
             "name": "List available predefined validation schemas.",
@@ -331,7 +331,7 @@
           }
         },
         {
-          "id": "18eb83de-3ce6-42d6-8a37-94f047d1b715",
+          "id": "5839669f-c161-428a-ab65-5e5305b83570",
           "name": "Get a specific predefined schema by name.",
           "request": {
             "name": "Get a specific predefined schema by name.",
@@ -369,7 +369,7 @@
           }
         },
         {
-          "id": "309595fa-149b-4009-bba8-196ce0535e64",
+          "id": "ba4bcdbc-cac4-4727-ac00-79109a16d6bc",
           "name": "Get cache statistics (hit/miss counts, size).",
           "request": {
             "name": "Get cache statistics (hit/miss counts, size).",
@@ -399,7 +399,7 @@
           }
         },
         {
-          "id": "d63d207b-3ed8-4eb6-8893-a53edbe97884",
+          "id": "b8a19044-6ccf-414f-bb1f-b9703caa1e34",
           "name": "Invalidate all cached documents.",
           "request": {
             "name": "Invalidate all cached documents.",
@@ -428,7 +428,7 @@
           }
         },
         {
-          "id": "5df00d7d-3998-4625-8466-89c8e60785e2",
+          "id": "b49f5b4c-0616-4341-b672-c91249b408ee",
           "name": "Serve the llms.txt autodiscovery file.",
           "request": {
             "name": "Serve the llms.txt autodiscovery file.",
@@ -457,7 +457,7 @@
           }
         },
         {
-          "id": "7c6b226a-3952-4d2a-a354-f7916519c7b5",
+          "id": "ec408fec-dbb2-4810-946f-d3333805f780",
           "name": "List all versions of a document.",
           "request": {
             "name": "List all versions of a document.",
@@ -496,7 +496,7 @@
           }
         },
         {
-          "id": "29617575-a5ab-472a-a332-41e8b4417e6e",
+          "id": "0821cea4-2650-4d3c-abac-8cf70853851b",
           "name": "Get a specific version of a document.",
           "request": {
             "name": "Get a specific version of a document.",
@@ -543,7 +543,7 @@
           }
         },
         {
-          "id": "74b4d1f1-d0c7-4a50-bf9a-20e0ca534005",
+          "id": "1bd35af5-67db-46a6-a767-52273c8a7255",
           "name": "Get a two-way diff between two versions of a document.",
           "request": {
             "name": "Get a two-way diff between two versions of a document.",
@@ -582,7 +582,7 @@
           }
         },
         {
-          "id": "909eeab1-e027-4ccf-8329-cf23243bcad4",
+          "id": "3667a74f-ce45-4cf9-8f92-935c7a41d052",
           "name": "Get a multi-way diff across N versions (N ≥ 2).  Uses LCS-based alignment to produce a consensus view of divergent versions.",
           "request": {
             "name": "Get a multi-way diff across N versions (N ≥ 2).  Uses LCS-based alignment to produce a consensus view of divergent versions.",
@@ -621,7 +621,7 @@
           }
         },
         {
-          "id": "3e7a8e5a-10d7-43a0-82a7-1fd0f4f76f71",
+          "id": "9a2d61ec-6e1d-49f8-9bbb-e9a4f3cca0fa",
           "name": "Create multiple versions in a single atomic batch.  Each entry in the batch becomes a separate version record in order.",
           "request": {
             "name": "Create multiple versions in a single atomic batch.  Each entry in the batch becomes a separate version record in order.",
@@ -660,7 +660,7 @@
           }
         },
         {
-          "id": "bfc70212-ef2e-46f3-8857-4a1e56224e89",
+          "id": "a8d560c1-4601-4499-a21e-8a872c9d0fe6",
           "name": "Transition a document through its lifecycle state machine.  Valid transitions: DRAFT→REVIEW, REVIEW→APPROVED, REVIEW→REJECTED, APPROVED→LOCKED, LOCKED→DRAFT (unlock).",
           "request": {
             "name": "Transition a document through its lifecycle state machine.  Valid transitions: DRAFT→REVIEW, REVIEW→APPROVED, REVIEW→REJECTED, APPROVED→LOCKED, LOCKED→DRAFT (unlock).",
@@ -699,7 +699,7 @@
           }
         },
         {
-          "id": "d69aa400-a442-4533-8b34-9e4b3dd62890",
+          "id": "0332f1a6-7dd2-4864-95c9-bf3c1cba5604",
           "name": "Submit an approval vote for a document in REVIEW state.",
           "request": {
             "name": "Submit an approval vote for a document in REVIEW state.",
@@ -738,7 +738,7 @@
           }
         },
         {
-          "id": "e5adbe8f-8769-4e7c-bdea-2720c61ff720",
+          "id": "54d16f0d-0abb-47da-a591-b640a028556a",
           "name": "Submit a rejection for a document in REVIEW state.",
           "request": {
             "name": "Submit a rejection for a document in REVIEW state.",
@@ -777,7 +777,7 @@
           }
         },
         {
-          "id": "bb51979c-ca28-4c49-9c8b-6cce4802c4df",
+          "id": "cfad8103-76ae-4263-9ad0-e73639c210ee",
           "name": "Get approval records for a document.",
           "request": {
             "name": "Get approval records for a document.",
@@ -816,7 +816,7 @@
           }
         },
         {
-          "id": "02c62df6-804c-44a4-ab8a-d0f8b9007979",
+          "id": "d2d5f7b0-da43-45f5-98c2-c12941b702eb",
           "name": "Get contributor statistics for a document.",
           "request": {
             "name": "Get contributor statistics for a document.",
@@ -855,7 +855,7 @@
           }
         },
         {
-          "id": "8e1351a4-de2c-4d47-8f63-f036b1b0257f",
+          "id": "59f67faf-4a6e-48b3-b421-56f8d3c9d571",
           "name": "Register an Ed25519 public key for an agent.  The key is validated as a valid Ed25519 point before storage. A SHA-256 fingerprint (first 16 hex chars) is returned for identification.",
           "request": {
             "name": "Register an Ed25519 public key for an agent.  The key is validated as a valid Ed25519 point before storage. A SHA-256 fingerprint (first 16 hex chars) is returned for identification.",
@@ -885,7 +885,7 @@
           }
         },
         {
-          "id": "4015d5ec-c035-4484-97f7-13b974279a86",
+          "id": "50cc3b85-36e7-49bb-afba-5e2aab06ba8f",
           "name": "List all active (non-revoked) Ed25519 keys for the authenticated user.",
           "request": {
             "name": "List all active (non-revoked) Ed25519 keys for the authenticated user.",
@@ -915,7 +915,7 @@
           }
         },
         {
-          "id": "47cb9cad-d8e8-4353-8ce3-a8fe37fc427b",
+          "id": "c0a60e9e-e469-44fc-ac5d-6a9d1637cf09",
           "name": "Revoke (soft-delete) an agent key by ID.  Sets `revoked_at` timestamp; the key is excluded from all future lookups.",
           "request": {
             "name": "Revoke (soft-delete) an agent key by ID.  Sets `revoked_at` timestamp; the key is excluded from all future lookups.",
@@ -954,7 +954,7 @@
           }
         },
         {
-          "id": "04701e19-084e-4887-a990-7c6ea4a83302",
+          "id": "e99334e8-31f3-4939-a093-b607d849e5e6",
           "name": "Create a new API key for programmatic access.",
           "request": {
             "name": "Create a new API key for programmatic access.",
@@ -983,7 +983,7 @@
           }
         },
         {
-          "id": "eed6f93c-f03d-416c-8352-06c05ff0ba59",
+          "id": "d0ac0bbd-6a33-46d4-8481-c22cb78697fd",
           "name": "List all active API keys for the authenticated user.",
           "request": {
             "name": "List all active API keys for the authenticated user.",
@@ -1012,7 +1012,7 @@
           }
         },
         {
-          "id": "218a0520-8fa7-4f81-bbe0-42b166061fb0",
+          "id": "dff81605-8df1-45eb-a3f1-8b745366924e",
           "name": "Delete (revoke) an API key by ID.",
           "request": {
             "name": "Delete (revoke) an API key by ID.",
@@ -1050,7 +1050,7 @@
           }
         },
         {
-          "id": "83e7d7bc-8af4-45e7-b03b-8bc6f27dcdb2",
+          "id": "e710f115-8947-41ba-a3ca-81b6e50e174d",
           "name": "Rotate an API key — atomically replaces the secret.",
           "request": {
             "name": "Rotate an API key — atomically replaces the secret.",
@@ -1089,7 +1089,7 @@
           }
         },
         {
-          "id": "c544332c-9587-454e-9756-31c4f18f7482",
+          "id": "d7547c20-ddfd-482e-b474-eecc0999aa42",
           "name": "Liveness probe — no I/O, always 200 when process is alive.",
           "request": {
             "name": "Liveness probe — no I/O, always 200 when process is alive.",
@@ -1118,7 +1118,7 @@
           }
         },
         {
-          "id": "ccea247b-9bbf-43a9-88f9-db89ac10f8c8",
+          "id": "36fd07c6-e0fa-4060-be59-512ac2a87f66",
           "name": "Readiness probe — pings the database before returning 200.",
           "request": {
             "name": "Readiness probe — pings the database before returning 200.",
@@ -1147,7 +1147,7 @@
           }
         },
         {
-          "id": "9e405fdd-4d4a-4c0b-97ed-6515d8033f78",
+          "id": "44f57866-074e-4839-bc71-372684b51c54",
           "name": "Prometheus metrics endpoint (prom-client).  Protected by `METRICS_TOKEN` env var when set.",
           "request": {
             "name": "Prometheus metrics endpoint (prom-client).  Protected by `METRICS_TOKEN` env var when set.",
@@ -1176,7 +1176,7 @@
           }
         },
         {
-          "id": "f25e771f-cda7-458c-b7d1-610b4ce761b0",
+          "id": "997c6943-0877-437a-a1c7-57a3bce65b56",
           "name": "Get a structural overview of a document (section list, stats).",
           "request": {
             "name": "Get a structural overview of a document (section list, stats).",
@@ -1215,7 +1215,7 @@
           }
         },
         {
-          "id": "e3b23851-fdca-4724-b51c-75347acce9d2",
+          "id": "eab6310e-cf78-405e-ad12-1aea4c72fe77",
           "name": "Get all sections of a document.",
           "request": {
             "name": "Get all sections of a document.",
@@ -1254,7 +1254,7 @@
           }
         },
         {
-          "id": "9b8c3cc6-bce3-4743-87d6-21a59f9dcbcc",
+          "id": "86212d4f-3051-457f-af31-83554a01f0ae",
           "name": "Get the table of contents for a document.",
           "request": {
             "name": "Get the table of contents for a document.",
@@ -1293,7 +1293,7 @@
           }
         },
         {
-          "id": "187b57c3-1cb9-4dd9-978e-63d3f3c51cc6",
+          "id": "a89a10cd-a114-4c01-bc85-f33d0f104f16",
           "name": "Get a named section from a document.",
           "request": {
             "name": "Get a named section from a document.",
@@ -1340,7 +1340,7 @@
           }
         },
         {
-          "id": "9a763d34-5af4-4a87-8761-8dec5141cea4",
+          "id": "91a881f4-95f8-49f6-9fcc-55d3b7c94ef8",
           "name": "Full-text search within a document.",
           "request": {
             "name": "Full-text search within a document.",
@@ -1379,7 +1379,7 @@
           }
         },
         {
-          "id": "430574e4-21b5-42b5-acb9-cd05079a7a84",
+          "id": "5b2c135b-e950-4c85-8d37-6e40f3881af5",
           "name": "Fetch a document's raw (unformatted) content.",
           "request": {
             "name": "Fetch a document's raw (unformatted) content.",
@@ -1418,7 +1418,7 @@
           }
         },
         {
-          "id": "fb541042-bf20-4e50-9581-3c098f92a1d8",
+          "id": "8f8e2093-6cc8-420b-830d-c48162c28927",
           "name": "Batch-fetch multiple sections from a document.",
           "request": {
             "name": "Batch-fetch multiple sections from a document.",
@@ -1457,7 +1457,7 @@
           }
         },
         {
-          "id": "9cfa2b3d-6a04-48e4-97ef-257253809c72",
+          "id": "170f0873-1184-4d03-9651-019ec9a0759b",
           "name": "Get the current CRDT state for a document section (HTTP fallback).",
           "request": {
             "name": "Get the current CRDT state for a document section (HTTP fallback).",
@@ -1505,7 +1505,7 @@
           }
         },
         {
-          "id": "a26ee37a-cff8-409d-b35a-62de06396862",
+          "id": "2dc45efb-4252-47e1-9c4f-11c0ee53a97c",
           "name": "Apply a CRDT update to a document section (HTTP fallback for WebSocket).",
           "request": {
             "name": "Apply a CRDT update to a document section (HTTP fallback for WebSocket).",
@@ -1553,7 +1553,7 @@
           }
         },
         {
-          "id": "22e59ce2-20bf-4d47-b97f-ce61f487edb5",
+          "id": "6ac75d8c-a2d8-4ea6-8b71-5b75dbb5a74c",
           "name": "WebSocket endpoint for real-time CRDT collaboration on a document section.  Subprotocol: `yjs-sync-v1`. Auth via `?token=<apiKey>` query param or session cookie. Unauthenticated connections are closed with code 4401.",
           "request": {
             "name": "WebSocket endpoint for real-time CRDT collaboration on a document section.  Subprotocol: `yjs-sync-v1`. Auth via `?token=<apiKey>` query param or session cookie. Unauthenticated connections are closed with code 4401.",
@@ -1602,7 +1602,7 @@
           }
         },
         {
-          "id": "0b203c23-10bb-44ba-8033-fb39be0c8daf",
+          "id": "b7f217bc-1870-4501-8095-c26ade465454",
           "name": "Get all agents currently active in a document (within the last 30 seconds).",
           "request": {
             "name": "Get all agents currently active in a document (within the last 30 seconds).",
@@ -1642,7 +1642,7 @@
           }
         },
         {
-          "id": "37ede7ab-a58b-4589-b3a4-80b7f2b6ca6d",
+          "id": "849284fd-dd7d-455e-9125-3967a4f3c965",
           "name": "Acquire an exclusive write lease on a document section.",
           "request": {
             "name": "Acquire an exclusive write lease on a document section.",
@@ -1691,7 +1691,7 @@
           }
         },
         {
-          "id": "470f0525-202d-4175-9746-a6343e1a572e",
+          "id": "44acf386-1391-4ce0-b153-169b5a9e7750",
           "name": "Get the current lease holder for a document section.",
           "request": {
             "name": "Get the current lease holder for a document section.",
@@ -1740,7 +1740,7 @@
           }
         },
         {
-          "id": "268ad5d6-f597-4829-a863-cae8ffdc2789",
+          "id": "62c5cf28-5e23-4e1b-838d-d4057fa497cf",
           "name": "Release a lease on a document section.",
           "request": {
             "name": "Release a lease on a document section.",
@@ -1789,7 +1789,7 @@
           }
         },
         {
-          "id": "706e1d69-e734-43a3-9127-9659426e5f68",
+          "id": "99c2515d-58c3-40d7-92f1-638b6c566c59",
           "name": "Renew (heartbeat) a lease on a document section.",
           "request": {
             "name": "Renew (heartbeat) a lease on a document section.",
@@ -1838,7 +1838,7 @@
           }
         },
         {
-          "id": "8d58a51e-ec22-4813-bdc5-772f5b9737ee",
+          "id": "0bd80b0e-b8b6-496c-bd0b-8de604fabb06",
           "name": "Write to an agent's scratchpad within a document.",
           "request": {
             "name": "Write to an agent's scratchpad within a document.",
@@ -1878,7 +1878,7 @@
           }
         },
         {
-          "id": "7c786679-a18a-4545-8c54-9ca055fe7e24",
+          "id": "ae77e7d0-b98a-4b86-8449-d62100ad2453",
           "name": "Read all scratchpad entries for a document (optionally filtered by agent).",
           "request": {
             "name": "Read all scratchpad entries for a document (optionally filtered by agent).",
@@ -1918,7 +1918,7 @@
           }
         },
         {
-          "id": "098591cd-f86b-4ef7-aea6-b6be5de32456",
+          "id": "a65921c1-caab-482d-a31b-8f9fce0d60ed",
           "name": "Server-sent events stream of new scratchpad entries.",
           "request": {
             "name": "Server-sent events stream of new scratchpad entries.",
@@ -1959,7 +1959,7 @@
           }
         },
         {
-          "id": "dd445dd0-2654-4e4a-8944-b9d03d2bde4b",
+          "id": "41709567-6af1-4e20-9ed4-3e4bc8807b1e",
           "name": "Submit a BFT consensus vote for a document section.",
           "request": {
             "name": "Submit a BFT consensus vote for a document section.",
@@ -2000,7 +2000,7 @@
           }
         },
         {
-          "id": "c18210c7-d9c5-40c3-b44e-73e89e8fdbb0",
+          "id": "7bb807e2-bbf6-4373-b019-71bfe29f9d3e",
           "name": "Get BFT consensus status for a document.",
           "request": {
             "name": "Get BFT consensus status for a document.",
@@ -2040,7 +2040,7 @@
           }
         },
         {
-          "id": "d77b6714-ba89-487e-a889-6e48e424886e",
+          "id": "e1ffb0ef-83ca-44ea-b512-f29bbadd3a6a",
           "name": "Get the BFT hash chain for audit verification.",
           "request": {
             "name": "Get the BFT hash chain for audit verification.",
@@ -2079,7 +2079,7 @@
           }
         },
         {
-          "id": "c9744c6f-105a-462d-971f-0439399ca30b",
+          "id": "25f8d3ff-ffa4-443f-9814-bc738f1ce864",
           "name": "Send a message to an agent's inbox.",
           "request": {
             "name": "Send a message to an agent's inbox.",
@@ -2119,7 +2119,7 @@
           }
         },
         {
-          "id": "f5848073-a699-4ff8-962a-043e66b68767",
+          "id": "2d36bbbc-2fa5-461e-b4c8-f1cd291f8843",
           "name": "Read messages from an agent's inbox (poll).",
           "request": {
             "name": "Read messages from an agent's inbox (poll).",
@@ -2159,7 +2159,7 @@
           }
         },
         {
-          "id": "7d1bfd53-3f10-4528-afbb-c5e401c92d04",
+          "id": "31382d57-6a56-47c8-b0bd-a8d4eb8c5b06",
           "name": "Get the event log for a document (paginated).",
           "request": {
             "name": "Get the event log for a document (paginated).",
@@ -2198,7 +2198,7 @@
           }
         },
         {
-          "id": "e3ceffcd-8996-41aa-8043-d26a9bd5075c",
+          "id": "3f220098-2311-43bb-b79f-fceac5c4921b",
           "name": "Subscribe to document events as a server-sent event stream.",
           "request": {
             "name": "Subscribe to document events as a server-sent event stream.",
@@ -2238,7 +2238,7 @@
           }
         },
         {
-          "id": "5055c18a-aca6-48de-9ec2-4f110f4fce65",
+          "id": "711be05b-cde2-4df5-a4b4-6b585cdd2ab3",
           "name": "Subscribe to global document events via SSE.",
           "request": {
             "name": "Subscribe to global document events via SSE.",
@@ -2268,7 +2268,7 @@
           }
         },
         {
-          "id": "e7eed7a0-ed10-4f75-a625-81e537887b15",
+          "id": "a28cc215-6d96-4071-b416-89d96df80184",
           "name": "Generate a time-limited signed URL for unauthenticated document access.",
           "request": {
             "name": "Generate a time-limited signed URL for unauthenticated document access.",
@@ -2297,7 +2297,7 @@
           }
         },
         {
-          "id": "163b722e-36fa-4bb0-88ff-7ec9ef07c894",
+          "id": "ab32f7e7-5b6e-45c0-9a39-939b1c0d2ba3",
           "name": "Three-way merge two document versions with a common ancestor.",
           "request": {
             "name": "Three-way merge two document versions with a common ancestor.",
@@ -2336,7 +2336,7 @@
           }
         },
         {
-          "id": "c5124ee2-c683-466c-9ec7-c43fbac772ca",
+          "id": "4ce690e7-9809-45d0-90f3-808295a1549d",
           "name": "Apply a patch to a document.",
           "request": {
             "name": "Apply a patch to a document.",
@@ -2375,7 +2375,7 @@
           }
         },
         {
-          "id": "0f6ba742-2149-4bbb-85c5-2fe0f81bccd5",
+          "id": "af10f514-2a03-477b-8336-11f190764a25",
           "name": "Cross-document semantic search.",
           "request": {
             "name": "Cross-document semantic search.",
@@ -2404,7 +2404,7 @@
           }
         },
         {
-          "id": "ced7b78c-b9b1-4633-9a1c-5aa9d6f90f53",
+          "id": "976732d9-7739-49b9-83b0-3437dfee5858",
           "name": "List outgoing links from a document.",
           "request": {
             "name": "List outgoing links from a document.",
@@ -2443,7 +2443,7 @@
           }
         },
         {
-          "id": "ec64f2e9-fb48-4c97-993f-ef563d42acc3",
+          "id": "4a6a541a-cb99-49ad-92d1-e4252fc3d67a",
           "name": "Create a link between two documents.",
           "request": {
             "name": "Create a link between two documents.",
@@ -2482,7 +2482,7 @@
           }
         },
         {
-          "id": "a825de7c-c889-4640-9c19-80b29b51aa36",
+          "id": "2fead679-4dad-49ad-89a4-35e2214c472a",
           "name": "Delete a link between documents.",
           "request": {
             "name": "Delete a link between documents.",
@@ -2529,7 +2529,7 @@
           }
         },
         {
-          "id": "baaaf414-a4f7-464b-a1ef-bebaf9083328",
+          "id": "1d4adb47-17a1-45f8-a5a7-ca169716eac8",
           "name": "Get the cross-document relationship graph.",
           "request": {
             "name": "Get the cross-document relationship graph.",
@@ -2558,7 +2558,7 @@
           }
         },
         {
-          "id": "c11377c0-f3c6-48ca-8391-4a3d937cb46c",
+          "id": "d4533419-4429-40e4-acfd-56b80d32adc9",
           "name": "Compute a semantic (embedding-based) diff between two versions.",
           "request": {
             "name": "Compute a semantic (embedding-based) diff between two versions.",
@@ -2597,7 +2597,7 @@
           }
         },
         {
-          "id": "40aaaaa3-c7ce-41a0-b20c-b577d4084227",
+          "id": "550c0af1-d2a2-4ee2-b2ac-5064fe8d2b93",
           "name": "Compute semantic similarity between two documents.",
           "request": {
             "name": "Compute semantic similarity between two documents.",
@@ -2636,7 +2636,7 @@
           }
         },
         {
-          "id": "e3ce1af9-c3a1-49a7-a044-b84fb8a63e9f",
+          "id": "7353e176-09ed-4409-ae2c-480c82f72e7e",
           "name": "Run a semantic consensus check across multiple agent versions.",
           "request": {
             "name": "Run a semantic consensus check across multiple agent versions.",
@@ -2675,7 +2675,7 @@
           }
         },
         {
-          "id": "7d1e5677-4ca6-4820-a3bf-b51d0b1adee3",
+          "id": "26088973-343d-42b8-9765-66a5d37aecd0",
           "name": "Get the well-known agent descriptor for a registered agent.",
           "request": {
             "name": "Get the well-known agent descriptor for a registered agent.",
@@ -2714,7 +2714,7 @@
           }
         },
         {
-          "id": "e785cb65-d423-4aac-a753-198147dab179",
+          "id": "e32084eb-f1fe-42df-a6ad-b12f5837a5f4",
           "name": "Register a new webhook endpoint.",
           "request": {
             "name": "Register a new webhook endpoint.",
@@ -2743,7 +2743,7 @@
           }
         },
         {
-          "id": "894a9efc-d4e9-4ca8-ab46-7aef5ef75cc1",
+          "id": "e407f307-5330-4d3b-836e-39e04b7e0d0a",
           "name": "List all webhooks for the authenticated user.",
           "request": {
             "name": "List all webhooks for the authenticated user.",
@@ -2772,7 +2772,7 @@
           }
         },
         {
-          "id": "41678a30-69ad-4a3e-b6b6-c320c6efe2b2",
+          "id": "2ae75c3f-bbdf-4959-b029-89cb2637c7f4",
           "name": "Delete a webhook by ID.",
           "request": {
             "name": "Delete a webhook by ID.",
@@ -2810,7 +2810,7 @@
           }
         },
         {
-          "id": "78879727-5718-47c7-b16c-da22a6ff7415",
+          "id": "b4962eaa-67d8-48f0-af1a-ce5609574528",
           "name": "Get the access control list (ACL) for a document.",
           "request": {
             "name": "Get the access control list (ACL) for a document.",
@@ -2849,7 +2849,7 @@
           }
         },
         {
-          "id": "a65ba6ad-8787-4f70-9577-d41df9051164",
+          "id": "243a5439-ae0f-4cbe-9c58-8df5667fe355",
           "name": "Grant a role to a user on a document.",
           "request": {
             "name": "Grant a role to a user on a document.",
@@ -2888,7 +2888,7 @@
           }
         },
         {
-          "id": "5f25ad5d-247f-48bb-b795-44ea0cce3b64",
+          "id": "0decd1e1-a402-4393-8cdb-5c295a3a645a",
           "name": "Revoke a user's role on a document.",
           "request": {
             "name": "Revoke a user's role on a document.",
@@ -2935,7 +2935,7 @@
           }
         },
         {
-          "id": "378bc12d-bdd3-4112-9b8e-bb7fe648923f",
+          "id": "fcff197e-8a55-4d6c-8134-0295dd87d653",
           "name": "Create a new organization.",
           "request": {
             "name": "Create a new organization.",
@@ -2964,7 +2964,7 @@
           }
         },
         {
-          "id": "88c64a38-d6cc-49ef-bba8-f6db0787120e",
+          "id": "ef85321d-810f-4aaf-98d6-642a3aaca37a",
           "name": "List organizations the authenticated user belongs to.",
           "request": {
             "name": "List organizations the authenticated user belongs to.",
@@ -2993,7 +2993,7 @@
           }
         },
         {
-          "id": "ac191b29-dded-4d54-9797-b5f04d16325c",
+          "id": "9b5725d6-ba80-4063-823c-bd6e93c2c517",
           "name": "Get an organization by slug.",
           "request": {
             "name": "Get an organization by slug.",
@@ -3031,7 +3031,7 @@
           }
         },
         {
-          "id": "92986777-d1c4-4a56-962f-6a4c1a46734c",
+          "id": "48caed3c-2e87-41fe-b107-d7622a704092",
           "name": "Add a member to an organization.",
           "request": {
             "name": "Add a member to an organization.",
@@ -3070,7 +3070,7 @@
           }
         },
         {
-          "id": "78db1cf0-818d-415e-a8fb-b6449f4df0e3",
+          "id": "c0ed4c34-4985-4c69-82f1-d12e50cb897e",
           "name": "Remove a member from an organization.",
           "request": {
             "name": "Remove a member from an organization.",
@@ -3129,7 +3129,7 @@
     }
   ],
   "info": {
-    "_postman_id": "d295fe79-e4e1-4d39-ac3a-fa042a55228c",
+    "_postman_id": "34818196-9d7b-40ae-9b8f-c029ec3b2657",
     "name": "@llmtxt/backend",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "description": {

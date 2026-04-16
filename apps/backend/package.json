@@ -17,12 +17,12 @@
     "db:generate:pg": "drizzle-kit generate --config=drizzle-pg.config.ts",
     "db:migrate:pg": "drizzle-kit migrate --config=drizzle-pg.config.ts",
     "db:push:pg": "drizzle-kit push --config=drizzle-pg.config.ts",
-    "forge:check": "forge-ts check",
-    "forge:test": "forge-ts test",
-    "forge:build": "forge-ts build",
-    "forge:doctor": "forge-ts doctor",
-    "openapi:gen": "forge-ts build --skip-gen && node scripts/postman-gen.mjs",
-    "prepublishOnly": "forge-ts prepublish",
+    "forge:check": "pnpm -w exec forge-ts check",
+    "forge:test": "pnpm -w exec forge-ts test",
+    "forge:build": "pnpm -w exec forge-ts build",
+    "forge:doctor": "pnpm -w exec forge-ts doctor",
+    "openapi:gen": "pnpm -w exec forge-ts build --skip-gen && node scripts/postman-gen.mjs",
+    "prepublishOnly": "pnpm -w exec forge-ts prepublish",
     "prepare": "husky || true"
   },
   "dependencies": {
