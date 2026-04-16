@@ -2,24 +2,18 @@
  * Lifecycle + Consensus routes: transition, approve, reject, approvals, contributors.
  */
 import type { FastifyInstance } from 'fastify';
-import { eq, desc, and } from 'drizzle-orm';
-import { db } from '../db/index.js';
-import { documents, stateTransitions, approvals, versions, contributors } from '../db/schema.js';
-import { requireAuth, requireOwner, requireOwnerAllowAnonParams } from '../middleware/auth.js';
+// db and direct schema/drizzle imports removed — write ops delegated to backendCore.
+// Only appendDocumentEvent is no longer needed; evaluateApprovals still used for GET /approvals.
+import { requireOwnerAllowAnonParams } from '../middleware/auth.js';
 import { canWrite, canApprove, canRead } from '../middleware/rbac.js';
 import { writeRateLimit } from '../middleware/rate-limit.js';
 import {
-  validateTransition,
-  isEditable,
   evaluateApprovals,
-  markStaleReviews,
 } from 'llmtxt/sdk';
 import type { DocumentState, Review, ApprovalPolicy } from 'llmtxt/sdk';
-import { generateId } from 'llmtxt';
 import { invalidateDocumentCache } from '../middleware/cache.js';
 import { eventBus } from '../events/bus.js';
 import { documentApprovalSubmittedTotal, documentStateTransitionTotal } from '../middleware/metrics.js';
-import { appendDocumentEvent } from '../lib/document-events.js';
 
 function buildPolicy(doc: {
   approvalRequiredCount: number;
@@ -71,64 +65,43 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
         });
       }
 
-      const doc = await db.select().from(documents).where(eq(documents.slug, slug)).limit(1);
-      if (!doc.length) return reply.status(404).send({ error: 'Not Found' });
+      const actorId = request.user!.id;
+      const idempotencyKey = (request.headers as Record<string, string>)['idempotency-key'] ?? null;
+      const now = Date.now();
 
-      const currentState = doc[0].state as DocumentState;
-      const result = validateTransition(currentState, effectiveState as DocumentState);
+      // Pre-flight: look up document to capture current state for metrics / events.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const existingDoc = (await request.server.backendCore.getDocumentBySlug(slug)) as any;
+      if (!existingDoc) return reply.status(404).send({ error: 'Not Found' });
+      const currentState = existingDoc.state as DocumentState;
 
-      if (!result.valid) {
+      // Delegate the transaction (state update + audit row + event log) to
+      // PostgresBackend.transitionVersion.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = (await request.server.backendCore.transitionVersion({
+        documentId: slug,
+        to: effectiveState as DocumentState,
+        changedBy: actorId,
+        reason: reason,
+        idempotencyKey,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any)) as any;
+
+      if (!result.success) {
+        // Invalid transition (state machine rejection)
         return reply.status(409).send({
           error: 'Invalid Transition',
-          message: result.reason,
+          message: result.error,
           allowedTargets: result.allowedTargets,
         });
       }
-
-      const now = Date.now();
-      const actorId = request.user!.id;
-      const idempotencyKey = (request.headers as Record<string, string>)['idempotency-key'] ?? null;
-
-      await db.transaction(async (tx: typeof db) => {
-        await tx.update(documents).set({ state: effectiveState }).where(eq(documents.slug, slug));
-        await tx.insert(stateTransitions).values({
-          id: generateId(),
-          documentId: doc[0].id,
-          fromState: currentState,
-          toState: effectiveState,
-          changedBy: actorId,
-          changedAt: now,
-          reason: reason ?? null,
-          atVersion: doc[0].currentVersion,
-        });
-
-        // When reopening for edits, clear rejection records so the next
-        // review cycle starts clean.
-        if (currentState === 'REVIEW' && effectiveState === 'DRAFT') {
-          await tx.delete(approvals)
-            .where(
-              and(
-                eq(approvals.documentId, doc[0].id),
-                eq(approvals.status, 'REJECTED')
-              )
-            );
-        }
-
-        await appendDocumentEvent(tx, {
-          documentId: slug,
-          eventType: 'lifecycle.transitioned',
-          actorId,
-          payloadJson: { fromState: currentState, toState: effectiveState, reason: reason ?? null },
-          idempotencyKey,
-        });
-      });
 
       documentStateTransitionTotal.inc({ from_state: currentState, to_state: effectiveState });
 
       invalidateDocumentCache(slug);
 
-      // Emit state.changed (or document.locked / document.archived) — non-blocking.
-      eventBus.emitStateChanged(slug, doc[0].id, actorId, {
+      // Emit state.changed — non-blocking.
+      eventBus.emitStateChanged(slug, existingDoc.id, actorId, {
         fromState: currentState,
         toState: effectiveState,
         reason: reason ?? null,
@@ -144,103 +117,68 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
     { preHandler: [canApprove], config: writeRateLimit },
     async (request, reply) => {
       const { slug } = request.params;
-      const doc = await db.select().from(documents).where(eq(documents.slug, slug)).limit(1);
-      if (!doc.length) return reply.status(404).send({ error: 'Not Found' });
-      if (doc[0].state !== 'REVIEW') {
+
+      // Pre-flight: fetch doc for currentVersion (needed for metrics + events).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const doc = (await request.server.backendCore.getDocumentBySlug(slug)) as any;
+      if (!doc) return reply.status(404).send({ error: 'Not Found' });
+      if (doc.state !== 'REVIEW') {
         return reply.status(409).send({ error: 'Document must be in REVIEW state to approve' });
       }
 
-      const existingApproval = await db.select()
-        .from(approvals)
-        .where(and(
-          eq(approvals.documentId, doc[0].id),
-          eq(approvals.reviewerId, request.user!.id),
-          eq(approvals.status, 'APPROVED'),
-        ))
-        .limit(1);
-
-      if (existingApproval.length > 0) {
-        return reply.status(409).send({
-          error: 'Conflict',
-          message: 'You have already approved this document',
-        });
-      }
-
-      const now = Date.now();
       const actorId = request.user!.id;
       const idempotencyKey = (request.headers as Record<string, string>)['idempotency-key'] ?? null;
-      let autoLocked = false;
-      let consensus: ReturnType<typeof evaluateApprovals>;
 
-      await db.transaction(async (tx: typeof db) => {
-        await tx.insert(approvals).values({
-          id: generateId(),
-          documentId: doc[0].id,
-          reviewerId: actorId,
-          status: 'APPROVED',
-          timestamp: now,
-          reason: request.body.comment ?? null,
-          atVersion: doc[0].currentVersion,
-        });
+      // Delegate the transaction (insert approval + consensus + auto-lock + event)
+      // to PostgresBackend.submitSignedApproval.
+      const result = await request.server.backendCore.submitSignedApproval({
+        documentId: slug,
+        versionNumber: doc.currentVersion ?? 0,
+        reviewerId: actorId,
+        status: 'APPROVED',
+        reason: request.body.comment,
+        signatureBase64: '',
+        // Extended fields:
+        idempotencyKey,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
 
-        const allReviews = await tx.select().from(approvals).where(eq(approvals.documentId, doc[0].id));
-        const policy = buildPolicy(doc[0]);
-        consensus = evaluateApprovals(toSdkReviews(allReviews), policy, doc[0].currentVersion);
-
-        if (consensus.approved) {
-          const lockResult = await tx.update(documents)
-            .set({ state: 'LOCKED' })
-            .where(and(
-              eq(documents.id, doc[0].id),
-              eq(documents.state, 'REVIEW'),
-            ))
-            .returning({ state: documents.state });
-
-          if (lockResult.length > 0) {
-            await tx.insert(stateTransitions).values({
-              id: generateId(),
-              documentId: doc[0].id,
-              fromState: 'REVIEW',
-              toState: 'LOCKED',
-              changedBy: 'system',
-              changedAt: now,
-              reason: 'Auto-locked: consensus reached',
-              atVersion: doc[0].currentVersion,
-            });
-            autoLocked = true;
-          }
+      if (!result.success) {
+        if (result.error === 'duplicate approved') {
+          return reply.status(409).send({
+            error: 'Conflict',
+            message: 'You have already approved this document',
+          });
         }
+        if (result.error === 'Document must be in REVIEW state') {
+          return reply.status(409).send({ error: result.error });
+        }
+        return reply.status(400).send({ error: result.error });
+      }
 
-        await appendDocumentEvent(tx, {
-          documentId: slug,
-          eventType: 'approval.submitted',
-          actorId,
-          payloadJson: { status: 'APPROVED', atVersion: doc[0].currentVersion, autoLocked },
-          idempotencyKey,
-        });
-      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const consensus = result.result as any;
+      const autoLocked = consensus?.autoLocked ?? false;
 
       documentApprovalSubmittedTotal.inc({ status: 'approved' });
-
       invalidateDocumentCache(slug);
 
       // Emit approval event — non-blocking.
-      eventBus.emitApprovalSubmitted(slug, doc[0].id, actorId, {
+      eventBus.emitApprovalSubmitted(slug, doc.id, actorId, {
         status: 'APPROVED',
-        atVersion: doc[0].currentVersion,
+        atVersion: doc.currentVersion,
         autoLocked,
       });
 
-      // If auto-lock happened, also emit the state.changed / document.locked event.
       if (autoLocked) {
-        eventBus.emitStateChanged(slug, doc[0].id, 'system', {
+        eventBus.emitStateChanged(slug, doc.id, 'system', {
           fromState: 'REVIEW',
           toState: 'LOCKED',
           reason: 'Auto-locked: consensus reached',
         });
       }
 
-      return { slug, status: 'APPROVED', consensus: consensus!, autoLocked };
+      return { slug, status: 'APPROVED', consensus, autoLocked };
     },
   );
 
@@ -250,68 +188,57 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
     { preHandler: [canApprove], config: writeRateLimit },
     async (request, reply) => {
       const { slug } = request.params;
-      const doc = await db.select().from(documents).where(eq(documents.slug, slug)).limit(1);
-      if (!doc.length) return reply.status(404).send({ error: 'Not Found' });
-      if (doc[0].state !== 'REVIEW') {
+
+      // Pre-flight: fetch doc for currentVersion (needed for metrics + events).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const doc = (await request.server.backendCore.getDocumentBySlug(slug)) as any;
+      if (!doc) return reply.status(404).send({ error: 'Not Found' });
+      if (doc.state !== 'REVIEW') {
         return reply.status(409).send({ error: 'Document must be in REVIEW state to reject' });
       }
 
-      const existingRejection = await db.select()
-        .from(approvals)
-        .where(and(
-          eq(approvals.documentId, doc[0].id),
-          eq(approvals.reviewerId, request.user!.id),
-          eq(approvals.status, 'REJECTED'),
-        ))
-        .limit(1);
-
-      if (existingRejection.length > 0) {
-        return reply.status(409).send({
-          error: 'Conflict',
-          message: 'You have already rejected this document',
-        });
-      }
-
-      const now = Date.now();
       const actorId = request.user!.id;
       const idempotencyKey = (request.headers as Record<string, string>)['idempotency-key'] ?? null;
-      let consensus: ReturnType<typeof evaluateApprovals>;
 
-      await db.transaction(async (tx: typeof db) => {
-        await tx.insert(approvals).values({
-          id: generateId(),
-          documentId: doc[0].id,
-          reviewerId: actorId,
-          status: 'REJECTED',
-          timestamp: now,
-          reason: request.body.comment,
-          atVersion: doc[0].currentVersion,
-        });
+      // Delegate the transaction (insert rejection + consensus + event)
+      // to PostgresBackend.submitSignedApproval.
+      const result = await request.server.backendCore.submitSignedApproval({
+        documentId: slug,
+        versionNumber: doc.currentVersion ?? 0,
+        reviewerId: actorId,
+        status: 'REJECTED',
+        reason: request.body.comment,
+        signatureBase64: '',
+        idempotencyKey,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
 
-        const allReviews = await tx.select().from(approvals).where(eq(approvals.documentId, doc[0].id));
-        const policy = buildPolicy(doc[0]);
-        consensus = evaluateApprovals(toSdkReviews(allReviews), policy, doc[0].currentVersion);
+      if (!result.success) {
+        if (result.error === 'duplicate rejected') {
+          return reply.status(409).send({
+            error: 'Conflict',
+            message: 'You have already rejected this document',
+          });
+        }
+        if (result.error === 'Document must be in REVIEW state') {
+          return reply.status(409).send({ error: result.error });
+        }
+        return reply.status(400).send({ error: result.error });
+      }
 
-        await appendDocumentEvent(tx, {
-          documentId: slug,
-          eventType: 'approval.rejected',
-          actorId,
-          payloadJson: { status: 'REJECTED', atVersion: doc[0].currentVersion },
-          idempotencyKey,
-        });
-      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const consensus = result.result as any;
 
       documentApprovalSubmittedTotal.inc({ status: 'rejected' });
-
       invalidateDocumentCache(slug);
 
       // Emit rejection event — non-blocking.
-      eventBus.emitApprovalSubmitted(slug, doc[0].id, actorId, {
+      eventBus.emitApprovalSubmitted(slug, doc.id, actorId, {
         status: 'REJECTED',
-        atVersion: doc[0].currentVersion,
+        atVersion: doc.currentVersion,
       });
 
-      return { slug, status: 'REJECTED', consensus: consensus! };
+      return { slug, status: 'REJECTED', consensus };
     },
   );
 
