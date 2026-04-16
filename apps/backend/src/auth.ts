@@ -13,19 +13,27 @@ import { anonymous } from 'better-auth/plugins';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { eq } from 'drizzle-orm';
 import { db, DATABASE_PROVIDER } from './db/index.js';
-import * as schema from './db/schema.js';
+import * as sqliteSchema from './db/schema.js';
+import * as pgSchema from './db/schema-pg.js';
 import { documents, contributors, versions } from './db/schema.js';
+
+// Use the schema that matches the active database provider so better-auth's
+// drizzle adapter sees the correct column types. With the SQLite schema,
+// boolean/timestamp columns are declared as integer (mode:'boolean'/timestamp),
+// which causes better-auth to emit 0/1 integers and Unix-second integers —
+// values that PostgreSQL rejects for boolean and timestamp columns.
+const activeSchema = DATABASE_PROVIDER === 'postgresql' ? pgSchema : sqliteSchema;
 
 /** Better-auth instance with email/password + anonymous authentication, cookie-based sessions, and 24hr anonymous user TTL. */
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: DATABASE_PROVIDER === 'postgresql' ? 'pg' : 'sqlite',
     schema: {
-      ...schema,
-      user: schema.users,
-      session: schema.sessions,
-      account: schema.accounts,
-      verification: schema.verifications,
+      ...activeSchema,
+      user: activeSchema.users,
+      session: activeSchema.sessions,
+      account: activeSchema.accounts,
+      verification: activeSchema.verifications,
     },
   }),
   emailAndPassword: {

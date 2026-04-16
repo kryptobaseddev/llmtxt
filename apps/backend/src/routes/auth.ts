@@ -38,7 +38,7 @@ export async function authRoutes(fastify: FastifyInstance) {
       reply.status(response.status);
       response.headers.forEach((value, key) => reply.header(key, value));
       const body = await response.text();
-      reply.send(body || null);
+      return reply.send(body || null);
     },
   });
 }
