@@ -398,6 +398,77 @@ mod tests {
         assert!(!sv.is_empty());
     }
 
+    // ── T207: Byte-identity tests ─────────────────────────────────────────────
+
+    /// Associativity: apply_update(init, merge(U1, U2)) == apply_update(apply_update(init, U1), U2)
+    #[test]
+    fn test_crdt_byte_identity_associativity() {
+        use yrs::types::RootRef;
+        use yrs::types::text::TextRef;
+
+        let init = crdt_encode_state_as_update(&[]);
+
+        let doc1 = Doc::new();
+        let u1 = {
+            let mut txn = doc1.transact_mut();
+            let t = TextRef::root("content").get_or_create(&mut txn);
+            t.insert(&mut txn, 0, "Hello");
+            drop(txn);
+            encode_doc_state(&doc1)
+        };
+
+        let doc2 = Doc::new();
+        let u2 = {
+            let mut txn = doc2.transact_mut();
+            let t = TextRef::root("content").get_or_create(&mut txn);
+            t.insert(&mut txn, 0, " World");
+            drop(txn);
+            encode_doc_state(&doc2)
+        };
+
+        // Path A: apply merged
+        let merged = crdt_merge_updates(&[&u1, &u2]);
+        let state_a = crdt_apply_update(&init, &merged);
+        let text_a = crdt_get_text(&state_a).expect("path A decode");
+
+        // Path B: apply sequentially
+        let state_b1 = crdt_apply_update(&init, &u1);
+        let state_b2 = crdt_apply_update(&state_b1, &u2);
+        let text_b = crdt_get_text(&state_b2).expect("path B decode");
+
+        assert_eq!(
+            text_a, text_b,
+            "associativity: merged path '{text_a}' must equal sequential path '{text_b}'"
+        );
+    }
+
+    /// Idempotency: apply_update(init, U) applied twice yields same state as applied once.
+    #[test]
+    fn test_crdt_byte_identity_idempotency() {
+        use yrs::types::RootRef;
+        use yrs::types::text::TextRef;
+
+        let doc = Doc::new();
+        let update = {
+            let mut txn = doc.transact_mut();
+            let t = TextRef::root("content").get_or_create(&mut txn);
+            t.insert(&mut txn, 0, "idempotent content");
+            drop(txn);
+            encode_doc_state(&doc)
+        };
+
+        let state_once = crdt_apply_update(&[], &update);
+        let state_twice = crdt_apply_update(&state_once, &update);
+
+        let text_once = crdt_get_text(&state_once).expect("once decode");
+        let text_twice = crdt_get_text(&state_twice).expect("twice decode");
+
+        assert_eq!(
+            text_once, text_twice,
+            "idempotency: applying same update twice must produce same content: '{text_once}' vs '{text_twice}'"
+        );
+    }
+
     #[test]
     fn test_crdt_two_concurrent_edits_converge() {
         use yrs::types::RootRef;

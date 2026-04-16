@@ -322,3 +322,7 @@ export type {
 // ── Agent Identity (T222) ───────────────────────────────────────
 export { AgentIdentity, bodyHashHex, buildCanonicalPayload, randomNonceHex } from './identity.js';
 export type { SignatureHeaders, CanonicalPayloadOptions } from './identity.js';
+
+// ── CRDT Collaborative Editing (T211) ────────────────────────────────────────
+export { subscribeSection, getSectionText } from './crdt.js';
+export type { SectionDelta, Unsubscribe, SubscribeSectionOptions } from './crdt.js';
