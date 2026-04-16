@@ -1,19 +1,18 @@
 # Loki single-binary configuration for Railway deployment.
 # Data is persisted to a Railway volume mounted at /loki.
 #
-# Schema: TSDB (recommended for new deployments as of Loki 2.8+).
-# Single-store TSDB with boltdb-shipper fallback not needed for Railway —
-# we use filesystem directly since this is single-replica.
+# Using filesystem backend with boltdb-shipper for reliable single-binary operation.
+# TSDB schema v13 was causing push route registration failures in Railway ephemeral storage.
 
 auth_enabled: false
 
 server:
   http_listen_port: 3100
   grpc_listen_port: 9096
-  log_level: warn
+  log_level: info
 
 common:
-  instance_addr: 127.0.0.1
+  instance_addr: 0.0.0.0
   path_prefix: /loki
   storage:
     filesystem:
@@ -27,23 +26,24 @@ common:
 schema_config:
   configs:
     - from: 2024-01-01
-      store: tsdb
+      store: boltdb-shipper
       object_store: filesystem
-      schema: v13
+      schema: v11
       index:
         prefix: index_
         period: 24h
 
 storage_config:
-  tsdb_shipper:
-    active_index_directory: /loki/tsdb-index
-    cache_location: /loki/tsdb-cache
+  boltdb_shipper:
+    active_index_directory: /loki/boltdb-index
+    cache_location: /loki/boltdb-cache
     cache_ttl: 24h
+    shared_store: filesystem
   filesystem:
     directory: /loki/chunks
 
 limits_config:
-  # Retain logs for 30 days — enough for incident review.
+  # Retain logs for 30 days.
   retention_period: 720h
   # Allow larger log lines for structured JSON.
   max_line_size: 65536
@@ -59,7 +59,6 @@ compactor:
   compaction_interval: 10m
   retention_enabled: true
   retention_delete_delay: 2h
-  delete_request_store: filesystem
 
 ruler:
   alertmanager_url: http://localhost:9093
