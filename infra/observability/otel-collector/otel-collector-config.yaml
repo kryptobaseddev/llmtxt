@@ -1,0 +1,94 @@
+# OTel Collector configuration for LLMtxt self-hosted observability stack.
+# Receives OTLP from apps/backend, fans out:
+#   traces  → Tempo
+#   metrics → Prometheus (via prometheus exporter on :8889)
+#   logs    → Loki
+#
+# All hostnames are Railway private-network service names resolved via
+# Railway's internal DNS ($TEMPO_HOST, $LOKI_HOST, $PROMETHEUS_HOST).
+# These are injected at runtime as environment variables.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256
+    spike_limit_mib: 64
+  # Add service.name resource attribute if missing
+  resource:
+    attributes:
+      - key: service.name
+        value: llmtxt-backend
+        action: insert
+
+exporters:
+  # ── Traces → Tempo ───────────────────────────────────────────────────────────
+  otlp/tempo:
+    endpoint: "${env:TEMPO_HOST}:4317"
+    tls:
+      insecure: true
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+
+  # ── Metrics → Prometheus scrape endpoint ─────────────────────────────────────
+  # Prometheus scrapes port 8889 on this collector.
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    namespace: llmtxt
+
+  # ── Logs → Loki ──────────────────────────────────────────────────────────────
+  loki:
+    endpoint: "http://${env:LOKI_HOST}:3100/loki/api/v1/push"
+    tls:
+      insecure: true
+    default_labels_enabled:
+      exporter: false
+      job: true
+    labels:
+      resource:
+        service.name: "app"
+      attributes:
+        level: "level"
+
+  # ── Debug (disabled in prod, enable for troubleshooting) ─────────────────────
+  # logging:
+  #   verbosity: detailed
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  pprof:
+    endpoint: 0.0.0.0:1777
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+service:
+  extensions: [health_check, pprof, zpages]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp/tempo]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [loki]
+  telemetry:
+    metrics:
+      address: 0.0.0.0:8888

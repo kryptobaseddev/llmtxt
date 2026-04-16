@@ -1,0 +1,19 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+# Environment variables to set in Railway dashboard:
+# TEMPO_HOST   = ${{Tempo.RAILWAY_PRIVATE_DOMAIN}}
+# LOKI_HOST    = ${{Loki.RAILWAY_PRIVATE_DOMAIN}}
+
+[[services]]
+name = "otel-collector"
+
+[[volumes]]
+# No persistent volume needed — collector is stateless
