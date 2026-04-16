@@ -15,7 +15,8 @@
   "dependencies": {
     "@noble/ed25519": "^3.1.0",
     "@noble/hashes": "^2.2.0",
-    "llmtxt": "workspace:*"
+    "llmtxt": "workspace:*",
+    "postgres": "^3.4.9"
   },
   "engines": {
     "node": ">=22.0.0"
