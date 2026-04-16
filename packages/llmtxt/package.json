@@ -58,7 +58,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp -r src/local/migrations dist/local/migrations",
     "build:wasm": "bash -lc \"cd ../../crates/llmtxt-core && wasm-pack build --target nodejs --out-dir ../../packages/llmtxt/wasm && rm -f ../../packages/llmtxt/wasm/.gitignore\"",
     "build:all": "pnpm run build:wasm && pnpm run build",
     "dev": "tsc --watch",
