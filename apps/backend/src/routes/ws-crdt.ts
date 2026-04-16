@@ -204,7 +204,8 @@ async function resolveWsUser(request: {
     for (const [key, value] of Object.entries(request.headers)) {
       if (value) headers.append(key, String(value));
     }
-    const token = request.query['token'];
+    // T375: accept both ?token= (canonical) and ?apiKey= (legacy/observer-bot compat)
+    const token = request.query['token'] ?? request.query['apiKey'];
     if (token && typeof token === 'string') {
       headers.set('Authorization', `Bearer ${token}`);
     }
