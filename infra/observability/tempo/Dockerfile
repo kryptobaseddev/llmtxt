@@ -5,4 +5,4 @@ COPY tempo.yaml /etc/tempo/tempo.yaml
 EXPOSE 3200 4317 4318
 
 ENTRYPOINT ["/tempo"]
-CMD ["-config.file=/etc/tempo/tempo.yaml"]
+CMD ["-config.file=/etc/tempo/tempo.yaml", "-config.expand-env=true"]
