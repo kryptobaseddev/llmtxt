@@ -3,7 +3,43 @@
 **Task**: T353 — Epic: Finish SDK-first refactor — route all apps/backend handlers through BackendCore  
 **Agent**: CLEO Team Lead (claude-sonnet-4-6)  
 **Date**: 2026-04-16  
-**Status**: PARTIAL — Phase 1 (RCASD) complete; Wave A read-ops complete; Wave A-2 write-ops complete; Wave B complete; Wave C complete; Wave D queued
+**Status**: COMPLETE — All Waves A through D finished. 6 remaining route files committed in 3 logical commits (C1–C3) after TS2352 type-error fixes.
+
+---
+
+## Phase 6 Complete (Wave D) — Commits 84ba278 + 661044a + 5b7641a
+
+### Wave D: Identity/ACL + Collections + Cross-Doc + Webhooks
+
+**Commits**:
+- `84ba278` — `feat(T353/Wave-D-finish): access-control, agent-keys, well-known-agents refactored to use backendCore`
+- `661044a` — `feat(T353/Wave-D-finish): collections, cross-doc refactored to use backendCore`
+- `5b7641a` — `feat(T353/Wave-D-finish): webhooks refactored to use backendCore`
+
+**CI**: Pushed to main (3 commits after clean rebase past hotfix 9219982)
+**Tests**: 156/156 backend (0 failures)
+**Build**: tsc clean (0 errors)
+**Lint**: 0 warnings
+
+**Route files refactored (Wave D)**:
+| File | Change |
+|------|--------|
+| `access-control.ts` | `getDocumentBySlug`, `getDocumentAccess`, `grantDocumentAccess`, `revokeDocumentAccess`, `setDocumentVisibility` via backendCore; invite + pendingInvites direct (schema-specific) |
+| `agent-keys.ts` | `registerAgentPubkey`, `lookupAgentPubkey`, `listAgentPubkeys`, `revokeAgentPubkey` via backendCore; Noble ed25519 validation stays in route layer |
+| `well-known-agents.ts` | `lookupAgentPubkey` via backendCore; fingerprint computation stays in route (stateless) |
+| `collections.ts` | `createCollection`, `listCollections`, `getCollection`, `addDocToCollection`, `removeDocFromCollection`, `reorderCollection`, `exportCollection` via backendCore |
+| `cross-doc.ts` | `getDocumentBySlug`, `getDocumentLinks`, `getDocument`, `createDocumentLink`, `deleteDocumentLink`, `getGlobalGraph` via backendCore; search content decompression stays direct (stateless scoring) |
+| `webhooks.ts` | `createWebhook`, `listWebhooks`, `deleteWebhook`, `testWebhook` via backendCore |
+
+**Type fix applied**: Prior agent used `as Record<string, unknown>` on typed SDK objects (`Document`, `Collection`, `DocumentLink`, `Webhook`). TypeScript TS2352 rejected these as non-overlapping types. Fixed by:
+- Using `as unknown as Record<string, unknown>` (double cast via `unknown`) where SDK interface lacked runtime fields (e.g., `ownerId` not in SDK `Document`)
+- Using `as any` with `eslint-disable` comments where intermediate variables needed runtime-only fields
+
+**Hotfix interaction**: Hotfix worker landed commit `9219982` while Wave D work was in-flight. Stashed Wave D changes, rebased via `git pull --rebase` (stash prevented merge), popped stash cleanly. No conflicts — hotfix touched `leases.ts`, `crdt/compaction.ts`, `rate-limit.ts`; none overlapped with the 6 Wave D files.
+
+**Validation gate confirmed**:
+- Zero `../db/index` imports in all 6 route files
+- Remaining `drizzle-orm` operator imports (`eq`, `and`, `inArray`) are for schema-specific direct queries documented as intentionally staying direct
 
 ---
 
