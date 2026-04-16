@@ -72,6 +72,29 @@ function formatValidationErrors(errors: Array<{ path: string; message: string; c
 
 /** Try to get the authenticated user from session cookies. Returns null if no session. */
 async function getOptionalUser(request: FastifyRequest) {
+  // Fast path: if the auth middleware (requireAuth / tryAuth) already ran and
+  // populated request.user, use it. This is the case for API-key Bearer tokens
+  // when the route has requireAuth as a preHandler.
+  if (request.user?.id) {
+    return request.user as { id: string; email?: string; name?: string; isAnonymous?: boolean };
+  }
+
+  // Compress and other optional-auth routes don't run requireAuth, so request.user
+  // may not be set even when a valid Bearer API key is in the Authorization header.
+  // Try to resolve the API key directly so compress documents get proper ownership.
+  const authHeader = request.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    const { tryAuthenticateApiKey } = await import('../middleware/auth.js');
+    if (tryAuthenticateApiKey) {
+      // tryAuthenticateApiKey populates request.user if the token is valid
+      await tryAuthenticateApiKey(request);
+      if (request.user?.id) {
+        return request.user as { id: string; email?: string; name?: string; isAnonymous?: boolean };
+      }
+    }
+  }
+
+  // Fall back to session-based auth (cookie / better-auth)
   try {
     const headers = new Headers();
     for (const [key, value] of Object.entries(request.headers)) {

@@ -117,6 +117,25 @@ async function tryBearerAuth(
   return 'authenticated';
 }
 
+/**
+ * Attempt API key authentication without sending a 401 on failure.
+ * Populates request.user / request.session if a valid API key Bearer token is present.
+ * Safe to call on optional-auth routes (e.g. /compress) — never sends a response.
+ */
+export async function tryAuthenticateApiKey(request: FastifyRequest): Promise<void> {
+  const authHeader = request.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) return;
+  // Use a no-op reply object so tryBearerAuth can send responses without affecting the live reply.
+  // We discard any 401 it would send — this is intentional for optional-auth paths.
+  const noopReply = {
+    status: () => noopReply,
+    send: () => noopReply,
+    sent: false,
+  } as unknown as import('fastify').FastifyReply;
+  await tryBearerAuth(request, noopReply);
+  // If tryBearerAuth succeeded it populated request.user; if it failed, request.user stays unset.
+}
+
 /** Authenticate the request via Bearer API key first, then session cookie. Populates request.user and request.session, or returns 401. */
 export async function requireAuth(request: FastifyRequest, reply: FastifyReply) {
   // 1. Try Bearer API key first
