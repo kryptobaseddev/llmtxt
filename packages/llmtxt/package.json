@@ -5,6 +5,9 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "llmtxt": "./dist/cli/llmtxt.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -13,6 +16,18 @@
     "./sdk": {
       "types": "./dist/sdk/index.d.ts",
       "import": "./dist/sdk/index.js"
+    },
+    "./local": {
+      "types": "./dist/local/index.d.ts",
+      "import": "./dist/local/index.js"
+    },
+    "./remote": {
+      "types": "./dist/remote/index.d.ts",
+      "import": "./dist/remote/index.js"
+    },
+    "./cli": {
+      "types": "./dist/cli/index.d.ts",
+      "import": "./dist/cli/index.js"
     },
     "./disclosure": {
       "types": "./dist/disclosure.d.ts",
@@ -48,6 +63,7 @@
     "build:all": "pnpm run build:wasm && pnpm run build",
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
+    "test": "node --import tsx/esm --test src/__tests__/*.test.ts",
     "typecheck": "tsc --noEmit",
     "validate": "pnpm run typecheck && pnpm exec forge-ts check && pnpm exec versionguard validate"
   },
@@ -95,6 +111,7 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.19.15",
     "drizzle-kit": "1.0.0-beta.21",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
   "engines": {
