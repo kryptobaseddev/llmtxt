@@ -107,10 +107,18 @@ export async function leaseRoutes(app: FastifyInstance): Promise<void> {
    *
    * Releases the lease. Only the holder can release.
    * Returns 200 on success, 403 if not holder, 404 if no active lease.
+   *
+   * Body-less DELETE is RESTful — do not require a body. The schema
+   * explicitly allows an empty or absent body so Fastify does not reject
+   * the request with FST_ERR_CTP_EMPTY_JSON_BODY when the client sends
+   * Content-Type: application/json without a payload.
    */
   app.delete<{ Params: { slug: string; sid: string } }>(
     '/documents/:slug/sections/:sid/lease',
-    { preHandler: [canRead] },
+    {
+      preHandler: [canRead],
+      schema: { body: { type: 'object', nullable: true, additionalProperties: true } },
+    },
     async (request, reply) => {
       const { slug, sid } = request.params;
       const resource = `${slug}:${sid}`;

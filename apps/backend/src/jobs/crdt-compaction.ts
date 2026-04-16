@@ -55,7 +55,7 @@ async function runCompaction(): Promise<void> {
       FROM section_crdt_updates
       GROUP BY document_id, section_id
       HAVING COUNT(*) > ${MAX_UPDATES_PER_SECTION}
-         OR MIN(created_at) < ${cutoffDate}
+         OR MIN(created_at) < ${cutoffDate.toISOString()}
     `);
 
     const candidates = candidateQuery.rows as Array<{

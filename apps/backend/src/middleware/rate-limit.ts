@@ -59,10 +59,17 @@ function getAuthTier(request: FastifyRequest): 'apiKey' | 'user' | 'ip' {
 /**
  * Generate a stable rate-limit key for the request.
  *
- * Uses the most specific identifier available:
- *   1. Hashed API key (from Bearer token) — identifies the key, not the user
+ * Uses the most specific identifier available (priority order):
+ *   1. Bearer API key — identifies the key, not the user
  *   2. User ID (from session cookie)
- *   3. Client IP address
+ *   3. Verified agent pubkey ID (x-agent-pubkey-id header, set by T147
+ *      verifyAgentSignature middleware) — prevents Railway internal-IP
+ *      collisions where multiple agents share a single egress address
+ *      (100.64.0.x). Multi-agent features (scratchpad, CRDT, leases, A2A)
+ *      must be rate-limited per identity, not per network origin.
+ *   4. x-agent-id header — unverified self-reported identity, used as a
+ *      best-effort fallback when signature middleware has not run.
+ *   5. Client IP address — last resort for fully anonymous requests.
  */
 export function keyGenerator(request: FastifyRequest): string {
   const authHeader = request.headers['authorization'];
@@ -74,6 +81,20 @@ export function keyGenerator(request: FastifyRequest): string {
   }
   if (request.user?.id) {
     return `user:${request.user.id}`;
+  }
+  // Verified agent pubkey ID set by verifyAgentSignature (T147).
+  // Cast required because agentPubkeyId is added via module augmentation
+  // in verify-agent-signature.ts and may not be visible at this call site.
+  const verifiedAgentId = (request as unknown as { agentPubkeyId?: string }).agentPubkeyId;
+  if (verifiedAgentId) {
+    return `agent:${verifiedAgentId}`;
+  }
+  // Self-reported agent identity header — unverified but sufficient to
+  // distinguish agents sharing a Railway private-network IP.
+  const agentIdHeader = request.headers['x-agent-id'];
+  if (agentIdHeader) {
+    const id = Array.isArray(agentIdHeader) ? agentIdHeader[0] : agentIdHeader;
+    return `agent:${id.slice(0, 64)}`;
   }
   return `ip:${request.ip}`;
 }
