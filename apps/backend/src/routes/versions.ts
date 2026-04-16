@@ -6,8 +6,9 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { db } from '../db/index.js';
-import { documents, versions, contributors } from '../db/schema.js';
-import { eq, and, desc, sql, inArray } from 'drizzle-orm';
+// documents still used for initial doc lookup (conflict detection, LOCKED check).
+import { documents } from '../db/schema.js';
+import { eq } from 'drizzle-orm';
 import {
   compress,
   decompress,
@@ -25,7 +26,7 @@ import { enforceContentSize } from '../middleware/content-limits.js';
 import { eventBus } from '../events/bus.js';
 import { canRead, canWrite } from '../middleware/rbac.js';
 import { versionCreatedTotal } from '../middleware/metrics.js';
-import { appendDocumentEvent } from '../lib/document-events.js';
+// appendDocumentEvent moved to PostgresBackend.publishVersion (SDK-first refactor).
 import { computeAndStoreEmbeddings } from '../jobs/embeddings.js';
 
 /** Try to get the authenticated user from session cookies. */
@@ -194,135 +195,57 @@ export async function versionRoutes(fastify: FastifyInstance) {
         tokensRemoved = diff.removedTokens;
       }
 
-      // Helper that performs the atomic version creation inside a transaction.
-      // Uses async transaction syntax which works for both Drizzle-over-SQLite
-      // (better-sqlite3 wraps sync ops transparently) and Drizzle-over-pg.
-      // The { behavior: 'immediate' } option was SQLite-only and is omitted here
-      // for dual-provider compatibility; PostgreSQL serialises writes via its own
-      // locking, and SQLite WAL handles concurrent readers correctly.
-      const runVersionInsert = async (overrideVersionNumber?: number): Promise<number> =>
-        db.transaction(async (tx: typeof db) => {
-          // Read the current max version number inside the transaction so the
-          // read and write are atomic.
-          const [latestVersion] = await tx
-            .select({ versionNumber: versions.versionNumber })
-            .from(versions)
-            .where(eq(versions.documentId, doc.id))
-            .orderBy(desc(versions.versionNumber))
-            .limit(1);
+      // Delegate the transactional version insert + contributor upsert + event log
+      // to PostgresBackend.publishVersion (SDK-first pattern).
+      // All pre-computed fields are passed in; the backend handles the transaction.
+      const idempotencyKey = (request.headers as Record<string, string>)['idempotency-key'] ?? null;
 
-          const nextVersionNumber =
-            overrideVersionNumber ?? (latestVersion ? latestVersion.versionNumber + 1 : 2);
-
-          // If this is the first update, snapshot the current content as version 1.
-          if (!latestVersion) {
-            await tx.insert(versions).values({
-              id: generateId(),
-              documentId: doc.id,
-              versionNumber: 1,
-              compressedData: doc.compressedData,
-              contentHash: doc.contentHash,
-              tokenCount: doc.tokenCount,
-              createdAt: doc.createdAt,
-              changelog: 'Initial version',
-            });
-          }
-
-          // Insert the new version row.
-          await tx.insert(versions).values({
-            id: generateId(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let publishResult: any;
+      try {
+        publishResult = await request.server.backendCore.publishVersion({
+          documentId: doc.id,
+          content: content,
+          patchText: '',
+          createdBy: effectiveCreatedBy ?? '',
+          changelog: changelog ?? '',
+          // Extended fields consumed by PostgresBackend.publishVersion:
+          compressedData,
+          contentHash,
+          tokenCount,
+          originalSize,
+          compressedSize,
+          tokensAdded,
+          tokensRemoved,
+          idempotencyKey,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes('UNIQUE constraint') || msg.includes('unique constraint')) {
+          // Retry once on UNIQUE violation (race condition)
+          publishResult = await request.server.backendCore.publishVersion({
             documentId: doc.id,
-            versionNumber: nextVersionNumber,
+            content: content,
+            patchText: '',
+            createdBy: effectiveCreatedBy ?? '',
+            changelog: changelog ?? '',
             compressedData,
             contentHash,
             tokenCount,
-            createdAt: now,
-            createdBy: effectiveCreatedBy,
-            changelog: changelog || null,
-          });
-
-          // Update the document head.
-          await tx
-            .update(documents)
-            .set({
-              compressedData,
-              contentHash,
-              originalSize,
-              compressedSize,
-              tokenCount,
-              currentVersion: nextVersionNumber,
-            })
-            .where(eq(documents.id, doc.id));
-
-          // Upsert contributor record inside the same transaction so it is
-          // also rolled back if anything above fails.
-          if (effectiveCreatedBy) {
-            const [existing] = await tx
-              .select()
-              .from(contributors)
-              .where(and(
-                eq(contributors.documentId, doc.id),
-                eq(contributors.agentId, effectiveCreatedBy),
-              ));
-
-            if (existing) {
-              await tx.update(contributors)
-                .set({
-                  versionsAuthored: existing.versionsAuthored + 1,
-                  totalTokensAdded: existing.totalTokensAdded + tokensAdded,
-                  totalTokensRemoved: existing.totalTokensRemoved + tokensRemoved,
-                  netTokens: existing.netTokens + tokensAdded - tokensRemoved,
-                  lastContribution: now,
-                })
-                .where(eq(contributors.id, existing.id));
-            } else {
-              await tx.insert(contributors).values({
-                id: generateId(),
-                documentId: doc.id,
-                agentId: effectiveCreatedBy,
-                versionsAuthored: 1,
-                totalTokensAdded: tokensAdded,
-                totalTokensRemoved: tokensRemoved,
-                netTokens: tokensAdded - tokensRemoved,
-                firstContribution: now,
-                lastContribution: now,
-              });
-            }
-          }
-
-          // Append document event (inside same tx: persist-then-emit pattern).
-          const idempotencyKey = (request.headers as Record<string, string>)['idempotency-key'] ?? null;
-          await appendDocumentEvent(tx, {
-            documentId: slug,
-            eventType: 'version.published',
-            actorId: effectiveCreatedBy || 'anonymous',
-            payloadJson: {
-              versionNumber: nextVersionNumber,
-              changelog: changelog ?? null,
-              contentHash,
-              tokenCount,
-            },
+            originalSize,
+            compressedSize,
+            tokensAdded,
+            tokensRemoved,
             idempotencyKey,
-          });
-
-          return nextVersionNumber;
-        });
-
-      // Attempt the transaction.  If a concurrent request wins the race and
-      // inserts the same version number first, a UNIQUE constraint error is
-      // thrown.  Retry once: the second attempt reads the updated MAX inside its
-      // own transaction so it will naturally land on MAX+1.
-      let nextVersionNumber: number;
-      try {
-        nextVersionNumber = await runVersionInsert();
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        if (msg.includes('UNIQUE constraint failed') || msg.includes('unique constraint')) {
-          nextVersionNumber = await runVersionInsert();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any);
         } else {
           throw err;
         }
       }
+
+      const nextVersionNumber: number = publishResult.versionNumber;
 
       // Invalidate cache for this document
       invalidateDocumentCache(slug);
