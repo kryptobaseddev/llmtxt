@@ -1,0 +1,19 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/-/healthy"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+# Environment variables to set in Railway dashboard:
+# OTEL_COLLECTOR_HOST = ${{OtelCollector.RAILWAY_PRIVATE_DOMAIN}}
+# TEMPO_HOST          = ${{Tempo.RAILWAY_PRIVATE_DOMAIN}}
+# LOKI_HOST           = ${{Loki.RAILWAY_PRIVATE_DOMAIN}}
+
+[[volumes]]
+mountPath = "/prometheus"
+# Railway volume name: prometheus-data
+# Create with: railway volume create --name prometheus-data

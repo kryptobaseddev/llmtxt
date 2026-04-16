@@ -1,0 +1,63 @@
+# Prometheus configuration for LLMtxt self-hosted observability.
+#
+# Scrape targets:
+#   - OTel Collector metrics (port 8888 — collector self-telemetry)
+#   - OTel Collector Prometheus exporter (port 8889 — backend app metrics)
+#   - Tempo (port 3200/metrics)
+#   - Loki (port 3100/metrics)
+#   - Prometheus itself
+#
+# OTel Collector and other service hostnames are injected via env vars
+# using Railway Reference Variables at deploy time.
+#
+# Note: Railway private network resolves ${{ServiceName.RAILWAY_PRIVATE_DOMAIN}}
+# Set these env vars in the Railway dashboard for this service:
+#   OTEL_COLLECTOR_HOST = ${{OtelCollector.RAILWAY_PRIVATE_DOMAIN}}
+#   TEMPO_HOST          = ${{Tempo.RAILWAY_PRIVATE_DOMAIN}}
+#   LOKI_HOST           = ${{Loki.RAILWAY_PRIVATE_DOMAIN}}
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: llmtxt
+    env: production
+
+# Alertmanager configuration (not deployed — placeholder)
+alerting:
+  alertmanagers: []
+
+# Rule files
+rule_files: []
+
+scrape_configs:
+  # Prometheus self-scrape
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # OTel Collector self-telemetry (collector health metrics)
+  - job_name: otel-collector
+    static_configs:
+      - targets: ['${OTEL_COLLECTOR_HOST}:8888']
+
+  # LLMtxt backend metrics (exported by OTel Collector prometheus exporter)
+  - job_name: llmtxt-backend
+    static_configs:
+      - targets: ['${OTEL_COLLECTOR_HOST}:8889']
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'llmtxt_.*'
+        action: keep
+
+  # Grafana Tempo metrics
+  - job_name: tempo
+    static_configs:
+      - targets: ['${TEMPO_HOST}:3200']
+    metrics_path: /metrics
+
+  # Grafana Loki metrics
+  - job_name: loki
+    static_configs:
+      - targets: ['${LOKI_HOST}:3100']
+    metrics_path: /metrics
