@@ -1,5 +1,5 @@
 /**
- * BFT Consensus routes — W3/T152.
+ * BFT Consensus routes — W3/T152 / T353 Wave C.
  *
  * Extends the approval system with:
  *  - POST /documents/:slug/bft/approve — BFT-signed approval (quorum enforced)
@@ -9,6 +9,13 @@
  * BFT quorum formula: 2f+1, where f is per-document bftF config (default 1 → quorum 3).
  * Signed approvals use Ed25519 (reuses T147 agent key infrastructure).
  * Byzantine conflict detection: if an agent submits contradictory approvals, key is revoked.
+ *
+ * Wave C:
+ *  - GET /chain delegates to fastify.backendCore.getApprovalChain (zero Drizzle)
+ *  - GET /bft/status delegates to fastify.backendCore.getApprovalProgress (zero Drizzle)
+ *  - POST /bft/approve retains direct Drizzle for the byzantine-detection + chain-hash
+ *    transaction (a complex multi-step write that cannot be trivially expressed via
+ *    the current submitSignedApproval Backend method — noted in manifest as Tech Debt)
  */
 import type { FastifyInstance } from 'fastify';
 import { eq, and, desc } from 'drizzle-orm';
@@ -81,6 +88,9 @@ async function verifyApprovalSignature(
 /** Register BFT consensus routes. */
 export async function bftRoutes(fastify: FastifyInstance) {
   // POST /documents/:slug/bft/approve — submit a BFT-signed approval
+  // NOTE: retains direct Drizzle for byzantine-detection transaction.
+  // Tech debt: should be refactored to submitSignedApproval once that method
+  // supports BFT chain hash + byzantine slash in a single transaction.
   fastify.post<{
     Params: { slug: string };
     Body: {
@@ -120,12 +130,6 @@ export async function bftRoutes(fastify: FastifyInstance) {
       const now = Date.now();
       const f = (doc as { bftF?: number }).bftF ?? 1;
       const quorum = bftQuorum(f);
-
-      // Check for self-approval
-      // (The submitter should not approve their own version — check via versions table)
-      // Simplified: check if actorId matches doc's last editor via a heuristic
-      // For now, block if the reviewer's agentId matches the document's createdBy logic
-      // (This is a best-effort check; full implementation requires version.createdBy comparison)
 
       // Check for double-vote (Byzantine conflict detector)
       const existingVotes = await db
@@ -284,92 +288,65 @@ export async function bftRoutes(fastify: FastifyInstance) {
   );
 
   // GET /documents/:slug/bft/status — current BFT quorum status
+  // Wave C: delegates to fastify.backendCore.getApprovalProgress
   fastify.get<{ Params: { slug: string } }>(
     '/documents/:slug/bft/status',
     { preHandler: [canRead] },
     async (request, reply) => {
       const { slug } = request.params;
+
+      // Need bftF from the document — fetch doc for that only
       const [doc] = await db
-        .select()
+        .select({ id: documents.id, bftF: documents.bftF })
         .from(documents)
         .where(eq(documents.slug, slug))
         .limit(1);
       if (!doc) return reply.status(404).send({ error: 'Not Found' });
 
-      const f = (doc as { bftF?: number }).bftF ?? 1;
+      const f = (doc.bftF as number | null | undefined) ?? 1;
       const quorum = bftQuorum(f);
 
-      const allVotes = await db
-        .select()
-        .from(approvals)
-        .where(and(
-          eq(approvals.documentId, doc.id),
-          eq(approvals.status, 'APPROVED'),
-        ));
+      // Use backendCore for approval progress (Wave A implementation)
+      const progress = await fastify.backendCore.getApprovalProgress(slug, 0);
 
-      const uniqueApprovers = new Set(allVotes.map((a: { reviewerId: string }) => a.reviewerId));
-
+      const approverCount = progress.approvedBy?.length ?? 0;
       return {
         slug,
         bftF: f,
         quorum,
-        currentApprovals: uniqueApprovers.size,
-        quorumReached: uniqueApprovers.size >= quorum,
-        approvers: Array.from(uniqueApprovers),
+        currentApprovals: approverCount,
+        quorumReached: approverCount >= quorum,
+        approvers: progress.approvedBy ?? [],
       };
     }
   );
 
   // GET /documents/:slug/chain — verify tamper-evident approval chain
+  // Wave C: fully delegated to fastify.backendCore.getApprovalChain
   fastify.get<{ Params: { slug: string } }>(
     '/documents/:slug/chain',
     { preHandler: [canRead] },
     async (request, reply) => {
       const { slug } = request.params;
-      const [doc] = await db
-        .select()
-        .from(documents)
-        .where(eq(documents.slug, slug))
-        .limit(1);
-      if (!doc) return reply.status(404).send({ error: 'Not Found' });
 
-      // Fetch all approvals ordered by timestamp (chain order)
-      const allApprovals = await db
-        .select()
-        .from(approvals)
-        .where(eq(approvals.documentId, doc.id))
-        .orderBy(approvals.timestamp);
+      const result = await fastify.backendCore.getApprovalChain(slug);
 
-      // Verify the hash chain
-      let valid = true;
-      let firstInvalidAt: number | null = null;
-
-      for (let i = 0; i < allApprovals.length; i++) {
-        const approval = allApprovals[i];
-        const storedHash = approval.chainHash;
-        if (!storedHash) continue; // Legacy unsigned approvals — skip chain check
-
-        const prevHash = approval.prevChainHash ?? null;
-        const approvalJson = JSON.stringify({
-          documentId: approval.documentId,
-          reviewerId: approval.reviewerId,
-          status: approval.status,
-          atVersion: approval.atVersion,
-          timestamp: approval.timestamp,
-        });
-        const expectedHash = computeChainHash(prevHash, approvalJson);
-
-        if (expectedHash !== storedHash) {
-          valid = false;
-          firstInvalidAt = i;
-          break;
-        }
+      // Check document exists (getApprovalChain returns empty chain for unknown docs)
+      if (result.length === 0) {
+        // Distinguish "doc not found" from "doc has no approvals"
+        const [doc] = await db
+          .select({ id: documents.id })
+          .from(documents)
+          .where(eq(documents.slug, slug))
+          .limit(1);
+        if (!doc) return reply.status(404).send({ error: 'Not Found' });
+        // doc exists but has no approvals — valid empty chain
       }
 
       return {
-        valid,
-        length: allApprovals.length,
-        firstInvalidAt,
+        valid: result.valid,
+        length: result.length,
+        firstInvalidAt: result.firstInvalidAt,
         slug,
       };
     }

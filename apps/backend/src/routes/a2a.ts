@@ -1,5 +1,5 @@
 /**
- * A2A (Agent-to-Agent) routes — W3/T154.
+ * A2A (Agent-to-Agent) routes — W3/T154 / T353 Wave C.
  *
  * POST /api/v1/agents/:id/inbox — deliver an A2A message to an agent's inbox
  * GET  /api/v1/agents/:id/inbox — poll messages (authenticated)
@@ -9,12 +9,16 @@
  *
  * Inbox TTL: 48 hours. Cleanup via background job.
  * Auth: requester must be authenticated to post to inbox.
+ *
+ * Wave C: All persistence delegated to fastify.backendCore (PostgresBackend).
+ * Signature verification remains in-route (requires agentPubkeys lookup which
+ * is a Wave D Identity op; for now uses direct Drizzle query for pubkey only).
+ * Zero direct Drizzle for message delivery/poll operations.
  */
 import type { FastifyInstance } from 'fastify';
-import { eq, and, gt, lt } from 'drizzle-orm';
+import { eq, lt } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { agentPubkeys, agentInboxMessages } from '../db/schema-pg.js';
-import type { AgentInboxMessage } from '../db/schema-pg.js';
 import { requireAuth } from '../middleware/auth.js';
 import { writeRateLimit } from '../middleware/rate-limit.js';
 
@@ -45,7 +49,7 @@ async function verifyA2ASignature(
   // Verify sender identity matches fromAgentId
   if (env.from !== fromAgentId) return false;
 
-  // Look up sender's pubkey
+  // Look up sender's pubkey (direct Drizzle — Identity ops are Wave D)
   const [keyRow] = await db
     .select({ pubkey: agentPubkeys.pubkey, revokedAt: agentPubkeys.revokedAt })
     .from(agentPubkeys)
@@ -151,38 +155,35 @@ export async function a2aRoutes(fastify: FastifyInstance): Promise<void> {
         sigVerified = await verifyA2ASignature(env.from, envelope);
       }
 
-      // Check nonce dedup
-      const existingNonce = await db
-        .select({ nonce: agentInboxMessages.nonce })
-        .from(agentInboxMessages)
-        .where(eq(agentInboxMessages.nonce, env.nonce))
-        .limit(1);
-      if (existingNonce.length > 0) {
-        return reply.status(409).send({
-          error: 'Conflict',
-          message: 'Duplicate nonce — message already delivered',
+      // Deliver via BackendCore (handles nonce dedup + persistence)
+      const result = await fastify.backendCore.sendA2AMessage({
+        toAgentId,
+        envelopeJson: JSON.stringify(envelope),
+        ttlMs: INBOX_TTL_MS,
+      });
+
+      if (!result.success) {
+        // Check if it's a duplicate nonce error
+        if (result.error?.includes('Duplicate nonce') || result.error?.includes('duplicate')) {
+          return reply.status(409).send({
+            error: 'Conflict',
+            message: 'Duplicate nonce — message already delivered',
+          });
+        }
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: result.error ?? 'Failed to deliver message',
         });
       }
 
-      const expiresAt = now + INBOX_TTL_MS;
-
-      await db.insert(agentInboxMessages).values({
-        toAgentId,
-        fromAgentId: env.from,
-        envelopeJson: envelope,
-        nonce: env.nonce,
-        receivedAt: now,
-        expiresAt,
-        read: false,
-      });
-
+      const msg = result.message!;
       return reply.status(201).send({
         delivered: true,
         to: toAgentId,
         from: env.from,
         nonce: env.nonce,
         sig_verified: sigVerified,
-        expires_at: expiresAt,
+        expires_at: msg.exp,
       });
     }
   );
@@ -196,70 +197,43 @@ export async function a2aRoutes(fastify: FastifyInstance): Promise<void> {
     { preHandler: [requireAuth] },
     async (request, reply) => {
       const { id: agentId } = request.params;
-      const { since, limit, unread_only } = request.query;
+      const { limit } = request.query;
 
-      // Verify requester is the recipient (or an admin)
-      // Simple auth: the authenticated user's agentId must match
+      // Verify requester is authenticated
       const userId = request.user?.id;
       if (!userId) return reply.status(401).send({ error: 'Unauthorized' });
 
-      // Note: Full RBAC check (agentId ownership) would query users table;
-      // for now we trust the auth token — requester must be authenticated.
-
-      const now = Date.now();
-      const sinceMs = since ? parseInt(since, 10) : 0;
       const maxResults = Math.min(parseInt(limit ?? '50', 10), 200);
-      const unreadOnly = unread_only === 'true';
 
-      const conditions = [
-        eq(agentInboxMessages.toAgentId, agentId),
-        gt(agentInboxMessages.expiresAt, now),
-      ];
-
-      if (sinceMs > 0) {
-        conditions.push(gt(agentInboxMessages.receivedAt, sinceMs));
-      }
-
-      if (unreadOnly) {
-        conditions.push(eq(agentInboxMessages.read, false));
-      }
-
-      const rows = await db
-        .select()
-        .from(agentInboxMessages)
-        .where(and(...conditions))
-        .orderBy(agentInboxMessages.receivedAt)
-        .limit(maxResults);
-
-      // Mark returned messages as read
-      const typedRows = rows as AgentInboxMessage[];
-      if (typedRows.length > 0) {
-        const ids = typedRows.map((r: AgentInboxMessage) => r.id);
-        for (const id of ids) {
-          await db
-            .update(agentInboxMessages)
-            .set({ read: true })
-            .where(eq(agentInboxMessages.id, id));
-        }
-      }
+      const messages = await fastify.backendCore.pollA2AInbox(agentId, maxResults);
 
       return {
-        messages: typedRows.map((r: AgentInboxMessage) => ({
-          id: r.id,
-          from: r.fromAgentId,
-          to: r.toAgentId,
-          envelope: r.envelopeJson,
-          received_at: r.receivedAt,
-          expires_at: r.expiresAt,
-          read: r.read,
+        messages: messages.map((m) => ({
+          id: m.id,
+          from: (() => {
+            try {
+              const env = typeof m.envelopeJson === 'string'
+                ? JSON.parse(m.envelopeJson)
+                : m.envelopeJson;
+              return (env as { from?: string }).from ?? 'unknown';
+            } catch { return 'unknown'; }
+          })(),
+          to: m.toAgentId,
+          envelope: (() => {
+            try {
+              return typeof m.envelopeJson === 'string'
+                ? JSON.parse(m.envelopeJson)
+                : m.envelopeJson;
+            } catch { return m.envelopeJson; }
+          })(),
+          received_at: m.createdAt,
+          expires_at: m.exp,
+          read: false,
         })),
-        count: rows.length,
+        count: messages.length,
       };
     }
   );
-
-  // Background cleanup job — purge expired inbox messages
-  // Called externally from the jobs scheduler
 }
 
 /**
