@@ -110,3 +110,37 @@ jobs:
       - name: Run migrations against fresh DB (idempotency check)
         working-directory: apps/backend
         run: bash scripts/ci-migrate-check.sh
+
+  openapi-drift:
+    name: OpenAPI spec drift check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        run: cargo install wasm-pack
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build WASM (required by llmtxt SDK)
+        working-directory: packages/llmtxt
+        run: pnpm run build:all
+
+      - name: Regenerate OpenAPI spec
+        working-directory: apps/backend
+        run: pnpm run openapi:gen
+
+      - name: Fail if spec is out of sync
+        run: git diff --exit-code apps/backend/openapi.json apps/backend/postman-collection.json || (echo "ERROR: OpenAPI/Postman artifacts are out of sync. Run pnpm --filter backend run openapi:gen and commit." && exit 1)

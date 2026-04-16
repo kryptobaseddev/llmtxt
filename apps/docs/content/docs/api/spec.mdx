@@ -1,0 +1,79 @@
+---
+title: Interactive API Spec
+description: OpenAPI 3.2 spec and interactive Swagger UI for the LLMtxt API
+---
+
+# LLMtxt API — Interactive Spec
+
+The full OpenAPI 3.2 specification is available for import into Swagger UI,
+Postman, or any OpenAPI-compatible tooling.
+
+## Interactive Swagger UI
+
+The live Swagger UI is served directly from the API at:
+
+**[https://api.llmtxt.my/api/docs](https://api.llmtxt.my/api/docs)**
+
+You can try every endpoint, inspect request/response schemas, and authenticate
+inline.
+
+## Download / Import
+
+| Format | URL |
+|--------|-----|
+| OpenAPI 3.2 JSON | [`/api/openapi.json`](https://api.llmtxt.my/api/openapi.json) |
+| Postman Collection | Available in the [GitHub repo](https://github.com/kryptobaseddev/llmtxt/blob/main/apps/backend/postman-collection.json) |
+
+### Import into Postman
+
+1. Open Postman
+2. Click **Import** → **Link**
+3. Paste: `https://api.llmtxt.my/api/openapi.json`
+4. Select **OpenAPI 3.0** and click **Import**
+
+### Import into Swagger UI (self-hosted)
+
+```
+https://api.llmtxt.my/api/openapi.json
+```
+
+## Spec Generation
+
+The spec is auto-generated from TSDoc `@route` annotations in
+[`apps/backend/src/openapi-manifest.ts`](https://github.com/kryptobaseddev/llmtxt/blob/main/apps/backend/src/openapi-manifest.ts)
+using [forge-ts](https://github.com/kryptobaseddev/forge-ts).
+
+To regenerate locally:
+
+```bash
+pnpm --filter backend run openapi:gen
+```
+
+The CI pipeline (`openapi-drift` job) fails if `openapi.json` is committed
+out of sync with the route manifest, enforcing spec freshness on every merge.
+
+## Route Summary
+
+The spec covers **68 routes** across these categories:
+
+| Category | Routes |
+|----------|--------|
+| Core Documents | compress, decompress, validate, search, schemas |
+| Versions & Diff | versions, diff, multi-diff, batch-versions |
+| Lifecycle | transition, approve, reject, contributors |
+| CRDT Collaboration | crdt-state, crdt-update, WebSocket collab |
+| Presence | active agents per document |
+| Section Leases | exclusive write locks |
+| Scratchpad | agent working memory |
+| BFT Consensus | vote, status, chain |
+| A2A Messaging | agent inbox send/receive |
+| Document Events | event log, SSE stream |
+| Agent Keys | Ed25519 key registration |
+| API Keys | create, list, rotate, delete |
+| Cross-Document | links, graph, semantic search |
+| Access Control | roles, visibility |
+| Organizations | members, documents |
+| Health / Metrics | liveness, readiness, Prometheus |
+| Webhooks | register, list, delete |
+
+See the [API Reference](/docs/api) for hand-written documentation with examples.
