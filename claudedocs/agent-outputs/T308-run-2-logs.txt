@@ -1,0 +1,1323 @@
+[t308] ═══════════════════════════════════════════
+[t308] T308 E2E Production Verification
+[t308] Slug  : Ho9wzYsL
+[t308] API   : https://api.llmtxt.my
+[t308] Duration: 300000ms (5.0min)
+[t308] ═══════════════════════════════════════════
+
+[t308] Starting all 5 agents in parallel...
+
+[t308] Spawning writer-bot.js...
+[t308] Spawning reviewer-bot.js...
+[t308] Spawning consensus-bot.js...
+[t308] Spawning summarizer-bot.js...
+[t308] Spawning observer-bot.js...
+  [consensus-bot] [consensusbot-demo] initialized, pubkey=615c87c13f29...
+  [consensus-bot] [consensusbot-demo] Monitoring consensus for document: Ho9wzYsL
+  [observer-bot] [observerbot-t308] initialized, pubkey=27cc07b3c48e...
+  [observer-bot] [observerbot-t308] Observing document: Ho9wzYsL for 300000ms
+  [reviewer-bot] [reviewerbot-demo] initialized, pubkey=5287a49990d1...
+  [reviewer-bot] [reviewerbot-demo] Watching document: Ho9wzYsL
+  [writer-bot] [writerbot-demo] initialized, pubkey=52467930b892...
+  [writer-bot] [writerbot-demo] Adopting existing document: Ho9wzYsL
+  [summarizer-bot] [summarizerbot-demo] initialized, pubkey=3aea8a8c35e3...
+  [summarizer-bot] [summarizerbot-demo] Summarizing document: Ho9wzYsL
+  [observer-bot] [observerbot-t308] Events seen: 5 | versions: 2
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 2...
+  [reviewer-bot] [reviewerbot-demo] Version 2: 4 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] LLMtxt Live Demo — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] LLMtxt Live Demo — short-section
+  [summarizer-bot] [summarizerbot-demo] Summary written (New version detected: 0): **Generated at 2026-04-16T17:25:46.565Z**
+
+  [summarizer-bot] This document covers 2 section(s): LL...
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Architecture — short-section
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 2 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 3...
+  [reviewer-bot] [reviewerbot-demo] Version 3: 5 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] LLMtxt Live Demo — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] LLMtxt Live Demo — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Architecture — short-section
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 3 recommendation=changes-requested
+  [writer-bot] [writerbot-demo] Lease acquired for section: architecture
+  [writer-bot] [writerbot-demo] Section written: architecture
+  [writer-bot] [writerbot-demo] A2A → summarizerbot-demo: application/json
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:25:52.006Z**
+
+  [summarizer-bot] This document covers 3 section(s): LL...
+  [writer-bot] [writerbot-demo] Lease acquired for section: multi-agent
+  [writer-bot] [writerbot-demo] Section written: multi-agent
+  [writer-bot] [writerbot-demo] A2A → summarizerbot-demo: application/json
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 10 | versions: 2
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:25:57.695Z**
+
+  [summarizer-bot] This document covers 4 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:25:58.103Z**
+
+  [summarizer-bot] This document covers 4 section(s): LL...
+  [writer-bot] [writerbot-demo] Lease acquired for section: getting-started
+  [writer-bot] [writerbot-demo] Section written: getting-started
+  [writer-bot] [writerbot-demo] A2A → summarizerbot-demo: application/json
+  [writer-bot] [writerbot-demo] Document Ho9wzYsL transitioned to REVIEW
+  [writer-bot] [writerbot-demo] Run complete.
+[t308] writer-bot.js exited with code 0
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:26:03.884Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 15 | versions: 2
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:26:04.514Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:26:05.024Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:26:10.774Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:26:11.202Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:26:11.684Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 20 | versions: 2
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:26:17.249Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:26:17.618Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:26:18.206Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:26:23.815Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:26:24.278Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 25 | versions: 2
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:26:24.898Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:26:30.950Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:26:31.321Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:26:31.998Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:26:37.616Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 30 | versions: 2
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:26:38.011Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:26:38.712Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:26:44.310Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:26:44.701Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:26:45.314Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 35 | versions: 2
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:26:50.883Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:26:51.294Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:26:51.800Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:26:57.374Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:26:57.707Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 40 | versions: 2
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:26:58.206Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:27:03.757Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Failed to write summary: [summarizerbot-demo] API PUT /api/v1/documents/Ho9wzYsL → 502: {}
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:27:19.675Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [observer-bot] [observerbot-t308] Events seen: 45 | versions: 2
+  [observer-bot] [observerbot-t308] Events seen: 50 | versions: 6
+  [observer-bot] [observerbot-t308] Events seen: 55 | versions: 10
+  [observer-bot] [observerbot-t308] Events seen: 60 | versions: 15
+  [observer-bot] [observerbot-t308] Events seen: 65 | versions: 20
+  [observer-bot] [observerbot-t308] Events seen: 70 | versions: 24
+  [observer-bot] [observerbot-t308] Events seen: 75 | versions: 27
+  [observer-bot] [observerbot-t308] Events seen: 80 | versions: 32
+  [observer-bot] [observerbot-t308] Events seen: 85 | versions: 37
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 4...
+  [reviewer-bot] [reviewerbot-demo] Version 4: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] LLMtxt Live Demo — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] LLMtxt Live Demo — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Architecture — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Getting Started — missing-links
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 4 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 5...
+  [reviewer-bot] [reviewerbot-demo] Version 5: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] LLMtxt Live Demo — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] LLMtxt Live Demo — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Architecture — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Getting Started — missing-links
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 5 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 6...
+  [reviewer-bot] [reviewerbot-demo] Version 6: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] LLMtxt Live Demo — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] LLMtxt Live Demo — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Architecture — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Getting Started — missing-links
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 6 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 7...
+  [reviewer-bot] [reviewerbot-demo] Version 7: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] LLMtxt Live Demo — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] LLMtxt Live Demo — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Architecture — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-links
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Getting Started — missing-links
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:27:25.169Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 7 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 8...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [reviewer-bot] [reviewerbot-demo] Version 8: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-links
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:27:25.525Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] LLMtxt Live Demo — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] LLMtxt Live Demo — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:27:26.326Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Architecture — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Getting Started — missing-links
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 8 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 9...
+  [reviewer-bot] [reviewerbot-demo] Version 9: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] LLMtxt Live Demo — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] LLMtxt Live Demo — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Architecture — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Getting Started — missing-links
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 9 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 10...
+  [reviewer-bot] [reviewerbot-demo] Version 10: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] LLMtxt Live Demo — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] LLMtxt Live Demo — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Architecture — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Getting Started — missing-links
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 10 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 11...
+  [reviewer-bot] [reviewerbot-demo] Version 11: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] LLMtxt Live Demo — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] LLMtxt Live Demo — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Architecture — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Getting Started — missing-links
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 11 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 12...
+  [reviewer-bot] [reviewerbot-demo] Version 12: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] LLMtxt Live Demo — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] LLMtxt Live Demo — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Architecture — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Getting Started — missing-links
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 12 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 13...
+  [reviewer-bot] [reviewerbot-demo] Version 13: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] LLMtxt Live Demo — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] LLMtxt Live Demo — short-section
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Architecture — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-links
+  [observer-bot] [observerbot-t308] Events seen: 90 | versions: 38
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:27:31.914Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Getting Started — missing-links
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 13 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 14...
+  [reviewer-bot] [reviewerbot-demo] Version 14: 11 comment(s)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:27:32.324Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] LLMtxt Live Demo — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] LLMtxt Live Demo — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Architecture — short-section
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:27:33.099Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-links
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 47 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 14 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 15...
+  [reviewer-bot] [reviewerbot-demo] Version 15: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 47 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 46 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 46 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 46 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 46 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 46 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 46 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 46 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 46 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 45 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 45 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 15 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 16...
+  [reviewer-bot] [reviewerbot-demo] Version 16: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 45 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 45 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 45 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 45 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 45 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 45 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 45 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 45 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 45 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 45 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 44 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 16 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 17...
+  [reviewer-bot] [reviewerbot-demo] Version 17: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 44 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 44 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 44 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 44 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 44 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 44 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 44 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 44 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 44 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 44 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 44 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 17 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 18...
+  [reviewer-bot] [reviewerbot-demo] Version 18: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 43 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 43 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 43 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 43 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 43 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 43 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 43 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 43 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 43 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 43 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 43 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 18 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 19...
+  [reviewer-bot] [reviewerbot-demo] Version 19: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 42 seconds.
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 42 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 42 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 42 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 42 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 42 seconds.
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:27:38.918Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 42 seconds.
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 42 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 42 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 42 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 42 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 19 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 20...
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:27:39.323Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [reviewer-bot] [reviewerbot-demo] Version 20: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 41 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 41 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 41 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 41 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 41 seconds.
+  [observer-bot] [observerbot-t308] Events seen: 95 | versions: 38
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:27:39.926Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 41 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 41 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 41 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 41 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 41 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 40 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 20 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 21...
+  [reviewer-bot] [reviewerbot-demo] Version 21: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 40 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 40 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 40 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 40 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 40 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 40 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 40 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 40 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 39 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 39 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 39 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 21 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 22...
+  [reviewer-bot] [reviewerbot-demo] Version 22: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 39 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 39 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 39 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 39 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 39 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 39 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 39 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 39 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 39 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 38 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 38 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 22 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 23...
+  [reviewer-bot] [reviewerbot-demo] Version 23: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 38 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 38 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 38 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 38 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 38 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 38 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 38 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 38 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 37 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 37 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 37 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 23 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 24...
+  [reviewer-bot] [reviewerbot-demo] Version 24: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 37 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 37 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 37 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 37 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 37 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 37 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 37 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 37 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 37 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 37 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 36 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 24 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 25...
+  [reviewer-bot] [reviewerbot-demo] Version 25: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 36 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 36 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 36 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 36 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 36 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 36 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 36 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 36 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 36 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 36 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 36 seconds.
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 25 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 26...
+  [reviewer-bot] [reviewerbot-demo] Version 26: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 35 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 35 seconds.
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:27:45.599Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 35 seconds.
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 35 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 35 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 35 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 35 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 35 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 35 seconds.
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:27:46.100Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 35 seconds.
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 35 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 26 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 27...
+  [reviewer-bot] [reviewerbot-demo] Version 27: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 34 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 34 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 34 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 34 seconds.
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:27:47.017Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 34 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 34 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 33 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 33 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 33 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 33 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 33 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 27 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 28...
+  [reviewer-bot] [reviewerbot-demo] Version 28: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 33 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 33 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 33 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 33 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 33 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 32 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 32 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 32 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 32 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 32 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 32 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 28 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 29...
+  [reviewer-bot] [reviewerbot-demo] Version 29: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 32 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 32 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 31 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 31 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 31 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 31 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 31 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 31 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 31 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 31 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 31 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 29 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 30...
+  [reviewer-bot] [reviewerbot-demo] Version 30: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 31 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 31 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 31 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 31 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 31 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 30 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 30 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 30 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 30 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 30 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 30 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 30 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 31...
+  [reviewer-bot] [reviewerbot-demo] Version 31: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 30 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 30 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 30 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 30 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 30 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 30 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 30 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 29 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 29 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 29 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 29 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 31 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 32...
+  [reviewer-bot] [reviewerbot-demo] Version 32: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 29 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 29 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 29 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 29 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 29 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 29 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 29 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 29 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 29 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 29 seconds.
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 28 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 32 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 33...
+  [reviewer-bot] [reviewerbot-demo] Version 33: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 28 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 28 seconds.
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:27:52.808Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 28 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 28 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 28 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 28 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 28 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 28 seconds.
+  [observer-bot] [observerbot-t308] Events seen: 100 | versions: 38
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:27:53.203Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 28 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 28 seconds.
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 27 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 33 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 34...
+  [reviewer-bot] [reviewerbot-demo] Version 34: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 27 seconds.
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:27:53.826Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 27 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 27 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 27 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 27 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 27 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 27 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 27 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 26 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 26 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 26 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 34 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 35...
+  [reviewer-bot] [reviewerbot-demo] Version 35: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 26 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 26 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 26 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 26 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 26 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 26 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 26 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 25 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 25 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 25 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 25 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 35 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 36...
+  [reviewer-bot] [reviewerbot-demo] Version 36: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 25 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 25 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 25 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 25 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 25 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 25 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 25 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 25 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 25 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 24 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 24 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 36 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 37...
+  [reviewer-bot] [reviewerbot-demo] Version 37: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 24 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 24 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 24 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 24 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 24 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 24 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 24 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 24 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 24 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 24 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 24 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 37 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 38...
+  [reviewer-bot] [reviewerbot-demo] Version 38: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 23 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 23 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 23 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 23 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 23 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 23 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 23 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 23 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 23 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 23 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 23 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 38 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 39...
+  [reviewer-bot] [reviewerbot-demo] Version 39: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 23 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 22 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 22 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 22 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 22 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 22 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 22 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 22 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 22 seconds.
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 22 seconds.
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [reviewer-bot] [reviewerbot-demo] Failed to post comment (non-fatal): [reviewerbot-demo] API POST /api/v1/documents/Ho9wzYsL/scratchpad → 500: Rate limit exceeded. Try again in 22 seconds.
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 39 recommendation=changes-requested
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:27:59.414Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:27:59.903Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:28:00.841Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 105 | versions: 38
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:28:06.603Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:28:07.135Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:28:08.025Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:28:13.724Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:28:14.116Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 110 | versions: 38
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:28:14.846Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:28:20.626Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:28:21.029Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:28:22.137Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:28:28.028Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 115 | versions: 38
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:28:28.415Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:28:29.124Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:28:34.927Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:28:35.307Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:28:36.117Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 120 | versions: 38
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:28:41.824Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:28:42.407Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:28:43.298Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:28:49.051Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:28:49.784Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 125 | versions: 38
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:28:50.810Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:28:56.861Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:28:57.468Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:28:58.709Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:29:04.689Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 130 | versions: 38
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:29:05.399Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:29:06.626Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:29:12.761Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:29:13.419Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:29:14.694Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 135 | versions: 38
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:29:20.740Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:29:21.195Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:29:21.811Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:29:27.568Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:29:28.268Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 140 | versions: 38
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:29:29.312Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:29:35.498Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:29:36.196Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:29:37.205Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:29:43.476Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:29:44.202Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [observer-bot] [observerbot-t308] Events seen: 145 | versions: 38
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:29:45.369Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:29:51.442Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:29:52.022Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:29:52.619Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 150 | versions: 38
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:29:58.421Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:29:58.825Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:29:59.826Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:30:25.774Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:30:26.277Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:30:27.375Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:30:33.302Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:30:33.723Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 155 | versions: 38
+  [observer-bot] [observerbot-t308] Events seen: 160 | versions: 38
+  [observer-bot] [observerbot-t308] Events seen: 165 | versions: 38
+  [observer-bot] [observerbot-t308] Events seen: 170 | versions: 38
+  [observer-bot] [observerbot-t308] Events seen: 175 | versions: 38
+  [observer-bot] [observerbot-t308] Events seen: 180 | versions: 38
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 40...
+  [observer-bot] [observerbot-t308] Events seen: 185 | versions: 38
+  [observer-bot] [observerbot-t308] Events seen: 190 | versions: 38
+  [observer-bot] [observerbot-t308] Events seen: 195 | versions: 38
+  [observer-bot] [observerbot-t308] Events seen: 200 | versions: 41
+  [observer-bot] [observerbot-t308] Events seen: 205 | versions: 46
+  [observer-bot] [observerbot-t308] Events seen: 210 | versions: 51
+  [observer-bot] [observerbot-t308] Events seen: 215 | versions: 56
+  [observer-bot] [observerbot-t308] Events seen: 220 | versions: 61
+  [observer-bot] [observerbot-t308] Events seen: 225 | versions: 66
+  [observer-bot] [observerbot-t308] Events seen: 230 | versions: 71
+  [observer-bot] [observerbot-t308] Events seen: 235 | versions: 76
+  [observer-bot] [observerbot-t308] Events seen: 240 | versions: 81
+  [observer-bot] [observerbot-t308] Events seen: 245 | versions: 86
+  [observer-bot] [observerbot-t308] Events seen: 250 | versions: 91
+  [observer-bot] [observerbot-t308] Events seen: 255 | versions: 96
+  [observer-bot] [observerbot-t308] Events seen: 260 | versions: 101
+  [observer-bot] [observerbot-t308] Events seen: 265 | versions: 106
+  [reviewer-bot] [reviewerbot-demo] Version 40: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-links
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:30:34.523Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] LLMtxt Live Demo — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] LLMtxt Live Demo — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Architecture — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Getting Started — missing-links
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 40 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 41...
+  [reviewer-bot] [reviewerbot-demo] Version 41: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] LLMtxt Live Demo — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] LLMtxt Live Demo — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Architecture — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Getting Started — missing-links
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 41 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 42...
+  [reviewer-bot] [reviewerbot-demo] Version 42: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] LLMtxt Live Demo — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] LLMtxt Live Demo — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Architecture — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Getting Started — missing-links
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 42 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 43...
+  [reviewer-bot] [reviewerbot-demo] Version 43: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] LLMtxt Live Demo — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] LLMtxt Live Demo — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Architecture — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Getting Started — missing-links
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 43 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 44...
+  [reviewer-bot] [reviewerbot-demo] Version 44: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] LLMtxt Live Demo — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] LLMtxt Live Demo — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Architecture — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-links
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Getting Started — missing-links
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 44 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 45...
+  [observer-bot] [observerbot-t308] Events seen: 270 | versions: 109
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T17:30:40.519Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [reviewer-bot] [reviewerbot-demo] Version 45: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-links
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T17:30:41.003Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] LLMtxt Live Demo — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] LLMtxt Live Demo — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Architecture — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T17:30:41.685Z**
+
+  [summarizer-bot] This document covers 5 section(s): LL...
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Getting Started — missing-links
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 45 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 46...
+  [reviewer-bot] [reviewerbot-demo] Version 46: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] LLMtxt Live Demo — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] LLMtxt Live Demo — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Architecture — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Getting Started — missing-links
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 46 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 47...
+  [reviewer-bot] [reviewerbot-demo] Version 47: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] LLMtxt Live Demo — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] LLMtxt Live Demo — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Architecture — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Getting Started — missing-links
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 47 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 48...
+  [reviewer-bot] [reviewerbot-demo] Version 48: 11 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] LLMtxt Live Demo — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] LLMtxt Live Demo — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Architecture — short-section
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Architecture — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Multi-Agent Collaboration — missing-links
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Getting Started — missing-links
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 48 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Run complete. Posted 228 review comments.
+[t308] reviewer-bot.js exited with code 0
+  [observer-bot] [observerbot-t308] Final document state: REVIEW
+  [observer-bot] [observerbot-t308] Final document version: 114
+  [observer-bot] [observerbot-t308] Hash chain valid: true
+  [observer-bot] [observerbot-t308] Total events in DB: 100
+  [observer-bot] [observerbot-t308] X-Server-Receipt header: ABSENT
+  [observer-bot] [observerbot-t308] 
+  [observer-bot] === ObserverBot Final Metrics ===
+  [observer-bot] [observerbot-t308] Total events: 272
+  [observer-bot] [observerbot-t308] Versions seen: 109
+  [observer-bot] [observerbot-t308] Version created events: 149
+  [observer-bot] [observerbot-t308] Document updated events: 3
+  [observer-bot] [observerbot-t308] Transition events: 1
+  [observer-bot] [observerbot-t308] Approval events: 0
+  [observer-bot] [observerbot-t308] Receipt headers received: 0
+  [observer-bot] [observerbot-t308] Signed writes observed: 12
+  [observer-bot] [observerbot-t308] BFT approvals observed: 0
+  [observer-bot] [observerbot-t308] A2A messages observed: 0
+  [observer-bot] [observerbot-t308] Errors: 0
+[t308] Observer metrics captured: {"eventsTotal":272,"versionCreatedEvents":149,"documentUpdatedEvents":3,"transitionEvents":1,"approvalEvents":0,"otherEvents":107,"receiptHeaders":0,"signedWritesObserved":12,"bftApprovalsObserved":0,"a2aMessagesObserved":0,"presenceUpdates":55,"errors":0,"hashChainValid":true,"totalEventsInDB":100,"receiptHeaderPresent":false}
+
+  [observer-bot] __OBSERVER_METRICS__{"eventsTotal":272,"versionCreatedEvents":149,"documentUpdatedEvents":3,"transitionEvents":1,"approvalEvents":0,"otherEvents":107,"receiptHeaders":0,"signedWritesObserved":12,"bftApprovalsObserved":0,"a2aMessagesObserved":0,"presenceUpdates":55,"errors":0,"hashChainValid":true,"totalEventsInDB":100,"receiptHeaderPresent":false}__END_METRICS__
+  [observer-bot] [observerbot-t308] Run complete.
+[t308] observer-bot.js exited with code 0
+  [summarizer-bot] [summarizerbot-demo] Run complete. Generated 108 summaries.
+[t308] summarizer-bot.js exited with code 0
+  [consensus-bot] [consensusbot-demo] Run complete.
+[t308] consensus-bot.js exited with code 0
+
+[t308] ═══════════════════════════════════════════
+[t308] T308 FINAL METRICS
+[t308] ═══════════════════════════════════════════
+  Duration    : 304.2s
+  Document    : Ho9wzYsL
+  API         : https://api.llmtxt.my
+
+  Agent metrics (from stdout parsing):
+    Section edits : 3
+    A2A messages  : 97
+    BFT approvals : 0
+    Reviews posted: 228
+    Summaries gen : 108
+
+  Observer metrics:
+    Total events      : 272
+    Version created   : 149
+    BFT approvals seen: 0
+    A2A seen          : 0
+    Presence updates  : 55
+    Receipt header    : false
+    Hash chain valid  : true
+    Events in DB      : 100
+    Errors            : 0
+
+  Exit codes:
+    writer-bot: 0
+    reviewer-bot: 0
+    observer-bot: 0
+    summarizer-bot: 0
+    consensus-bot: 0
+[t308] ═══════════════════════════════════════════
+
+__T308_FINAL_METRICS__{
+  "sectionEdits": 3,
+  "events": 0,
+  "approvals": 0,
+  "a2aMessages": 97,
+  "reviews": 228,
+  "summaries": 108,
+  "observerMetrics": {
+    "eventsTotal": 272,
+    "versionCreatedEvents": 149,
+    "documentUpdatedEvents": 3,
+    "transitionEvents": 1,
+    "approvalEvents": 0,
+    "otherEvents": 107,
+    "receiptHeaders": 0,
+    "signedWritesObserved": 12,
+    "bftApprovalsObserved": 0,
+    "a2aMessagesObserved": 0,
+    "presenceUpdates": 55,
+    "errors": 0,
+    "hashChainValid": true,
+    "totalEventsInDB": 100,
+    "receiptHeaderPresent": false
+  },
+  "agentExitCodes": {
+    "writer-bot": 0,
+    "reviewer-bot": 0,
+    "observer-bot": 0,
+    "summarizer-bot": 0,
+    "consensus-bot": 0
+  },
+  "startTimeMs": 1776360343580,
+  "endTimeMs": 1776360647771,
+  "errors": []
+}__END_T308__
+
+[t308] Capability checks:
+  PASS signed_writes_ge_20
+  FAIL bft_approval_ge_1
+  PASS events_ge_30
+  PASS a2a_messages_ge_3
+  PASS hash_chain_valid
+  PASS all_agents_completed
+
+[t308] RESULT: 5/6 capability checks passed
