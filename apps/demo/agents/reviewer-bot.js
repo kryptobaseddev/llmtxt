@@ -68,7 +68,8 @@ class ReviewerBot extends AgentBase {
       for await (const evt of this.watchEvents(this.slug, { signal: ac.signal })) {
         if (Date.now() >= deadline) break;
 
-        if (evt.event_type === 'version_created' || evt.event_type === 'document_updated') {
+        if (evt.event_type === 'version_created' || evt.event_type === 'document_updated' ||
+            evt.event_type === 'version.published' || evt.event_type === 'document.updated') {
           const version = evt.payload?.versionNumber ?? evt.payload?.version ?? 'unknown';
           const versionKey = String(version);
 

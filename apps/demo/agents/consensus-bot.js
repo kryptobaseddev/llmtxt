@@ -146,7 +146,7 @@ class ConsensusBot extends AgentBase {
         try {
           await this.transition(
             this.slug,
-            'approved',
+            'APPROVED',
             `ConsensusBot: BFT quorum reached (${totalApprovals}/${quorum})`,
           );
           this.log(`Document ${this.slug} transitioned to APPROVED`);

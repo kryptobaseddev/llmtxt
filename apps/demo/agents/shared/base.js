@@ -226,8 +226,10 @@ export class AgentBase {
     if (!this.identity) throw new Error('Agent not initialized');
 
     const timestampMs = Date.now();
-    // Canonical: slug\nagentId\nstatus\natVersion\ntimestamp
-    const canonical = [slug, this.agentId, 'approved', atVersion, timestampMs].join('\n');
+    const status = 'APPROVED';
+    // Canonical payload must match server's buildApprovalCanonicalPayload:
+    // [slug, actorId, status, atVersion, timestamp].join('\n')
+    const canonical = [slug, this.agentId, status, atVersion, timestampMs].join('\n');
     const msgBytes = new TextEncoder().encode(canonical);
     const sigBytes = await this.identity.sign(msgBytes);
     const sigHex = Buffer.from(sigBytes).toString('hex');
@@ -235,10 +237,10 @@ export class AgentBase {
     return this._api(`/api/v1/documents/${slug}/bft/approve`, {
       method: 'POST',
       body: JSON.stringify({
+        status,
+        sig_hex: sigHex,
+        canonical_payload: canonical,
         comment,
-        atVersion,
-        signatureHex: sigHex,
-        timestampMs,
       }),
     });
   }

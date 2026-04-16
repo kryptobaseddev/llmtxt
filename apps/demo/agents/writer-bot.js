@@ -162,7 +162,7 @@ class WriterBot extends AgentBase {
     // Step 3: transition to REVIEW
     if (this.slug) {
       try {
-        await this.transition(this.slug, 'review', 'WriterBot: initial draft complete, requesting review');
+        await this.transition(this.slug, 'REVIEW', 'WriterBot: initial draft complete, requesting review');
         this.log(`Document ${this.slug} transitioned to REVIEW`);
       } catch (err) {
         this.log(`Transition to review failed: ${err.message}`);
