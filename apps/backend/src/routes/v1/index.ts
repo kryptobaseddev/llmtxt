@@ -78,11 +78,6 @@ export async function v1Routes(app: FastifyInstance): Promise<void> {
   await app.register(semanticRoutes);
   await app.register(crossDocRoutes);
   await app.register(collectionRoutes);
-  // sseRoutes intentionally NOT registered under /api/v1 — it collides with
-  // documentEventRoutes which owns GET /documents/:slug/events on v1.
-  // sse.ts remains registered at the legacy /api prefix in index.ts for
-  // backwards-compatible SSE consumers that haven't migrated to the
-  // T148 event-log endpoint.
   await app.register(webhookRoutes);
   await app.register(documentEventRoutes);
   await app.register(agentKeyRoutes);

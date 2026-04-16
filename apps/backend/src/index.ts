@@ -29,7 +29,6 @@ import { wsCrdtRoutes } from './routes/ws-crdt.js';
 import { startCrdtCompactionJob } from './jobs/crdt-compaction.js';
 import { backfillEmbeddings } from './jobs/embeddings.js';
 import { initCrdtPubSub } from './realtime/redis-pubsub.js';
-import { sseRoutes } from './routes/sse.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import { startWebhookWorker } from './events/webhooks.js';
 import { startEventLogJobs } from './jobs/event-log-compaction.js';
@@ -506,7 +505,10 @@ async function main() {
     await app.register(wsRoutes, { prefix: '/ws' });
     // CRDT collaborative editing: /api/v1/documents/:slug/sections/:sid/collab
     await app.register(wsCrdtRoutes, { prefix: '/api/v1' });
-    await app.register(sseRoutes, { prefix: '/api' });
+    // sseRoutes removed: superseded by documentEventRoutes at
+    // /api/v1/documents/:slug/events/stream (T148 — paginated query + SSE
+    // stream + Last-Event-ID resume + hash chain + idempotency). No consumer
+    // uses the legacy /api/documents/:slug/events path — verified by grep.
     await app.register(webhookRoutes, { prefix: '/api' });
 
     // Start the webhook delivery worker (attaches a single event-bus listener).
