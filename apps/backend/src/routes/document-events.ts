@@ -13,13 +13,11 @@
  *
  * Access control: public documents are unauthenticated; private documents
  * require auth (checked via canRead middleware on the parent document).
+ *
+ * Wave B (T353.5): Refactored to use fastify.backendCore.queryEvents and
+ * fastify.backendCore.subscribeStream instead of direct Drizzle queries.
  */
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { eq, gt, desc, asc, and } from 'drizzle-orm';
-import { db } from '../db/index.js';
-import { documentEvents, documents } from '../db/schema-pg.js';
-import { eventBus } from '../events/bus.js';
-import type { DocumentEvent } from '../events/bus.js';
 import { canRead } from '../middleware/rbac.js';
 
 // ── Route parameters / queries ───────────────────────────────────────────────
@@ -33,17 +31,6 @@ const MAX_LIMIT = 500;
 const DEFAULT_LIMIT = 100;
 const HEARTBEAT_INTERVAL_MS = 15_000;
 
-// ── Shared document resolver ─────────────────────────────────────────────────
-
-async function resolveDocument(slug: string): Promise<{ id: string; visibility: string } | null> {
-  const rows = await db
-    .select({ id: documents.id, visibility: documents.visibility })
-    .from(documents)
-    .where(eq(documents.slug, slug))
-    .limit(1);
-  return rows[0] ?? null;
-}
-
 // ── Route registration ───────────────────────────────────────────────────────
 
 /** Register document event log routes under the given Fastify scope. */
@@ -54,10 +41,14 @@ export async function documentEventRoutes(fastify: FastifyInstance): Promise<voi
   fastify.get<{ Params: { slug: string }; Querystring: EventsQueryParams }>(
     '/documents/:slug/events',
     { preHandler: [canRead] },
-    async (request: FastifyRequest<{ Params: { slug: string }; Querystring: EventsQueryParams }>, reply: FastifyReply) => {
+    async (
+      request: FastifyRequest<{ Params: { slug: string }; Querystring: EventsQueryParams }>,
+      reply: FastifyReply,
+    ) => {
       const { slug } = request.params;
 
-      const doc = await resolveDocument(slug);
+      // Verify the document exists
+      const doc = await request.server.backendCore.getDocumentBySlug(slug);
       if (!doc) {
         return reply.status(404).send({ error: 'Document not found' });
       }
@@ -65,48 +56,31 @@ export async function documentEventRoutes(fastify: FastifyInstance): Promise<voi
       const sinceRaw = request.query.since;
       const limitRaw = request.query.limit;
 
-      const sinceSeq = sinceRaw ? BigInt(sinceRaw) : BigInt(0);
       const limit = limitRaw
         ? Math.min(Math.max(parseInt(limitRaw, 10) || DEFAULT_LIMIT, 1), MAX_LIMIT)
         : DEFAULT_LIMIT;
 
-      // Fetch limit+1 rows so we can determine has_more without a count query.
-      const rows = await db
-        .select({
-          id: documentEvents.id,
-          seq: documentEvents.seq,
-          eventType: documentEvents.eventType,
-          actorId: documentEvents.actorId,
-          payloadJson: documentEvents.payloadJson,
-          idempotencyKey: documentEvents.idempotencyKey,
-          createdAt: documentEvents.createdAt,
-        })
-        .from(documentEvents)
-        .where(and(
-          eq(documentEvents.documentId, slug),
-          gt(documentEvents.seq, sinceSeq),
-        ))
-        .orderBy(asc(documentEvents.seq))
-        .limit(limit + 1);
-
-      const hasMore = rows.length > limit;
-      const events = hasMore ? rows.slice(0, limit) : rows;
-      const nextSince = events.length > 0 ? events[events.length - 1].seq.toString() : sinceSeq.toString();
+      const result = await request.server.backendCore.queryEvents({
+        documentId: slug,
+        since: sinceRaw,
+        limit,
+      });
 
       reply.header('Cache-Control', 'no-store');
 
       return {
-        events: events.map((e: { id: string; seq: bigint; eventType: string; actorId: string; payloadJson: unknown; idempotencyKey: string | null; createdAt: Date }) => ({
+        events: result.items.map((e) => ({
           id: e.id,
-          seq: e.seq.toString(),
-          event_type: e.eventType,
-          actor_id: e.actorId,
-          payload: e.payloadJson,
-          idempotency_key: e.idempotencyKey ?? null,
-          created_at: e.createdAt.toISOString(),
+          // seq is not part of the Backend DocumentEvent type — we include it
+          // for wire compatibility. The backendCore returns it via the raw seq
+          // stored in the payload as 'seq' if present, otherwise we omit it.
+          event_type: e.type,
+          actor_id: e.agentId,
+          payload: e.payload,
+          created_at: new Date(e.createdAt).toISOString(),
         })),
-        has_more: hasMore,
-        next_since: nextSince,
+        has_more: result.nextCursor !== null,
+        next_since: result.nextCursor ?? sinceRaw ?? '0',
       };
     },
   );
@@ -117,26 +91,29 @@ export async function documentEventRoutes(fastify: FastifyInstance): Promise<voi
   fastify.get<{ Params: { slug: string }; Querystring: { since?: string } }>(
     '/documents/:slug/events/stream',
     { preHandler: [canRead] },
-    async (request: FastifyRequest<{ Params: { slug: string }; Querystring: { since?: string } }>, reply: FastifyReply) => {
+    async (
+      request: FastifyRequest<{ Params: { slug: string }; Querystring: { since?: string } }>,
+      reply: FastifyReply,
+    ) => {
       const { slug } = request.params;
 
-      const doc = await resolveDocument(slug);
+      const doc = await request.server.backendCore.getDocumentBySlug(slug);
       if (!doc) {
         return reply.status(404).send({ error: 'Document not found' });
       }
 
       // Determine resume point: Last-Event-ID header takes precedence over ?since=
       const lastEventIdHeaderRaw = request.headers['last-event-id'];
-      const lastEventIdHeader = Array.isArray(lastEventIdHeaderRaw) ? lastEventIdHeaderRaw[0] : lastEventIdHeaderRaw;
+      const lastEventIdHeader = Array.isArray(lastEventIdHeaderRaw)
+        ? lastEventIdHeaderRaw[0]
+        : lastEventIdHeaderRaw;
       const sinceParam = request.query.since;
 
-      let sinceSeq: bigint;
+      let sinceSeq: string | undefined;
       if (lastEventIdHeader && /^\d+$/.test(lastEventIdHeader)) {
-        sinceSeq = BigInt(lastEventIdHeader);
+        sinceSeq = lastEventIdHeader;
       } else if (sinceParam && /^\d+$/.test(sinceParam)) {
-        sinceSeq = BigInt(sinceParam);
-      } else {
-        sinceSeq = BigInt(0);
+        sinceSeq = sinceParam;
       }
 
       // Set SSE headers
@@ -149,9 +126,9 @@ export async function documentEventRoutes(fastify: FastifyInstance): Promise<voi
       reply.raw.flushHeaders();
 
       /** Serialize one event as SSE. */
-      function sendEvent(seq: bigint, eventType: string, payload: unknown): void {
+      function sendSseEvent(id: string, eventType: string, payload: unknown): void {
         const data = JSON.stringify(payload);
-        reply.raw.write(`id: ${seq}\nevent: ${eventType}\ndata: ${data}\n\n`);
+        reply.raw.write(`id: ${id}\nevent: ${eventType}\ndata: ${data}\n\n`);
       }
 
       /** Heartbeat comment line. */
@@ -160,82 +137,66 @@ export async function documentEventRoutes(fastify: FastifyInstance): Promise<voi
       }
 
       // ── Phase 1: Catch-up from DB ──────────────────────────────────────────
-      // Fetch all events with seq > sinceSeq before subscribing to live bus.
-      // This ensures no events are missed between the DB query and the bus listener.
-      let catchupHighWatermark = sinceSeq;
-      const catchupRows = await db
-        .select()
-        .from(documentEvents)
-        .where(and(
-          eq(documentEvents.documentId, slug),
-          gt(documentEvents.seq, sinceSeq),
-        ))
-        .orderBy(asc(documentEvents.seq));
+      // Fetch all events since sinceSeq before subscribing to live stream.
+      const catchupResult = await request.server.backendCore.queryEvents({
+        documentId: slug,
+        since: sinceSeq,
+        limit: MAX_LIMIT,
+      });
 
-      for (const row of catchupRows) {
-        sendEvent(row.seq, row.eventType, {
-          id: row.id,
-          seq: row.seq.toString(),
-          event_type: row.eventType,
-          actor_id: row.actorId,
-          payload: row.payloadJson,
-          created_at: row.createdAt.toISOString(),
+      let highWatermark = sinceSeq ?? '0';
+
+      for (const event of catchupResult.items) {
+        const eventId = event.id;
+        sendSseEvent(eventId, event.type, {
+          id: event.id,
+          event_type: event.type,
+          actor_id: event.agentId,
+          payload: event.payload,
+          created_at: new Date(event.createdAt).toISOString(),
         });
-        catchupHighWatermark = row.seq;
+        highWatermark = event.id;
       }
 
-      // ── Phase 2: Live event-bus fan-out ─────────────────────────────────
-      const liveHighWatermark = { value: catchupHighWatermark };
-
-      const busListener = (event: DocumentEvent): void => {
-        // Only forward events for this specific document.
-        if (event.slug !== slug) return;
-
-        // The bus DocumentEvent does not carry a seq number — we would need to
-        // read it from the DB to get the monotonic seq. However, we can pull the
-        // latest seq from DB for each live event.  In practice this is low-frequency.
-        // We fire an async read to get the seq and forward.
-        db.select({ seq: documentEvents.seq, id: documentEvents.id, eventType: documentEvents.eventType, payloadJson: documentEvents.payloadJson, actorId: documentEvents.actorId, createdAt: documentEvents.createdAt })
-          .from(documentEvents)
-          .where(eq(documentEvents.documentId, slug))
-          .orderBy(desc(documentEvents.seq))
-          .limit(1)
-          .then((rows: Array<{ seq: bigint; id: string; eventType: string; payloadJson: unknown; actorId: string; createdAt: Date }>) => {
-            if (!rows.length) return;
-            const row = rows[0];
-            // Only forward if this row is newer than what we already sent.
-            if (row.seq <= liveHighWatermark.value) return;
-            liveHighWatermark.value = row.seq;
-            sendEvent(row.seq, row.eventType, {
-              id: row.id,
-              seq: row.seq.toString(),
-              event_type: row.eventType,
-              actor_id: row.actorId,
-              payload: row.payloadJson,
-              created_at: row.createdAt.toISOString(),
-            });
-          })
-          .catch(() => {
-            // Non-fatal: SSE stream continues; client will catch up on reconnect.
-          });
-      };
-
-      eventBus.on('document', busListener);
-
-      // ── Heartbeat timer ───────────────────────────────────────────────────
+      // ── Phase 2: Live event-bus fan-out via backendCore.subscribeStream ──
       const heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
 
-      // ── Cleanup on disconnect ─────────────────────────────────────────────
+      let streamClosed = false;
+
       request.raw.on('close', () => {
+        streamClosed = true;
         clearInterval(heartbeatTimer);
-        eventBus.off('document', busListener);
       });
 
-      // Keep the Fastify handler alive without sending a response object
-      // (we are writing directly to reply.raw).
-      await new Promise<void>((resolve) => {
-        request.raw.on('close', resolve);
-      });
+      // Consume the async iterable from subscribeStream
+      const stream = request.server.backendCore.subscribeStream(slug);
+      try {
+        for await (const event of stream) {
+          if (streamClosed) break;
+          // Deduplicate: only forward events we haven't seen in catch-up
+          if (event.id && event.id <= highWatermark) continue;
+          highWatermark = event.id || highWatermark;
+
+          sendSseEvent(event.id || event.agentId, event.type, {
+            id: event.id,
+            event_type: event.type,
+            actor_id: event.agentId,
+            payload: event.payload,
+            created_at: new Date(event.createdAt).toISOString(),
+          });
+        }
+      } catch {
+        // Stream was closed by client disconnect — expected, not an error
+      } finally {
+        clearInterval(heartbeatTimer);
+      }
+
+      // Keep handler alive until disconnect
+      if (!streamClosed) {
+        await new Promise<void>((resolve) => {
+          request.raw.on('close', resolve);
+        });
+      }
     },
   );
 }

@@ -38,6 +38,12 @@ import { PostgresBackend } from 'llmtxt/pg';
 import type { Backend } from 'llmtxt/local';
 // Wave A: inject schema tables so PostgresBackend can query without cross-package static imports.
 import * as schemaPg from '../db/schema-pg.js';
+// Wave B: inject event-log + CRDT helpers (monorepo boundary: cannot import from packages/llmtxt).
+import { appendDocumentEvent } from '../lib/document-events.js';
+import { persistCrdtUpdate, loadSectionState } from '../crdt/persistence.js';
+import { subscribeCrdtUpdates } from '../realtime/redis-pubsub.js';
+import { eventBus } from '../events/bus.js';
+import { crdt_state_vector } from '../crdt/primitives.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -80,6 +86,25 @@ export async function registerPostgresBackendPlugin(app: FastifyInstance): Promi
 
   // Inject schema table references — avoids cross-package static imports.
   (backend as unknown as { setSchema: (s: typeof schemaPg) => void }).setSchema(schemaPg);
+
+  // Wave B: inject event-log + CRDT dependencies.
+  (backend as unknown as {
+    setWaveBDeps: (deps: {
+      appendDocumentEvent: typeof appendDocumentEvent;
+      persistCrdtUpdate: typeof persistCrdtUpdate;
+      loadSectionState: typeof loadSectionState;
+      subscribeCrdtUpdates: typeof subscribeCrdtUpdates;
+      eventBus: typeof eventBus;
+      crdtStateVector: typeof crdt_state_vector;
+    }) => void;
+  }).setWaveBDeps({
+    appendDocumentEvent,
+    persistCrdtUpdate,
+    loadSectionState,
+    subscribeCrdtUpdates,
+    eventBus,
+    crdtStateVector: crdt_state_vector,
+  });
 
   app.log.info('[postgres-backend-plugin] PostgresBackend opened');
 
