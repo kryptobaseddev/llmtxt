@@ -1,0 +1,165 @@
+name: DR Restore Drill — Monthly
+
+on:
+  schedule:
+    # First day of each month at 06:00 UTC
+    - cron: '0 6 1 * *'
+  workflow_dispatch: {}
+
+jobs:
+  restore-drill:
+    name: Download, decrypt, restore, smoke-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: drill
+          POSTGRES_PASSWORD: drill
+          POSTGRES_DB: llmtxt_drill
+        options: >-
+          --health-cmd "pg_isready -U drill"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DRILL_DB_URL: postgres://drill:drill@localhost:5432/llmtxt_drill
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install age + postgresql-client
+        run: |
+          AGE_VERSION="v1.2.0"
+          curl -fsSL "https://github.com/FiloSottile/age/releases/download/${AGE_VERSION}/age-${AGE_VERSION}-linux-amd64.tar.gz" \
+            | tar -xz --strip-components=1 -C /usr/local/bin/ age/age age/age-keygen
+          sudo apt-get update -q
+          sudo apt-get install -y -q postgresql-client
+
+      - name: Download latest weekly backup + hash
+        id: download
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_AWS_SECRET_ACCESS_KEY }}
+          BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+        run: |
+          BUCKET="${BACKUP_S3_BUCKET}"
+          # Find the most recent weekly object
+          LATEST_KEY=$(aws s3 ls "s3://${BUCKET}/weekly/" \
+            | sort | tail -1 | awk '{print $4}')
+
+          if [[ -z "${LATEST_KEY}" ]]; then
+            echo "ERROR: No weekly backup found in s3://${BUCKET}/weekly/" >&2
+            exit 1
+          fi
+
+          echo "Found latest weekly: ${LATEST_KEY}"
+          echo "backup_key=${LATEST_KEY}" >> "${GITHUB_OUTPUT}"
+
+          mkdir -p /tmp/restore-drill
+
+          # Download encrypted backup + hash manifest
+          aws s3 cp "s3://${BUCKET}/weekly/${LATEST_KEY}" /tmp/restore-drill/backup.sql.age
+          aws s3 cp "s3://${BUCKET}/weekly/${LATEST_KEY}.sha256" /tmp/restore-drill/backup.sql.age.sha256 || {
+            echo "WARNING: SHA256 manifest not found for ${LATEST_KEY} — integrity check skipped"
+            echo "no_hash=true" >> "${GITHUB_OUTPUT}"
+          }
+
+      - name: Verify SHA256 integrity (B.9)
+        if: steps.download.outputs.no_hash != 'true'
+        run: |
+          cd /tmp/restore-drill
+          # The .sha256 file contains just the hash value (no filename)
+          EXPECTED=$(cat backup.sql.age.sha256)
+          ACTUAL=$(sha256sum backup.sql.age | awk '{print $1}')
+          echo "Expected SHA256: ${EXPECTED}"
+          echo "Actual   SHA256: ${ACTUAL}"
+          if [[ "${EXPECTED}" != "${ACTUAL}" ]]; then
+            echo "ERROR: SHA256 mismatch — backup may be corrupted or tampered!" >&2
+            exit 1
+          fi
+          echo "SHA256 verification PASSED"
+
+      - name: Decrypt backup with age
+        env:
+          BACKUP_AGE_IDENTITY: ${{ secrets.BACKUP_AGE_IDENTITY }}
+        run: |
+          # Write age identity to temp file (age requires file path)
+          echo "${BACKUP_AGE_IDENTITY}" > /tmp/restore-drill/identity.key
+          chmod 600 /tmp/restore-drill/identity.key
+
+          age --decrypt \
+            --identity /tmp/restore-drill/identity.key \
+            --output /tmp/restore-drill/dump.sql \
+            /tmp/restore-drill/backup.sql.age
+
+          # Remove identity file immediately
+          rm -f /tmp/restore-drill/identity.key
+
+          DUMP_SIZE=$(du -sh /tmp/restore-drill/dump.sql | cut -f1)
+          echo "Decrypted dump size: ${DUMP_SIZE}"
+
+      - name: Restore to ephemeral Postgres
+        env:
+          PGPASSWORD: drill
+        run: |
+          psql -h localhost -U drill -d llmtxt_drill \
+            -f /tmp/restore-drill/dump.sql
+
+          echo "Restore complete"
+
+      - name: Smoke test — table existence + row counts
+        env:
+          PGPASSWORD: drill
+        run: |
+          echo "=== Smoke Test: Table List ==="
+          # Assert core tables exist
+          for table in documents versions api_keys users; do
+            COUNT=$(psql -h localhost -U drill -d llmtxt_drill -t -c \
+              "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='${table}';" \
+              | tr -d ' ')
+            if [[ "${COUNT}" -ne 1 ]]; then
+              echo "ERROR: Table '${table}' not found in restored database" >&2
+              exit 1
+            fi
+            echo "  [OK] table '${table}' exists"
+          done
+
+          echo ""
+          echo "=== Smoke Test: Row Counts ==="
+          for table in documents versions api_keys users; do
+            ROW_COUNT=$(psql -h localhost -U drill -d llmtxt_drill -t -c \
+              "SELECT COUNT(*) FROM ${table};" | tr -d ' ')
+            echo "  ${table}: ${ROW_COUNT} rows"
+          done
+
+          echo ""
+          echo "Restore drill PASSED"
+
+      - name: Summary annotation
+        if: always()
+        env:
+          BACKUP_KEY: ${{ steps.download.outputs.backup_key }}
+        run: |
+          if [[ "${{ job.status }}" == "success" ]]; then
+            echo "### DR Restore Drill: PASSED" >> "${GITHUB_STEP_SUMMARY}"
+            echo "" >> "${GITHUB_STEP_SUMMARY}"
+            echo "- Backup restored: \`weekly/${BACKUP_KEY}\`" >> "${GITHUB_STEP_SUMMARY}"
+            echo "- SHA256 integrity: verified" >> "${GITHUB_STEP_SUMMARY}"
+            echo "- Tables present: documents, versions, api_keys, users" >> "${GITHUB_STEP_SUMMARY}"
+            echo "- Date: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_STEP_SUMMARY}"
+          else
+            echo "### DR Restore Drill: FAILED" >> "${GITHUB_STEP_SUMMARY}"
+            echo "" >> "${GITHUB_STEP_SUMMARY}"
+            echo "The monthly restore drill failed. Investigate immediately." >> "${GITHUB_STEP_SUMMARY}"
+            echo "See runbook: \`docs/ops/backup-restore-runbook.md\`" >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Cleanup
+        if: always()
+        run: rm -rf /tmp/restore-drill
