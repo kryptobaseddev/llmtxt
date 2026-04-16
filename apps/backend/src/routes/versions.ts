@@ -375,27 +375,15 @@ export async function versionRoutes(fastify: FastifyInstance) {
       }
       const { slug } = paramsResult.data;
 
-      const [doc] = await db
-        .select({ id: documents.id })
-        .from(documents)
-        .where(eq(documents.slug, slug));
-
+      // Wave A: delegate to backendCore.listVersions
+      // Verify document exists first
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const doc = (await request.server.backendCore.getDocumentBySlug(slug)) as any;
       if (!doc) {
         return reply.status(404).send({ error: 'Document not found' });
       }
 
-      const versionList = await db
-        .select({
-          versionNumber: versions.versionNumber,
-          contentHash: versions.contentHash,
-          tokenCount: versions.tokenCount,
-          createdAt: versions.createdAt,
-          createdBy: versions.createdBy,
-          changelog: versions.changelog,
-        })
-        .from(versions)
-        .where(eq(versions.documentId, doc.id))
-        .orderBy(desc(versions.versionNumber));
+      const versionList = await request.server.backendCore.listVersions(slug);
 
       return reply.send({
         slug,
@@ -422,22 +410,16 @@ export async function versionRoutes(fastify: FastifyInstance) {
       }
       const { slug, num } = paramsResult.data;
 
-      const [doc] = await db
-        .select({ id: documents.id })
-        .from(documents)
-        .where(eq(documents.slug, slug));
-
+      // Wave A: delegate document lookup to backendCore
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const doc = (await request.server.backendCore.getDocumentBySlug(slug)) as any;
       if (!doc) {
         return reply.status(404).send({ error: 'Document not found' });
       }
 
-      const [version] = await db
-        .select()
-        .from(versions)
-        .where(and(
-          eq(versions.documentId, doc.id),
-          eq(versions.versionNumber, num),
-        ));
+      // Wave A: delegate version lookup to backendCore.getVersion
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const version = (await request.server.backendCore.getVersion(doc.id, num)) as any;
 
       if (!version) {
         return reply.status(404).send({ error: `Version ${num} not found` });
@@ -487,25 +469,19 @@ export async function versionRoutes(fastify: FastifyInstance) {
       }
       const { from, to } = queryResult.data;
 
-      const [doc] = await db
-        .select({ id: documents.id })
-        .from(documents)
-        .where(eq(documents.slug, slug));
-
+      // Wave A: delegate to backendCore
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const doc = (await request.server.backendCore.getDocumentBySlug(slug)) as any;
       if (!doc) {
         return reply.status(404).send({ error: 'Document not found' });
       }
 
-      // Fetch both versions
-      const [fromVersion] = await db
-        .select()
-        .from(versions)
-        .where(and(eq(versions.documentId, doc.id), eq(versions.versionNumber, from)));
-
-      const [toVersion] = await db
-        .select()
-        .from(versions)
-        .where(and(eq(versions.documentId, doc.id), eq(versions.versionNumber, to)));
+      // Fetch both versions via backendCore.getVersion
+      const [fromVersion, toVersion] = (await Promise.all([
+        request.server.backendCore.getVersion(doc.id, from),
+        request.server.backendCore.getVersion(doc.id, to),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ])) as [any, any];
 
       if (!fromVersion) {
         return reply.status(404).send({ error: `Version ${from} not found` });
@@ -574,29 +550,25 @@ export async function versionRoutes(fastify: FastifyInstance) {
       }
       const requestedVersions = queryResult.data.versions;
 
-      // Look up document
-      const [doc] = await db
-        .select({ id: documents.id })
-        .from(documents)
-        .where(eq(documents.slug, slug));
-
+      // Wave A: delegate to backendCore
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const doc = (await request.server.backendCore.getDocumentBySlug(slug)) as any;
       if (!doc) {
         return reply.status(404).send({ error: 'Document not found' });
       }
 
-      // Fetch all requested version rows in one query, then verify each exists
-      const versionRows = await db
-        .select()
-        .from(versions)
-        .where(and(
-          eq(versions.documentId, doc.id),
-          inArray(versions.versionNumber, requestedVersions),
-        ));
+      // Fetch all requested version rows via backendCore.getVersion
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const versionRows: any[] = await Promise.all(
+        requestedVersions.map((num: number) =>
+          request.server.backendCore.getVersion(doc.id, num)
+        )
+      );
 
       // Check that every requested version was found
-      for (const num of requestedVersions) {
-        if (!versionRows.find((r: any) => r.versionNumber === num)) {
-          return reply.status(404).send({ error: `Version ${num} not found` });
+      for (let i = 0; i < requestedVersions.length; i++) {
+        if (!versionRows[i]) {
+          return reply.status(404).send({ error: `Version ${requestedVersions[i]} not found` });
         }
       }
 
@@ -604,9 +576,16 @@ export async function versionRoutes(fastify: FastifyInstance) {
       const sorted = [...requestedVersions].sort((a, b) => a - b);
       const baseVersionNumber = sorted[0];
 
+      // Build a map from version number → row (versionRows is parallel to requestedVersions)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const versionRowByNum = new Map<number, any>();
+      for (let i = 0; i < requestedVersions.length; i++) {
+        versionRowByNum.set(requestedVersions[i], versionRows[i]);
+      }
+
       const contentByVersion = new Map<number, string>();
       for (const num of sorted) {
-        const row = versionRows.find((r: any) => r.versionNumber === num)!;
+        const row = versionRowByNum.get(num)!;
         const buf = row.compressedData instanceof Buffer
           ? row.compressedData
           : Buffer.from(row.compressedData as ArrayBuffer);
@@ -658,17 +637,15 @@ export async function versionRoutes(fastify: FastifyInstance) {
         return reply.status(400).send({ error: 'Maximum 10 versions per request' });
       }
 
-      const [doc] = await db.select().from(documents).where(eq(documents.slug, slug));
+      // Wave A: delegate to backendCore
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const doc = (await request.server.backendCore.getDocumentBySlug(slug)) as any;
       if (!doc) return reply.status(404).send({ error: 'Document not found' });
-
-      const versionRows = await db.select()
-        .from(versions)
-        .where(eq(versions.documentId, doc.id))
-        .orderBy(versions.versionNumber);
 
       const results = [];
       for (const num of requestedVersions) {
-        const ver = versionRows.find((v: any) => v.versionNumber === num);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ver = (await request.server.backendCore.getVersion(doc.id, num)) as any;
         if (!ver) continue;
 
         const buffer = ver.compressedData instanceof Buffer

@@ -7,6 +7,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { db } from '../db/index.js';
+// Schema type imports for access-stat update (infrastructure concern kept in route layer).
 import { documents } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { decompress } from '../utils/compression.js';
@@ -28,11 +29,14 @@ import { canRead } from '../middleware/rbac.js';
 
 // ──────────────────────────────────────────────────────────────────
 // Shared helper: resolve a slug to decompressed content
+// Wave A: accepts getDocBySlug callback to use backendCore.
 // ──────────────────────────────────────────────────────────────────
 
 async function resolveDocument(
   slug: string,
   skipCache: boolean,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getDocBySlug: (slug: string) => Promise<any>,
 ): Promise<{ content: string; format: string; totalTokens: number; originalSize: number; compressedSize: number } | null> {
   // Try cache first
   if (!skipCache) {
@@ -49,12 +53,8 @@ async function resolveDocument(
     }
   }
 
-  // Fetch from DB
-  const [doc] = await db
-    .select()
-    .from(documents)
-    .where(eq(documents.slug, slug));
-
+  // Wave A: fetch via backendCore.getDocumentBySlug
+  const doc = await getDocBySlug(slug);
   if (!doc) return null;
 
   // Decompress
@@ -66,7 +66,7 @@ async function resolveDocument(
   // Cache for subsequent queries
   setCachedContent(slug, content);
 
-  // Update access count
+  // Update access count (infrastructure concern — stays in route layer)
   await db
     .update(documents)
     .set({
@@ -144,7 +144,7 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
     reply,
   ) => {
     const { slug } = slugSchema.parse(request.params);
-    const doc = await resolveDocument(slug, shouldSkipCache(request));
+    const doc = await resolveDocument(slug, shouldSkipCache(request), (s) => request.server.backendCore.getDocumentBySlug(s));
     if (!doc) {
       return reply.status(404).send({ error: 'Document not found' });
     }
@@ -189,7 +189,7 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
     const { slug } = slugSchema.parse(request.params);
     const { start, end } = lineRangeQuery.parse(request.query);
 
-    const doc = await resolveDocument(slug, shouldSkipCache(request));
+    const doc = await resolveDocument(slug, shouldSkipCache(request), (s) => request.server.backendCore.getDocumentBySlug(s));
     if (!doc) {
       return reply.status(404).send({ error: 'Document not found' });
     }
@@ -251,7 +251,7 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
     }
     const { q, context, max } = parsed.data;
 
-    const doc = await resolveDocument(slug, shouldSkipCache(request));
+    const doc = await resolveDocument(slug, shouldSkipCache(request), (s) => request.server.backendCore.getDocumentBySlug(s));
     if (!doc) {
       return reply.status(404).send({ error: 'Document not found' });
     }
@@ -317,7 +317,7 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
     }
     const { path } = parsed.data;
 
-    const doc = await resolveDocument(slug, shouldSkipCache(request));
+    const doc = await resolveDocument(slug, shouldSkipCache(request), (s) => request.server.backendCore.getDocumentBySlug(s));
     if (!doc) {
       return reply.status(404).send({ error: 'Document not found' });
     }
@@ -359,7 +359,7 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
     reply,
   ) => {
     const { slug } = slugSchema.parse(request.params);
-    const doc = await resolveDocument(slug, shouldSkipCache(request));
+    const doc = await resolveDocument(slug, shouldSkipCache(request), (s) => request.server.backendCore.getDocumentBySlug(s));
     if (!doc) {
       return reply.status(404).send({ error: 'Document not found' });
     }
@@ -388,7 +388,7 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
     reply,
   ) => {
     const { slug } = slugSchema.parse(request.params);
-    const doc = await resolveDocument(slug, shouldSkipCache(request));
+    const doc = await resolveDocument(slug, shouldSkipCache(request), (s) => request.server.backendCore.getDocumentBySlug(s));
     if (!doc) {
       return reply.status(404).send({ error: 'Document not found' });
     }
@@ -440,7 +440,7 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
       }
 
       // Resolve document for currentSeq
-      const doc = await resolveDocument(slug, shouldSkipCache(request));
+      const doc = await resolveDocument(slug, shouldSkipCache(request), (s) => request.server.backendCore.getDocumentBySlug(s));
       if (!doc) {
         return reply.status(404).send({ error: 'Document not found' });
       }
@@ -465,7 +465,7 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
     }
     // ── End T299 ──────────────────────────────────────────────────────────
 
-    const doc = await resolveDocument(slug, shouldSkipCache(request));
+    const doc = await resolveDocument(slug, shouldSkipCache(request), (s) => request.server.backendCore.getDocumentBySlug(s));
     if (!doc) {
       return reply.status(404).send({ error: 'Document not found' });
     }
@@ -506,7 +506,7 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
     reply,
   ) => {
     const { slug } = slugSchema.parse(request.params);
-    const doc = await resolveDocument(slug, shouldSkipCache(request));
+    const doc = await resolveDocument(slug, shouldSkipCache(request), (s) => request.server.backendCore.getDocumentBySlug(s));
     if (!doc) {
       return reply.status(404).send({ error: 'Document not found' });
     }
@@ -585,7 +585,7 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
       });
     }
 
-    const doc = await resolveDocument(slug, shouldSkipCache(request));
+    const doc = await resolveDocument(slug, shouldSkipCache(request), (s) => request.server.backendCore.getDocumentBySlug(s));
     if (!doc) {
       return reply.status(404).send({ error: 'Document not found' });
     }

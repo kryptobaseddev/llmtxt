@@ -321,17 +321,18 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
     { preHandler: [canRead] },
     async (request, reply) => {
       const { slug } = request.params;
-      const doc = await db.select().from(documents).where(eq(documents.slug, slug)).limit(1);
-      if (!doc.length) return reply.status(404).send({ error: 'Not Found' });
 
-      const rows = await db.select().from(approvals)
-        .where(eq(approvals.documentId, doc[0].id))
-        .orderBy(desc(approvals.timestamp));
+      // Wave A: delegate to backendCore.getApprovalProgress
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = (await request.server.backendCore.getApprovalProgress(slug, 0)) as any;
+      if (!data) return reply.status(404).send({ error: 'Not Found' });
 
-      const policy = buildPolicy(doc[0]);
-      const consensus = evaluateApprovals(toSdkReviews(rows), policy, doc[0].currentVersion);
+      const { doc, reviews: rows } = data;
 
-      return { slug, state: doc[0].state, reviews: rows, consensus };
+      const policy = buildPolicy(doc);
+      const consensus = evaluateApprovals(toSdkReviews(rows), policy, doc.currentVersion as number);
+
+      return { slug, state: doc.state, reviews: rows, consensus };
     },
   );
 
@@ -341,12 +342,14 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
     { preHandler: [canRead] },
     async (request, reply) => {
       const { slug } = request.params;
-      const doc = await db.select().from(documents).where(eq(documents.slug, slug)).limit(1);
-      if (!doc.length) return reply.status(404).send({ error: 'Not Found' });
 
-      const rows = await db.select().from(contributors)
-        .where(eq(contributors.documentId, doc[0].id))
-        .orderBy(desc(contributors.netTokens));
+      // Wave A: delegate to backendCore.listContributors
+      // First verify doc exists via getDocumentBySlug
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const doc = (await request.server.backendCore.getDocumentBySlug(slug)) as any;
+      if (!doc) return reply.status(404).send({ error: 'Not Found' });
+
+      const rows = await request.server.backendCore.listContributors(slug);
 
       return { slug, totalContributors: rows.length, contributors: rows };
     },

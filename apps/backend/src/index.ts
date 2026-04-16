@@ -58,6 +58,7 @@ import { startLeaseExpiryJob } from './leases/expiry-job.js';
 import { logger as pinoLogger } from './lib/logger.js';
 import { registerObservabilityHooks } from './middleware/observability.js';
 import { docsRoutes } from './routes/docs.js';
+import { registerPostgresBackendPlugin } from './plugins/postgres-backend-plugin.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const API_HOSTS = new Set(['api.llmtxt.my']);
@@ -97,6 +98,13 @@ const app = Fastify({
 
 async function main() {
   try {
+    // ── PostgresBackend: SDK-first adapter layer (T353) ───────────────────────
+    // Registers fastify.backendCore so route handlers can call
+    // fastify.backendCore.* instead of querying Drizzle directly.
+    // Wave A routes (api.ts, versions.ts, lifecycle.ts, disclosure.ts) are
+    // refactored; remaining routes use legacy db directly until Wave B-D.
+    await registerPostgresBackendPlugin(app);
+
     // Register API version plugin globally so request.apiVersion is always set
     await app.register(apiVersionPlugin);
 

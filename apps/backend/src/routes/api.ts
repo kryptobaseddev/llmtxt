@@ -8,6 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { db } from '../db/index.js';
+// Schema type imports only — no direct Drizzle query use in refactored handlers.
 import { documents, contributors, versions, documentRoles } from '../db/schema.js';
 import { eq, desc } from 'drizzle-orm';
 import { auth } from '../auth.js';
@@ -103,21 +104,10 @@ export async function apiRoutes(fastify: FastifyInstance) {
       return reply.status(401).send({ error: 'Authentication required' });
     }
 
-    const docs = await db.select({
-      id: documents.id,
-      slug: documents.slug,
-      format: documents.format,
-      tokenCount: documents.tokenCount,
-      originalSize: documents.originalSize,
-      compressedSize: documents.compressedSize,
-      createdAt: documents.createdAt,
-      accessCount: documents.accessCount,
-      state: documents.state,
-      isAnonymous: documents.isAnonymous,
-    })
-      .from(documents)
-      .where(eq(documents.ownerId, user.id))
-      .orderBy(desc(documents.createdAt));
+    // Wave A: delegate to backendCore.listDocuments
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = (await (request.server.backendCore.listDocuments as any)({ ownerId: user.id })) as { items: unknown[] };
+    const docs = result.items;
 
     return { documents: docs, total: docs.length };
   });
@@ -501,26 +491,9 @@ export async function apiRoutes(fastify: FastifyInstance) {
         reply.header('X-Cache', 'MISS');
       }
 
-      // Look up document
-      const [document] = await db
-        .select({
-          id: documents.id,
-          slug: documents.slug,
-          format: documents.format,
-          contentHash: documents.contentHash,
-          originalSize: documents.originalSize,
-          compressedSize: documents.compressedSize,
-          tokenCount: documents.tokenCount,
-          createdAt: documents.createdAt,
-          expiresAt: documents.expiresAt,
-          accessCount: documents.accessCount,
-          lastAccessedAt: documents.lastAccessedAt,
-          state: documents.state,
-          currentVersion: documents.currentVersion,
-          ownerId: documents.ownerId,
-        })
-        .from(documents)
-        .where(eq(documents.slug, slug));
+      // Wave A: delegate to backendCore.getDocumentBySlug
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const document = (await request.server.backendCore.getDocumentBySlug(slug)) as any;
 
       if (!document) {
         return reply.status(404).send({
@@ -535,7 +508,20 @@ export async function apiRoutes(fastify: FastifyInstance) {
       );
 
       const response = {
-        ...document,
+        id: document.id,
+        slug: document.slug,
+        format: document.format,
+        contentHash: document.contentHash,
+        originalSize: document.originalSize,
+        compressedSize: document.compressedSize,
+        tokenCount: document.tokenCount,
+        createdAt: document.createdAt,
+        expiresAt: document.expiresAt,
+        accessCount: document.accessCount,
+        lastAccessedAt: document.lastAccessedAt,
+        state: document.state,
+        currentVersion: document.currentVersion,
+        ownerId: document.ownerId,
         compressionRatio,
       };
 
@@ -601,17 +587,15 @@ export async function apiRoutes(fastify: FastifyInstance) {
 
       // Check cache first (skip if nocache query param is set)
       const skipCache = shouldSkipCache(request);
-      
+
       if (!skipCache) {
         const cacheKey = getDocumentCacheKey(slug, 'content');
         const cachedContent = contentCache.get(cacheKey);
-        
+
         if (cachedContent) {
-          // Still need to get metadata from DB for access stats update
-          const [document] = await db
-            .select()
-            .from(documents)
-            .where(eq(documents.slug, slug));
+          // Wave A: delegate document lookup to backendCore
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const document = (await request.server.backendCore.getDocumentBySlug(slug)) as any;
 
           if (!document) {
             // Cache hit but document not in DB (inconsistency), delete cache entry
@@ -621,7 +605,7 @@ export async function apiRoutes(fastify: FastifyInstance) {
             });
           }
 
-          // Update access stats
+          // Update access stats (direct db call — access tracking is an infrastructure concern)
           await db
             .update(documents)
             .set({
@@ -647,11 +631,9 @@ export async function apiRoutes(fastify: FastifyInstance) {
 
       reply.header('X-Cache', skipCache ? 'SKIP' : 'MISS');
 
-      // Look up document by slug
-      const [document] = await db
-        .select()
-        .from(documents)
-        .where(eq(documents.slug, slug));
+      // Wave A: delegate document lookup to backendCore
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const document = (await request.server.backendCore.getDocumentBySlug(slug)) as any;
 
       if (!document) {
         return reply.status(404).send({
@@ -659,7 +641,7 @@ export async function apiRoutes(fastify: FastifyInstance) {
         });
       }
 
-      // Update access stats
+      // Update access stats (direct db call — access tracking is an infrastructure concern)
       await db
         .update(documents)
         .set({

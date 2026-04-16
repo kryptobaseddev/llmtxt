@@ -36,6 +36,8 @@
 import type { FastifyInstance } from 'fastify';
 import { PostgresBackend } from 'llmtxt/pg';
 import type { Backend } from 'llmtxt/local';
+// Wave A: inject schema tables so PostgresBackend can query without cross-package static imports.
+import * as schemaPg from '../db/schema-pg.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -55,6 +57,9 @@ declare module 'fastify' {
  *
  * Opens the backend on plugin registration and closes it on app shutdown.
  * Reads the PostgreSQL connection string from DATABASE_URL environment variable.
+ *
+ * Wave A injection: passes schema-pg.ts table references into PostgresBackend
+ * via setSchema() so that domain methods can query without static cross-package imports.
  */
 export async function registerPostgresBackendPlugin(app: FastifyInstance): Promise<void> {
   const connectionString = process.env.DATABASE_URL;
@@ -72,6 +77,10 @@ export async function registerPostgresBackendPlugin(app: FastifyInstance): Promi
   });
 
   await backend.open();
+
+  // Inject schema table references — avoids cross-package static imports.
+  (backend as unknown as { setSchema: (s: typeof schemaPg) => void }).setSchema(schemaPg);
+
   app.log.info('[postgres-backend-plugin] PostgresBackend opened');
 
   app.decorate('backendCore', backend);
