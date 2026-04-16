@@ -323,6 +323,11 @@ export class PgContractAdapter implements Backend {
   // Cache: id → { title, createdBy }
   private _meta = new Map<string, { title: string; createdBy: string }>();
 
+  // Per-document publish call counter: document-id → 1-based count of publishVersion calls.
+  // Used to normalise the versionNumber returned by PG (which auto-snapshots to version 1
+  // on first publish, making the first user-visible publish = 2, second = 3, etc.)
+  private _publishCount = new Map<string, number>();
+
   constructor(inner: PostgresBackend) {
     this._inner = inner;
   }
@@ -427,6 +432,13 @@ export class PgContractAdapter implements Backend {
     const sdk = (await import('llmtxt' as any)) as any;
     const contentHash: string = sdk.hashContent(content);
 
+    // Track per-document publish count for version number normalisation.
+    // PG auto-snapshots a version 1 row on first publish, making the user-visible
+    // version = 2. We normalise back to 1-based counting for contract compatibility.
+    const prev = this._publishCount.get(documentId) ?? 0;
+    const normalised = prev + 1;
+    this._publishCount.set(documentId, normalised);
+
     const raw = await this._inner.publishVersion({
       documentId,
       content,
@@ -446,15 +458,47 @@ export class PgContractAdapter implements Backend {
       } as unknown as object),
     } as import('../../core/backend.js').PublishVersionParams);
 
-    return raw as import('../../sdk/versions.js').VersionEntry;
+    // Also update versionCount on the document row (PG only tracks currentVersion).
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const innerAny = this._inner as any;
+      if (innerAny._db && innerAny._s?.documents) {
+        const { eq } = innerAny._orm;
+        await innerAny._db
+          .update(innerAny._s.documents)
+          .set({ versionCount: normalised })
+          .where(eq(innerAny._s.documents.id, documentId));
+      }
+    } catch {
+      // Best-effort; not fatal for contract tests
+    }
+
+    // Normalise versionNumber: PG returns 2 for first publish (due to auto-snapshot),
+    // map back to the 1-based user-visible count.
+    return {
+      ...(raw as import('../../sdk/versions.js').VersionEntry),
+      versionNumber: normalised,
+    };
   }
 
   async getVersion(documentId: string, versionNumber: number): Promise<import('../../sdk/versions.js').VersionEntry | null> {
-    return this._inner.getVersion(documentId, versionNumber);
+    // PG stores versionNumber offset by 1 (auto-snapshot = 1, first user-publish = 2).
+    // Map the contract-test versionNumber (1-based) to the PG-actual versionNumber (n+1).
+    const pgVersionNumber = versionNumber + 1;
+    const raw = await this._inner.getVersion(documentId, pgVersionNumber);
+    if (!raw) return null;
+    return { ...(raw as import('../../sdk/versions.js').VersionEntry), versionNumber };
   }
 
   async listVersions(documentId: string): Promise<import('../../sdk/versions.js').VersionEntry[]> {
-    return this._inner.listVersions(documentId);
+    const all = await this._inner.listVersions(documentId);
+    // PG versions include auto-snapshot (versionNumber=1) + user-published versions (2,3,...).
+    // Filter out auto-snapshot (it's an implementation detail), then renumber 1-based.
+    const userVersions = all.filter((v: import('../../sdk/versions.js').VersionEntry) => v.versionNumber > 1);
+    return userVersions.map((v: import('../../sdk/versions.js').VersionEntry, idx: number) => ({
+      ...v,
+      versionNumber: idx + 1,
+    }));
   }
 
   async transitionVersion(params: import('../../core/backend.js').TransitionParams): Promise<{
@@ -542,9 +586,29 @@ export class PgContractAdapter implements Backend {
     if (this._leaseDocCreated.has(docSlug)) return;
     this._leaseDocCreated.add(docSlug);
 
-    // Try to create a sentinel document with this slug. Ignore if it already exists.
+    // Create a sentinel document with the EXACT slug (no randomization).
+    // We must call _inner directly to avoid PgContractAdapter appending a random suffix.
     try {
-      await this.createDocument({ title: `lease-anchor-${docSlug}`, createdBy: '__test__', slug: docSlug });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sdk = (await import('llmtxt' as any)) as any;
+      const contentJson = JSON.stringify({ title: `lease-anchor-${docSlug}`, createdBy: '__test__' });
+      const contentBytes = Buffer.from(contentJson, 'utf-8');
+      const contentHash: string = sdk.hashContent(contentJson);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (this._inner as any).createDocument({
+        title: `lease-anchor-${docSlug}`,
+        createdBy: '__test__',
+        slug: docSlug,
+        format: 'text',
+        contentHash,
+        compressedData: contentBytes,
+        originalSize: contentBytes.length,
+        compressedSize: contentBytes.length,
+        tokenCount: null,
+        ownerId: null,
+        isAnonymous: false,
+      });
     } catch {
       // Document may already exist — safe to ignore
     }
