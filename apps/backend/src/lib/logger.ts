@@ -4,6 +4,9 @@
  * Behaviour:
  * - LOKI_HOST set (production) → pino-loki transport; labels: { app, env }.
  *   Always keeps a stdout target alongside Loki so Railway logs stay visible.
+ *   In Railway, set LOKI_HOST = ${{Loki.RAILWAY_PRIVATE_DOMAIN}}
+ *   The self-hosted Loki service runs on port 3100 with no authentication
+ *   (protected by Railway's private network — not exposed publicly).
  * - LOKI_HOST unset            → JSON to stdout (development or no-Loki prod).
  *
  * OTel trace correlation:
@@ -14,6 +17,9 @@
  * PII: Authorization, Cookie, and x-api-key values are redacted via pino's
  * redact option — they never appear in Loki or stdout.
  *
+ * All logs are shipped to the self-hosted Loki service on Railway's private
+ * network. No external SaaS (Grafana Cloud, etc.) is used.
+ *
  * SPEC references: SPEC-T145 §6.1–6.5
  */
 import pino from 'pino';
@@ -22,6 +28,9 @@ import type { FastifyBaseLogger } from 'fastify';
 // ─── Configuration ────────────────────────────────────────────────────────────
 
 const lokiHost = process.env.LOKI_HOST;
+// Self-hosted Loki on Railway's private network requires no auth.
+// LOKI_USER / LOKI_PASSWORD are retained for backward compatibility but
+// are not needed with the self-hosted Railway setup.
 const lokiUser = process.env.LOKI_USER ?? '';
 const lokiPassword = process.env.LOKI_PASSWORD ?? '';
 const nodeEnv = process.env.NODE_ENV ?? 'development';
@@ -94,10 +103,10 @@ function buildLogger(): FastifyBaseLogger {
 export const logger: FastifyBaseLogger = buildLogger();
 
 if (lokiHost) {
-  console.log(`[logger] Pino shipping logs to Loki at ${lokiHost}`);
+  console.log(`[logger] Pino shipping logs to self-hosted Loki at ${lokiHost}`);
 } else {
   console.warn(
     '[logger] LOKI_HOST is not set — logs will not be shipped to Loki. ' +
-      'Set LOKI_HOST, LOKI_USER, LOKI_PASSWORD to enable Loki transport.'
+      'Set LOKI_HOST=${{Loki.RAILWAY_PRIVATE_DOMAIN}} to enable self-hosted Loki transport.'
   );
 }

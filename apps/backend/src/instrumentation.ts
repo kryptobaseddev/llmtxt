@@ -1,5 +1,5 @@
 /**
- * OpenTelemetry SDK + Sentry initialisation.
+ * OpenTelemetry SDK + GlitchTip (Sentry-compatible) initialisation.
  *
  * This file MUST be loaded before any other application module via the Node.js
  * --import flag so that auto-instrumentations are registered before Fastify
@@ -10,16 +10,25 @@
  *
  * OTel behaviour:
  * - OTEL_EXPORTER_OTLP_ENDPOINT set   → OTLP/HTTP exporter to that endpoint.
+ *   In Railway production this is the private domain of the OTel Collector
+ *   service: http://${{OtelCollector.RAILWAY_PRIVATE_DOMAIN}}:4318
  * - OTEL_EXPORTER_OTLP_ENDPOINT unset → spans are discarded (no-op exporter).
  *   A startup warning is logged so operators know the state.
  *
- * Sentry behaviour:
- * - SENTRY_DSN set   → Sentry SDK initialised; 5xx errors are captured.
+ * Error tracking behaviour (GlitchTip — OSS Sentry-compatible):
+ * - SENTRY_DSN set   → Sentry SDK initialised pointing at self-hosted
+ *   GlitchTip service on Railway. GlitchTip accepts the standard Sentry DSN
+ *   wire protocol so no code changes are needed beyond pointing the DSN at the
+ *   GlitchTip public domain.
+ *   In Railway: SENTRY_DSN=${{GlitchTip.GLITCHTIP_PUBLIC_DSN}}
  * - SENTRY_DSN unset → Sentry.init is skipped; no crash, warning logged.
  *
  * PII scrubbing: Authorization and Cookie request headers are redacted from
  * HTTP spans via the instrumentation requestHook (SPEC-T145 §4.6).
- * Sentry also scrubs Authorization, Cookie, and password fields.
+ * GlitchTip also scrubs Authorization, Cookie, and password fields.
+ *
+ * All observability data stays within Railway private networking — no external
+ * SaaS endpoints (Grafana Cloud, Sentry cloud, Datadog) are used.
  *
  * SPEC references: SPEC-T145 §3, §4.5, §4.6, §5.1–5.4
  */
@@ -98,13 +107,24 @@ if (usingNoOp) {
   // (this file loads before index.ts initialises the logger).
   console.warn(
     '[otel] OTEL_EXPORTER_OTLP_ENDPOINT is not set — traces will be discarded. ' +
-      'Set this env var to export traces to Grafana Cloud Tempo or another OTLP backend.'
+      'Set OTEL_EXPORTER_OTLP_ENDPOINT to the Railway private domain of the OTel Collector ' +
+      'service, e.g. http://${{OtelCollector.RAILWAY_PRIVATE_DOMAIN}}:4318'
   );
 } else {
   console.log(`[otel] OTel SDK started. Exporting traces to: ${otlpEndpoint}`);
 }
 
-// ─── Sentry initialisation (SPEC-T145 §5.1–5.4) ──────────────────────────────
+// ─── GlitchTip initialisation (SPEC-T145 §5.1–5.4) ──────────────────────────
+//
+// GlitchTip is an OSS, self-hosted, Sentry-compatible error tracker.
+// It accepts the standard Sentry DSN protocol — the @sentry/node SDK is used
+// unchanged; only SENTRY_DSN points at the GlitchTip Railway service instead
+// of Sentry cloud.
+//
+// In Railway, set:
+//   SENTRY_DSN = ${{GlitchTip.GLITCHTIP_PUBLIC_DSN}}
+//
+// No data leaves your Railway project.
 
 const sentryDsn = process.env.SENTRY_DSN;
 
@@ -112,7 +132,7 @@ if (sentryDsn) {
   Sentry.init({
     dsn: sentryDsn,
     environment: process.env.NODE_ENV ?? 'development',
-    // Trim auth headers and passwords before they reach Sentry.
+    // Trim auth headers and passwords before they reach GlitchTip.
     // beforeSend hook scrubs the request object in each event.
     beforeSend(event) {
       if (event.request?.headers) {
@@ -138,11 +158,12 @@ if (sentryDsn) {
       return event;
     },
   });
-  console.log('[sentry] Sentry SDK initialised.');
+  console.log('[glitchtip] GlitchTip error tracking initialised (Sentry-compatible, self-hosted).');
 } else {
   console.warn(
-    '[sentry] SENTRY_DSN is not set — error tracking is disabled. ' +
-      'Set SENTRY_DSN to enable Sentry.'
+    '[glitchtip] SENTRY_DSN is not set — error tracking is disabled. ' +
+      'Set SENTRY_DSN to the GlitchTip DSN from your self-hosted Railway service: ' +
+      '${{GlitchTip.GLITCHTIP_PUBLIC_DSN}}'
   );
 }
 
