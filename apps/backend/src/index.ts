@@ -1,4 +1,7 @@
 // Main entry point
+// NOTE: @sentry/node is initialised in instrumentation.ts (loaded via --import).
+// Importing the package here gives us access to the already-initialised singleton.
+import * as Sentry from '@sentry/node';
 import Fastify from 'fastify';
 import compress from '@fastify/compress';
 import cors from '@fastify/cors';
@@ -51,6 +54,10 @@ import { agentKeyRoutes } from './routes/agent-keys.js';
 import { wellKnownAgentsRoutes } from './routes/well-known-agents.js';
 import { agentSignaturePlugin } from './middleware/agent-signature-plugin.js';
 import { startNonceCleanup } from './middleware/verify-agent-signature.js';
+import { presenceRegistry } from './presence/registry.js';
+import { presenceRoutes } from './routes/presence.js';
+import { logger as pinoLogger } from './lib/logger.js';
+import { registerObservabilityHooks } from './middleware/observability.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const API_HOSTS = new Set(['api.llmtxt.my']);
@@ -69,7 +76,9 @@ function isApiHost(hostname: string): boolean {
 //   api.llmtxt.my/v1/health       → /api/v1/health       (versioned; no deprecation)
 //   api.llmtxt.my/v2/compress     → /api/v2/compress     (future versions, same pattern)
 const app = Fastify({
-  logger: true,
+  // Use the explicit Pino instance (with optional Loki transport + redaction).
+  // logger: true would create a default Pino instance without our transports.
+  logger: pinoLogger,
   serverFactory: (handler) => {
     const server = http.createServer((req, res) => {
       const host = req.headers.host || '';
@@ -116,6 +125,12 @@ async function main() {
     // in the measured duration (more accurate latency tracking).
     // ──────────────────────────────────────────────────────────────────
     await registerMetrics(app);
+
+    // ──────────────────────────────────────────────────────────────────
+    // Observability hooks: inject OTel trace_id/span_id into per-request
+    // Pino child loggers for Loki trace correlation (SPEC-T145 §6.3–6.5).
+    // ──────────────────────────────────────────────────────────────────
+    await registerObservabilityHooks(app);
 
     // ──────────────────────────────────────────────────────────────────
     // Security headers (CSP, HSTS, X-Content-Type-Options, etc.)
@@ -494,6 +509,12 @@ async function main() {
     // Start CRDT compaction background job (periodic GC of raw update rows).
     startCrdtCompactionJob();
 
+    // ── Presence registry expiry sweep (T258) ─────────────────────────────────
+    // Sweep every 10 seconds; entries older than 30s are removed.
+    const presenceExpiryTimer = setInterval(() => presenceRegistry.expire(), 10_000);
+    // Ensure the timer does not prevent process exit
+    presenceExpiryTimer.unref?.();
+
     // Register error handler
     app.setErrorHandler((error: unknown, request, reply) => {
       app.log.error(error);
@@ -509,6 +530,16 @@ async function main() {
 
       const err = error instanceof Error ? error : new Error(String(error));
       const statusCode = (err as { statusCode?: number }).statusCode;
+
+      // Capture 5xx errors in Sentry (no-op when SENTRY_DSN is unset).
+      if (!statusCode || statusCode >= 500) {
+        Sentry.captureException(err, {
+          tags: {
+            route: request.routeOptions?.url ?? request.url,
+            method: request.method,
+          },
+        });
+      }
 
       return reply.status(statusCode || 500).send({
         error: err.name || 'Internal Server Error',

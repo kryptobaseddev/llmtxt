@@ -1,5 +1,5 @@
 /**
- * OpenTelemetry SDK initialisation.
+ * OpenTelemetry SDK + Sentry initialisation.
  *
  * This file MUST be loaded before any other application module via the Node.js
  * --import flag so that auto-instrumentations are registered before Fastify
@@ -8,19 +8,25 @@
  * Load order enforced in package.json#scripts.start:
  *   node --import ./dist/instrumentation.js dist/index.js
  *
- * Behaviour:
+ * OTel behaviour:
  * - OTEL_EXPORTER_OTLP_ENDPOINT set   → OTLP/HTTP exporter to that endpoint.
- * - OTEL_EXPORTER_OTLP_ENDPOINT unset → spans are discarded (DiscardingExporter).
+ * - OTEL_EXPORTER_OTLP_ENDPOINT unset → spans are discarded (no-op exporter).
  *   A startup warning is logged so operators know the state.
+ *
+ * Sentry behaviour:
+ * - SENTRY_DSN set   → Sentry SDK initialised; 5xx errors are captured.
+ * - SENTRY_DSN unset → Sentry.init is skipped; no crash, warning logged.
  *
  * PII scrubbing: Authorization and Cookie request headers are redacted from
  * HTTP spans via the instrumentation requestHook (SPEC-T145 §4.6).
+ * Sentry also scrubs Authorization, Cookie, and password fields.
  *
- * SPEC references: SPEC-T145 §3, §4.5, §4.6
+ * SPEC references: SPEC-T145 §3, §4.5, §4.6, §5.1–5.4
  */
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import * as Sentry from '@sentry/node';
 
 // ─── PII scrubbing constant ───────────────────────────────────────────────────
 
@@ -97,6 +103,51 @@ if (usingNoOp) {
 } else {
   console.log(`[otel] OTel SDK started. Exporting traces to: ${otlpEndpoint}`);
 }
+
+// ─── Sentry initialisation (SPEC-T145 §5.1–5.4) ──────────────────────────────
+
+const sentryDsn = process.env.SENTRY_DSN;
+
+if (sentryDsn) {
+  Sentry.init({
+    dsn: sentryDsn,
+    environment: process.env.NODE_ENV ?? 'development',
+    // Trim auth headers and passwords before they reach Sentry.
+    // beforeSend hook scrubs the request object in each event.
+    beforeSend(event) {
+      if (event.request?.headers) {
+        for (const key of Object.keys(event.request.headers)) {
+          if (/^(authorization|cookie|x-api-key)$/i.test(key)) {
+            (event.request.headers as Record<string, string>)[key] = '[REDACTED]';
+          }
+        }
+      }
+      if (event.request?.data) {
+        try {
+          const data =
+            typeof event.request.data === 'string'
+              ? (JSON.parse(event.request.data) as Record<string, unknown>)
+              : (event.request.data as Record<string, unknown>);
+          if (data && typeof data === 'object' && 'password' in data) {
+            data['password'] = '[REDACTED]';
+          }
+        } catch {
+          // data is not JSON — leave as-is
+        }
+      }
+      return event;
+    },
+  });
+  console.log('[sentry] Sentry SDK initialised.');
+} else {
+  console.warn(
+    '[sentry] SENTRY_DSN is not set — error tracking is disabled. ' +
+      'Set SENTRY_DSN to enable Sentry.'
+  );
+}
+
+// Export Sentry so error handler in index.ts can call captureException.
+export { Sentry };
 
 // ─── Graceful shutdown ────────────────────────────────────────────────────────
 
