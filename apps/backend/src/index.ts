@@ -27,6 +27,7 @@ import { organizationRoutes } from './routes/organizations.js';
 import { wsRoutes } from './routes/ws.js';
 import { wsCrdtRoutes } from './routes/ws-crdt.js';
 import { startCrdtCompactionJob } from './jobs/crdt-compaction.js';
+import { backfillEmbeddings } from './jobs/embeddings.js';
 import { initCrdtPubSub } from './realtime/redis-pubsub.js';
 import { sseRoutes } from './routes/sse.js';
 import { webhookRoutes } from './routes/webhooks.js';
@@ -59,6 +60,7 @@ import { presenceRoutes } from './routes/presence.js';
 import { startLeaseExpiryJob } from './leases/expiry-job.js';
 import { logger as pinoLogger } from './lib/logger.js';
 import { registerObservabilityHooks } from './middleware/observability.js';
+import { docsRoutes } from './routes/docs.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const API_HOSTS = new Set(['api.llmtxt.my']);
@@ -414,6 +416,14 @@ async function main() {
     await app.register(healthRoutes, { prefix: '/api' });
 
     // ──────────────────────────────────────────────────────────────────
+    // API documentation: Swagger UI at /api/docs and spec at /api/openapi.json
+    //
+    // Reads the pre-generated openapi.json (forge-ts build output).
+    // To regenerate: pnpm --filter backend run openapi:gen
+    // ──────────────────────────────────────────────────────────────────
+    await app.register(docsRoutes, { prefix: '/api' });
+
+    // ──────────────────────────────────────────────────────────────────
     // Agent identity routes (T147): key management + well-known discovery
     // ──────────────────────────────────────────────────────────────────
     // Register agent signature middleware globally (scoped by method+path in plugin)
@@ -509,6 +519,14 @@ async function main() {
 
     // Start CRDT compaction background job (periodic GC of raw update rows).
     startCrdtCompactionJob();
+
+    // T102/T103: Backfill section embeddings for existing documents (fire-and-forget).
+    // Runs once on startup with a 5-second delay to avoid blocking the server boot.
+    setTimeout(() => {
+      backfillEmbeddings(50).catch(err => {
+        app.log.warn({ err }, '[embeddings] startup backfill failed');
+      });
+    }, 5_000);
 
     // ── Presence registry expiry sweep (T258) ─────────────────────────────────
     // Sweep every 10 seconds; entries older than 30s are removed.

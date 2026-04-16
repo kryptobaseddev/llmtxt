@@ -31,13 +31,13 @@ Type contracts exported by this package: interfaces, type aliases, and enums.
 ## Document
 
 ```typescript
-{ id: string; createdAt: number; isAnonymous: boolean; expiresAt: number | null; slug: string; format: string; contentHash: string; compressedData: unknown; originalSize: number; compressedSize: number; tokenCount: number | null; accessCount: number; lastAccessedAt: number | null; state: string; ownerId: string | null; storageType: string; storageKey: string | null; currentVersion: number; versionCount: number; sharingMode: string; approvalRequiredCount: number; approvalRequireUnanimous: boolean; approvalAllowedReviewers: string; approvalTimeoutMs: number; }
+{ id: string; createdAt: number; isAnonymous: boolean; expiresAt: number | null; slug: string; format: string; contentHash: string; compressedData: unknown; originalSize: number; compressedSize: number; tokenCount: number | null; accessCount: number; lastAccessedAt: number | null; state: string; ownerId: string | null; storageType: string; storageKey: string | null; currentVersion: number; versionCount: number; sharingMode: string; approvalRequiredCount: number; approvalRequireUnanimous: boolean; approvalAllowedReviewers: string; approvalTimeoutMs: number; visibility: string; }
 ```
 
 ## NewDocument
 
 ```typescript
-{ id: string; createdAt: number; slug: string; format: string; contentHash: string; originalSize: number; compressedSize: number; isAnonymous?: boolean | undefined; expiresAt?: number | null | undefined; compressedData?: unknown; tokenCount?: number | null | undefined; accessCount?: number | undefined; lastAccessedAt?: number | null | undefined; state?: string | undefined; ownerId?: string | null | undefined; storageType?: string | undefined; storageKey?: string | null | undefined; currentVersion?: number | undefined; versionCount?: number | undefined; sharingMode?: string | undefined; approvalRequiredCount?: number | undefined; approvalRequireUnanimous?: boolean | undefined; approvalAllowedReviewers?: string | undefined; approvalTimeoutMs?: number | undefined; }
+{ id: string; createdAt: number; slug: string; format: string; contentHash: string; originalSize: number; compressedSize: number; isAnonymous?: boolean | undefined; expiresAt?: number | null | undefined; compressedData?: unknown; tokenCount?: number | null | undefined; accessCount?: number | undefined; lastAccessedAt?: number | null | undefined; state?: string | undefined; ownerId?: string | null | undefined; storageType?: string | undefined; storageKey?: string | null | undefined; currentVersion?: number | undefined; versionCount?: number | undefined; sharingMode?: string | undefined; approvalRequiredCount?: number | undefined; approvalRequireUnanimous?: boolean | undefined; approvalAllowedReviewers?: string | undefined; approvalTimeoutMs?: number | undefined; visibility?: string | undefined; }
 ```
 
 ## Version
@@ -112,6 +112,198 @@ Type contracts exported by this package: interfaces, type aliases, and enums.
 { id: string; createdAt: number; documentId: string; versionNumber: number; authorId: string; changelog?: string | undefined; sectionsModified?: string | undefined; addedLines?: number | undefined; removedLines?: number | undefined; addedTokens?: number | undefined; removedTokens?: number | undefined; }
 ```
 
+## ApiKey
+
+```typescript
+{ id: string; name: string; createdAt: number; updatedAt: number; expiresAt: number | null; userId: string; revoked: boolean; keyHash: string; keyPrefix: string; scopes: string; lastUsedAt: number | null; }
+```
+
+## NewApiKey
+
+```typescript
+{ id: string; name: string; createdAt: number; updatedAt: number; userId: string; keyHash: string; keyPrefix: string; expiresAt?: number | null | undefined; revoked?: boolean | undefined; scopes?: string | undefined; lastUsedAt?: number | null | undefined; }
+```
+
+## AuditLog
+
+```typescript
+{ timestamp: number; id: string; agentId: string | null; userId: string | null; ipAddress: string | null; userAgent: string | null; action: string; resourceType: string; resourceId: string | null; details: string | null; requestId: string | null; method: string | null; path: string | null; statusCode: number | null; }
+```
+
+## NewAuditLog
+
+```typescript
+{ timestamp: number; id: string; action: string; resourceType: string; agentId?: string | null | undefined; userId?: string | null | undefined; ipAddress?: string | null | undefined; userAgent?: string | null | undefined; resourceId?: string | null | undefined; details?: string | null | undefined; requestId?: string | null | undefined; method?: string | null | undefined; path?: string | null | undefined; statusCode?: number | null | undefined; }
+```
+
+## DocumentRole
+
+```typescript
+{ id: string; userId: string; documentId: string; role: string; grantedBy: string; grantedAt: number; }
+```
+
+## NewDocumentRole
+
+```typescript
+{ id: string; userId: string; documentId: string; role: string; grantedBy: string; grantedAt: number; }
+```
+
+## Organization
+
+```typescript
+{ id: string; name: string; createdAt: number; updatedAt: number; slug: string; createdBy: string; }
+```
+
+## NewOrganization
+
+```typescript
+{ id: string; name: string; createdAt: number; updatedAt: number; slug: string; createdBy: string; }
+```
+
+## OrgMember
+
+```typescript
+{ id: string; userId: string; orgId: string; role: string; joinedAt: number; }
+```
+
+## NewOrgMember
+
+```typescript
+{ id: string; userId: string; orgId: string; role: string; joinedAt: number; }
+```
+
+## DocumentOrg
+
+```typescript
+{ id: string; documentId: string; orgId: string; addedAt: number; }
+```
+
+## NewDocumentOrg
+
+```typescript
+{ id: string; documentId: string; orgId: string; addedAt: number; }
+```
+
+## PendingInvite
+
+```typescript
+{ id: string; email: string; createdAt: number; expiresAt: number | null; documentId: string; role: string; invitedBy: string; }
+```
+
+## NewPendingInvite
+
+```typescript
+{ id: string; email: string; createdAt: number; documentId: string; role: string; invitedBy: string; expiresAt?: number | null | undefined; }
+```
+
+## Webhook
+
+```typescript
+{ id: string; createdAt: number; userId: string; url: string; secret: string; events: string; documentSlug: string | null; active: boolean; failureCount: number; lastDeliveryAt: number | null; lastSuccessAt: number | null; }
+```
+
+## NewWebhook
+
+```typescript
+{ id: string; createdAt: number; userId: string; url: string; secret: string; events?: string | undefined; documentSlug?: string | null | undefined; active?: boolean | undefined; failureCount?: number | undefined; lastDeliveryAt?: number | null | undefined; lastSuccessAt?: number | null | undefined; }
+```
+
+## DocumentLink
+
+```typescript
+{ id: string; createdAt: number; createdBy: string | null; sourceDocId: string; targetDocId: string; linkType: string; label: string | null; }
+```
+
+## NewDocumentLink
+
+```typescript
+{ id: string; createdAt: number; sourceDocId: string; targetDocId: string; linkType: string; createdBy?: string | null | undefined; label?: string | null | undefined; }
+```
+
+## Collection
+
+```typescript
+{ id: string; name: string; createdAt: number; updatedAt: number; slug: string; ownerId: string; visibility: string; description: string | null; }
+```
+
+## NewCollection
+
+```typescript
+{ id: string; name: string; createdAt: number; updatedAt: number; slug: string; ownerId: string; visibility?: string | undefined; description?: string | null | undefined; }
+```
+
+## CollectionDocument
+
+```typescript
+{ id: string; documentId: string; addedAt: number; collectionId: string; position: number; addedBy: string | null; }
+```
+
+## NewCollectionDocument
+
+```typescript
+{ id: string; documentId: string; addedAt: number; collectionId: string; position?: number | undefined; addedBy?: string | null | undefined; }
+```
+
+## SectionCrdtState
+
+```typescript
+{ updatedAt: number; documentId: string; sectionId: string; clock: number; yrsState: Buffer<ArrayBufferLike>; }
+```
+
+## NewSectionCrdtState
+
+```typescript
+{ documentId: string; sectionId: string; yrsState: Buffer<ArrayBufferLike>; updatedAt?: number | undefined; clock?: number | undefined; }
+```
+
+## SectionCrdtUpdate
+
+```typescript
+{ id: string; createdAt: number; documentId: string; sectionId: string; updateBlob: Buffer<ArrayBufferLike>; clientId: string; seq: number; }
+```
+
+## NewSectionCrdtUpdate
+
+```typescript
+{ id: string; documentId: string; sectionId: string; updateBlob: Buffer<ArrayBufferLike>; clientId: string; seq: number; createdAt?: number | undefined; }
+```
+
+## DocumentEvent
+
+```typescript
+{ id: string; createdAt: number; documentId: string; seq: number; eventType: string; actorId: string; payloadJson: unknown; idempotencyKey: string | null; prevHash: Buffer<ArrayBufferLike> | null; }
+```
+
+## NewDocumentEvent
+
+```typescript
+{ id: string; documentId: string; seq: number; eventType: string; actorId: string; payloadJson: unknown; createdAt?: number | undefined; idempotencyKey?: string | null | undefined; prevHash?: Buffer<ArrayBufferLike> | null | undefined; }
+```
+
+## AgentPubkey
+
+```typescript
+{ id: string; createdAt: number; agentId: string; pubkey: Buffer<ArrayBufferLike>; revokedAt: number | null; }
+```
+
+## NewAgentPubkey
+
+```typescript
+{ id: string; agentId: string; pubkey: Buffer<ArrayBufferLike>; createdAt?: number | undefined; revokedAt?: number | null | undefined; }
+```
+
+## AgentSignatureNonce
+
+```typescript
+{ agentId: string; nonce: string; firstSeen: number; }
+```
+
+## NewAgentSignatureNonce
+
+```typescript
+{ agentId: string; nonce: string; firstSeen?: number | undefined; }
+```
+
 ## InsertUser
 
 ```typescript
@@ -139,13 +331,13 @@ Type contracts exported by this package: interfaces, type aliases, and enums.
 ## InsertDocument
 
 ```typescript
-{ id: string; createdAt: number; slug: string; format: string; contentHash: string; originalSize: number; compressedSize: number; isAnonymous?: boolean | undefined; expiresAt?: number | null | undefined; compressedData?: any; tokenCount?: number | null | undefined; accessCount?: number | undefined; lastAccessedAt?: number | null | undefined; state?: string | undefined; ownerId?: string | null | undefined; storageType?: string | undefined; storageKey?: string | null | undefined; currentVersion?: number | undefined; versionCount?: number | undefined; sharingMode?: string | undefined; approvalRequiredCount?: number | undefined; approvalRequireUnanimous?: boolean | undefined; approvalAllowedReviewers?: string | undefined; approvalTimeoutMs?: number | undefined; }
+{ id: string; createdAt: number; slug: string; format: string; contentHash: string; originalSize: number; compressedSize: number; isAnonymous?: boolean | undefined; expiresAt?: number | null | undefined; compressedData?: any; tokenCount?: number | null | undefined; accessCount?: number | undefined; lastAccessedAt?: number | null | undefined; state?: string | undefined; ownerId?: string | null | undefined; storageType?: string | undefined; storageKey?: string | null | undefined; currentVersion?: number | undefined; versionCount?: number | undefined; sharingMode?: string | undefined; approvalRequiredCount?: number | undefined; approvalRequireUnanimous?: boolean | undefined; approvalAllowedReviewers?: string | undefined; approvalTimeoutMs?: number | undefined; visibility?: string | undefined; }
 ```
 
 ## SelectDocument
 
 ```typescript
-{ id: string; createdAt: number; isAnonymous: boolean; expiresAt: number | null; slug: string; format: string; contentHash: string; originalSize: number; compressedSize: number; tokenCount: number | null; accessCount: number; lastAccessedAt: number | null; state: string; ownerId: string | null; storageType: string; storageKey: string | null; currentVersion: number; versionCount: number; sharingMode: string; approvalRequiredCount: number; approvalRequireUnanimous: boolean; approvalAllowedReviewers: string; approvalTimeoutMs: number; compressedData?: any; }
+{ id: string; createdAt: number; isAnonymous: boolean; expiresAt: number | null; slug: string; format: string; contentHash: string; originalSize: number; compressedSize: number; tokenCount: number | null; accessCount: number; lastAccessedAt: number | null; state: string; ownerId: string | null; storageType: string; storageKey: string | null; currentVersion: number; versionCount: number; sharingMode: string; approvalRequiredCount: number; approvalRequireUnanimous: boolean; approvalAllowedReviewers: string; approvalTimeoutMs: number; visibility: string; compressedData?: any; }
 ```
 
 ## InsertVersion
@@ -219,3 +411,923 @@ Type contracts exported by this package: interfaces, type aliases, and enums.
 ```typescript
 { id: string; createdAt: number; documentId: string; versionNumber: number; changelog: string; sectionsModified: string; authorId: string; addedLines: number; removedLines: number; addedTokens: number; removedTokens: number; }
 ```
+
+## InsertApiKey
+
+```typescript
+{ id: string; name: string; createdAt: number; updatedAt: number; userId: string; keyHash: string; keyPrefix: string; expiresAt?: number | null | undefined; revoked?: boolean | undefined; scopes?: string | undefined; lastUsedAt?: number | null | undefined; }
+```
+
+## SelectApiKey
+
+```typescript
+{ id: string; name: string; createdAt: number; updatedAt: number; expiresAt: number | null; userId: string; revoked: boolean; keyHash: string; keyPrefix: string; scopes: string; lastUsedAt: number | null; }
+```
+
+## InsertAuditLog
+
+```typescript
+{ timestamp: number; id: string; action: string; resourceType: string; agentId?: string | null | undefined; userId?: string | null | undefined; ipAddress?: string | null | undefined; userAgent?: string | null | undefined; resourceId?: string | null | undefined; details?: string | null | undefined; requestId?: string | null | undefined; method?: string | null | undefined; path?: string | null | undefined; statusCode?: number | null | undefined; }
+```
+
+## SelectAuditLog
+
+```typescript
+{ timestamp: number; id: string; agentId: string | null; userId: string | null; ipAddress: string | null; userAgent: string | null; action: string; resourceType: string; resourceId: string | null; details: string | null; requestId: string | null; method: string | null; path: string | null; statusCode: number | null; }
+```
+
+## InsertDocumentRole
+
+```typescript
+{ id: string; userId: string; documentId: string; role: string; grantedBy: string; grantedAt: number; }
+```
+
+## SelectDocumentRole
+
+```typescript
+{ id: string; userId: string; documentId: string; role: string; grantedBy: string; grantedAt: number; }
+```
+
+## InsertOrganization
+
+```typescript
+{ id: string; name: string; createdAt: number; updatedAt: number; slug: string; createdBy: string; }
+```
+
+## SelectOrganization
+
+```typescript
+{ id: string; name: string; createdAt: number; updatedAt: number; slug: string; createdBy: string; }
+```
+
+## InsertOrgMember
+
+```typescript
+{ id: string; userId: string; orgId: string; role: string; joinedAt: number; }
+```
+
+## SelectOrgMember
+
+```typescript
+{ id: string; userId: string; orgId: string; role: string; joinedAt: number; }
+```
+
+## InsertDocumentOrg
+
+```typescript
+{ id: string; documentId: string; orgId: string; addedAt: number; }
+```
+
+## SelectDocumentOrg
+
+```typescript
+{ id: string; documentId: string; orgId: string; addedAt: number; }
+```
+
+## InsertPendingInvite
+
+```typescript
+{ id: string; email: string; createdAt: number; documentId: string; role: string; invitedBy: string; expiresAt?: number | null | undefined; }
+```
+
+## SelectPendingInvite
+
+```typescript
+{ id: string; email: string; createdAt: number; expiresAt: number | null; documentId: string; role: string; invitedBy: string; }
+```
+
+## InsertWebhook
+
+```typescript
+{ id: string; createdAt: number; userId: string; url: string; secret: string; events?: string | undefined; documentSlug?: string | null | undefined; active?: boolean | undefined; failureCount?: number | undefined; lastDeliveryAt?: number | null | undefined; lastSuccessAt?: number | null | undefined; }
+```
+
+## SelectWebhook
+
+```typescript
+{ id: string; createdAt: number; userId: string; url: string; secret: string; events: string; documentSlug: string | null; active: boolean; failureCount: number; lastDeliveryAt: number | null; lastSuccessAt: number | null; }
+```
+
+## InsertDocumentLink
+
+```typescript
+{ id: string; createdAt: number; sourceDocId: string; targetDocId: string; linkType: string; createdBy?: string | null | undefined; label?: string | null | undefined; }
+```
+
+## SelectDocumentLink
+
+```typescript
+{ id: string; createdAt: number; createdBy: string | null; sourceDocId: string; targetDocId: string; linkType: string; label: string | null; }
+```
+
+## InsertCollection
+
+```typescript
+{ id: string; name: string; createdAt: number; updatedAt: number; slug: string; ownerId: string; visibility?: string | undefined; description?: string | null | undefined; }
+```
+
+## SelectCollection
+
+```typescript
+{ id: string; name: string; createdAt: number; updatedAt: number; slug: string; ownerId: string; visibility: string; description: string | null; }
+```
+
+## InsertCollectionDocument
+
+```typescript
+{ id: string; documentId: string; addedAt: number; collectionId: string; position?: number | undefined; addedBy?: string | null | undefined; }
+```
+
+## SelectCollectionDocument
+
+```typescript
+{ id: string; documentId: string; addedAt: number; collectionId: string; position: number; addedBy: string | null; }
+```
+
+## User
+
+```typescript
+{ id: string; name: string; email: string; emailVerified: boolean; image: string | null; createdAt: Date; updatedAt: Date; isAnonymous: boolean | null; agentId: string | null; expiresAt: number | null; }
+```
+
+## NewUser
+
+```typescript
+{ id: string; email: string; createdAt: Date; updatedAt: Date; name?: string | undefined; emailVerified?: boolean | undefined; image?: string | null | undefined; isAnonymous?: boolean | null | undefined; agentId?: string | null | undefined; expiresAt?: number | null | undefined; }
+```
+
+## Session
+
+```typescript
+{ id: string; createdAt: Date; updatedAt: Date; expiresAt: Date; userId: string; token: string; ipAddress: string | null; userAgent: string | null; }
+```
+
+## NewSession
+
+```typescript
+{ id: string; createdAt: Date; updatedAt: Date; expiresAt: Date; userId: string; token: string; ipAddress?: string | null | undefined; userAgent?: string | null | undefined; }
+```
+
+## Document
+
+```typescript
+{ id: string; createdAt: number; isAnonymous: boolean; expiresAt: number | null; slug: string; format: string; contentHash: string; compressedData: Buffer<ArrayBufferLike> | null; originalSize: number; compressedSize: number; tokenCount: number | null; accessCount: number; lastAccessedAt: number | null; state: string; ownerId: string | null; storageType: string; storageKey: string | null; currentVersion: number; versionCount: number; sharingMode: string; approvalRequiredCount: number; approvalRequireUnanimous: boolean; approvalAllowedReviewers: string; approvalTimeoutMs: number; visibility: string; eventSeqCounter: bigint; bftF: number; }
+```
+
+## NewDocument
+
+```typescript
+{ id: string; createdAt: number; slug: string; format: string; contentHash: string; originalSize: number; compressedSize: number; isAnonymous?: boolean | undefined; expiresAt?: number | null | undefined; compressedData?: Buffer<ArrayBufferLike> | null | undefined; tokenCount?: number | null | undefined; accessCount?: number | undefined; lastAccessedAt?: number | null | undefined; state?: string | undefined; ownerId?: string | null | undefined; storageType?: string | undefined; storageKey?: string | null | undefined; currentVersion?: number | undefined; versionCount?: number | undefined; sharingMode?: string | undefined; approvalRequiredCount?: number | undefined; approvalRequireUnanimous?: boolean | undefined; approvalAllowedReviewers?: string | undefined; approvalTimeoutMs?: number | undefined; visibility?: string | undefined; eventSeqCounter?: bigint | undefined; bftF?: number | undefined; }
+```
+
+## Version
+
+```typescript
+{ id: string; createdAt: number; contentHash: string; compressedData: Buffer<ArrayBufferLike> | null; tokenCount: number | null; storageType: string; storageKey: string | null; documentId: string; versionNumber: number; createdBy: string | null; changelog: string | null; patchText: string | null; baseVersion: number | null; }
+```
+
+## NewVersion
+
+```typescript
+{ id: string; createdAt: number; contentHash: string; documentId: string; versionNumber: number; compressedData?: Buffer<ArrayBufferLike> | null | undefined; tokenCount?: number | null | undefined; storageType?: string | undefined; storageKey?: string | null | undefined; createdBy?: string | null | undefined; changelog?: string | null | undefined; patchText?: string | null | undefined; baseVersion?: number | null | undefined; }
+```
+
+## StateTransition
+
+```typescript
+{ id: string; documentId: string; fromState: string; toState: string; changedBy: string; changedAt: number; reason: string | null; atVersion: number; }
+```
+
+## NewStateTransition
+
+```typescript
+{ id: string; documentId: string; fromState: string; toState: string; changedBy: string; changedAt: number; atVersion: number; reason?: string | null | undefined; }
+```
+
+## Approval
+
+```typescript
+{ timestamp: number; id: string; documentId: string; reason: string | null; atVersion: number; reviewerId: string; status: string; bftF: number; sigHex: string | null; canonicalPayload: string | null; chainHash: string | null; prevChainHash: string | null; }
+```
+
+## NewApproval
+
+```typescript
+{ timestamp: number; id: string; documentId: string; atVersion: number; reviewerId: string; status: string; reason?: string | null | undefined; bftF?: number | undefined; sigHex?: string | null | undefined; canonicalPayload?: string | null | undefined; chainHash?: string | null | undefined; prevChainHash?: string | null | undefined; }
+```
+
+## Contributor
+
+```typescript
+{ id: string; agentId: string; documentId: string; versionsAuthored: number; totalTokensAdded: number; totalTokensRemoved: number; netTokens: number; firstContribution: number; lastContribution: number; sectionsModified: string; displayName: string | null; }
+```
+
+## NewContributor
+
+```typescript
+{ id: string; agentId: string; documentId: string; firstContribution: number; lastContribution: number; versionsAuthored?: number | undefined; totalTokensAdded?: number | undefined; totalTokensRemoved?: number | undefined; netTokens?: number | undefined; sectionsModified?: string | undefined; displayName?: string | null | undefined; }
+```
+
+## SignedUrlToken
+
+```typescript
+{ id: string; createdAt: number; agentId: string; expiresAt: number; slug: string; accessCount: number; lastAccessedAt: number | null; documentId: string; conversationId: string; orgId: string | null; signature: string; signatureLength: number; revoked: boolean; }
+```
+
+## NewSignedUrlToken
+
+```typescript
+{ id: string; createdAt: number; agentId: string; expiresAt: number; slug: string; documentId: string; conversationId: string; signature: string; accessCount?: number | undefined; lastAccessedAt?: number | null | undefined; orgId?: string | null | undefined; signatureLength?: number | undefined; revoked?: boolean | undefined; }
+```
+
+## VersionAttribution
+
+```typescript
+{ id: string; createdAt: number; documentId: string; versionNumber: number; changelog: string; sectionsModified: string; authorId: string; addedLines: number; removedLines: number; addedTokens: number; removedTokens: number; }
+```
+
+## NewVersionAttribution
+
+```typescript
+{ id: string; createdAt: number; documentId: string; versionNumber: number; authorId: string; changelog?: string | undefined; sectionsModified?: string | undefined; addedLines?: number | undefined; removedLines?: number | undefined; addedTokens?: number | undefined; removedTokens?: number | undefined; }
+```
+
+## ApiKey
+
+```typescript
+{ id: string; name: string; createdAt: number; updatedAt: number; expiresAt: number | null; userId: string; revoked: boolean; keyHash: string; keyPrefix: string; scopes: string; lastUsedAt: number | null; }
+```
+
+## NewApiKey
+
+```typescript
+{ id: string; name: string; createdAt: number; updatedAt: number; userId: string; keyHash: string; keyPrefix: string; expiresAt?: number | null | undefined; revoked?: boolean | undefined; scopes?: string | undefined; lastUsedAt?: number | null | undefined; }
+```
+
+## AuditLog
+
+```typescript
+{ timestamp: number; id: string; agentId: string | null; userId: string | null; ipAddress: string | null; userAgent: string | null; action: string; resourceType: string; resourceId: string | null; details: string | null; requestId: string | null; method: string | null; path: string | null; statusCode: number | null; }
+```
+
+## NewAuditLog
+
+```typescript
+{ timestamp: number; id: string; action: string; resourceType: string; agentId?: string | null | undefined; userId?: string | null | undefined; ipAddress?: string | null | undefined; userAgent?: string | null | undefined; resourceId?: string | null | undefined; details?: string | null | undefined; requestId?: string | null | undefined; method?: string | null | undefined; path?: string | null | undefined; statusCode?: number | null | undefined; }
+```
+
+## DocumentRole
+
+```typescript
+{ id: string; userId: string; documentId: string; role: string; grantedBy: string; grantedAt: number; }
+```
+
+## NewDocumentRole
+
+```typescript
+{ id: string; userId: string; documentId: string; role: string; grantedBy: string; grantedAt: number; }
+```
+
+## Organization
+
+```typescript
+{ id: string; name: string; createdAt: number; updatedAt: number; slug: string; createdBy: string; }
+```
+
+## NewOrganization
+
+```typescript
+{ id: string; name: string; createdAt: number; updatedAt: number; slug: string; createdBy: string; }
+```
+
+## OrgMember
+
+```typescript
+{ id: string; userId: string; orgId: string; role: string; joinedAt: number; }
+```
+
+## NewOrgMember
+
+```typescript
+{ id: string; userId: string; orgId: string; role: string; joinedAt: number; }
+```
+
+## DocumentOrg
+
+```typescript
+{ id: string; documentId: string; orgId: string; addedAt: number; }
+```
+
+## NewDocumentOrg
+
+```typescript
+{ id: string; documentId: string; orgId: string; addedAt: number; }
+```
+
+## PendingInvite
+
+```typescript
+{ id: string; email: string; createdAt: number; expiresAt: number | null; documentId: string; role: string; invitedBy: string; }
+```
+
+## NewPendingInvite
+
+```typescript
+{ id: string; email: string; createdAt: number; documentId: string; role: string; invitedBy: string; expiresAt?: number | null | undefined; }
+```
+
+## Webhook
+
+```typescript
+{ id: string; createdAt: number; userId: string; url: string; secret: string; events: string; documentSlug: string | null; active: boolean; failureCount: number; lastDeliveryAt: number | null; lastSuccessAt: number | null; }
+```
+
+## NewWebhook
+
+```typescript
+{ id: string; createdAt: number; userId: string; url: string; secret: string; events?: string | undefined; documentSlug?: string | null | undefined; active?: boolean | undefined; failureCount?: number | undefined; lastDeliveryAt?: number | null | undefined; lastSuccessAt?: number | null | undefined; }
+```
+
+## DocumentLink
+
+```typescript
+{ id: string; createdAt: number; createdBy: string | null; sourceDocId: string; targetDocId: string; linkType: string; label: string | null; }
+```
+
+## NewDocumentLink
+
+```typescript
+{ id: string; createdAt: number; sourceDocId: string; targetDocId: string; linkType: string; createdBy?: string | null | undefined; label?: string | null | undefined; }
+```
+
+## Collection
+
+```typescript
+{ id: string; name: string; createdAt: number; updatedAt: number; slug: string; ownerId: string; visibility: string; description: string | null; }
+```
+
+## NewCollection
+
+```typescript
+{ id: string; name: string; createdAt: number; updatedAt: number; slug: string; ownerId: string; visibility?: string | undefined; description?: string | null | undefined; }
+```
+
+## CollectionDocument
+
+```typescript
+{ id: string; documentId: string; addedAt: number; collectionId: string; position: number; addedBy: string | null; }
+```
+
+## NewCollectionDocument
+
+```typescript
+{ id: string; documentId: string; addedAt: number; collectionId: string; position?: number | undefined; addedBy?: string | null | undefined; }
+```
+
+## SectionCrdtState
+
+```typescript
+{ updatedAt: Date; documentId: string; sectionId: string; clock: number; yrsState: Buffer<ArrayBufferLike>; }
+```
+
+## NewSectionCrdtState
+
+```typescript
+{ documentId: string; sectionId: string; yrsState: Buffer<ArrayBufferLike>; updatedAt?: Date | undefined; clock?: number | undefined; }
+```
+
+## SectionCrdtUpdate
+
+```typescript
+{ id: string; createdAt: Date; documentId: string; sectionId: string; updateBlob: Buffer<ArrayBufferLike>; clientId: string; seq: bigint; }
+```
+
+## NewSectionCrdtUpdate
+
+```typescript
+{ documentId: string; sectionId: string; updateBlob: Buffer<ArrayBufferLike>; clientId: string; seq: bigint; id?: string | undefined; createdAt?: Date | undefined; }
+```
+
+## DocumentEvent
+
+```typescript
+{ id: string; createdAt: Date; documentId: string; seq: bigint; eventType: string; actorId: string; payloadJson: unknown; idempotencyKey: string | null; prevHash: Buffer<ArrayBufferLike> | null; }
+```
+
+## NewDocumentEvent
+
+```typescript
+{ documentId: string; seq: bigint; eventType: string; actorId: string; id?: string | undefined; createdAt?: Date | undefined; payloadJson?: unknown; idempotencyKey?: string | null | undefined; prevHash?: Buffer<ArrayBufferLike> | null | undefined; }
+```
+
+## AgentPubkey
+
+```typescript
+{ id: string; createdAt: Date; agentId: string; pubkey: Buffer<ArrayBufferLike>; revokedAt: Date | null; }
+```
+
+## NewAgentPubkey
+
+```typescript
+{ agentId: string; pubkey: Buffer<ArrayBufferLike>; id?: string | undefined; createdAt?: Date | undefined; revokedAt?: Date | null | undefined; }
+```
+
+## AgentSignatureNonce
+
+```typescript
+{ agentId: string; nonce: string; firstSeen: Date; }
+```
+
+## NewAgentSignatureNonce
+
+```typescript
+{ agentId: string; nonce: string; firstSeen?: Date | undefined; }
+```
+
+## SectionLease
+
+```typescript
+{ id: string; expiresAt: Date; reason: string | null; sectionId: string; docId: string; holderAgentId: string; acquiredAt: Date; }
+```
+
+## NewSectionLease
+
+```typescript
+{ expiresAt: Date; sectionId: string; docId: string; holderAgentId: string; id?: string | undefined; reason?: string | null | undefined; acquiredAt?: Date | undefined; }
+```
+
+## AgentInboxMessage
+
+```typescript
+{ id: string; expiresAt: number; nonce: string; toAgentId: string; fromAgentId: string; envelopeJson: unknown; receivedAt: number; read: boolean; }
+```
+
+## NewAgentInboxMessage
+
+```typescript
+{ expiresAt: number; nonce: string; toAgentId: string; fromAgentId: string; receivedAt: number; id?: string | undefined; envelopeJson?: unknown; read?: boolean | undefined; }
+```
+
+## SectionEmbedding
+
+```typescript
+{ id: string; contentHash: string; documentId: string; sectionSlug: string; sectionTitle: string; provider: string; model: string; embedding: string | null; computedAt: number; }
+```
+
+## NewSectionEmbedding
+
+```typescript
+{ contentHash: string; documentId: string; computedAt: number; id?: string | undefined; sectionSlug?: string | undefined; sectionTitle?: string | undefined; provider?: string | undefined; model?: string | undefined; embedding?: string | null | undefined; }
+```
+
+## InsertUser
+
+```typescript
+{ id: string; email: string; createdAt: Date; updatedAt: Date; name?: string | undefined; emailVerified?: boolean | undefined; image?: string | null | undefined; isAnonymous?: boolean | null | undefined; agentId?: string | null | undefined; expiresAt?: number | null | undefined; }
+```
+
+## SelectUser
+
+```typescript
+{ id: string; name: string; email: string; emailVerified: boolean; image: string | null; createdAt: Date; updatedAt: Date; isAnonymous: boolean | null; agentId: string | null; expiresAt: number | null; }
+```
+
+## InsertSession
+
+```typescript
+{ id: string; createdAt: Date; updatedAt: Date; expiresAt: Date; userId: string; token: string; ipAddress?: string | null | undefined; userAgent?: string | null | undefined; }
+```
+
+## SelectSession
+
+```typescript
+{ id: string; createdAt: Date; updatedAt: Date; expiresAt: Date; userId: string; token: string; ipAddress: string | null; userAgent: string | null; }
+```
+
+## InsertDocument
+
+```typescript
+{ id: string; createdAt: number; slug: string; format: string; contentHash: string; originalSize: number; compressedSize: number; isAnonymous?: boolean | undefined; expiresAt?: number | null | undefined; compressedData?: Buffer<ArrayBufferLike> | null | undefined; tokenCount?: number | null | undefined; accessCount?: number | undefined; lastAccessedAt?: number | null | undefined; state?: string | undefined; ownerId?: string | null | undefined; storageType?: string | undefined; storageKey?: string | null | undefined; currentVersion?: number | undefined; versionCount?: number | undefined; sharingMode?: string | undefined; approvalRequiredCount?: number | undefined; approvalRequireUnanimous?: boolean | undefined; approvalAllowedReviewers?: string | undefined; approvalTimeoutMs?: number | undefined; visibility?: string | undefined; eventSeqCounter?: bigint | undefined; bftF?: number | undefined; }
+```
+
+## SelectDocument
+
+```typescript
+{ id: string; createdAt: number; isAnonymous: boolean; expiresAt: number | null; slug: string; format: string; contentHash: string; compressedData: Buffer<ArrayBufferLike> | null; originalSize: number; compressedSize: number; tokenCount: number | null; accessCount: number; lastAccessedAt: number | null; state: string; ownerId: string | null; storageType: string; storageKey: string | null; currentVersion: number; versionCount: number; sharingMode: string; approvalRequiredCount: number; approvalRequireUnanimous: boolean; approvalAllowedReviewers: string; approvalTimeoutMs: number; visibility: string; eventSeqCounter: bigint; bftF: number; }
+```
+
+## InsertVersion
+
+```typescript
+{ id: string; createdAt: number; contentHash: string; documentId: string; versionNumber: number; compressedData?: Buffer<ArrayBufferLike> | null | undefined; tokenCount?: number | null | undefined; storageType?: string | undefined; storageKey?: string | null | undefined; createdBy?: string | null | undefined; changelog?: string | null | undefined; patchText?: string | null | undefined; baseVersion?: number | null | undefined; }
+```
+
+## SelectVersion
+
+```typescript
+{ id: string; createdAt: number; contentHash: string; compressedData: Buffer<ArrayBufferLike> | null; tokenCount: number | null; storageType: string; storageKey: string | null; documentId: string; versionNumber: number; createdBy: string | null; changelog: string | null; patchText: string | null; baseVersion: number | null; }
+```
+
+## InsertStateTransition
+
+```typescript
+{ id: string; documentId: string; fromState: string; toState: string; changedBy: string; changedAt: number; atVersion: number; reason?: string | null | undefined; }
+```
+
+## SelectStateTransition
+
+```typescript
+{ id: string; documentId: string; fromState: string; toState: string; changedBy: string; changedAt: number; reason: string | null; atVersion: number; }
+```
+
+## InsertApproval
+
+```typescript
+{ timestamp: number; id: string; documentId: string; atVersion: number; reviewerId: string; status: string; reason?: string | null | undefined; bftF?: number | undefined; sigHex?: string | null | undefined; canonicalPayload?: string | null | undefined; chainHash?: string | null | undefined; prevChainHash?: string | null | undefined; }
+```
+
+## SelectApproval
+
+```typescript
+{ timestamp: number; id: string; documentId: string; reason: string | null; atVersion: number; reviewerId: string; status: string; bftF: number; sigHex: string | null; canonicalPayload: string | null; chainHash: string | null; prevChainHash: string | null; }
+```
+
+## InsertContributor
+
+```typescript
+{ id: string; agentId: string; documentId: string; firstContribution: number; lastContribution: number; versionsAuthored?: number | undefined; totalTokensAdded?: number | undefined; totalTokensRemoved?: number | undefined; netTokens?: number | undefined; sectionsModified?: string | undefined; displayName?: string | null | undefined; }
+```
+
+## SelectContributor
+
+```typescript
+{ id: string; agentId: string; documentId: string; versionsAuthored: number; totalTokensAdded: number; totalTokensRemoved: number; netTokens: number; firstContribution: number; lastContribution: number; sectionsModified: string; displayName: string | null; }
+```
+
+## InsertSignedUrlToken
+
+```typescript
+{ id: string; createdAt: number; agentId: string; expiresAt: number; slug: string; documentId: string; conversationId: string; signature: string; accessCount?: number | undefined; lastAccessedAt?: number | null | undefined; orgId?: string | null | undefined; signatureLength?: number | undefined; revoked?: boolean | undefined; }
+```
+
+## SelectSignedUrlToken
+
+```typescript
+{ id: string; createdAt: number; agentId: string; expiresAt: number; slug: string; accessCount: number; lastAccessedAt: number | null; documentId: string; conversationId: string; orgId: string | null; signature: string; signatureLength: number; revoked: boolean; }
+```
+
+## InsertVersionAttribution
+
+```typescript
+{ id: string; createdAt: number; documentId: string; versionNumber: number; authorId: string; changelog?: string | undefined; sectionsModified?: string | undefined; addedLines?: number | undefined; removedLines?: number | undefined; addedTokens?: number | undefined; removedTokens?: number | undefined; }
+```
+
+## SelectVersionAttribution
+
+```typescript
+{ id: string; createdAt: number; documentId: string; versionNumber: number; changelog: string; sectionsModified: string; authorId: string; addedLines: number; removedLines: number; addedTokens: number; removedTokens: number; }
+```
+
+## InsertApiKey
+
+```typescript
+{ id: string; name: string; createdAt: number; updatedAt: number; userId: string; keyHash: string; keyPrefix: string; expiresAt?: number | null | undefined; revoked?: boolean | undefined; scopes?: string | undefined; lastUsedAt?: number | null | undefined; }
+```
+
+## SelectApiKey
+
+```typescript
+{ id: string; name: string; createdAt: number; updatedAt: number; expiresAt: number | null; userId: string; revoked: boolean; keyHash: string; keyPrefix: string; scopes: string; lastUsedAt: number | null; }
+```
+
+## InsertAuditLog
+
+```typescript
+{ timestamp: number; id: string; action: string; resourceType: string; agentId?: string | null | undefined; userId?: string | null | undefined; ipAddress?: string | null | undefined; userAgent?: string | null | undefined; resourceId?: string | null | undefined; details?: string | null | undefined; requestId?: string | null | undefined; method?: string | null | undefined; path?: string | null | undefined; statusCode?: number | null | undefined; }
+```
+
+## SelectAuditLog
+
+```typescript
+{ timestamp: number; id: string; agentId: string | null; userId: string | null; ipAddress: string | null; userAgent: string | null; action: string; resourceType: string; resourceId: string | null; details: string | null; requestId: string | null; method: string | null; path: string | null; statusCode: number | null; }
+```
+
+## InsertDocumentRole
+
+```typescript
+{ id: string; userId: string; documentId: string; role: string; grantedBy: string; grantedAt: number; }
+```
+
+## SelectDocumentRole
+
+```typescript
+{ id: string; userId: string; documentId: string; role: string; grantedBy: string; grantedAt: number; }
+```
+
+## InsertOrganization
+
+```typescript
+{ id: string; name: string; createdAt: number; updatedAt: number; slug: string; createdBy: string; }
+```
+
+## SelectOrganization
+
+```typescript
+{ id: string; name: string; createdAt: number; updatedAt: number; slug: string; createdBy: string; }
+```
+
+## InsertOrgMember
+
+```typescript
+{ id: string; userId: string; orgId: string; role: string; joinedAt: number; }
+```
+
+## SelectOrgMember
+
+```typescript
+{ id: string; userId: string; orgId: string; role: string; joinedAt: number; }
+```
+
+## InsertDocumentOrg
+
+```typescript
+{ id: string; documentId: string; orgId: string; addedAt: number; }
+```
+
+## SelectDocumentOrg
+
+```typescript
+{ id: string; documentId: string; orgId: string; addedAt: number; }
+```
+
+## InsertPendingInvite
+
+```typescript
+{ id: string; email: string; createdAt: number; documentId: string; role: string; invitedBy: string; expiresAt?: number | null | undefined; }
+```
+
+## SelectPendingInvite
+
+```typescript
+{ id: string; email: string; createdAt: number; expiresAt: number | null; documentId: string; role: string; invitedBy: string; }
+```
+
+## InsertWebhook
+
+```typescript
+{ id: string; createdAt: number; userId: string; url: string; secret: string; events?: string | undefined; documentSlug?: string | null | undefined; active?: boolean | undefined; failureCount?: number | undefined; lastDeliveryAt?: number | null | undefined; lastSuccessAt?: number | null | undefined; }
+```
+
+## SelectWebhook
+
+```typescript
+{ id: string; createdAt: number; userId: string; url: string; secret: string; events: string; documentSlug: string | null; active: boolean; failureCount: number; lastDeliveryAt: number | null; lastSuccessAt: number | null; }
+```
+
+## InsertDocumentLink
+
+```typescript
+{ id: string; createdAt: number; sourceDocId: string; targetDocId: string; linkType: string; createdBy?: string | null | undefined; label?: string | null | undefined; }
+```
+
+## SelectDocumentLink
+
+```typescript
+{ id: string; createdAt: number; createdBy: string | null; sourceDocId: string; targetDocId: string; linkType: string; label: string | null; }
+```
+
+## InsertCollection
+
+```typescript
+{ id: string; name: string; createdAt: number; updatedAt: number; slug: string; ownerId: string; visibility?: string | undefined; description?: string | null | undefined; }
+```
+
+## SelectCollection
+
+```typescript
+{ id: string; name: string; createdAt: number; updatedAt: number; slug: string; ownerId: string; visibility: string; description: string | null; }
+```
+
+## InsertCollectionDocument
+
+```typescript
+{ id: string; documentId: string; addedAt: number; collectionId: string; position?: number | undefined; addedBy?: string | null | undefined; }
+```
+
+## SelectCollectionDocument
+
+```typescript
+{ id: string; documentId: string; addedAt: number; collectionId: string; position: number; addedBy: string | null; }
+```
+
+## InsertSectionCrdtState
+
+```typescript
+{ documentId: string; sectionId: string; yrsState: Buffer<ArrayBufferLike>; updatedAt?: Date | undefined; clock?: number | undefined; }
+```
+
+## SelectSectionCrdtState
+
+```typescript
+{ updatedAt: Date; documentId: string; sectionId: string; clock: number; yrsState: Buffer<ArrayBufferLike>; }
+```
+
+## InsertSectionCrdtUpdate
+
+```typescript
+{ documentId: string; sectionId: string; updateBlob: Buffer<ArrayBufferLike>; clientId: string; seq: bigint; id?: string | undefined; createdAt?: Date | undefined; }
+```
+
+## SelectSectionCrdtUpdate
+
+```typescript
+{ id: string; createdAt: Date; documentId: string; sectionId: string; updateBlob: Buffer<ArrayBufferLike>; clientId: string; seq: bigint; }
+```
+
+## InsertDocumentEvent
+
+```typescript
+{ documentId: string; seq: bigint; eventType: string; actorId: string; id?: string | undefined; createdAt?: Date | undefined; payloadJson?: any; idempotencyKey?: string | null | undefined; prevHash?: Buffer<ArrayBufferLike> | null | undefined; }
+```
+
+## SelectDocumentEvent
+
+```typescript
+{ id: string; createdAt: Date; documentId: string; seq: bigint; eventType: string; actorId: string; idempotencyKey: string | null; prevHash: Buffer<ArrayBufferLike> | null; payloadJson?: any; }
+```
+
+## InsertAgentPubkey
+
+```typescript
+{ agentId: string; pubkey: Buffer<ArrayBufferLike>; id?: string | undefined; createdAt?: Date | undefined; revokedAt?: Date | null | undefined; }
+```
+
+## SelectAgentPubkey
+
+```typescript
+{ id: string; createdAt: Date; agentId: string; pubkey: Buffer<ArrayBufferLike>; revokedAt: Date | null; }
+```
+
+## InsertAgentSignatureNonce
+
+```typescript
+{ agentId: string; nonce: string; firstSeen?: Date | undefined; }
+```
+
+## SelectAgentSignatureNonce
+
+```typescript
+{ agentId: string; nonce: string; firstSeen: Date; }
+```
+
+## DocumentEventLogType
+
+```typescript
+"document.created" | "version.published" | "lifecycle.transitioned" | "approval.submitted" | "approval.rejected" | "section.edited" | "event.compacted" | "bft.approval_submitted" | "bft.byzantine_slash" | "bft.quorum_reached"
+```
+
+## AppendDocumentEventInput
+
+| Property         | Type                                                                                                                                                                                                                                         | Required | Description                                                       |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------------------------------------------- |
+| `documentId`     | `string`                                                                                                                                                                                                                                     | Yes      | FK → documents.slug (the public-facing identifier).               |
+| `eventType`      | `"document.created" \| "version.published" \| "lifecycle.transitioned" \| "approval.submitted" \| "approval.rejected" \| "section.edited" \| "event.compacted" \| "bft.approval_submitted" \| "bft.byzantine_slash" \| "bft.quorum_reached"` | Yes      | eventType                                                         |
+| `actorId`        | `string`                                                                                                                                                                                                                                     | Yes      | Actor/user/agent that triggered this event.                       |
+| `payloadJson`    | `Record<string, unknown>`                                                                                                                                                                                                                    | Yes      | Event-specific payload. Must be JSON-serialisable.                |
+| `idempotencyKey` | `string \| null \| undefined`                                                                                                                                                                                                                | No       | Optional idempotency key from the Idempotency-Key request header. |
+
+## AppendDocumentEventRow
+
+| Property         | Type                              | Required | Description    |
+| ---------------- | --------------------------------- | -------- | -------------- |
+| `id`             | `string`                          | Yes      | id             |
+| `documentId`     | `string`                          | Yes      | documentId     |
+| `seq`            | `bigint`                          | Yes      | seq            |
+| `eventType`      | `string`                          | Yes      | eventType      |
+| `actorId`        | `string`                          | Yes      | actorId        |
+| `payloadJson`    | `unknown`                         | Yes      | payloadJson    |
+| `idempotencyKey` | `string \| null`                  | Yes      | idempotencyKey |
+| `createdAt`      | `Date`                            | Yes      | createdAt      |
+| `prevHash`       | `Buffer<ArrayBufferLike> \| null` | Yes      | prevHash       |
+
+## AppendDocumentEventResult
+
+| Property     | Type                     | Required | Description                                                                |
+| ------------ | ------------------------ | -------- | -------------------------------------------------------------------------- |
+| `event`      | `AppendDocumentEventRow` | Yes      | The inserted (or pre-existing) event row.                                  |
+| `duplicated` | `boolean`                | Yes      | true when the idempotency key matched an existing row; no insert occurred. |
+
+## ChainValidationResult
+
+| Property         | Type                  | Required | Description    |
+| ---------------- | --------------------- | -------- | -------------- |
+| `valid`          | `boolean`             | Yes      | valid          |
+| `checkedRows`    | `number`              | Yes      | checkedRows    |
+| `firstBrokenSeq` | `bigint \| undefined` | No       | firstBrokenSeq |
+| `error`          | `string \| undefined` | No       | error          |
+
+## DocumentEventRow
+
+| Property         | Type             | Required | Description    |
+| ---------------- | ---------------- | -------- | -------------- |
+| `id`             | `string`         | Yes      | id             |
+| `documentId`     | `string`         | Yes      | documentId     |
+| `seq`            | `bigint`         | Yes      | seq            |
+| `eventType`      | `string`         | Yes      | eventType      |
+| `actorId`        | `string`         | Yes      | actorId        |
+| `payloadJson`    | `unknown`        | Yes      | payloadJson    |
+| `idempotencyKey` | `string \| null` | Yes      | idempotencyKey |
+| `createdAt`      | `Date`           | Yes      | createdAt      |
+
+## SectionDelta
+
+| Property   | Type                                   | Required | Description |
+| ---------- | -------------------------------------- | -------- | ----------- |
+| `added`    | `string[]`                             | Yes      | added       |
+| `modified` | `{ name: string; content: string; }[]` | Yes      | modified    |
+| `deleted`  | `string[]`                             | Yes      | deleted     |
+| `fromSeq`  | `number`                               | Yes      | fromSeq     |
+| `toSeq`    | `number`                               | Yes      | toSeq       |
+
+## EmbeddingProvider
+
+| Property     | Type                                       | Required | Description                                                       |
+| ------------ | ------------------------------------------ | -------- | ----------------------------------------------------------------- |
+| `embed`      | `(texts: string[]) => Promise<number[][]>` | Yes      | Batch-embed an array of texts. Returns one vector per input text. |
+| `dimensions` | `number`                                   | Yes      | Dimensionality of produced vectors.                               |
+| `model`      | `string`                                   | Yes      | Model name for logging/observability.                             |
+
+## PresenceEntry
+
+| Property       | Type                  | Required | Description  |
+| -------------- | --------------------- | -------- | ------------ |
+| `section`      | `string`              | Yes      | section      |
+| `cursorOffset` | `number \| undefined` | No       | cursorOffset |
+| `lastSeen`     | `number`              | Yes      | lastSeen     |
+
+## PresenceRecord
+
+| Property       | Type                  | Required | Description  |
+| -------------- | --------------------- | -------- | ------------ |
+| `agentId`      | `string`              | Yes      | agentId      |
+| `section`      | `string`              | Yes      | section      |
+| `cursorOffset` | `number \| undefined` | No       | cursorOffset |
+| `lastSeen`     | `number`              | Yes      | lastSeen     |
+
+## PersistResult
+
+| Property   | Type                      | Required | Description |
+| ---------- | ------------------------- | -------- | ----------- |
+| `seq`      | `bigint`                  | Yes      | seq         |
+| `newState` | `Buffer<ArrayBufferLike>` | Yes      | newState    |
+
+## Lease
+
+| Property        | Type             | Required | Description   |
+| --------------- | ---------------- | -------- | ------------- |
+| `id`            | `string`         | Yes      | id            |
+| `docId`         | `string`         | Yes      | docId         |
+| `sectionId`     | `string`         | Yes      | sectionId     |
+| `holderAgentId` | `string`         | Yes      | holderAgentId |
+| `acquiredAt`    | `Date`           | Yes      | acquiredAt    |
+| `expiresAt`     | `Date`           | Yes      | expiresAt     |
+| `reason`        | `string \| null` | Yes      | reason        |
+
+## ScratchpadMessage
+
+| Property      | Type                  | Required | Description                                                 |
+| ------------- | --------------------- | -------- | ----------------------------------------------------------- |
+| `id`          | `string`              | Yes      | Server-assigned stream message ID (e.g. "1700000000000-0"). |
+| `agentId`     | `string`              | Yes      | Agent identifier of the sender.                             |
+| `content`     | `string`              | Yes      | Message content body.                                       |
+| `contentType` | `string`              | Yes      | MIME content type (default: "text/plain").                  |
+| `threadId`    | `string \| undefined` | No       | Optional thread identifier for reply chains.                |
+| `sigHex`      | `string \| undefined` | No       | Optional Ed25519 signature over canonical message bytes.    |
+| `timestampMs` | `number`              | Yes      | Unix ms timestamp of the message.                           |
+
+## PublishOptions
+
+| Property      | Type                  | Required | Description |
+| ------------- | --------------------- | -------- | ----------- |
+| `agentId`     | `string`              | Yes      | agentId     |
+| `content`     | `string`              | Yes      | content     |
+| `contentType` | `string \| undefined` | No       | contentType |
+| `threadId`    | `string \| undefined` | No       | threadId    |
+| `sigHex`      | `string \| undefined` | No       | sigHex      |
+
+## ReadOptions
+
+| Property   | Type                  | Required | Description                                        |
+| ---------- | --------------------- | -------- | -------------------------------------------------- |
+| `threadId` | `string \| undefined` | No       | Only return messages in this thread.               |
+| `lastId`   | `string \| undefined` | No       | Return messages after this stream ID (exclusive).  |
+| `limit`    | `number \| undefined` | No       | Maximum number of messages to return. Default 100. |
+
+## TestDbContext
+
+| Property   | Type                       | Required | Description                                                             |
+| ---------- | -------------------------- | -------- | ----------------------------------------------------------------------- |
+| `db`       | `any`                      | Yes      | db                                                                      |
+| `sqlite`   | `any`                      | Yes      | sqlite                                                                  |
+| `provider` | `"sqlite" \| "postgresql"` | Yes      | Provider in use for this context.                                       |
+| `cleanup`  | `() => Promise<void>`      | Yes      | Cleanup — drops the test schema (PG) or closes the connection (SQLite). |

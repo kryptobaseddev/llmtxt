@@ -6,139 +6,626 @@ API reference for the `.` package.
 
 ## Functions & Classes
 
-| Symbol                                                                                   | Kind     | Description                                                                       |
-| ---------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------- |
-| [`getDocumentCacheKey()`](/packages/./api/functions#getdocumentcachekey)                 | function | Generate cache key for a document                                                 |
-| [`shouldSkipCache()`](/packages/./api/functions#shouldskipcache)                         | function | Check if cache should be skipped based on query params                            |
-| [`cacheDocumentContent()`](/packages/./api/functions#cachedocumentcontent)               | function | Middleware to cache document content Usage: app.get('/documents/:slug', cache...  |
-| [`cacheDocumentMetadata()`](/packages/./api/functions#cachedocumentmetadata)             | function | Middleware to cache document metadata                                             |
-| [`setCachedContent()`](/packages/./api/functions#setcachedcontent)                       | function | Store document content in cache                                                   |
-| [`setCachedMetadata()`](/packages/./api/functions#setcachedmetadata)                     | function | Store document metadata in cache                                                  |
-| [`invalidateDocumentCache()`](/packages/./api/functions#invalidatedocumentcache)         | function | Invalidate cache for a document                                                   |
-| [`invalidateAllCache()`](/packages/./api/functions#invalidateallcache)                   | function | Invalidate all cache                                                              |
-| [`getCacheStats()`](/packages/./api/functions#getcachestats)                             | function | Get cache stats for both caches                                                   |
-| [`apiRoutes()`](/packages/./api/functions#apiroutes)                                     | function | Register core document API routes: compress, decompress, validate, search, sc...  |
-| [`disclosureRoutes()`](/packages/./api/functions#disclosureroutes)                       | function | Register progressive disclosure routes: overview, sections, toc, search, line...  |
-| [`versionRoutes()`](/packages/./api/functions#versionroutes)                             | function | Register version management routes: document update, version listing, version...  |
-| [`authRoutes()`](/packages/./api/functions#authroutes)                                   | function | Register authentication routes by proxying all /auth/\* requests to the better... |
-| [`requireAuth()`](/packages/./api/functions#requireauth)                                 | function | Authenticate the request via session cookie. Populates request.user and reque...  |
-| [`requireRegistered()`](/packages/./api/functions#requireregistered)                     | function | Require an authenticated, non-anonymous user. Calls requireAuth first, then r...  |
-| [`requireOwner()`](/packages/./api/functions#requireowner)                               | function | Require the authenticated user to be the document owner. Checks slug from rou...  |
-| [`requireOwnerAllowAnon()`](/packages/./api/functions#requireownerallowanon)             | function | Require the authenticated user (anonymous OK) to be the document owner. Reads...  |
-| [`requireOwnerAllowAnonParams()`](/packages/./api/functions#requireownerallowanonparams) | function | Require the authenticated user (anonymous OK) to be the document owner. Reads...  |
-| [`lifecycleRoutes()`](/packages/./api/functions#lifecycleroutes)                         | function | Register lifecycle and consensus routes: state transitions, approve/reject vo...  |
-| [`patchRoutes()`](/packages/./api/functions#patchroutes)                                 | function | Register patch route: POST /documents/:slug/patch to apply a unified diff and...  |
-| [`similarityRoutes()`](/packages/./api/functions#similarityroutes)                       | function | Register similarity route: GET /documents/:slug/similar?q=query\&method=ngram&... |
-| [`graphRoutes()`](/packages/./api/functions#graphroutes)                                 | function | Register knowledge graph route: GET /documents/:slug/graph to extract mention...  |
-| [`retrievalRoutes()`](/packages/./api/functions#retrievalroutes)                         | function | Register retrieval planning route: POST /documents/:slug/plan-retrieval for t...  |
-| [`signedUrlRoutes()`](/packages/./api/functions#signedurlroutes)                         | function | Register signed URL route: POST /signed-urls to generate time-limited HMAC-si...  |
-| [`mergeRoutes()`](/packages/./api/functions#mergeroutes)                                 | function | Register the cherry-pick merge route.                                             |
-| [`getDocumentWithContent()`](/packages/./api/functions#getdocumentwithcontent)           | function | Fetch a document by slug, resolving content from cache or database with decom...  |
-| [`handleContentNegotiation()`](/packages/./api/functions#handlecontentnegotiation)       | function | Handle content negotiation for slug requests. Returns true if the request was...  |
-| [`extractSlugWithExtension()`](/packages/./api/functions#extractslugwithextension)       | function | Check if a URL path looks like a document slug with an explicit extension. Su...  |
-| [`extractSlug()`](/packages/./api/functions#extractslug)                                 | function | Check if a URL path looks like a document slug. Slugs are short alphanumeric...   |
-| [`renderViewHtml()`](/packages/./api/functions#renderviewhtml)                           | function | Render the server-side HTML view template for a document page, including meta...  |
+| Symbol                                                                                     | Kind     | Description                                                                          |
+| ------------------------------------------------------------------------------------------ | -------- | ------------------------------------------------------------------------------------ |
+| [`countTokens()`](/packages/./api/functions#counttokens)                                   | function | Count tokens using the cl100k\_base BPE tokenizer (GPT-3.5/GPT-4 compatible)....     |
+| [`getDocumentCacheKey()`](/packages/./api/functions#getdocumentcachekey)                   | function | Generate cache key for a document                                                    |
+| [`shouldSkipCache()`](/packages/./api/functions#shouldskipcache)                           | function | Check if cache should be skipped based on query params                               |
+| [`cacheDocumentContent()`](/packages/./api/functions#cachedocumentcontent)                 | function | Middleware to cache document content Usage: app.get('/documents/:slug', cache...     |
+| [`cacheDocumentMetadata()`](/packages/./api/functions#cachedocumentmetadata)               | function | Middleware to cache document metadata                                                |
+| [`setCachedContent()`](/packages/./api/functions#setcachedcontent)                         | function | Store document content in cache                                                      |
+| [`setCachedMetadata()`](/packages/./api/functions#setcachedmetadata)                       | function | Store document metadata in cache                                                     |
+| [`invalidateDocumentCache()`](/packages/./api/functions#invalidatedocumentcache)           | function | Invalidate cache for a document                                                      |
+| [`invalidateAllCache()`](/packages/./api/functions#invalidateallcache)                     | function | Invalidate all cache                                                                 |
+| [`getCacheStats()`](/packages/./api/functions#getcachestats)                               | function | Get cache stats for both caches                                                      |
+| [`keyGenerator()`](/packages/./api/functions#keygenerator)                                 | function | Generate a stable rate-limit key for the request.  Uses the most specific ide...     |
+| [`getTierMax()`](/packages/./api/functions#gettiermax)                                     | function | Return the rate limit max for the given category based on the request's auth...      |
+| [`registerRateLimiting()`](/packages/./api/functions#registerratelimiting)                 | function | Register the global rate limiter on the Fastify instance.  Must be called AFT...     |
+| [`adaptiveThrottle()`](/packages/./api/functions#adaptivethrottle)                         | function | Adaptive throttle hook: adds artificial delay when a client approaches their...      |
+| [`enforceContentSize()`](/packages/./api/functions#enforcecontentsize)                     | function | Enforce the maximum document content size.  Reads `content` from the request...      |
+| [`enforcePatchSize()`](/packages/./api/functions#enforcepatchsize)                         | function | Enforce the maximum patch content size.  Reads `patchText` from the request b...     |
+| [`enforceDocumentLimit()`](/packages/./api/functions#enforcedocumentlimit)                 | function | Enforce the maximum number of documents per authenticated user.  Counts docum...     |
+| [`getDocumentPermissions()`](/packages/./api/functions#getdocumentpermissions)             | function | Resolve the set of permissions a user holds for a document identified by slug...     |
+| [`hasPermission()`](/packages/./api/functions#haspermission)                               | function | Check whether a user holds a specific permission on a document. Returns false...     |
+| [`requirePermission()`](/packages/./api/functions#requirepermission)                       | function | Create a Fastify preHandler that enforces a minimum permission level.  Usage:...     |
+| [`ensureDefaultMetrics()`](/packages/./api/functions#ensuredefaultmetrics)                 | function |                                                                                      |
+| [`registerMetrics()`](/packages/./api/functions#registermetrics)                           | function | Register per-request HTTP metrics hooks on the Fastify instance.  Attaches an...     |
+| [`appendDocumentEvent()`](/packages/./api/functions#appenddocumentevent)                   | function | Append a document event inside an open Drizzle transaction.                          |
+| [`validateHashChain()`](/packages/./api/functions#validatehashchain)                       | function | Validate the hash chain for the last `limit` rows of a document's event log....      |
+| [`apiRoutes()`](/packages/./api/functions#apiroutes)                                       | function | Register core document API routes: compress, decompress, validate, search, sc...     |
+| [`getEventsSince()`](/packages/./api/functions#geteventssince)                             | function | Fetch document events with seq  fromSeq, ordered ascending.                          |
+| [`computeSectionDelta()`](/packages/./api/functions#computesectiondelta)                   | function | Compute a SectionDelta for a specific section between fromSeq and now.  Retur...     |
+| [`disclosureRoutes()`](/packages/./api/functions#disclosureroutes)                         | function | Register progressive disclosure routes: overview, sections, toc, search, line...     |
+| [`versionRoutes()`](/packages/./api/functions#versionroutes)                               | function | Register version management routes: document update, version listing, version...     |
+| [`authRoutes()`](/packages/./api/functions#authroutes)                                     | function | Register authentication routes by proxying all /auth/\* requests to the better...    |
+| [`generateApiKey()`](/packages/./api/functions#generateapikey)                             | function | Generate a new API key.                                                              |
+| [`hashApiKey()`](/packages/./api/functions#hashapikey)                                     | function | Hash a raw API key using SHA-256.  Delegates to crates/llmtxt-core::hash\_cont...    |
+| [`isApiKeyFormat()`](/packages/./api/functions#isapikeyformat)                             | function | Check whether a raw key string looks like an LLMtxt API key. Used to quickly...      |
+| [`requireAuth()`](/packages/./api/functions#requireauth)                                   | function | Authenticate the request via Bearer API key first, then session cookie. Popul...     |
+| [`requireRegistered()`](/packages/./api/functions#requireregistered)                       | function | Require an authenticated, non-anonymous user. Calls requireAuth first, then r...     |
+| [`requireOwner()`](/packages/./api/functions#requireowner)                                 | function | Require the authenticated user to be the document owner. Checks slug from rou...     |
+| [`requireOwnerAllowAnon()`](/packages/./api/functions#requireownerallowanon)               | function | Require the authenticated user (anonymous OK) to be the document owner. Reads...     |
+| [`requireOwnerAllowAnonParams()`](/packages/./api/functions#requireownerallowanonparams)   | function | Require the authenticated user (anonymous OK) to be the document owner. Reads...     |
+| [`lifecycleRoutes()`](/packages/./api/functions#lifecycleroutes)                           | function | Register lifecycle and consensus routes: state transitions, approve/reject vo...     |
+| [`patchRoutes()`](/packages/./api/functions#patchroutes)                                   | function | Register patch route: POST /documents/:slug/patch to apply a unified diff and...     |
+| [`similarityRoutes()`](/packages/./api/functions#similarityroutes)                         | function | Register similarity route: GET /documents/:slug/similar?q=query\&method=ngram&...    |
+| [`graphRoutes()`](/packages/./api/functions#graphroutes)                                   | function | Register knowledge graph route: GET /documents/:slug/graph to extract mention...     |
+| [`retrievalRoutes()`](/packages/./api/functions#retrievalroutes)                           | function | Register retrieval planning route: POST /documents/:slug/plan-retrieval for t...     |
+| [`signedUrlRoutes()`](/packages/./api/functions#signedurlroutes)                           | function | Register signed URL route: POST /signed-urls to generate time-limited HMAC-si...     |
+| [`mergeRoutes()`](/packages/./api/functions#mergeroutes)                                   | function | Register the cherry-pick merge route.                                                |
+| [`apiKeyRoutes()`](/packages/./api/functions#apikeyroutes)                                 | function | Register API key management routes.                                                  |
+| [`conflictRoutes()`](/packages/./api/functions#conflictroutes)                             | function | Register conflict resolution routes.                                                 |
+| [`OpenAIEmbeddingProvider`](/packages/./api/functions#openaiembeddingprovider)             | class    | OpenAI `text-embedding-3-small` provider.  Handles: - Batching (≤ 2 048 input...     |
+| [`LocalEmbeddingProvider`](/packages/./api/functions#localembeddingprovider)               | class    | Lightweight TF-IDF vectorizer for offline / dev use.  Delegates to...                |
+| [`createEmbeddingProvider()`](/packages/./api/functions#createembeddingprovider)           | function | Select the best available embedding provider.  - If `OPENAI_API_KEY` is set →...     |
+| [`semanticRoutes()`](/packages/./api/functions#semanticroutes)                             | function | Register semantic diff and consensus routes.                                         |
+| [`accessControlRoutes()`](/packages/./api/functions#accesscontrolroutes)                   | function |                                                                                      |
+| [`organizationRoutes()`](/packages/./api/functions#organizationroutes)                     | function |                                                                                      |
+| [`wsRoutes()`](/packages/./api/functions#wsroutes)                                         | function | Register WebSocket subscription routes. The fastify instance must have fastif...     |
+| [`PresenceRegistry`](/packages/./api/functions#presenceregistry)                           | class    |                                                                                      |
+| [`persistCrdtUpdate()`](/packages/./api/functions#persistcrdtupdate)                       | function | Persist a CRDT update to section\_crdt\_updates and update section\_crdt\_states.... |
+| [`loadSectionState()`](/packages/./api/functions#loadsectionstate)                         | function | Load the consolidated CRDT state for a (documentId, sectionId) pair. Returns...      |
+| [`loadPendingUpdates()`](/packages/./api/functions#loadpendingupdates)                     | function | Load all pending CRDT update blobs for a (documentId, sectionId) pair, ordere...     |
+| [`initCrdtPubSub()`](/packages/./api/functions#initcrdtpubsub)                             | function | Initialize the CRDT pub/sub adapter.  Must be called once at server startup (...     |
+| [`publishCrdtUpdate()`](/packages/./api/functions#publishcrdtupdate)                       | function | Publish a CRDT update to all subscribers (both local and cross-instance).            |
+| [`subscribeCrdtUpdates()`](/packages/./api/functions#subscribecrdtupdates)                 | function | Subscribe to CRDT updates for a (documentId, sectionId) pair.  Returns an uns...     |
+| [`compactSection()`](/packages/./api/functions#compactsection)                             | function | Compact a single (documentId, sectionId) pair.  Steps:  1. BEGIN TRANSACTION...      |
+| [`broadcastAwareness()`](/packages/./api/functions#broadcastawareness)                     | function | Broadcast awareness update bytes to all other connections in the same room. D...     |
+| [`handleAwarenessMessage()`](/packages/./api/functions#handleawarenessmessage)             | function | Handle an awareness message from a client. Relay raw bytes to peers and upser...     |
+| [`hasSectionSessions()`](/packages/./api/functions#hassectionsessions)                     | function | Check whether any WS session is active for a given section. Used by the compa...     |
+| [`wsCrdtRoutes()`](/packages/./api/functions#wscrdtroutes)                                 | function |                                                                                      |
+| [`startCrdtCompactionJob()`](/packages/./api/functions#startcrdtcompactionjob)             | function | Start the CRDT compaction background job.  Runs immediately on startup (to ha...     |
+| [`sseRoutes()`](/packages/./api/functions#sseroutes)                                       | function | Register SSE streaming routes under the provided prefix (e.g. /api).                 |
+| [`webhookRoutes()`](/packages/./api/functions#webhookroutes)                               | function | Register webhook CRUD routes. All routes require authentication.                     |
+| [`startWebhookWorker()`](/packages/./api/functions#startwebhookworker)                     | function | Start the webhook delivery worker.  Call once at server startup. The worker a...     |
+| [`startEventLogJobs()`](/packages/./api/functions#starteventlogjobs)                       | function | Start both background jobs. Call once at server startup (after DB is ready)....      |
+| [`stopEventLogJobs()`](/packages/./api/functions#stopeventlogjobs)                         | function | Stop both background jobs. Useful in tests or graceful shutdown.                     |
+| [`crossDocRoutes()`](/packages/./api/functions#crossdocroutes)                             | function | Register cross-document routes: enhanced search, document links, and multi-do...     |
+| [`collectionRoutes()`](/packages/./api/functions#collectionroutes)                         | function | Register collection management routes.                                               |
+| [`getDocumentWithContent()`](/packages/./api/functions#getdocumentwithcontent)             | function | Fetch a document by slug, resolving content from cache or database with decom...     |
+| [`handleContentNegotiation()`](/packages/./api/functions#handlecontentnegotiation)         | function | Handle content negotiation for slug requests. Returns true if the request was...     |
+| [`extractSlugWithExtension()`](/packages/./api/functions#extractslugwithextension)         | function | Check if a URL path looks like a document slug with an explicit extension. Su...     |
+| [`extractSlug()`](/packages/./api/functions#extractslug)                                   | function | Check if a URL path looks like a document slug. Slugs are short alphanumeric...      |
+| [`registerAuditLogging()`](/packages/./api/functions#registerauditlogging)                 | function | Register an onResponse hook that writes audit log entries for all successful...      |
+| [`auditLogRoutes()`](/packages/./api/functions#auditlogroutes)                             | function | Register the GET /api/audit-logs route. Requires authentication. Returns pagi...     |
+| [`documentEventRoutes()`](/packages/./api/functions#documenteventroutes)                   | function | Register document event log routes under the given Fastify scope.                    |
+| [`agentKeyRoutes()`](/packages/./api/functions#agentkeyroutes)                             | function | Register agent key management routes under /agents/keys.                             |
+| [`crdtRoutes()`](/packages/./api/functions#crdtroutes)                                     | function |                                                                                      |
+| [`presenceRoutes()`](/packages/./api/functions#presenceroutes)                             | function |                                                                                      |
+| [`acquireLease()`](/packages/./api/functions#acquirelease)                                 | function | Acquire an advisory lease on a section.  Returns the inserted Lease row, or n...     |
+| [`renewLease()`](/packages/./api/functions#renewlease)                                     | function | Renew a lease by extending its expiresAt.  Returns the updated Lease, or null...     |
+| [`releaseLease()`](/packages/./api/functions#releaselease)                                 | function | Release a lease. No-op if the lease is already expired or does not exist. Ret...     |
+| [`getActiveLease()`](/packages/./api/functions#getactivelease)                             | function | Get the active (non-expired) lease for a (docId, sectionId) pair. Returns nul...     |
+| [`leaseRoutes()`](/packages/./api/functions#leaseroutes)                                   | function |                                                                                      |
+| [`matchPath()`](/packages/./api/functions#matchpath)                                       | function | Test whether a path matches a pattern.                                               |
+| [`extractParams()`](/packages/./api/functions#extractparams)                               | function | Extract named parameters from a path according to a pattern.                         |
+| [`subscribeRoutes()`](/packages/./api/functions#subscriberoutes)                           | function |                                                                                      |
+| [`bftRoutes()`](/packages/./api/functions#bftroutes)                                       | function | Register BFT consensus routes.                                                       |
+| [`publishScratchpad()`](/packages/./api/functions#publishscratchpad)                       | function | Publish a message to the document scratchpad.  Returns the assigned message ID.      |
+| [`readScratchpad()`](/packages/./api/functions#readscratchpad)                             | function | Read messages from the document scratchpad.  Returns up to `limit` messages a...     |
+| [`subscribeScratchpad()`](/packages/./api/functions#subscribescratchpad)                   | function | Subscribe to new scratchpad messages for SSE fan-out (in-memory fallback).  R...     |
+| [`purgeScratchpad()`](/packages/./api/functions#purgescratchpad)                           | function | Purge expired scratchpad messages (24h TTL cleanup).  For Redis: XTRIM handle...     |
+| [`scratchpadRoutes()`](/packages/./api/functions#scratchpadroutes)                         | function |                                                                                      |
+| [`a2aRoutes()`](/packages/./api/functions#a2aroutes)                                       | function |                                                                                      |
+| [`purgeExpiredInboxMessages()`](/packages/./api/functions#purgeexpiredinboxmessages)       | function | Purge expired agent inbox messages older than 48h. Called by the background j...     |
+| [`resolveRequestVersion()`](/packages/./api/functions#resolverequestversion)               | function | Resolve the version from the request. URL path prefix takes precedence and is...     |
+| [`addVersionResponseHeaders()`](/packages/./api/functions#addversionresponseheaders)       | function | Attach standard API version response headers to every reply.    X-API-Version...     |
+| [`addDeprecationHeaders()`](/packages/./api/functions#adddeprecationheaders)               | function | Attach RFC 8594 deprecation headers when serving a deprecated (or unversioned...     |
+| [`apiVersionPlugin()`](/packages/./api/functions#apiversionplugin)                         | function | Register this plugin globally so that `request.apiVersion` is always populate...     |
+| [`v1Routes()`](/packages/./api/functions#v1routes)                                         | function |                                                                                      |
+| [`healthRoutes()`](/packages/./api/functions#healthroutes)                                 | function |                                                                                      |
+| [`securityHeaders()`](/packages/./api/functions#securityheaders)                           | function | Register an onSend hook that sets comprehensive security headers on every res...     |
+| [`registerCsrf()`](/packages/./api/functions#registercsrf)                                 | function | Register fastify/cookie and fastify/csrf-protection, and add a preHandler hoo...     |
+| [`wellKnownAgentsRoutes()`](/packages/./api/functions#wellknownagentsroutes)               | function | Register the /.well-known/agents/:id discovery route.                                |
+| [`computeReceipt()`](/packages/./api/functions#computereceipt)                             | function | Compute a stateless server receipt HMAC.  receipt = HMAC-SHA256(SERVER\_RECEIP...    |
+| [`buildReceipt()`](/packages/./api/functions#buildreceipt)                                 | function | Build the signature receipt object included in every mutating write response....     |
+| [`startNonceCleanup()`](/packages/./api/functions#startnoncecleanup)                       | function | Start a background interval that purges nonces older than 24 hours. Safe to c...     |
+| [`verifyAgentSignature()`](/packages/./api/functions#verifyagentsignature)                 | function | Fastify `preHandler` hook that verifies Ed25519 agent signatures.  When no si...     |
+| [`agentSignaturePlugin()`](/packages/./api/functions#agentsignatureplugin)                 | function | Register the agent signature plugin as a Fastify plugin.  Adds: - onRequest h...     |
+| [`runLeaseExpiryPass()`](/packages/./api/functions#runleaseexpirypass)                     | function | Run one expiry pass: delete expired rows and emit events.                            |
+| [`startLeaseExpiryJob()`](/packages/./api/functions#startleaseexpiryjob)                   | function | Start the lease expiry job.                                                          |
+| [`stopLeaseExpiryJob()`](/packages/./api/functions#stopleaseexpiryjob)                     | function | Stop a previously started lease expiry job.                                          |
+| [`registerObservabilityHooks()`](/packages/./api/functions#registerobservabilityhooks)     | function |                                                                                      |
+| [`sanitizeHtml()`](/packages/./api/functions#sanitizehtml)                                 | function | Sanitize an HTML string for safe embedding in a server-rendered page.  This f...     |
+| [`renderViewHtml()`](/packages/./api/functions#renderviewhtml)                             | function | Render the server-side HTML view template for a document page, including meta...     |
+| [`setupTestDb()`](/packages/./api/functions#setuptestdb)                                   | function | Set up a test database.  When `DATABASE_URL_PG` is set, a Postgres connection...     |
+| [`teardownTestDb()`](/packages/./api/functions#teardowntestdb)                             | function | Tear down a test database context returned by `setupTestDb()`.  - SQLite: clo...     |
+| [`computeAndStoreEmbeddings()`](/packages/./api/functions#computeandstoreembeddings)       | function | Compute and store embeddings for all sections of a document.  Skips sections...      |
+| [`invalidateDocumentEmbeddings()`](/packages/./api/functions#invalidatedocumentembeddings) | function | Delete all stored embeddings for a document.  Called before regenerating embe...     |
+| [`backfillEmbeddings()`](/packages/./api/functions#backfillembeddings)                     | function | Backfill embeddings for documents that have none.  Fetches the latest version...     |
 
 ## Types & Interfaces
 
-| Symbol                                                                       | Kind | Description |
-| ---------------------------------------------------------------------------- | ---- | ----------- |
-| [`User`](/packages/./api/types#user)                                         | type |             |
-| [`NewUser`](/packages/./api/types#newuser)                                   | type |             |
-| [`Session`](/packages/./api/types#session)                                   | type |             |
-| [`NewSession`](/packages/./api/types#newsession)                             | type |             |
-| [`Document`](/packages/./api/types#document)                                 | type |             |
-| [`NewDocument`](/packages/./api/types#newdocument)                           | type |             |
-| [`Version`](/packages/./api/types#version)                                   | type |             |
-| [`NewVersion`](/packages/./api/types#newversion)                             | type |             |
-| [`StateTransition`](/packages/./api/types#statetransition)                   | type |             |
-| [`NewStateTransition`](/packages/./api/types#newstatetransition)             | type |             |
-| [`Approval`](/packages/./api/types#approval)                                 | type |             |
-| [`NewApproval`](/packages/./api/types#newapproval)                           | type |             |
-| [`Contributor`](/packages/./api/types#contributor)                           | type |             |
-| [`NewContributor`](/packages/./api/types#newcontributor)                     | type |             |
-| [`SignedUrlToken`](/packages/./api/types#signedurltoken)                     | type |             |
-| [`NewSignedUrlToken`](/packages/./api/types#newsignedurltoken)               | type |             |
-| [`VersionAttribution`](/packages/./api/types#versionattribution)             | type |             |
-| [`NewVersionAttribution`](/packages/./api/types#newversionattribution)       | type |             |
-| [`InsertUser`](/packages/./api/types#insertuser)                             | type |             |
-| [`SelectUser`](/packages/./api/types#selectuser)                             | type |             |
-| [`InsertSession`](/packages/./api/types#insertsession)                       | type |             |
-| [`SelectSession`](/packages/./api/types#selectsession)                       | type |             |
-| [`InsertDocument`](/packages/./api/types#insertdocument)                     | type |             |
-| [`SelectDocument`](/packages/./api/types#selectdocument)                     | type |             |
-| [`InsertVersion`](/packages/./api/types#insertversion)                       | type |             |
-| [`SelectVersion`](/packages/./api/types#selectversion)                       | type |             |
-| [`InsertStateTransition`](/packages/./api/types#insertstatetransition)       | type |             |
-| [`SelectStateTransition`](/packages/./api/types#selectstatetransition)       | type |             |
-| [`InsertApproval`](/packages/./api/types#insertapproval)                     | type |             |
-| [`SelectApproval`](/packages/./api/types#selectapproval)                     | type |             |
-| [`InsertContributor`](/packages/./api/types#insertcontributor)               | type |             |
-| [`SelectContributor`](/packages/./api/types#selectcontributor)               | type |             |
-| [`InsertSignedUrlToken`](/packages/./api/types#insertsignedurltoken)         | type |             |
-| [`SelectSignedUrlToken`](/packages/./api/types#selectsignedurltoken)         | type |             |
-| [`InsertVersionAttribution`](/packages/./api/types#insertversionattribution) | type |             |
-| [`SelectVersionAttribution`](/packages/./api/types#selectversionattribution) | type |             |
+| Symbol                                                                         | Kind      | Description |
+| ------------------------------------------------------------------------------ | --------- | ----------- |
+| [`User`](/packages/./api/types#user)                                           | type      |             |
+| [`NewUser`](/packages/./api/types#newuser)                                     | type      |             |
+| [`Session`](/packages/./api/types#session)                                     | type      |             |
+| [`NewSession`](/packages/./api/types#newsession)                               | type      |             |
+| [`Document`](/packages/./api/types#document)                                   | type      |             |
+| [`NewDocument`](/packages/./api/types#newdocument)                             | type      |             |
+| [`Version`](/packages/./api/types#version)                                     | type      |             |
+| [`NewVersion`](/packages/./api/types#newversion)                               | type      |             |
+| [`StateTransition`](/packages/./api/types#statetransition)                     | type      |             |
+| [`NewStateTransition`](/packages/./api/types#newstatetransition)               | type      |             |
+| [`Approval`](/packages/./api/types#approval)                                   | type      |             |
+| [`NewApproval`](/packages/./api/types#newapproval)                             | type      |             |
+| [`Contributor`](/packages/./api/types#contributor)                             | type      |             |
+| [`NewContributor`](/packages/./api/types#newcontributor)                       | type      |             |
+| [`SignedUrlToken`](/packages/./api/types#signedurltoken)                       | type      |             |
+| [`NewSignedUrlToken`](/packages/./api/types#newsignedurltoken)                 | type      |             |
+| [`VersionAttribution`](/packages/./api/types#versionattribution)               | type      |             |
+| [`NewVersionAttribution`](/packages/./api/types#newversionattribution)         | type      |             |
+| [`ApiKey`](/packages/./api/types#apikey)                                       | type      |             |
+| [`NewApiKey`](/packages/./api/types#newapikey)                                 | type      |             |
+| [`AuditLog`](/packages/./api/types#auditlog)                                   | type      |             |
+| [`NewAuditLog`](/packages/./api/types#newauditlog)                             | type      |             |
+| [`DocumentRole`](/packages/./api/types#documentrole)                           | type      |             |
+| [`NewDocumentRole`](/packages/./api/types#newdocumentrole)                     | type      |             |
+| [`Organization`](/packages/./api/types#organization)                           | type      |             |
+| [`NewOrganization`](/packages/./api/types#neworganization)                     | type      |             |
+| [`OrgMember`](/packages/./api/types#orgmember)                                 | type      |             |
+| [`NewOrgMember`](/packages/./api/types#neworgmember)                           | type      |             |
+| [`DocumentOrg`](/packages/./api/types#documentorg)                             | type      |             |
+| [`NewDocumentOrg`](/packages/./api/types#newdocumentorg)                       | type      |             |
+| [`PendingInvite`](/packages/./api/types#pendinginvite)                         | type      |             |
+| [`NewPendingInvite`](/packages/./api/types#newpendinginvite)                   | type      |             |
+| [`Webhook`](/packages/./api/types#webhook)                                     | type      |             |
+| [`NewWebhook`](/packages/./api/types#newwebhook)                               | type      |             |
+| [`DocumentLink`](/packages/./api/types#documentlink)                           | type      |             |
+| [`NewDocumentLink`](/packages/./api/types#newdocumentlink)                     | type      |             |
+| [`Collection`](/packages/./api/types#collection)                               | type      |             |
+| [`NewCollection`](/packages/./api/types#newcollection)                         | type      |             |
+| [`CollectionDocument`](/packages/./api/types#collectiondocument)               | type      |             |
+| [`NewCollectionDocument`](/packages/./api/types#newcollectiondocument)         | type      |             |
+| [`SectionCrdtState`](/packages/./api/types#sectioncrdtstate)                   | type      |             |
+| [`NewSectionCrdtState`](/packages/./api/types#newsectioncrdtstate)             | type      |             |
+| [`SectionCrdtUpdate`](/packages/./api/types#sectioncrdtupdate)                 | type      |             |
+| [`NewSectionCrdtUpdate`](/packages/./api/types#newsectioncrdtupdate)           | type      |             |
+| [`DocumentEvent`](/packages/./api/types#documentevent)                         | type      |             |
+| [`NewDocumentEvent`](/packages/./api/types#newdocumentevent)                   | type      |             |
+| [`AgentPubkey`](/packages/./api/types#agentpubkey)                             | type      |             |
+| [`NewAgentPubkey`](/packages/./api/types#newagentpubkey)                       | type      |             |
+| [`AgentSignatureNonce`](/packages/./api/types#agentsignaturenonce)             | type      |             |
+| [`NewAgentSignatureNonce`](/packages/./api/types#newagentsignaturenonce)       | type      |             |
+| [`InsertUser`](/packages/./api/types#insertuser)                               | type      |             |
+| [`SelectUser`](/packages/./api/types#selectuser)                               | type      |             |
+| [`InsertSession`](/packages/./api/types#insertsession)                         | type      |             |
+| [`SelectSession`](/packages/./api/types#selectsession)                         | type      |             |
+| [`InsertDocument`](/packages/./api/types#insertdocument)                       | type      |             |
+| [`SelectDocument`](/packages/./api/types#selectdocument)                       | type      |             |
+| [`InsertVersion`](/packages/./api/types#insertversion)                         | type      |             |
+| [`SelectVersion`](/packages/./api/types#selectversion)                         | type      |             |
+| [`InsertStateTransition`](/packages/./api/types#insertstatetransition)         | type      |             |
+| [`SelectStateTransition`](/packages/./api/types#selectstatetransition)         | type      |             |
+| [`InsertApproval`](/packages/./api/types#insertapproval)                       | type      |             |
+| [`SelectApproval`](/packages/./api/types#selectapproval)                       | type      |             |
+| [`InsertContributor`](/packages/./api/types#insertcontributor)                 | type      |             |
+| [`SelectContributor`](/packages/./api/types#selectcontributor)                 | type      |             |
+| [`InsertSignedUrlToken`](/packages/./api/types#insertsignedurltoken)           | type      |             |
+| [`SelectSignedUrlToken`](/packages/./api/types#selectsignedurltoken)           | type      |             |
+| [`InsertVersionAttribution`](/packages/./api/types#insertversionattribution)   | type      |             |
+| [`SelectVersionAttribution`](/packages/./api/types#selectversionattribution)   | type      |             |
+| [`InsertApiKey`](/packages/./api/types#insertapikey)                           | type      |             |
+| [`SelectApiKey`](/packages/./api/types#selectapikey)                           | type      |             |
+| [`InsertAuditLog`](/packages/./api/types#insertauditlog)                       | type      |             |
+| [`SelectAuditLog`](/packages/./api/types#selectauditlog)                       | type      |             |
+| [`InsertDocumentRole`](/packages/./api/types#insertdocumentrole)               | type      |             |
+| [`SelectDocumentRole`](/packages/./api/types#selectdocumentrole)               | type      |             |
+| [`InsertOrganization`](/packages/./api/types#insertorganization)               | type      |             |
+| [`SelectOrganization`](/packages/./api/types#selectorganization)               | type      |             |
+| [`InsertOrgMember`](/packages/./api/types#insertorgmember)                     | type      |             |
+| [`SelectOrgMember`](/packages/./api/types#selectorgmember)                     | type      |             |
+| [`InsertDocumentOrg`](/packages/./api/types#insertdocumentorg)                 | type      |             |
+| [`SelectDocumentOrg`](/packages/./api/types#selectdocumentorg)                 | type      |             |
+| [`InsertPendingInvite`](/packages/./api/types#insertpendinginvite)             | type      |             |
+| [`SelectPendingInvite`](/packages/./api/types#selectpendinginvite)             | type      |             |
+| [`InsertWebhook`](/packages/./api/types#insertwebhook)                         | type      |             |
+| [`SelectWebhook`](/packages/./api/types#selectwebhook)                         | type      |             |
+| [`InsertDocumentLink`](/packages/./api/types#insertdocumentlink)               | type      |             |
+| [`SelectDocumentLink`](/packages/./api/types#selectdocumentlink)               | type      |             |
+| [`InsertCollection`](/packages/./api/types#insertcollection)                   | type      |             |
+| [`SelectCollection`](/packages/./api/types#selectcollection)                   | type      |             |
+| [`InsertCollectionDocument`](/packages/./api/types#insertcollectiondocument)   | type      |             |
+| [`SelectCollectionDocument`](/packages/./api/types#selectcollectiondocument)   | type      |             |
+| [`User`](/packages/./api/types#user)                                           | type      |             |
+| [`NewUser`](/packages/./api/types#newuser)                                     | type      |             |
+| [`Session`](/packages/./api/types#session)                                     | type      |             |
+| [`NewSession`](/packages/./api/types#newsession)                               | type      |             |
+| [`Document`](/packages/./api/types#document)                                   | type      |             |
+| [`NewDocument`](/packages/./api/types#newdocument)                             | type      |             |
+| [`Version`](/packages/./api/types#version)                                     | type      |             |
+| [`NewVersion`](/packages/./api/types#newversion)                               | type      |             |
+| [`StateTransition`](/packages/./api/types#statetransition)                     | type      |             |
+| [`NewStateTransition`](/packages/./api/types#newstatetransition)               | type      |             |
+| [`Approval`](/packages/./api/types#approval)                                   | type      |             |
+| [`NewApproval`](/packages/./api/types#newapproval)                             | type      |             |
+| [`Contributor`](/packages/./api/types#contributor)                             | type      |             |
+| [`NewContributor`](/packages/./api/types#newcontributor)                       | type      |             |
+| [`SignedUrlToken`](/packages/./api/types#signedurltoken)                       | type      |             |
+| [`NewSignedUrlToken`](/packages/./api/types#newsignedurltoken)                 | type      |             |
+| [`VersionAttribution`](/packages/./api/types#versionattribution)               | type      |             |
+| [`NewVersionAttribution`](/packages/./api/types#newversionattribution)         | type      |             |
+| [`ApiKey`](/packages/./api/types#apikey)                                       | type      |             |
+| [`NewApiKey`](/packages/./api/types#newapikey)                                 | type      |             |
+| [`AuditLog`](/packages/./api/types#auditlog)                                   | type      |             |
+| [`NewAuditLog`](/packages/./api/types#newauditlog)                             | type      |             |
+| [`DocumentRole`](/packages/./api/types#documentrole)                           | type      |             |
+| [`NewDocumentRole`](/packages/./api/types#newdocumentrole)                     | type      |             |
+| [`Organization`](/packages/./api/types#organization)                           | type      |             |
+| [`NewOrganization`](/packages/./api/types#neworganization)                     | type      |             |
+| [`OrgMember`](/packages/./api/types#orgmember)                                 | type      |             |
+| [`NewOrgMember`](/packages/./api/types#neworgmember)                           | type      |             |
+| [`DocumentOrg`](/packages/./api/types#documentorg)                             | type      |             |
+| [`NewDocumentOrg`](/packages/./api/types#newdocumentorg)                       | type      |             |
+| [`PendingInvite`](/packages/./api/types#pendinginvite)                         | type      |             |
+| [`NewPendingInvite`](/packages/./api/types#newpendinginvite)                   | type      |             |
+| [`Webhook`](/packages/./api/types#webhook)                                     | type      |             |
+| [`NewWebhook`](/packages/./api/types#newwebhook)                               | type      |             |
+| [`DocumentLink`](/packages/./api/types#documentlink)                           | type      |             |
+| [`NewDocumentLink`](/packages/./api/types#newdocumentlink)                     | type      |             |
+| [`Collection`](/packages/./api/types#collection)                               | type      |             |
+| [`NewCollection`](/packages/./api/types#newcollection)                         | type      |             |
+| [`CollectionDocument`](/packages/./api/types#collectiondocument)               | type      |             |
+| [`NewCollectionDocument`](/packages/./api/types#newcollectiondocument)         | type      |             |
+| [`SectionCrdtState`](/packages/./api/types#sectioncrdtstate)                   | type      |             |
+| [`NewSectionCrdtState`](/packages/./api/types#newsectioncrdtstate)             | type      |             |
+| [`SectionCrdtUpdate`](/packages/./api/types#sectioncrdtupdate)                 | type      |             |
+| [`NewSectionCrdtUpdate`](/packages/./api/types#newsectioncrdtupdate)           | type      |             |
+| [`DocumentEvent`](/packages/./api/types#documentevent)                         | type      |             |
+| [`NewDocumentEvent`](/packages/./api/types#newdocumentevent)                   | type      |             |
+| [`AgentPubkey`](/packages/./api/types#agentpubkey)                             | type      |             |
+| [`NewAgentPubkey`](/packages/./api/types#newagentpubkey)                       | type      |             |
+| [`AgentSignatureNonce`](/packages/./api/types#agentsignaturenonce)             | type      |             |
+| [`NewAgentSignatureNonce`](/packages/./api/types#newagentsignaturenonce)       | type      |             |
+| [`SectionLease`](/packages/./api/types#sectionlease)                           | type      |             |
+| [`NewSectionLease`](/packages/./api/types#newsectionlease)                     | type      |             |
+| [`AgentInboxMessage`](/packages/./api/types#agentinboxmessage)                 | type      |             |
+| [`NewAgentInboxMessage`](/packages/./api/types#newagentinboxmessage)           | type      |             |
+| [`SectionEmbedding`](/packages/./api/types#sectionembedding)                   | type      |             |
+| [`NewSectionEmbedding`](/packages/./api/types#newsectionembedding)             | type      |             |
+| [`InsertUser`](/packages/./api/types#insertuser)                               | type      |             |
+| [`SelectUser`](/packages/./api/types#selectuser)                               | type      |             |
+| [`InsertSession`](/packages/./api/types#insertsession)                         | type      |             |
+| [`SelectSession`](/packages/./api/types#selectsession)                         | type      |             |
+| [`InsertDocument`](/packages/./api/types#insertdocument)                       | type      |             |
+| [`SelectDocument`](/packages/./api/types#selectdocument)                       | type      |             |
+| [`InsertVersion`](/packages/./api/types#insertversion)                         | type      |             |
+| [`SelectVersion`](/packages/./api/types#selectversion)                         | type      |             |
+| [`InsertStateTransition`](/packages/./api/types#insertstatetransition)         | type      |             |
+| [`SelectStateTransition`](/packages/./api/types#selectstatetransition)         | type      |             |
+| [`InsertApproval`](/packages/./api/types#insertapproval)                       | type      |             |
+| [`SelectApproval`](/packages/./api/types#selectapproval)                       | type      |             |
+| [`InsertContributor`](/packages/./api/types#insertcontributor)                 | type      |             |
+| [`SelectContributor`](/packages/./api/types#selectcontributor)                 | type      |             |
+| [`InsertSignedUrlToken`](/packages/./api/types#insertsignedurltoken)           | type      |             |
+| [`SelectSignedUrlToken`](/packages/./api/types#selectsignedurltoken)           | type      |             |
+| [`InsertVersionAttribution`](/packages/./api/types#insertversionattribution)   | type      |             |
+| [`SelectVersionAttribution`](/packages/./api/types#selectversionattribution)   | type      |             |
+| [`InsertApiKey`](/packages/./api/types#insertapikey)                           | type      |             |
+| [`SelectApiKey`](/packages/./api/types#selectapikey)                           | type      |             |
+| [`InsertAuditLog`](/packages/./api/types#insertauditlog)                       | type      |             |
+| [`SelectAuditLog`](/packages/./api/types#selectauditlog)                       | type      |             |
+| [`InsertDocumentRole`](/packages/./api/types#insertdocumentrole)               | type      |             |
+| [`SelectDocumentRole`](/packages/./api/types#selectdocumentrole)               | type      |             |
+| [`InsertOrganization`](/packages/./api/types#insertorganization)               | type      |             |
+| [`SelectOrganization`](/packages/./api/types#selectorganization)               | type      |             |
+| [`InsertOrgMember`](/packages/./api/types#insertorgmember)                     | type      |             |
+| [`SelectOrgMember`](/packages/./api/types#selectorgmember)                     | type      |             |
+| [`InsertDocumentOrg`](/packages/./api/types#insertdocumentorg)                 | type      |             |
+| [`SelectDocumentOrg`](/packages/./api/types#selectdocumentorg)                 | type      |             |
+| [`InsertPendingInvite`](/packages/./api/types#insertpendinginvite)             | type      |             |
+| [`SelectPendingInvite`](/packages/./api/types#selectpendinginvite)             | type      |             |
+| [`InsertWebhook`](/packages/./api/types#insertwebhook)                         | type      |             |
+| [`SelectWebhook`](/packages/./api/types#selectwebhook)                         | type      |             |
+| [`InsertDocumentLink`](/packages/./api/types#insertdocumentlink)               | type      |             |
+| [`SelectDocumentLink`](/packages/./api/types#selectdocumentlink)               | type      |             |
+| [`InsertCollection`](/packages/./api/types#insertcollection)                   | type      |             |
+| [`SelectCollection`](/packages/./api/types#selectcollection)                   | type      |             |
+| [`InsertCollectionDocument`](/packages/./api/types#insertcollectiondocument)   | type      |             |
+| [`SelectCollectionDocument`](/packages/./api/types#selectcollectiondocument)   | type      |             |
+| [`InsertSectionCrdtState`](/packages/./api/types#insertsectioncrdtstate)       | type      |             |
+| [`SelectSectionCrdtState`](/packages/./api/types#selectsectioncrdtstate)       | type      |             |
+| [`InsertSectionCrdtUpdate`](/packages/./api/types#insertsectioncrdtupdate)     | type      |             |
+| [`SelectSectionCrdtUpdate`](/packages/./api/types#selectsectioncrdtupdate)     | type      |             |
+| [`InsertDocumentEvent`](/packages/./api/types#insertdocumentevent)             | type      |             |
+| [`SelectDocumentEvent`](/packages/./api/types#selectdocumentevent)             | type      |             |
+| [`InsertAgentPubkey`](/packages/./api/types#insertagentpubkey)                 | type      |             |
+| [`SelectAgentPubkey`](/packages/./api/types#selectagentpubkey)                 | type      |             |
+| [`InsertAgentSignatureNonce`](/packages/./api/types#insertagentsignaturenonce) | type      |             |
+| [`SelectAgentSignatureNonce`](/packages/./api/types#selectagentsignaturenonce) | type      |             |
+| [`DocumentEventLogType`](/packages/./api/types#documenteventlogtype)           | type      |             |
+| [`AppendDocumentEventInput`](/packages/./api/types#appenddocumenteventinput)   | interface |             |
+| [`AppendDocumentEventRow`](/packages/./api/types#appenddocumenteventrow)       | interface |             |
+| [`AppendDocumentEventResult`](/packages/./api/types#appenddocumenteventresult) | interface |             |
+| [`ChainValidationResult`](/packages/./api/types#chainvalidationresult)         | interface |             |
+| [`DocumentEventRow`](/packages/./api/types#documenteventrow)                   | interface |             |
+| [`SectionDelta`](/packages/./api/types#sectiondelta)                           | interface |             |
+| [`EmbeddingProvider`](/packages/./api/types#embeddingprovider)                 | interface |             |
+| [`PresenceEntry`](/packages/./api/types#presenceentry)                         | interface |             |
+| [`PresenceRecord`](/packages/./api/types#presencerecord)                       | interface |             |
+| [`PersistResult`](/packages/./api/types#persistresult)                         | interface |             |
+| [`Lease`](/packages/./api/types#lease)                                         | interface |             |
+| [`ScratchpadMessage`](/packages/./api/types#scratchpadmessage)                 | interface |             |
+| [`PublishOptions`](/packages/./api/types#publishoptions)                       | interface |             |
+| [`ReadOptions`](/packages/./api/types#readoptions)                             | interface |             |
+| [`TestDbContext`](/packages/./api/types#testdbcontext)                         | interface |             |
 
 ## Other Exports
 
-| Symbol                                                                                       | Kind     | Description                                                                      |
-| -------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------------------------- |
-| [`users`](/packages/./api/functions#users)                                                   | variable | Users table - supports both anonymous (24hr TTL) and registered accounts.  An... |
-| [`sessions`](/packages/./api/functions#sessions)                                             | variable | Sessions table - server-side session tokens for both user types.  Anonymous u... |
-| [`accounts`](/packages/./api/functions#accounts)                                             | variable | Accounts table — better-auth manages OAuth and credential providers.             |
-| [`verifications`](/packages/./api/functions#verifications)                                   | variable | Verifications table — better-auth email verification and password reset tokens.  |
-| [`documents`](/packages/./api/functions#documents)                                           | variable | Documents table - stores compressed text documents.  Extended with lifecycle...  |
-| [`versions`](/packages/./api/functions#versions)                                             | variable | Versions table - tracks document version history with patch support.  Extende... |
-| [`stateTransitions`](/packages/./api/functions#statetransitions)                             | variable | State transitions table - audit trail for document lifecycle changes.  Maps d... |
-| [`approvals`](/packages/./api/functions#approvals)                                           | variable | Approvals table - stores individual review/approval records.  Maps directly t... |
-| [`contributors`](/packages/./api/functions#contributors)                                     | variable | Contributors table - materialized aggregation of per-agent attribution.  Maps... |
-| [`signedUrlTokens`](/packages/./api/functions#signedurltokens)                               | variable | Signed URL tokens table - persists generated signed URL grants.  Maps to the...  |
-| [`versionAttributions`](/packages/./api/functions#versionattributions)                       | variable | Version attributions table - per-version diff metadata for attribution.  Maps... |
-| [`insertUserSchema`](/packages/./api/functions#insertuserschema)                             | variable |                                                                                  |
-| [`selectUserSchema`](/packages/./api/functions#selectuserschema)                             | variable |                                                                                  |
-| [`insertSessionSchema`](/packages/./api/functions#insertsessionschema)                       | variable |                                                                                  |
-| [`selectSessionSchema`](/packages/./api/functions#selectsessionschema)                       | variable |                                                                                  |
-| [`insertDocumentSchema`](/packages/./api/functions#insertdocumentschema)                     | variable |                                                                                  |
-| [`selectDocumentSchema`](/packages/./api/functions#selectdocumentschema)                     | variable |                                                                                  |
-| [`insertVersionSchema`](/packages/./api/functions#insertversionschema)                       | variable |                                                                                  |
-| [`selectVersionSchema`](/packages/./api/functions#selectversionschema)                       | variable |                                                                                  |
-| [`insertStateTransitionSchema`](/packages/./api/functions#insertstatetransitionschema)       | variable |                                                                                  |
-| [`selectStateTransitionSchema`](/packages/./api/functions#selectstatetransitionschema)       | variable |                                                                                  |
-| [`insertApprovalSchema`](/packages/./api/functions#insertapprovalschema)                     | variable |                                                                                  |
-| [`selectApprovalSchema`](/packages/./api/functions#selectapprovalschema)                     | variable |                                                                                  |
-| [`insertContributorSchema`](/packages/./api/functions#insertcontributorschema)               | variable |                                                                                  |
-| [`selectContributorSchema`](/packages/./api/functions#selectcontributorschema)               | variable |                                                                                  |
-| [`insertSignedUrlTokenSchema`](/packages/./api/functions#insertsignedurltokenschema)         | variable |                                                                                  |
-| [`selectSignedUrlTokenSchema`](/packages/./api/functions#selectsignedurltokenschema)         | variable |                                                                                  |
-| [`insertVersionAttributionSchema`](/packages/./api/functions#insertversionattributionschema) | variable |                                                                                  |
-| [`selectVersionAttributionSchema`](/packages/./api/functions#selectversionattributionschema) | variable |                                                                                  |
-| [`schema.ts`](/packages/./api/functions#schemats)                                            | file     |                                                                                  |
-| [`db`](/packages/./api/functions#db)                                                         | variable | Drizzle ORM instance connected to the SQLite database with full schema.          |
-| [`index.ts`](/packages/./api/functions#indexts)                                              | file     |                                                                                  |
-| [`auth`](/packages/./api/functions#auth)                                                     | variable | Better-auth instance with email/password + anonymous authentication, cookie-b... |
-| [`auth.ts`](/packages/./api/functions#authts)                                                | file     |                                                                                  |
-| [`compression.ts`](/packages/./api/functions#compressionts)                                  | file     |                                                                                  |
-| [`validation.ts`](/packages/./api/functions#validationts)                                    | file     |                                                                                  |
-| [`validator.ts`](/packages/./api/functions#validatorts)                                      | file     |                                                                                  |
-| [`contentCache`](/packages/./api/functions#contentcache)                                     | variable | LRU cache for decompressed document content strings, keyed by slug.              |
-| [`metadataCache`](/packages/./api/functions#metadatacache)                                   | variable | LRU cache for document metadata objects, keyed by slug.                          |
-| [`cache.ts`](/packages/./api/functions#cachets)                                              | file     |                                                                                  |
-| [`cache.ts`](/packages/./api/functions#cachets)                                              | file     |                                                                                  |
-| [`api.ts`](/packages/./api/functions#apits)                                                  | file     |                                                                                  |
-| [`disclosure.ts`](/packages/./api/functions#disclosurets)                                    | file     |                                                                                  |
-| [`disclosure.ts`](/packages/./api/functions#disclosurets)                                    | file     |                                                                                  |
-| [`versions.ts`](/packages/./api/functions#versionsts)                                        | file     |                                                                                  |
-| [`auth.ts`](/packages/./api/functions#authts)                                                | file     |                                                                                  |
-| [`auth.ts`](/packages/./api/functions#authts)                                                | file     |                                                                                  |
-| [`lifecycle.ts`](/packages/./api/functions#lifecyclets)                                      | file     |                                                                                  |
-| [`patches.ts`](/packages/./api/functions#patchests)                                          | file     |                                                                                  |
-| [`similarity.ts`](/packages/./api/functions#similarityts)                                    | file     |                                                                                  |
-| [`graph.ts`](/packages/./api/functions#graphts)                                              | file     |                                                                                  |
-| [`retrieval.ts`](/packages/./api/functions#retrievalts)                                      | file     |                                                                                  |
-| [`signed-urls.ts`](/packages/./api/functions#signed-urlsts)                                  | file     |                                                                                  |
-| [`merge.ts`](/packages/./api/functions#mergets)                                              | file     |                                                                                  |
-| [`publicDir`](/packages/./api/functions#publicdir)                                           | variable | Absolute path to the public assets directory for static file serving.            |
-| [`web.ts`](/packages/./api/functions#webts)                                                  | file     |                                                                                  |
-| [`viewTemplate.ts`](/packages/./api/functions#viewtemplatets)                                | file     |                                                                                  |
-| [`index.ts`](/packages/./api/functions#indexts)                                              | file     |                                                                                  |
+| Symbol                                                                                         | Kind     | Description                                                                        |
+| ---------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------- |
+| [`users`](/packages/./api/functions#users)                                                     | variable | Users table - supports both anonymous (24hr TTL) and registered accounts.  An...   |
+| [`sessions`](/packages/./api/functions#sessions)                                               | variable | Sessions table - server-side session tokens for both user types.  Anonymous u...   |
+| [`accounts`](/packages/./api/functions#accounts)                                               | variable | Accounts table — better-auth manages OAuth and credential providers.               |
+| [`verifications`](/packages/./api/functions#verifications)                                     | variable | Verifications table — better-auth email verification and password reset tokens.    |
+| [`documents`](/packages/./api/functions#documents)                                             | variable | Documents table - stores compressed text documents.  Extended with lifecycle...    |
+| [`versions`](/packages/./api/functions#versions)                                               | variable | Versions table - tracks document version history with patch support.  Extende...   |
+| [`stateTransitions`](/packages/./api/functions#statetransitions)                               | variable | State transitions table - audit trail for document lifecycle changes.  Maps d...   |
+| [`approvals`](/packages/./api/functions#approvals)                                             | variable | Approvals table - stores individual review/approval records.  Maps directly t...   |
+| [`contributors`](/packages/./api/functions#contributors)                                       | variable | Contributors table - materialized aggregation of per-agent attribution.  Maps...   |
+| [`signedUrlTokens`](/packages/./api/functions#signedurltokens)                                 | variable | Signed URL tokens table - persists generated signed URL grants.  Maps to the...    |
+| [`apiKeys`](/packages/./api/functions#apikeys)                                                 | variable | API keys table - programmatic access tokens for registered users.  Keys are g...   |
+| [`versionAttributions`](/packages/./api/functions#versionattributions)                         | variable | Version attributions table - per-version diff metadata for attribution.  Maps...   |
+| [`auditLogs`](/packages/./api/functions#auditlogs)                                             | variable | Audit logs table - records all state-changing operations for compliance and f...   |
+| [`documentRoles`](/packages/./api/functions#documentroles)                                     | variable | Document-level role assignments.  One row per (document, user) pair. The owne...   |
+| [`documentLinks`](/packages/./api/functions#documentlinks)                                     | variable | Document links table - directional relationships between documents. Supports...    |
+| [`organizations`](/packages/./api/functions#organizations)                                     | variable | Organizations table — optional grouping of users for shared document access....    |
+| [`collections`](/packages/./api/functions#collections)                                         | variable | Collections table - named, ordered groupings of documents. Allows users to cu...   |
+| [`orgMembers`](/packages/./api/functions#orgmembers)                                           | variable | Org members table — maps users to organizations with a role.  Roles: 'admin'...    |
+| [`documentOrgs`](/packages/./api/functions#documentorgs)                                       | variable | Document-org association table — links a document to an organization.  When a...   |
+| [`pendingInvites`](/packages/./api/functions#pendinginvites)                                   | variable | Pending invites table — holds invite-by-email records for users who do not ye...   |
+| [`webhooks`](/packages/./api/functions#webhooks)                                               | variable | Webhooks table - stores external HTTP callback registrations. When a matching...   |
+| [`collectionDocuments`](/packages/./api/functions#collectiondocuments)                         | variable | Collection documents table - ordered membership list. Each row maps a documen...   |
+| [`sectionCrdtStates`](/packages/./api/functions#sectioncrdtstates)                             | variable | SQLite mirror of section\_crdt\_states. bytea → blob('bytes'), timestamptz → in... |
+| [`sectionCrdtUpdates`](/packages/./api/functions#sectioncrdtupdates)                           | variable | SQLite mirror of section\_crdt\_updates.                                           |
+| [`documentEvents`](/packages/./api/functions#documentevents)                                   | variable | SQLite mirror of document\_events. jsonb → text with  mode: 'json' , bytea → b...  |
+| [`agentPubkeys`](/packages/./api/functions#agentpubkeys)                                       | variable | SQLite mirror of agent\_pubkeys.                                                   |
+| [`agentSignatureNonces`](/packages/./api/functions#agentsignaturenonces)                       | variable | SQLite mirror of agent\_signature\_nonces.                                         |
+| [`insertUserSchema`](/packages/./api/functions#insertuserschema)                               | variable |                                                                                    |
+| [`selectUserSchema`](/packages/./api/functions#selectuserschema)                               | variable |                                                                                    |
+| [`insertSessionSchema`](/packages/./api/functions#insertsessionschema)                         | variable |                                                                                    |
+| [`selectSessionSchema`](/packages/./api/functions#selectsessionschema)                         | variable |                                                                                    |
+| [`insertDocumentSchema`](/packages/./api/functions#insertdocumentschema)                       | variable |                                                                                    |
+| [`selectDocumentSchema`](/packages/./api/functions#selectdocumentschema)                       | variable |                                                                                    |
+| [`insertVersionSchema`](/packages/./api/functions#insertversionschema)                         | variable |                                                                                    |
+| [`selectVersionSchema`](/packages/./api/functions#selectversionschema)                         | variable |                                                                                    |
+| [`insertStateTransitionSchema`](/packages/./api/functions#insertstatetransitionschema)         | variable |                                                                                    |
+| [`selectStateTransitionSchema`](/packages/./api/functions#selectstatetransitionschema)         | variable |                                                                                    |
+| [`insertApprovalSchema`](/packages/./api/functions#insertapprovalschema)                       | variable |                                                                                    |
+| [`selectApprovalSchema`](/packages/./api/functions#selectapprovalschema)                       | variable |                                                                                    |
+| [`insertContributorSchema`](/packages/./api/functions#insertcontributorschema)                 | variable |                                                                                    |
+| [`selectContributorSchema`](/packages/./api/functions#selectcontributorschema)                 | variable |                                                                                    |
+| [`insertSignedUrlTokenSchema`](/packages/./api/functions#insertsignedurltokenschema)           | variable |                                                                                    |
+| [`selectSignedUrlTokenSchema`](/packages/./api/functions#selectsignedurltokenschema)           | variable |                                                                                    |
+| [`insertVersionAttributionSchema`](/packages/./api/functions#insertversionattributionschema)   | variable |                                                                                    |
+| [`selectVersionAttributionSchema`](/packages/./api/functions#selectversionattributionschema)   | variable |                                                                                    |
+| [`insertApiKeySchema`](/packages/./api/functions#insertapikeyschema)                           | variable |                                                                                    |
+| [`selectApiKeySchema`](/packages/./api/functions#selectapikeyschema)                           | variable |                                                                                    |
+| [`insertAuditLogSchema`](/packages/./api/functions#insertauditlogschema)                       | variable |                                                                                    |
+| [`selectAuditLogSchema`](/packages/./api/functions#selectauditlogschema)                       | variable |                                                                                    |
+| [`insertDocumentRoleSchema`](/packages/./api/functions#insertdocumentroleschema)               | variable |                                                                                    |
+| [`selectDocumentRoleSchema`](/packages/./api/functions#selectdocumentroleschema)               | variable |                                                                                    |
+| [`insertOrganizationSchema`](/packages/./api/functions#insertorganizationschema)               | variable |                                                                                    |
+| [`selectOrganizationSchema`](/packages/./api/functions#selectorganizationschema)               | variable |                                                                                    |
+| [`insertOrgMemberSchema`](/packages/./api/functions#insertorgmemberschema)                     | variable |                                                                                    |
+| [`selectOrgMemberSchema`](/packages/./api/functions#selectorgmemberschema)                     | variable |                                                                                    |
+| [`insertDocumentOrgSchema`](/packages/./api/functions#insertdocumentorgschema)                 | variable |                                                                                    |
+| [`selectDocumentOrgSchema`](/packages/./api/functions#selectdocumentorgschema)                 | variable |                                                                                    |
+| [`insertPendingInviteSchema`](/packages/./api/functions#insertpendinginviteschema)             | variable |                                                                                    |
+| [`selectPendingInviteSchema`](/packages/./api/functions#selectpendinginviteschema)             | variable |                                                                                    |
+| [`insertWebhookSchema`](/packages/./api/functions#insertwebhookschema)                         | variable |                                                                                    |
+| [`selectWebhookSchema`](/packages/./api/functions#selectwebhookschema)                         | variable |                                                                                    |
+| [`insertDocumentLinkSchema`](/packages/./api/functions#insertdocumentlinkschema)               | variable |                                                                                    |
+| [`selectDocumentLinkSchema`](/packages/./api/functions#selectdocumentlinkschema)               | variable |                                                                                    |
+| [`insertCollectionSchema`](/packages/./api/functions#insertcollectionschema)                   | variable |                                                                                    |
+| [`selectCollectionSchema`](/packages/./api/functions#selectcollectionschema)                   | variable |                                                                                    |
+| [`insertCollectionDocumentSchema`](/packages/./api/functions#insertcollectiondocumentschema)   | variable |                                                                                    |
+| [`selectCollectionDocumentSchema`](/packages/./api/functions#selectcollectiondocumentschema)   | variable |                                                                                    |
+| [`schema.ts`](/packages/./api/functions#schemats)                                              | file     |                                                                                    |
+| [`users`](/packages/./api/functions#users)                                                     | variable | Users table - supports both anonymous (24hr TTL) and registered accounts.  An...   |
+| [`sessions`](/packages/./api/functions#sessions)                                               | variable | Sessions table - server-side session tokens for both user types.  Anonymous u...   |
+| [`accounts`](/packages/./api/functions#accounts)                                               | variable | Accounts table — better-auth manages OAuth and credential providers.               |
+| [`verifications`](/packages/./api/functions#verifications)                                     | variable | Verifications table — better-auth email verification and password reset tokens.    |
+| [`documents`](/packages/./api/functions#documents)                                             | variable | Documents table - stores compressed text documents.  Extended with lifecycle...    |
+| [`versions`](/packages/./api/functions#versions)                                               | variable | Versions table - tracks document version history with patch support.  Extende...   |
+| [`stateTransitions`](/packages/./api/functions#statetransitions)                               | variable | State transitions table - audit trail for document lifecycle changes.  Maps d...   |
+| [`approvals`](/packages/./api/functions#approvals)                                             | variable | Approvals table - stores individual review/approval records.  Maps directly t...   |
+| [`contributors`](/packages/./api/functions#contributors)                                       | variable | Contributors table - materialized aggregation of per-agent attribution.  Maps...   |
+| [`signedUrlTokens`](/packages/./api/functions#signedurltokens)                                 | variable | Signed URL tokens table - persists generated signed URL grants.  Maps to the...    |
+| [`versionAttributions`](/packages/./api/functions#versionattributions)                         | variable | Version attributions table - per-version diff metadata for attribution.  Maps...   |
+| [`apiKeys`](/packages/./api/functions#apikeys)                                                 | variable | API keys table - programmatic access tokens for registered users.  Keys are g...   |
+| [`auditLogs`](/packages/./api/functions#auditlogs)                                             | variable | Audit logs table - records all state-changing operations for compliance and f...   |
+| [`documentRoles`](/packages/./api/functions#documentroles)                                     | variable | Document-level role assignments.  One row per (document, user) pair. The owne...   |
+| [`organizations`](/packages/./api/functions#organizations)                                     | variable | Organizations table — optional grouping of users for shared document access....    |
+| [`orgMembers`](/packages/./api/functions#orgmembers)                                           | variable | Org members table — maps users to organizations with a role.  Roles: 'admin'...    |
+| [`documentOrgs`](/packages/./api/functions#documentorgs)                                       | variable | Document-org association table — links a document to an organization.  When a...   |
+| [`pendingInvites`](/packages/./api/functions#pendinginvites)                                   | variable | Pending invites table — holds invite-by-email records for users who do not ye...   |
+| [`webhooks`](/packages/./api/functions#webhooks)                                               | variable | Webhooks table - stores external HTTP callback registrations. When a matching...   |
+| [`documentLinks`](/packages/./api/functions#documentlinks)                                     | variable | Document links table - directional relationships between documents. Supports...    |
+| [`collections`](/packages/./api/functions#collections)                                         | variable | Collections table - named, ordered groupings of documents. Allows users to cu...   |
+| [`collectionDocuments`](/packages/./api/functions#collectiondocuments)                         | variable | Collection documents table - ordered membership list. Each row maps a documen...   |
+| [`sectionCrdtStates`](/packages/./api/functions#sectioncrdtstates)                             | variable | Section CRDT states — consolidated Yjs state vector per (document, section)....    |
+| [`sectionCrdtUpdates`](/packages/./api/functions#sectioncrdtupdates)                           | variable | Section CRDT updates — raw Yjs update messages pending compaction.  Each row\...   |
+| [`documentEvents`](/packages/./api/functions#documentevents)                                   | variable | Document events — append-only event log with hash chain for integrity.  Every...   |
+| [`agentPubkeys`](/packages/./api/functions#agentpubkeys)                                       | variable | Agent public keys — Ed25519 (or equivalent) pubkeys for agent signature verif...   |
+| [`sectionLeases`](/packages/./api/functions#sectionleases)                                     | variable | Section leases — advisory locks for section turn-taking.  Leases are cooperat...   |
+| [`agentSignatureNonces`](/packages/./api/functions#agentsignaturenonces)                       | variable |                                                                                    |
+| [`agentInboxMessages`](/packages/./api/functions#agentinboxmessages)                           | variable | Agent inbox messages — ephemeral A2A message store.  Messages are stored for...    |
+| [`sectionEmbeddings`](/packages/./api/functions#sectionembeddings)                             | variable | Cached per-section embeddings for nearest-neighbour search.  Schema exception...   |
+| [`insertUserSchema`](/packages/./api/functions#insertuserschema)                               | variable |                                                                                    |
+| [`selectUserSchema`](/packages/./api/functions#selectuserschema)                               | variable |                                                                                    |
+| [`insertSessionSchema`](/packages/./api/functions#insertsessionschema)                         | variable |                                                                                    |
+| [`selectSessionSchema`](/packages/./api/functions#selectsessionschema)                         | variable |                                                                                    |
+| [`insertDocumentSchema`](/packages/./api/functions#insertdocumentschema)                       | variable |                                                                                    |
+| [`selectDocumentSchema`](/packages/./api/functions#selectdocumentschema)                       | variable |                                                                                    |
+| [`insertVersionSchema`](/packages/./api/functions#insertversionschema)                         | variable |                                                                                    |
+| [`selectVersionSchema`](/packages/./api/functions#selectversionschema)                         | variable |                                                                                    |
+| [`insertStateTransitionSchema`](/packages/./api/functions#insertstatetransitionschema)         | variable |                                                                                    |
+| [`selectStateTransitionSchema`](/packages/./api/functions#selectstatetransitionschema)         | variable |                                                                                    |
+| [`insertApprovalSchema`](/packages/./api/functions#insertapprovalschema)                       | variable |                                                                                    |
+| [`selectApprovalSchema`](/packages/./api/functions#selectapprovalschema)                       | variable |                                                                                    |
+| [`insertContributorSchema`](/packages/./api/functions#insertcontributorschema)                 | variable |                                                                                    |
+| [`selectContributorSchema`](/packages/./api/functions#selectcontributorschema)                 | variable |                                                                                    |
+| [`insertSignedUrlTokenSchema`](/packages/./api/functions#insertsignedurltokenschema)           | variable |                                                                                    |
+| [`selectSignedUrlTokenSchema`](/packages/./api/functions#selectsignedurltokenschema)           | variable |                                                                                    |
+| [`insertVersionAttributionSchema`](/packages/./api/functions#insertversionattributionschema)   | variable |                                                                                    |
+| [`selectVersionAttributionSchema`](/packages/./api/functions#selectversionattributionschema)   | variable |                                                                                    |
+| [`insertApiKeySchema`](/packages/./api/functions#insertapikeyschema)                           | variable |                                                                                    |
+| [`selectApiKeySchema`](/packages/./api/functions#selectapikeyschema)                           | variable |                                                                                    |
+| [`insertAuditLogSchema`](/packages/./api/functions#insertauditlogschema)                       | variable |                                                                                    |
+| [`selectAuditLogSchema`](/packages/./api/functions#selectauditlogschema)                       | variable |                                                                                    |
+| [`insertDocumentRoleSchema`](/packages/./api/functions#insertdocumentroleschema)               | variable |                                                                                    |
+| [`selectDocumentRoleSchema`](/packages/./api/functions#selectdocumentroleschema)               | variable |                                                                                    |
+| [`insertOrganizationSchema`](/packages/./api/functions#insertorganizationschema)               | variable |                                                                                    |
+| [`selectOrganizationSchema`](/packages/./api/functions#selectorganizationschema)               | variable |                                                                                    |
+| [`insertOrgMemberSchema`](/packages/./api/functions#insertorgmemberschema)                     | variable |                                                                                    |
+| [`selectOrgMemberSchema`](/packages/./api/functions#selectorgmemberschema)                     | variable |                                                                                    |
+| [`insertDocumentOrgSchema`](/packages/./api/functions#insertdocumentorgschema)                 | variable |                                                                                    |
+| [`selectDocumentOrgSchema`](/packages/./api/functions#selectdocumentorgschema)                 | variable |                                                                                    |
+| [`insertPendingInviteSchema`](/packages/./api/functions#insertpendinginviteschema)             | variable |                                                                                    |
+| [`selectPendingInviteSchema`](/packages/./api/functions#selectpendinginviteschema)             | variable |                                                                                    |
+| [`insertWebhookSchema`](/packages/./api/functions#insertwebhookschema)                         | variable |                                                                                    |
+| [`selectWebhookSchema`](/packages/./api/functions#selectwebhookschema)                         | variable |                                                                                    |
+| [`insertDocumentLinkSchema`](/packages/./api/functions#insertdocumentlinkschema)               | variable |                                                                                    |
+| [`selectDocumentLinkSchema`](/packages/./api/functions#selectdocumentlinkschema)               | variable |                                                                                    |
+| [`insertCollectionSchema`](/packages/./api/functions#insertcollectionschema)                   | variable |                                                                                    |
+| [`selectCollectionSchema`](/packages/./api/functions#selectcollectionschema)                   | variable |                                                                                    |
+| [`insertCollectionDocumentSchema`](/packages/./api/functions#insertcollectiondocumentschema)   | variable |                                                                                    |
+| [`selectCollectionDocumentSchema`](/packages/./api/functions#selectcollectiondocumentschema)   | variable |                                                                                    |
+| [`insertSectionCrdtStateSchema`](/packages/./api/functions#insertsectioncrdtstateschema)       | variable |                                                                                    |
+| [`selectSectionCrdtStateSchema`](/packages/./api/functions#selectsectioncrdtstateschema)       | variable |                                                                                    |
+| [`insertSectionCrdtUpdateSchema`](/packages/./api/functions#insertsectioncrdtupdateschema)     | variable |                                                                                    |
+| [`selectSectionCrdtUpdateSchema`](/packages/./api/functions#selectsectioncrdtupdateschema)     | variable |                                                                                    |
+| [`insertDocumentEventSchema`](/packages/./api/functions#insertdocumenteventschema)             | variable |                                                                                    |
+| [`selectDocumentEventSchema`](/packages/./api/functions#selectdocumenteventschema)             | variable |                                                                                    |
+| [`insertAgentPubkeySchema`](/packages/./api/functions#insertagentpubkeyschema)                 | variable |                                                                                    |
+| [`selectAgentPubkeySchema`](/packages/./api/functions#selectagentpubkeyschema)                 | variable |                                                                                    |
+| [`insertAgentSignatureNonceSchema`](/packages/./api/functions#insertagentsignaturenonceschema) | variable |                                                                                    |
+| [`selectAgentSignatureNonceSchema`](/packages/./api/functions#selectagentsignaturenonceschema) | variable |                                                                                    |
+| [`insertAgentInboxMessageSchema`](/packages/./api/functions#insertagentinboxmessageschema)     | variable |                                                                                    |
+| [`selectAgentInboxMessageSchema`](/packages/./api/functions#selectagentinboxmessageschema)     | variable |                                                                                    |
+| [`schema-pg.ts`](/packages/./api/functions#schema-pgts)                                        | file     |                                                                                    |
+| [`DATABASE_PROVIDER`](/packages/./api/functions#databaseprovider)                              | variable | Active database provider. Exported so auth.ts can configure drizzleAdapter.        |
+| [`db`](/packages/./api/functions#db)                                                           | variable |                                                                                    |
+| [`schema`](/packages/./api/functions#schema)                                                   | variable |                                                                                    |
+| [`sqlite`](/packages/./api/functions#sqlite)                                                   | variable |                                                                                    |
+| [`dbDriver`](/packages/./api/functions#dbdriver)                                               | variable | Which driver is active — useful for code paths where transaction syntax diffe...   |
+| [`index.ts`](/packages/./api/functions#indexts)                                                | file     |                                                                                    |
+| [`auth`](/packages/./api/functions#auth)                                                       | variable | Better-auth instance with email/password + anonymous authentication, cookie-b...   |
+| [`auth.ts`](/packages/./api/functions#authts)                                                  | file     |                                                                                    |
+| [`compression.ts`](/packages/./api/functions#compressionts)                                    | file     |                                                                                    |
+| [`tokenizer.ts`](/packages/./api/functions#tokenizerts)                                        | file     |                                                                                    |
+| [`validation.ts`](/packages/./api/functions#validationts)                                      | file     |                                                                                    |
+| [`validator.ts`](/packages/./api/functions#validatorts)                                        | file     |                                                                                    |
+| [`contentCache`](/packages/./api/functions#contentcache)                                       | variable | LRU cache for decompressed document content strings, keyed by slug.                |
+| [`metadataCache`](/packages/./api/functions#metadatacache)                                     | variable | LRU cache for document metadata objects, keyed by slug.                            |
+| [`cache.ts`](/packages/./api/functions#cachets)                                                | file     |                                                                                    |
+| [`cache.ts`](/packages/./api/functions#cachets)                                                | file     |                                                                                    |
+| [`RATE_LIMITS`](/packages/./api/functions#ratelimits)                                          | variable | Tier-based rate limit configuration. All windows are 1 minute.                     |
+| [`writeRateLimit`](/packages/./api/functions#writeratelimit)                                   | variable | Route-level config object for write-operation rate limits. Apply to POST/PUT/...   |
+| [`authRateLimit`](/packages/./api/functions#authratelimit)                                     | variable | Route-level config object for authentication endpoint rate limits. Apply to s...   |
+| [`rate-limit.ts`](/packages/./api/functions#rate-limitts)                                      | file     |                                                                                    |
+| [`content-limits.ts`](/packages/./api/functions#content-limitsts)                              | file     |                                                                                    |
+| [`eventBus`](/packages/./api/functions#eventbus)                                               | variable |                                                                                    |
+| [`bus.ts`](/packages/./api/functions#busts)                                                    | file     |                                                                                    |
+| [`canRead`](/packages/./api/functions#canread)                                                 | variable |                                                                                    |
+| [`canWrite`](/packages/./api/functions#canwrite)                                               | variable |                                                                                    |
+| [`canDelete`](/packages/./api/functions#candelete)                                             | variable |                                                                                    |
+| [`canManage`](/packages/./api/functions#canmanage)                                             | variable |                                                                                    |
+| [`canApprove`](/packages/./api/functions#canapprove)                                           | variable |                                                                                    |
+| [`rbac.ts`](/packages/./api/functions#rbacts)                                                  | file     |                                                                                    |
+| [`httpRequestDurationSeconds`](/packages/./api/functions#httprequestdurationseconds)           | variable | HTTP request duration histogram (seconds). Labels: method, route, status\_code...  |
+| [`httpRequestsTotal`](/packages/./api/functions#httprequeststotal)                             | variable | HTTP requests total counter. Labels: method, route, status\_code. SPEC-T145 §7.2   |
+| [`documentCreatedTotal`](/packages/./api/functions#documentcreatedtotal)                       | variable | Incremented when a document is created successfully.                               |
+| [`documentApprovalSubmittedTotal`](/packages/./api/functions#documentapprovalsubmittedtotal)   | variable | Incremented when an approval vote is submitted.                                    |
+| [`documentStateTransitionTotal`](/packages/./api/functions#documentstatetransitiontotal)       | variable | Incremented on every document lifecycle state transition.                          |
+| [`versionCreatedTotal`](/packages/./api/functions#versioncreatedtotal)                         | variable | Incremented when a new document version is created.                                |
+| [`webhookDeliveryTotal`](/packages/./api/functions#webhookdeliverytotal)                       | variable | Incremented on every webhook delivery attempt.                                     |
+| [`metrics.ts`](/packages/./api/functions#metricsts)                                            | file     |                                                                                    |
+| [`DOCUMENT_EVENT_TYPES`](/packages/./api/functions#documenteventtypes)                         | variable | Canonical event type strings for the document event log.  Matches the design...    |
+| [`document-events.ts`](/packages/./api/functions#document-eventsts)                            | file     |                                                                                    |
+| [`api.ts`](/packages/./api/functions#apits)                                                    | file     |                                                                                    |
+| [`disclosure.ts`](/packages/./api/functions#disclosurets)                                      | file     |                                                                                    |
+| [`diff-helper.ts`](/packages/./api/functions#diff-helperts)                                    | file     |                                                                                    |
+| [`disclosure.ts`](/packages/./api/functions#disclosurets)                                      | file     |                                                                                    |
+| [`versions.ts`](/packages/./api/functions#versionsts)                                          | file     |                                                                                    |
+| [`auth.ts`](/packages/./api/functions#authts)                                                  | file     |                                                                                    |
+| [`api-keys.ts`](/packages/./api/functions#api-keysts)                                          | file     |                                                                                    |
+| [`auth.ts`](/packages/./api/functions#authts)                                                  | file     |                                                                                    |
+| [`lifecycle.ts`](/packages/./api/functions#lifecyclets)                                        | file     |                                                                                    |
+| [`patches.ts`](/packages/./api/functions#patchests)                                            | file     |                                                                                    |
+| [`similarity.ts`](/packages/./api/functions#similarityts)                                      | file     |                                                                                    |
+| [`graph.ts`](/packages/./api/functions#graphts)                                                | file     |                                                                                    |
+| [`retrieval.ts`](/packages/./api/functions#retrievalts)                                        | file     |                                                                                    |
+| [`signed-urls.ts`](/packages/./api/functions#signed-urlsts)                                    | file     |                                                                                    |
+| [`merge.ts`](/packages/./api/functions#mergets)                                                | file     |                                                                                    |
+| [`api-keys.ts`](/packages/./api/functions#api-keysts)                                          | file     |                                                                                    |
+| [`conflicts.ts`](/packages/./api/functions#conflictsts)                                        | file     |                                                                                    |
+| [`embeddings.ts`](/packages/./api/functions#embeddingsts)                                      | file     |                                                                                    |
+| [`semantic.ts`](/packages/./api/functions#semanticts)                                          | file     |                                                                                    |
+| [`access-control.ts`](/packages/./api/functions#access-controlts)                              | file     |                                                                                    |
+| [`organizations.ts`](/packages/./api/functions#organizationsts)                                | file     |                                                                                    |
+| [`ws.ts`](/packages/./api/functions#wsts)                                                      | file     |                                                                                    |
+| [`presenceRegistry`](/packages/./api/functions#presenceregistry)                               | variable |                                                                                    |
+| [`registry.ts`](/packages/./api/functions#registryts)                                          | file     |                                                                                    |
+| [`primitives.ts`](/packages/./api/functions#primitivests)                                      | file     |                                                                                    |
+| [`persistence.ts`](/packages/./api/functions#persistencets)                                    | file     |                                                                                    |
+| [`redis-pubsub.ts`](/packages/./api/functions#redis-pubsubts)                                  | file     |                                                                                    |
+| [`CRDT_COMPACT_THRESHOLD`](/packages/./api/functions#crdtcompactthreshold)                     | variable |                                                                                    |
+| [`CRDT_COMPACT_IDLE_MS`](/packages/./api/functions#crdtcompactidlems)                          | variable |                                                                                    |
+| [`compaction.ts`](/packages/./api/functions#compactionts)                                      | file     |                                                                                    |
+| [`ws-crdt.ts`](/packages/./api/functions#ws-crdtts)                                            | file     |                                                                                    |
+| [`crdt-compaction.ts`](/packages/./api/functions#crdt-compactionts)                            | file     |                                                                                    |
+| [`sse.ts`](/packages/./api/functions#ssets)                                                    | file     |                                                                                    |
+| [`webhooks.ts`](/packages/./api/functions#webhooksts)                                          | file     |                                                                                    |
+| [`webhooks.ts`](/packages/./api/functions#webhooksts)                                          | file     |                                                                                    |
+| [`event-log-compaction.ts`](/packages/./api/functions#event-log-compactionts)                  | file     |                                                                                    |
+| [`cross-doc.ts`](/packages/./api/functions#cross-docts)                                        | file     |                                                                                    |
+| [`collections.ts`](/packages/./api/functions#collectionsts)                                    | file     |                                                                                    |
+| [`publicDir`](/packages/./api/functions#publicdir)                                             | variable | Absolute path to the public assets directory for static file serving.              |
+| [`web.ts`](/packages/./api/functions#webts)                                                    | file     |                                                                                    |
+| [`audit.ts`](/packages/./api/functions#auditts)                                                | file     |                                                                                    |
+| [`document-events.ts`](/packages/./api/functions#document-eventsts)                            | file     |                                                                                    |
+| [`agent-keys.ts`](/packages/./api/functions#agent-keysts)                                      | file     |                                                                                    |
+| [`crdt.ts`](/packages/./api/functions#crdtts)                                                  | file     |                                                                                    |
+| [`presence.ts`](/packages/./api/functions#presencets)                                          | file     |                                                                                    |
+| [`lease-service.ts`](/packages/./api/functions#lease-servicets)                                | file     |                                                                                    |
+| [`leases.ts`](/packages/./api/functions#leasests)                                              | file     |                                                                                    |
+| [`path-matcher.ts`](/packages/./api/functions#path-matcherts)                                  | file     |                                                                                    |
+| [`subscribe.ts`](/packages/./api/functions#subscribets)                                        | file     |                                                                                    |
+| [`bft.ts`](/packages/./api/functions#bftts)                                                    | file     |                                                                                    |
+| [`scratchpad.ts`](/packages/./api/functions#scratchpadts)                                      | file     |                                                                                    |
+| [`scratchpad.ts`](/packages/./api/functions#scratchpadts)                                      | file     |                                                                                    |
+| [`a2a.ts`](/packages/./api/functions#a2ats)                                                    | file     |                                                                                    |
+| [`api-version.ts`](/packages/./api/functions#api-versionts)                                    | file     |                                                                                    |
+| [`index.ts`](/packages/./api/functions#indexts)                                                | file     |                                                                                    |
+| [`health.ts`](/packages/./api/functions#healthts)                                              | file     |                                                                                    |
+| [`security.ts`](/packages/./api/functions#securityts)                                          | file     |                                                                                    |
+| [`csrf.ts`](/packages/./api/functions#csrfts)                                                  | file     |                                                                                    |
+| [`well-known-agents.ts`](/packages/./api/functions#well-known-agentsts)                        | file     |                                                                                    |
+| [`verify-agent-signature.ts`](/packages/./api/functions#verify-agent-signaturets)              | file     |                                                                                    |
+| [`agent-signature-plugin.ts`](/packages/./api/functions#agent-signature-plugints)              | file     |                                                                                    |
+| [`expiry-job.ts`](/packages/./api/functions#expiry-jobts)                                      | file     |                                                                                    |
+| [`logger`](/packages/./api/functions#logger)                                                   | variable |                                                                                    |
+| [`logger.ts`](/packages/./api/functions#loggerts)                                              | file     |                                                                                    |
+| [`observability.ts`](/packages/./api/functions#observabilityts)                                | file     |                                                                                    |
+| [`sanitize.ts`](/packages/./api/functions#sanitizets)                                          | file     |                                                                                    |
+| [`viewTemplate.ts`](/packages/./api/functions#viewtemplatets)                                  | file     |                                                                                    |
+| [`index.ts`](/packages/./api/functions#indexts)                                                | file     |                                                                                    |
+| [`instrumentation.ts`](/packages/./api/functions#instrumentationts)                            | file     |                                                                                    |
+| [`a2a-vectors.test.ts`](/packages/./api/functions#a2a-vectorstestts)                           | file     |                                                                                    |
+| [`agent-identity.test.ts`](/packages/./api/functions#agent-identitytestts)                     | file     |                                                                                    |
+| [`test-db.ts`](/packages/./api/functions#test-dbts)                                            | file     |                                                                                    |
+| [`api-keys.test.ts`](/packages/./api/functions#api-keystestts)                                 | file     |                                                                                    |
+| [`bft-adversarial.test.ts`](/packages/./api/functions#bft-adversarialtestts)                   | file     |                                                                                    |
+| [`crdt.test.ts`](/packages/./api/functions#crdttestts)                                         | file     |                                                                                    |
+| [`document-events.test.ts`](/packages/./api/functions#document-eventstestts)                   | file     |                                                                                    |
+| [`integration.test.ts`](/packages/./api/functions#integrationtestts)                           | file     |                                                                                    |
+| [`leases-integration.test.ts`](/packages/./api/functions#leases-integrationtestts)             | file     |                                                                                    |
+| [`path-matcher.test.ts`](/packages/./api/functions#path-matchertestts)                         | file     |                                                                                    |
+| [`presence-registry.test.ts`](/packages/./api/functions#presence-registrytestts)               | file     |                                                                                    |
+| [`scratchpad.test.ts`](/packages/./api/functions#scratchpadtestts)                             | file     |                                                                                    |
+| [`subscriptions-bandwidth.test.ts`](/packages/./api/functions#subscriptions-bandwidthtestts)   | file     |                                                                                    |
+| [`ws-awareness.test.ts`](/packages/./api/functions#ws-awarenesstestts)                         | file     |                                                                                    |
+| [`embeddings.ts`](/packages/./api/functions#embeddingsts)                                      | file     |                                                                                    |

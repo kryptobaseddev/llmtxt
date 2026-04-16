@@ -5,7 +5,7 @@
     "project": "@llmtxt/backend",
     "language": "typescript",
     "generator": "forge-ts@1.0.0",
-    "generated": "2026-04-13T14:56:50.218Z"
+    "generated": "2026-04-16T04:06:41.080Z"
   },
   "concepts": [
     {
@@ -27,6 +27,42 @@
       ]
     },
     {
+      "id": "concept-SectionCrdtState",
+      "name": "SectionCrdtState",
+      "slug": "sectioncrdtstate",
+      "what": "",
+      "tags": [
+        "state"
+      ]
+    },
+    {
+      "id": "concept-NewSectionCrdtState",
+      "name": "NewSectionCrdtState",
+      "slug": "newsectioncrdtstate",
+      "what": "",
+      "tags": [
+        "state"
+      ]
+    },
+    {
+      "id": "concept-DocumentEvent",
+      "name": "DocumentEvent",
+      "slug": "documentevent",
+      "what": "",
+      "tags": [
+        "event"
+      ]
+    },
+    {
+      "id": "concept-NewDocumentEvent",
+      "name": "NewDocumentEvent",
+      "slug": "newdocumentevent",
+      "what": "",
+      "tags": [
+        "event"
+      ]
+    },
+    {
       "id": "concept-InsertStateTransition",
       "name": "InsertStateTransition",
       "slug": "insertstatetransition",
@@ -43,10 +79,777 @@
       "tags": [
         "domain"
       ]
+    },
+    {
+      "id": "concept-InsertSectionCrdtState",
+      "name": "InsertSectionCrdtState",
+      "slug": "insertsectioncrdtstate",
+      "what": "",
+      "tags": [
+        "state"
+      ]
+    },
+    {
+      "id": "concept-SelectSectionCrdtState",
+      "name": "SelectSectionCrdtState",
+      "slug": "selectsectioncrdtstate",
+      "what": "",
+      "tags": [
+        "state"
+      ]
+    },
+    {
+      "id": "concept-InsertDocumentEvent",
+      "name": "InsertDocumentEvent",
+      "slug": "insertdocumentevent",
+      "what": "",
+      "tags": [
+        "event"
+      ]
+    },
+    {
+      "id": "concept-SelectDocumentEvent",
+      "name": "SelectDocumentEvent",
+      "slug": "selectdocumentevent",
+      "what": "",
+      "tags": [
+        "event"
+      ]
+    },
+    {
+      "id": "concept-DocumentEventLogType",
+      "name": "DocumentEventLogType",
+      "slug": "documenteventlogtype",
+      "what": "",
+      "tags": [
+        "domain"
+      ]
+    },
+    {
+      "id": "concept-AppendDocumentEventInput",
+      "name": "AppendDocumentEventInput",
+      "slug": "appenddocumenteventinput",
+      "what": "",
+      "tags": [
+        "domain"
+      ],
+      "properties": [
+        {
+          "name": "documentId",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "FK → documents.slug (the public-facing identifier).",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "eventType",
+          "type": {
+            "canonical": "string",
+            "original": "\"document.created\" | \"version.published\" | \"lifecycle.transitioned\" | \"approval.submitted\" | \"approval.rejected\" | \"section.edited\" | \"event.compacted\" | \"bft.approval_submitted\" | \"bft.byzantine_slash\" | \"bft.quorum_reached\""
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "actorId",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "Actor/user/agent that triggered this event.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "payloadJson",
+          "type": {
+            "canonical": "object",
+            "original": "Record<string, unknown>"
+          },
+          "description": "Event-specific payload. Must be JSON-serialisable.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "idempotencyKey",
+          "type": {
+            "canonical": "string",
+            "original": "string | null | undefined"
+          },
+          "description": "Optional idempotency key from the Idempotency-Key request header.",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-AppendDocumentEventRow",
+      "name": "AppendDocumentEventRow",
+      "slug": "appenddocumenteventrow",
+      "what": "",
+      "tags": [
+        "domain"
+      ],
+      "properties": [
+        {
+          "name": "id",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "documentId",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "seq",
+          "type": {
+            "canonical": "object",
+            "original": "bigint"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "eventType",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "actorId",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "payloadJson",
+          "type": {
+            "canonical": "any",
+            "original": "unknown"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "idempotencyKey",
+          "type": {
+            "canonical": "string",
+            "original": "string | null"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "createdAt",
+          "type": {
+            "canonical": "object",
+            "original": "Date"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "prevHash",
+          "type": {
+            "canonical": "string",
+            "original": "Buffer<ArrayBufferLike> | null"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-AppendDocumentEventResult",
+      "name": "AppendDocumentEventResult",
+      "slug": "appenddocumentevent",
+      "what": "",
+      "tags": [
+        "result"
+      ],
+      "properties": [
+        {
+          "name": "event",
+          "type": {
+            "canonical": "object",
+            "original": "AppendDocumentEventRow"
+          },
+          "description": "The inserted (or pre-existing) event row.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "duplicated",
+          "type": {
+            "canonical": "boolean"
+          },
+          "description": "true when the idempotency key matched an existing row; no insert occurred.",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-ChainValidationResult",
+      "name": "ChainValidationResult",
+      "slug": "chainvalidation",
+      "what": "",
+      "tags": [
+        "result"
+      ],
+      "properties": [
+        {
+          "name": "valid",
+          "type": {
+            "canonical": "boolean"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "checkedRows",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "firstBrokenSeq",
+          "type": {
+            "canonical": "string",
+            "original": "bigint | undefined"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "error",
+          "type": {
+            "canonical": "string",
+            "original": "string | undefined"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-DocumentEventRow",
+      "name": "DocumentEventRow",
+      "slug": "documenteventrow",
+      "what": "",
+      "tags": [
+        "domain"
+      ],
+      "properties": [
+        {
+          "name": "id",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "documentId",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "seq",
+          "type": {
+            "canonical": "object",
+            "original": "bigint"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "eventType",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "actorId",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "payloadJson",
+          "type": {
+            "canonical": "any",
+            "original": "unknown"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "idempotencyKey",
+          "type": {
+            "canonical": "string",
+            "original": "string | null"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "createdAt",
+          "type": {
+            "canonical": "object",
+            "original": "Date"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-PresenceEntry",
+      "name": "PresenceEntry",
+      "slug": "presenceentry",
+      "what": "",
+      "tags": [
+        "data"
+      ],
+      "properties": [
+        {
+          "name": "section",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "cursorOffset",
+          "type": {
+            "canonical": "string",
+            "original": "number | undefined"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "lastSeen",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-PresenceRecord",
+      "name": "PresenceRecord",
+      "slug": "presencerecord",
+      "what": "",
+      "tags": [
+        "data"
+      ],
+      "properties": [
+        {
+          "name": "agentId",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "section",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "cursorOffset",
+          "type": {
+            "canonical": "string",
+            "original": "number | undefined"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "lastSeen",
+          "type": {
+            "canonical": "number"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-PersistResult",
+      "name": "PersistResult",
+      "slug": "persist",
+      "what": "",
+      "tags": [
+        "result"
+      ],
+      "properties": [
+        {
+          "name": "seq",
+          "type": {
+            "canonical": "object",
+            "original": "bigint"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "newState",
+          "type": {
+            "canonical": "object",
+            "original": "Buffer<ArrayBufferLike>"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-PublishOptions",
+      "name": "PublishOptions",
+      "slug": "publish",
+      "what": "",
+      "tags": [
+        "options"
+      ],
+      "properties": [
+        {
+          "name": "agentId",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "content",
+          "type": {
+            "canonical": "string"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "contentType",
+          "type": {
+            "canonical": "string",
+            "original": "string | undefined"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "threadId",
+          "type": {
+            "canonical": "string",
+            "original": "string | undefined"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "sigHex",
+          "type": {
+            "canonical": "string",
+            "original": "string | undefined"
+          },
+          "description": "",
+          "required": true,
+          "default": null
+        }
+      ]
+    },
+    {
+      "id": "concept-ReadOptions",
+      "name": "ReadOptions",
+      "slug": "read",
+      "what": "",
+      "tags": [
+        "options"
+      ],
+      "properties": [
+        {
+          "name": "threadId",
+          "type": {
+            "canonical": "string",
+            "original": "string | undefined"
+          },
+          "description": "Only return messages in this thread.",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "lastId",
+          "type": {
+            "canonical": "string",
+            "original": "string | undefined"
+          },
+          "description": "Return messages after this stream ID (exclusive).",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "limit",
+          "type": {
+            "canonical": "string",
+            "original": "number | undefined"
+          },
+          "description": "Maximum number of messages to return. Default 100.",
+          "required": true,
+          "default": null
+        }
+      ]
     }
   ],
-  "operations": [],
+  "operations": [
+    {
+      "id": "op-enforceContentSize",
+      "name": "enforceContentSize",
+      "what": "Enforce the maximum document content size.  Reads `content` from the request body and rejects with 413 if the UTF-8 byte length exceeds CONTENT_LIMITS.maxDocumentSize. Safe to call on any route that accepts a `content` body field.",
+      "tags": [
+        "read"
+      ],
+      "inputs": []
+    },
+    {
+      "id": "op-enforcePatchSize",
+      "name": "enforcePatchSize",
+      "what": "Enforce the maximum patch content size.  Reads `patchText` from the request body and rejects with 413 if its byte length exceeds CONTENT_LIMITS.maxPatchSize.",
+      "tags": [
+        "read"
+      ],
+      "inputs": []
+    },
+    {
+      "id": "op-enforceDocumentLimit",
+      "name": "enforceDocumentLimit",
+      "what": "Enforce the maximum number of documents per authenticated user.  Counts documents owned by request.user.id and rejects with 429 if at or above CONTENT_LIMITS.maxDocumentsPerUser. Skips the check for unauthenticated requests (anonymous creation still allowed up to the rate limit; ownership won't accumulate).",
+      "tags": [],
+      "inputs": []
+    },
+    {
+      "id": "op-validateHashChain",
+      "name": "validateHashChain",
+      "what": "Validate the hash chain for the last `limit` rows of a document's event log.  Walks the rows in ascending seq order and recomputes each prev_hash, comparing against the stored value. Returns the first broken seq if any.",
+      "tags": [],
+      "inputs": [
+        {
+          "name": "db",
+          "type": {
+            "canonical": "any",
+            "original": "unknown"
+          },
+          "required": true,
+          "description": "Drizzle client (outside any transaction)."
+        },
+        {
+          "name": "slug",
+          "type": {
+            "canonical": "any",
+            "original": "unknown"
+          },
+          "required": true,
+          "description": "Document slug (= document_id FK)."
+        },
+        {
+          "name": "limit",
+          "type": {
+            "canonical": "any",
+            "original": "unknown"
+          },
+          "required": true,
+          "description": "Number of recent rows to validate (default 100)."
+        }
+      ]
+    },
+    {
+      "id": "op-generateApiKey",
+      "name": "generateApiKey",
+      "what": "Generate a new API key.",
+      "tags": [],
+      "inputs": [],
+      "outputs": {
+        "type": {
+          "canonical": "object",
+          "original": "An object containing:   - `rawKey`: the full key string (return to user ONCE, never store)   - `keyHash`: SHA-256 hex digest to persist in the database   - `keyPrefix`: display prefix for the database (first 8 random chars)"
+        },
+        "description": "An object containing:   - `rawKey`: the full key string (return to user ONCE, never store)   - `keyHash`: SHA-256 hex digest to persist in the database   - `keyPrefix`: display prefix for the database (first 8 random chars)"
+      }
+    },
+    {
+      "id": "op-createEmbeddingProvider",
+      "name": "createEmbeddingProvider",
+      "what": "Select the best available embedding provider.  - If `OPENAI_API_KEY` is set → `OpenAIEmbeddingProvider` (`text-embedding-3-small`). - Otherwise → `LocalEmbeddingProvider` (TF-IDF, 256-dimensional, no external API).",
+      "tags": [],
+      "inputs": []
+    },
+    {
+      "id": "op-initCrdtPubSub",
+      "name": "initCrdtPubSub",
+      "what": "Initialize the CRDT pub/sub adapter.  Must be called once at server startup (before routes are registered). Idempotent — subsequent calls are no-ops.",
+      "tags": [],
+      "inputs": []
+    },
+    {
+      "id": "op-buildReceipt",
+      "name": "buildReceipt",
+      "what": "Build the signature receipt object included in every mutating write response.  When `signatureVerified` is true, `agent_id` and `pubkey_fingerprint` are set.",
+      "tags": [],
+      "inputs": []
+    },
+    {
+      "id": "op-runLeaseExpiryPass",
+      "name": "runLeaseExpiryPass",
+      "what": "Run one expiry pass: delete expired rows and emit events.",
+      "tags": [],
+      "inputs": []
+    }
+  ],
   "constraints": [],
   "workflows": [],
-  "configSchema": []
+  "configSchema": [
+    {
+      "key": "publish.agentId",
+      "type": {
+        "canonical": "string"
+      },
+      "description": "",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "publish.content",
+      "type": {
+        "canonical": "string"
+      },
+      "description": "",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "publish.contentType",
+      "type": {
+        "canonical": "string",
+        "original": "string | undefined"
+      },
+      "description": "",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "publish.threadId",
+      "type": {
+        "canonical": "string",
+        "original": "string | undefined"
+      },
+      "description": "",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "publish.sigHex",
+      "type": {
+        "canonical": "string",
+        "original": "string | undefined"
+      },
+      "description": "",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "read.threadId",
+      "type": {
+        "canonical": "string",
+        "original": "string | undefined"
+      },
+      "description": "Only return messages in this thread.",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "read.lastId",
+      "type": {
+        "canonical": "string",
+        "original": "string | undefined"
+      },
+      "description": "Return messages after this stream ID (exclusive).",
+      "required": true,
+      "default": null
+    },
+    {
+      "key": "read.limit",
+      "type": {
+        "canonical": "string",
+        "original": "number | undefined"
+      },
+      "description": "Maximum number of messages to return. Default 100.",
+      "required": true,
+      "default": null
+    }
+  ]
 }

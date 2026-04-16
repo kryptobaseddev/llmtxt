@@ -4,6 +4,24 @@ title: ''
 
 Functions and classes exported by this package.
 
+## countTokens(text)
+
+Count tokens using the cl100k\_base BPE tokenizer (GPT-3.5/GPT-4 compatible).  Returns the exact number of tokens the given text would consume in a GPT-4 / Claude-compatible API call. This is significantly more accurate than the `ceil(len / 4)` heuristic for content with non-ASCII characters, code, or structured markup.
+
+**Signature**
+
+```typescript
+(text: string) => number
+```
+
+**Parameters**
+
+| Name   | Type     | Description           |
+| ------ | -------- | --------------------- |
+| `text` | `string` | The text to tokenize. |
+
+**Returns** — Number of tokens.
+
 ## getDocumentCacheKey()
 
 Generate cache key for a document
@@ -94,6 +112,161 @@ Get cache stats for both caches
 () => { content: ReturnType<typeof contentCache.getStats>; metadata: ReturnType<typeof metadataCache.getStats>; }
 ```
 
+## keyGenerator()
+
+Generate a stable rate-limit key for the request.  Uses the most specific identifier available:   1. Hashed API key (from Bearer token) — identifies the key, not the user   2. User ID (from session cookie)   3. Client IP address
+
+**Signature**
+
+```typescript
+(request: FastifyRequest) => string
+```
+
+## getTierMax()
+
+Return the rate limit max for the given category based on the request's auth tier.
+
+**Signature**
+
+```typescript
+(request: FastifyRequest, category: "global" | "write" | "auth") => number
+```
+
+## registerRateLimiting()
+
+Register the global rate limiter on the Fastify instance.  Must be called AFTER CORS and compression plugins but BEFORE route registration. The global limit applies to all routes; individual routes may override with stricter config via writeRateLimit or authRateLimit.  The /api/health endpoint is explicitly skipped via the skip function.
+
+**Signature**
+
+```typescript
+(app: FastifyInstance) => Promise<void>
+```
+
+## adaptiveThrottle()
+
+Adaptive throttle hook: adds artificial delay when a client approaches their rate limit ceiling ( 20% remaining). This smooths out burst traffic by slowing requests progressively rather than hard-cutting at the limit. Maximum induced delay is 500ms.  Attach as a preHandler hook on routes where burst smoothing is desired.
+
+**Signature**
+
+```typescript
+(request: FastifyRequest, reply: FastifyReply) => Promise<void>
+```
+
+## enforceContentSize()
+
+Enforce the maximum document content size.  Reads `content` from the request body and rejects with 413 if the UTF-8 byte length exceeds CONTENT\_LIMITS.maxDocumentSize. Safe to call on any route that accepts a `content` body field.
+
+**Signature**
+
+```typescript
+(request: FastifyRequest, reply: FastifyReply) => Promise<undefined>
+```
+
+## enforcePatchSize()
+
+Enforce the maximum patch content size.  Reads `patchText` from the request body and rejects with 413 if its byte length exceeds CONTENT\_LIMITS.maxPatchSize.
+
+**Signature**
+
+```typescript
+(request: FastifyRequest, reply: FastifyReply) => Promise<undefined>
+```
+
+## enforceDocumentLimit()
+
+Enforce the maximum number of documents per authenticated user.  Counts documents owned by request.user.id and rejects with 429 if at or above CONTENT\_LIMITS.maxDocumentsPerUser. Skips the check for unauthenticated requests (anonymous creation still allowed up to the rate limit; ownership won't accumulate).
+
+**Signature**
+
+```typescript
+(request: FastifyRequest, reply: FastifyReply) => Promise<undefined>
+```
+
+## getDocumentPermissions()
+
+Resolve the set of permissions a user holds for a document identified by slug.  Returns an empty array when the user has no access at all. Callers should treat an empty result as a 403 for private/org documents, or allow through for public documents (already handled inside this function).
+
+**Signature**
+
+```typescript
+(userId: string | null | undefined, slug: string) => Promise<Permission[]>
+```
+
+## hasPermission()
+
+Check whether a user holds a specific permission on a document. Returns false for non-existent documents (caller should 404 separately).
+
+**Signature**
+
+```typescript
+(userId: string | null | undefined, slug: string, permission: Permission) => Promise<boolean>
+```
+
+## requirePermission()
+
+Create a Fastify preHandler that enforces a minimum permission level.  Usage:   fastify.get('/documents/:slug',  preHandler: \[requirePermission('read')] , handler)  The handler is responsible for checking document existence (404) separately when the slug is not found — this middleware returns 403 for permission denied and 401 for unauthenticated requests on private documents.
+
+**Signature**
+
+```typescript
+(permission: Permission) => (request: FastifyRequest, reply: FastifyReply) => Promise<undefined>
+```
+
+## ensureDefaultMetrics()
+
+**Signature**
+
+```typescript
+() => void
+```
+
+## registerMetrics()
+
+Register per-request HTTP metrics hooks on the Fastify instance.  Attaches an onRequest hook to start a timer and an onResponse hook to record the duration and increment the request counter. The /api/metrics route itself is excluded from metrics to avoid self-referential noise.  Call this once during application setup, after plugin registration and before route registration.
+
+**Signature**
+
+```typescript
+(app: FastifyInstance) => Promise<void>
+```
+
+## appendDocumentEvent(tx, input)
+
+Append a document event inside an open Drizzle transaction.
+
+**Signature**
+
+```typescript
+(tx: any, input: AppendDocumentEventInput) => Promise<AppendDocumentEventResult>
+```
+
+**Parameters**
+
+| Name    | Type                       | Description                                      |
+| ------- | -------------------------- | ------------------------------------------------ |
+| `tx`    | `any`                      | Open Drizzle transaction (postgres-js provider). |
+| `input` | `AppendDocumentEventInput` | Event parameters.                                |
+
+**Returns** — The appended event row + whether it was a duplicate.
+
+## validateHashChain(db, slug, limit)
+
+Validate the hash chain for the last `limit` rows of a document's event log.  Walks the rows in ascending seq order and recomputes each prev\_hash, comparing against the stored value. Returns the first broken seq if any.
+
+**Signature**
+
+```typescript
+(db: any, slug: string, limit?: number) => Promise<ChainValidationResult>
+```
+
+**Parameters**
+
+| Name    | Type       | Description                                      |
+| ------- | ---------- | ------------------------------------------------ |
+| `db`    | `any`      | Drizzle client (outside any transaction).        |
+| `slug`  | `string`   | Document slug (= document\_id FK).               |
+| `limit` | `: number` | Number of recent rows to validate (default 100). |
+
 ## apiRoutes()
 
 Register core document API routes: compress, decompress, validate, search, schemas, and cache management.
@@ -102,6 +275,26 @@ Register core document API routes: compress, decompress, validate, search, schem
 
 ```typescript
 (fastify: FastifyInstance) => Promise<void>
+```
+
+## getEventsSince()
+
+Fetch document events with seq  fromSeq, ordered ascending.
+
+**Signature**
+
+```typescript
+(db: any, docId: string, fromSeq: number) => Promise<DocumentEventRow[]>
+```
+
+## computeSectionDelta()
+
+Compute a SectionDelta for a specific section between fromSeq and now.  Returns null when fromSeq === currentSeq (no changes).  The delta is derived by examining SECTION\_UPDATED / SECTION\_CREATED / SECTION\_DELETED events in the payload. Events of type 'section.edited' are used as the primary signal (payload.sectionId and payload.event).  For backward compatibility, also checks event payloads for sectionName and content fields.
+
+**Signature**
+
+```typescript
+(db: any, docId: string, sectionName: string, fromSeq: number) => Promise<SectionDelta | null>
 ```
 
 ## disclosureRoutes()
@@ -134,9 +327,49 @@ Register authentication routes by proxying all /auth/\* requests to the better-a
 (fastify: FastifyInstance) => Promise<void>
 ```
 
+## generateApiKey()
+
+Generate a new API key.
+
+**Signature**
+
+```typescript
+() => { rawKey: string; keyHash: string; keyPrefix: string; }
+```
+
+**Returns** — An object containing:   - `rawKey`: the full key string (return to user ONCE, never store)   - `keyHash`: SHA-256 hex digest to persist in the database   - `keyPrefix`: display prefix for the database (first 8 random chars)
+
+## hashApiKey(rawKey)
+
+Hash a raw API key using SHA-256.  Delegates to crates/llmtxt-core::hash\_content via the llmtxt WASM binding. Used both at creation time (to derive the stored hash) and at authentication time (to look up the key by hash).
+
+**Signature**
+
+```typescript
+(rawKey: string) => string
+```
+
+**Parameters**
+
+| Name     | Type     | Description                                         |
+| -------- | -------- | --------------------------------------------------- |
+| `rawKey` | `string` | The full key string including the "llmtxt\_" prefix |
+
+**Returns** — Hex-encoded SHA-256 digest
+
+## isApiKeyFormat()
+
+Check whether a raw key string looks like an LLMtxt API key. Used to quickly reject obviously wrong Bearer tokens before hashing.
+
+**Signature**
+
+```typescript
+(token: string) => boolean
+```
+
 ## requireAuth()
 
-Authenticate the request via session cookie. Populates request.user and request.session, or returns 401.
+Authenticate the request via Bearer API key first, then session cookie. Populates request.user and request.session, or returns 401.
 
 **Signature**
 
@@ -216,7 +449,7 @@ Register similarity route: GET /documents/:slug/similar?q=query\&method=ngram\&t
 
 ## graphRoutes()
 
-Register knowledge graph route: GET /documents/:slug/graph to extract mentions, #tags, and /directives from document content.
+Register knowledge graph route: GET /documents/:slug/graph to extract mentions, #tags, /directives from document content, and cross-document links.
 
 **Signature**
 
@@ -254,6 +487,349 @@ Register the cherry-pick merge route.
 (fastify: FastifyInstance) => Promise<void>
 ```
 
+## apiKeyRoutes()
+
+Register API key management routes.
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## conflictRoutes()
+
+Register conflict resolution routes.
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## OpenAIEmbeddingProvider
+
+OpenAI `text-embedding-3-small` provider.  Handles: - Batching (≤ 2 048 inputs per request) - Exponential back-off on 429 / 5xx responses - Result reordering by the index returned in the API response
+
+**Signature**
+
+```typescript
+typeof OpenAIEmbeddingProvider
+```
+
+**Methods**
+
+### embed()
+
+```typescript
+(texts: string[]) => Promise<number[][]>
+```
+
+### embedBatch()
+
+```typescript
+(texts: string[], indexOffset: number) => Promise<Array<{ index: number; embedding: number[]; }>>
+```
+
+## LocalEmbeddingProvider
+
+Lightweight TF-IDF vectorizer for offline / dev use.  Delegates to `crates/llmtxt-core::tfidf::tfidf_embed_batch_wasm` via the `llmtxt` WASM binding (audit item #15 fix). The algorithm is identical to the previous TypeScript implementation: 1. Tokenise into lowercase word unigrams + bigrams. 2. Build global vocabulary, compute TF, IDF (smooth), project via FNV-1a. 3. L2-normalise.  This is intentionally approximate — sufficient for testing and development, NOT a replacement for neural embeddings in production.
+
+**Signature**
+
+```typescript
+typeof LocalEmbeddingProvider
+```
+
+**Methods**
+
+### embed()
+
+```typescript
+(texts: string[]) => Promise<number[][]>
+```
+
+## createEmbeddingProvider()
+
+Select the best available embedding provider.  - If `OPENAI_API_KEY` is set → `OpenAIEmbeddingProvider` (`text-embedding-3-small`). - Otherwise → `LocalEmbeddingProvider` (TF-IDF, 256-dimensional, no external API).
+
+**Signature**
+
+```typescript
+() => EmbeddingProvider
+```
+
+## semanticRoutes()
+
+Register semantic diff and consensus routes.
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## accessControlRoutes()
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## organizationRoutes()
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## wsRoutes()
+
+Register WebSocket subscription routes. The fastify instance must have fastify/websocket registered.
+
+**Signature**
+
+```typescript
+(app: FastifyInstance) => Promise<void>
+```
+
+## PresenceRegistry
+
+**Signature**
+
+```typescript
+typeof PresenceRegistry
+```
+
+**Methods**
+
+### upsert()
+
+Upsert (insert or update) a presence entry. Sets lastSeen = Date.now().
+
+```typescript
+(agentId: string, docId: string, section: string, cursorOffset?: number) => void
+```
+
+### expire()
+
+Remove entries older than TTL\_MS from the registry. Accepts an optional `now` timestamp for testing with fake timers.
+
+```typescript
+(now?: number) => void
+```
+
+### getByDoc()
+
+Get all active presence records for a document, sorted by lastSeen descending.
+
+```typescript
+(docId: string) => PresenceRecord[]
+```
+
+## persistCrdtUpdate(documentId, sectionId, updateBlob, clientId)
+
+Persist a CRDT update to section\_crdt\_updates and update section\_crdt\_states.  Steps (all within one transaction):  1. Acquire pg\_advisory\_xact\_lock on the (docId, secId) pair.  2. SELECT MAX(seq)+1 as next seq; default to 1 if no rows.  3. Load current state from section\_crdt\_states (or empty for new section).  4. Apply the update to derive new state.  5. INSERT into section\_crdt\_updates (seq, updateBlob, clientId).  6. UPSERT section\_crdt\_states with the new state.
+
+**Signature**
+
+```typescript
+(documentId: string, sectionId: string, updateBlob: Buffer, clientId: string) => Promise<PersistResult>
+```
+
+**Parameters**
+
+| Name         | Type     | Description                                  |
+| ------------ | -------- | -------------------------------------------- |
+| `documentId` | `string` | document slug (FK references documents.slug) |
+| `sectionId`  | `string` | section identifier                           |
+| `updateBlob` | `Buffer` | raw lib0 v1 Yrs update bytes from the client |
+| `clientId`   | `string` | agent/user ID that produced this update      |
+
+**Returns** — seq, newState  on success; throws on failure
+
+## loadSectionState()
+
+Load the consolidated CRDT state for a (documentId, sectionId) pair. Returns null if no state exists yet (section not yet initialized).
+
+**Signature**
+
+```typescript
+(documentId: string, sectionId: string) => Promise<{ yrsState: Buffer; clock: number; updatedAt: Date | null; } | null>
+```
+
+## loadPendingUpdates()
+
+Load all pending CRDT update blobs for a (documentId, sectionId) pair, ordered by seq ascending.
+
+**Signature**
+
+```typescript
+(documentId: string, sectionId: string) => Promise<Buffer[]>
+```
+
+## initCrdtPubSub()
+
+Initialize the CRDT pub/sub adapter.  Must be called once at server startup (before routes are registered). Idempotent — subsequent calls are no-ops.
+
+**Signature**
+
+```typescript
+() => Promise<void>
+```
+
+## publishCrdtUpdate()
+
+Publish a CRDT update to all subscribers (both local and cross-instance).
+
+**Signature**
+
+```typescript
+(documentId: string, sectionId: string, update: Buffer) => Promise<void>
+```
+
+## subscribeCrdtUpdates()
+
+Subscribe to CRDT updates for a (documentId, sectionId) pair.  Returns an unsubscribe function — call it when the WebSocket closes.
+
+**Signature**
+
+```typescript
+(documentId: string, sectionId: string, listener: UpdateListener) => () => void
+```
+
+## compactSection()
+
+Compact a single (documentId, sectionId) pair.  Steps:  1. BEGIN TRANSACTION  2. SELECT all pending updates ordered by seq  3. Merge updates into consolidated state via crdt\_merge\_updates  4. UPSERT section\_crdt\_states with merged state, clock = 0  5. DELETE all compacted rows from section\_crdt\_updates  6. COMMIT  If the transaction fails, no update rows are deleted (rollback guarantee).
+
+**Signature**
+
+```typescript
+(documentId: string, sectionId: string) => Promise<number>
+```
+
+**Returns** — number of update rows deleted
+
+## broadcastAwareness()
+
+Broadcast awareness update bytes to all other connections in the same room. Does NOT decode the awareness state — raw relay only (T256 AC).
+
+**Signature**
+
+```typescript
+(documentId: string, sectionId: string, updateBytes: Buffer, excludeClientId: string) => void
+```
+
+## handleAwarenessMessage()
+
+Handle an awareness message from a client. Relay raw bytes to peers and upsert the presence registry entry.  The awareness payload is NOT decoded server-side — we relay the raw bytes to all other peers in the same (docId, sectionId) room.
+
+**Signature**
+
+```typescript
+(clientId: string, documentId: string, sectionId: string, updateBytes: Buffer) => void
+```
+
+## hasSectionSessions()
+
+Check whether any WS session is active for a given section. Used by the compaction job to avoid compacting while clients are connected.
+
+**Signature**
+
+```typescript
+(documentId: string, sectionId: string) => boolean
+```
+
+## wsCrdtRoutes()
+
+**Signature**
+
+```typescript
+(app: FastifyInstance) => Promise<void>
+```
+
+## startCrdtCompactionJob()
+
+Start the CRDT compaction background job.  Runs immediately on startup (to handle backlog) then every 6 hours. Safe to call multiple times — subsequent calls are no-ops.
+
+**Signature**
+
+```typescript
+() => void
+```
+
+## sseRoutes()
+
+Register SSE streaming routes under the provided prefix (e.g. /api).
+
+**Signature**
+
+```typescript
+(app: FastifyInstance) => Promise<void>
+```
+
+## webhookRoutes()
+
+Register webhook CRUD routes. All routes require authentication.
+
+**Signature**
+
+```typescript
+(app: FastifyInstance) => Promise<void>
+```
+
+## startWebhookWorker()
+
+Start the webhook delivery worker.  Call once at server startup. The worker attaches a single listener to the event bus and fans out to all matching webhooks for each event.
+
+**Signature**
+
+```typescript
+() => void
+```
+
+## startEventLogJobs()
+
+Start both background jobs. Call once at server startup (after DB is ready). Safe to call multiple times — subsequent calls are no-ops.
+
+**Signature**
+
+```typescript
+() => void
+```
+
+## stopEventLogJobs()
+
+Stop both background jobs. Useful in tests or graceful shutdown.
+
+**Signature**
+
+```typescript
+() => void
+```
+
+## crossDocRoutes()
+
+Register cross-document routes: enhanced search, document links, and multi-document graph.
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## collectionRoutes()
+
+Register collection management routes.
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
 ## getDocumentWithContent()
 
 Fetch a document by slug, resolving content from cache or database with decompression.
@@ -261,7 +837,7 @@ Fetch a document by slug, resolving content from cache or database with decompre
 **Signature**
 
 ```typescript
-(slug: string, request: FastifyRequest) => Promise<{ content: string; id: string; slug: string; format: string; contentHash: string; compressedData: unknown; originalSize: number; compressedSize: number; tokenCount: number | null; createdAt: number; expiresAt: number | null; accessCount: number; lastAccessedAt: number | null; state: string; ownerId: string | null; isAnonymous: boolean; storageType: string; storageKey: string | null; currentVersion: number; versionCount: number; sharingMode: string; approvalRequiredCount: number; approvalRequireUnanimous: boolean; approvalAllowedReviewers: string; approvalTimeoutMs: number; } | null>
+(slug: string, request: FastifyRequest) => Promise<any>
 ```
 
 ## handleContentNegotiation()
@@ -294,6 +870,437 @@ Check if a URL path looks like a document slug. Slugs are short alphanumeric str
 (urlPath: string) => string | null
 ```
 
+## registerAuditLogging()
+
+Register an onResponse hook that writes audit log entries for all successful state-changing requests.
+
+**Signature**
+
+```typescript
+(app: FastifyInstance) => Promise<void>
+```
+
+## auditLogRoutes()
+
+Register the GET /api/audit-logs route. Requires authentication. Returns paginated audit logs with optional filtering.  Query parameters:   - action: filter by exact action name (e.g. 'document.create')   - resourceType: filter by resource type   - userId: filter by user ID   - from: start timestamp (unix ms)   - to: end timestamp (unix ms)   - limit: max results (default 50, max 500)   - offset: pagination offset (default 0)
+
+**Signature**
+
+```typescript
+(app: FastifyInstance) => Promise<void>
+```
+
+## documentEventRoutes()
+
+Register document event log routes under the given Fastify scope.
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## agentKeyRoutes()
+
+Register agent key management routes under /agents/keys.
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## crdtRoutes()
+
+**Signature**
+
+```typescript
+(app: FastifyInstance) => Promise<void>
+```
+
+## presenceRoutes()
+
+**Signature**
+
+```typescript
+(app: FastifyInstance) => Promise<void>
+```
+
+## acquireLease(db, docId, sectionId, agentId, ttlMs, reason)
+
+Acquire an advisory lease on a section.  Returns the inserted Lease row, or null if the section is already leased by another agent (conflict). The caller may pass ttlMs to override the default.
+
+**Signature**
+
+```typescript
+(db: any, docId: string, sectionId: string, agentId: string, ttlMs: number, reason?: string | null) => Promise<Lease | null>
+```
+
+**Parameters**
+
+| Name        | Type               | Description                     |
+| ----------- | ------------------ | ------------------------------- |
+| `db`        | `any`              | Drizzle client or transaction.  |
+| `docId`     | `string`           | Document slug.                  |
+| `sectionId` | `string`           | Section identifier.             |
+| `agentId`   | `string`           | Requesting agent.               |
+| `ttlMs`     | `number`           | Lease duration in milliseconds. |
+| `reason`    | `: string \| null` | Optional human-readable reason. |
+
+## renewLease()
+
+Renew a lease by extending its expiresAt.  Returns the updated Lease, or null if the lease was not found or the requesting agent is not the holder.
+
+**Signature**
+
+```typescript
+(db: any, leaseId: string, agentId: string, ttlMs: number) => Promise<Lease | null>
+```
+
+## releaseLease()
+
+Release a lease. No-op if the lease is already expired or does not exist. Returns true if a row was deleted.
+
+**Signature**
+
+```typescript
+(db: any, leaseId: string, agentId: string) => Promise<boolean>
+```
+
+## getActiveLease()
+
+Get the active (non-expired) lease for a (docId, sectionId) pair. Returns null if no active lease exists.
+
+**Signature**
+
+```typescript
+(db: any, docId: string, sectionId: string) => Promise<Lease | null>
+```
+
+## leaseRoutes()
+
+**Signature**
+
+```typescript
+(app: FastifyInstance) => Promise<void>
+```
+
+## matchPath(pattern, path)
+
+Test whether a path matches a pattern.
+
+**Signature**
+
+```typescript
+(pattern: string, path: string) => boolean
+```
+
+**Parameters**
+
+| Name      | Type     | Description                                           |
+| --------- | -------- | ----------------------------------------------------- |
+| `pattern` | `string` | URL pattern with optional :param and \* placeholders. |
+| `path`    | `string` | The actual URL path to test.                          |
+
+**Returns** — true if the path matches the pattern.
+
+## extractParams(pattern, path)
+
+Extract named parameters from a path according to a pattern.
+
+**Signature**
+
+```typescript
+(pattern: string, path: string) => Record<string, string>
+```
+
+**Parameters**
+
+| Name      | Type     | Description                           |
+| --------- | -------- | ------------------------------------- |
+| `pattern` | `string` | URL pattern with :param placeholders. |
+| `path`    | `string` | The actual URL path.                  |
+
+**Returns** — Object mapping parameter names to captured values.                 Empty object if no parameters or no match.
+
+## subscribeRoutes()
+
+**Signature**
+
+```typescript
+(app: FastifyInstance) => Promise<void>
+```
+
+## bftRoutes()
+
+Register BFT consensus routes.
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## publishScratchpad()
+
+Publish a message to the document scratchpad.  Returns the assigned message ID.
+
+**Signature**
+
+```typescript
+(slug: string, opts: PublishOptions) => Promise<ScratchpadMessage>
+```
+
+## readScratchpad()
+
+Read messages from the document scratchpad.  Returns up to `limit` messages after `lastId`.
+
+**Signature**
+
+```typescript
+(slug: string, opts?: ReadOptions) => Promise<ScratchpadMessage[]>
+```
+
+## subscribeScratchpad()
+
+Subscribe to new scratchpad messages for SSE fan-out (in-memory fallback).  Returns an unsubscribe function.
+
+**Signature**
+
+```typescript
+(slug: string, threadId: string | undefined, onMessage: (msg: ScratchpadMessage) => void) => () => void
+```
+
+## purgeScratchpad()
+
+Purge expired scratchpad messages (24h TTL cleanup).  For Redis: XTRIM handles this automatically (TTL set on XADD). For in-memory: scans all streams and removes old entries.
+
+**Signature**
+
+```typescript
+() => Promise<void>
+```
+
+## scratchpadRoutes()
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## a2aRoutes()
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## purgeExpiredInboxMessages()
+
+Purge expired agent inbox messages older than 48h. Called by the background jobs scheduler.
+
+**Signature**
+
+```typescript
+() => Promise<number>
+```
+
+## resolveRequestVersion()
+
+Resolve the version from the request. URL path prefix takes precedence and is handled by route registration; this function handles Accept and X-API-Version headers.
+
+**Signature**
+
+```typescript
+(request: FastifyRequest) => ApiVersionInfo
+```
+
+## addVersionResponseHeaders()
+
+Attach standard API version response headers to every reply.    X-API-Version:        served version   X-API-Latest-Version: latest available version
+
+**Signature**
+
+```typescript
+(reply: FastifyReply, versionInfo: ApiVersionInfo) => void
+```
+
+## addDeprecationHeaders()
+
+Attach RFC 8594 deprecation headers when serving a deprecated (or unversioned-legacy) endpoint.    Deprecation: true   Sunset:      ISO date   Link:        /api/v; rel="successor-version"
+
+**Signature**
+
+```typescript
+(reply: FastifyReply, requestUrl: string, versionInfo: ApiVersionInfo) => void
+```
+
+## apiVersionPlugin()
+
+Register this plugin globally so that `request.apiVersion` is always populated, even for requests that are served from legacy /api/\* routes.
+
+**Signature**
+
+```typescript
+(app: FastifyInstance) => Promise<void>
+```
+
+## v1Routes()
+
+**Signature**
+
+```typescript
+(app: FastifyInstance) => Promise<void>
+```
+
+## healthRoutes()
+
+**Signature**
+
+```typescript
+(app: FastifyInstance) => Promise<void>
+```
+
+## securityHeaders()
+
+Register an onSend hook that sets comprehensive security headers on every response.
+
+**Signature**
+
+```typescript
+(app: FastifyInstance) => Promise<void>
+```
+
+## registerCsrf()
+
+Register fastify/cookie and fastify/csrf-protection, and add a preHandler hook that enforces CSRF for cookie-authenticated, state-changing requests.
+
+**Signature**
+
+```typescript
+(app: FastifyInstance) => Promise<void>
+```
+
+## wellKnownAgentsRoutes()
+
+Register the /.well-known/agents/:id discovery route.
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## computeReceipt()
+
+Compute a stateless server receipt HMAC.  receipt = HMAC-SHA256(SERVER\_RECEIPT\_SECRET, canonical\_payload + 'n' + response\_hash) Uses signWebhookPayload (WASM Rust HMAC-SHA256, SSOT per docs/SSOT.md). Returns the hex portion only (strips the 'sha256=' prefix for compact storage).
+
+**Signature**
+
+```typescript
+(canonicalPayload: string, responseBodyHex: string) => string
+```
+
+## buildReceipt()
+
+Build the signature receipt object included in every mutating write response.  When `signatureVerified` is true, `agent_id` and `pubkey_fingerprint` are set.
+
+**Signature**
+
+```typescript
+(opts: { agentId: string | null; pubkeyFingerprint: string | null; payloadHash: string; serverTimestamp: number; signatureVerified: boolean; }) => { agent_id: string | null; pubkey_fingerprint: string | null; payload_hash: string; server_timestamp: number; signature_verified: boolean; }
+```
+
+## startNonceCleanup()
+
+Start a background interval that purges nonces older than 24 hours. Safe to call multiple times — only one interval is registered.
+
+**Signature**
+
+```typescript
+() => void
+```
+
+## verifyAgentSignature()
+
+Fastify `preHandler` hook that verifies Ed25519 agent signatures.  When no signature headers are present and the requesting user has no registered pubkeys, the request passes through (unsigned writes are allowed when `SIGNATURE_REQUIRED` is not set to `"true"`).
+
+**Signature**
+
+```typescript
+(request: FastifyRequest, reply: FastifyReply) => Promise<void>
+```
+
+## agentSignaturePlugin()
+
+Register the agent signature plugin as a Fastify plugin.  Adds: - onRequest hook: calls verifyAgentSignature for write routes - onSend hook: injects receipt into JSON responses for write routes
+
+**Signature**
+
+```typescript
+(fastify: FastifyInstance) => Promise<void>
+```
+
+## runLeaseExpiryPass()
+
+Run one expiry pass: delete expired rows and emit events.
+
+**Signature**
+
+```typescript
+() => Promise<void>
+```
+
+## startLeaseExpiryJob()
+
+Start the lease expiry job.
+
+**Signature**
+
+```typescript
+() => ReturnType<typeof setInterval>
+```
+
+**Returns** — NodeJS.Timeout reference for use with clearInterval in tests/shutdown.
+
+## stopLeaseExpiryJob()
+
+Stop a previously started lease expiry job.
+
+**Signature**
+
+```typescript
+(timer: ReturnType<typeof setInterval>) => void
+```
+
+## registerObservabilityHooks()
+
+**Signature**
+
+```typescript
+(app: FastifyInstance) => Promise<void>
+```
+
+## sanitizeHtml(html)
+
+Sanitize an HTML string for safe embedding in a server-rendered page.  This function must only be called on content that will be rendered as HTML (e.g., the output of renderMarkdown in viewTemplate.ts). Do not call it on raw content stored in the database or returned via JSON/plain-text APIs.
+
+**Signature**
+
+```typescript
+(html: string) => string
+```
+
+**Parameters**
+
+| Name   | Type     | Description                  |
+| ------ | -------- | ---------------------------- |
+| `html` | `string` | The HTML string to sanitize. |
+
+**Returns** — A safe HTML string with all dangerous elements and attributes removed.
+
 ## renderViewHtml()
 
 Render the server-side HTML view template for a document page, including meta tags and structured content display.
@@ -303,3 +1310,66 @@ Render the server-side HTML view template for a document page, including meta ta
 ```typescript
 (slug: string, data: any) => string
 ```
+
+## setupTestDb()
+
+Set up a test database.  When `DATABASE_URL_PG` is set, a Postgres connection is opened against a fresh, randomly-named schema.  Otherwise an in-memory SQLite database is created and bootstrapped with the full DDL.  Always call `teardownTestDb(ctx)` in `after()` to release connections and clean up schema.
+
+**Signature**
+
+```typescript
+() => Promise<TestDbContext>
+```
+
+## teardownTestDb()
+
+Tear down a test database context returned by `setupTestDb()`.  - SQLite: closes the database file handle. - PostgreSQL: drops the isolated test schema and ends all connections.
+
+**Signature**
+
+```typescript
+(ctx: TestDbContext) => Promise<void>
+```
+
+## computeAndStoreEmbeddings(documentId, content)
+
+Compute and store embeddings for all sections of a document.  Skips sections whose content\_hash matches the stored value (no recompute). Safe to call on every version write — idempotent and fast for unchanged sections.
+
+**Signature**
+
+```typescript
+(documentId: string, content: string) => Promise<void>
+```
+
+**Parameters**
+
+| Name         | Type     | Description                 |
+| ------------ | -------- | --------------------------- |
+| `documentId` | `string` | The document ID.            |
+| `content`    | `string` | Decompressed document text. |
+
+## invalidateDocumentEmbeddings()
+
+Delete all stored embeddings for a document.  Called before regenerating embeddings (e.g. on content change). In practice the ON CONFLICT upsert handles staleness, but explicit invalidation is useful when sections are removed.
+
+**Signature**
+
+```typescript
+(documentId: string) => Promise<void>
+```
+
+## backfillEmbeddings(limit)
+
+Backfill embeddings for documents that have none.  Fetches the latest version for each document lacking embeddings and computes section embeddings.  Safe to run concurrently — each document is processed independently.
+
+**Signature**
+
+```typescript
+(limit?: number) => Promise<number>
+```
+
+**Parameters**
+
+| Name    | Type       | Description                                                   |
+| ------- | ---------- | ------------------------------------------------------------- |
+| `limit` | `: number` | Maximum number of documents to backfill per run (default 50). |

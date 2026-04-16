@@ -6,8 +6,8 @@ export default {
   enforce: {
     rules: {
       'require-summary': 'warn',
-      'require-param': 'off',
-      'require-returns': 'off',
+      'require-param': 'warn',
+      'require-returns': 'warn',
       'require-example': 'off',
       'require-package-doc': 'off',
       'require-class-member-doc': 'off',
@@ -17,6 +17,11 @@ export default {
       'require-type-param': 'off',
       'require-release-tag': 'off',
     },
+  },
+  api: {
+    enabled: true,
+    openapi: true,
+    openapiPath: 'openapi.json',
   },
   gen: {
     formats: ['markdown'],

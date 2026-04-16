@@ -16,8 +16,9 @@ npm install -D @llmtxt/backend
 ## Packages
 
 ### main
-30 functions, 36 types, 34 variables
+122 functions, 212 types, 3 classes, 179 variables
 
+- countTokens() — Count tokens using the cl100k_base BPE tokenizer (GPT-3.5/GPT-4 compatible).  Returns the exact number of tokens the given text would consume in a GPT-4 / Claude-compatible API call. This is significantly more accurate than the `ceil(len / 4)` heuristic for content with non-ASCII characters, code, or structured markup.
 - getDocumentCacheKey() — Generate cache key for a document
 - shouldSkipCache() — Check if cache should be skipped based on query params
 - cacheDocumentContent() — Middleware to cache document content Usage: app.get('/documents/:slug', cacheDocumentContent, async (request, reply) =  ... )
@@ -27,11 +28,30 @@ npm install -D @llmtxt/backend
 - invalidateDocumentCache() — Invalidate cache for a document
 - invalidateAllCache() — Invalidate all cache
 - getCacheStats() — Get cache stats for both caches
+- keyGenerator() — Generate a stable rate-limit key for the request.  Uses the most specific identifier available:   1. Hashed API key (from Bearer token) — identifies the key, not the user   2. User ID (from session cookie)   3. Client IP address
+- getTierMax() — Return the rate limit max for the given category based on the request's auth tier.
+- registerRateLimiting() — Register the global rate limiter on the Fastify instance.  Must be called AFTER CORS and compression plugins but BEFORE route registration. The global limit applies to all routes; individual routes may override with stricter config via writeRateLimit or authRateLimit.  The /api/health endpoint is explicitly skipped via the skip function.
+- adaptiveThrottle() — Adaptive throttle hook: adds artificial delay when a client approaches their rate limit ceiling ( 20% remaining). This smooths out burst traffic by slowing requests progressively rather than hard-cutting at the limit. Maximum induced delay is 500ms.  Attach as a preHandler hook on routes where burst smoothing is desired.
+- enforceContentSize() — Enforce the maximum document content size.  Reads `content` from the request body and rejects with 413 if the UTF-8 byte length exceeds CONTENT_LIMITS.maxDocumentSize. Safe to call on any route that accepts a `content` body field.
+- enforcePatchSize() — Enforce the maximum patch content size.  Reads `patchText` from the request body and rejects with 413 if its byte length exceeds CONTENT_LIMITS.maxPatchSize.
+- enforceDocumentLimit() — Enforce the maximum number of documents per authenticated user.  Counts documents owned by request.user.id and rejects with 429 if at or above CONTENT_LIMITS.maxDocumentsPerUser. Skips the check for unauthenticated requests (anonymous creation still allowed up to the rate limit; ownership won't accumulate).
+- getDocumentPermissions() — Resolve the set of permissions a user holds for a document identified by slug.  Returns an empty array when the user has no access at all. Callers should treat an empty result as a 403 for private/org documents, or allow through for public documents (already handled inside this function).
+- hasPermission() — Check whether a user holds a specific permission on a document. Returns false for non-existent documents (caller should 404 separately).
+- requirePermission() — Create a Fastify preHandler that enforces a minimum permission level.  Usage:   fastify.get('/documents/:slug',  preHandler: [requirePermission('read')] , handler)  The handler is responsible for checking document existence (404) separately when the slug is not found — this middleware returns 403 for permission denied and 401 for unauthenticated requests on private documents.
+- ensureDefaultMetrics() — 
+- registerMetrics() — Register per-request HTTP metrics hooks on the Fastify instance.  Attaches an onRequest hook to start a timer and an onResponse hook to record the duration and increment the request counter. The /api/metrics route itself is excluded from metrics to avoid self-referential noise.  Call this once during application setup, after plugin registration and before route registration.
+- appendDocumentEvent() — Append a document event inside an open Drizzle transaction.
+- validateHashChain() — Validate the hash chain for the last `limit` rows of a document's event log.  Walks the rows in ascending seq order and recomputes each prev_hash, comparing against the stored value. Returns the first broken seq if any.
 - apiRoutes() — Register core document API routes: compress, decompress, validate, search, schemas, and cache management.
+- getEventsSince() — Fetch document events with seq  fromSeq, ordered ascending.
+- computeSectionDelta() — Compute a SectionDelta for a specific section between fromSeq and now.  Returns null when fromSeq === currentSeq (no changes).  The delta is derived by examining SECTION_UPDATED / SECTION_CREATED / SECTION_DELETED events in the payload. Events of type 'section.edited' are used as the primary signal (payload.sectionId and payload.event).  For backward compatibility, also checks event payloads for sectionName and content fields.
 - disclosureRoutes() — Register progressive disclosure routes: overview, sections, toc, search, lines, raw, query, and batch endpoints for token-efficient content retrieval.
 - versionRoutes() — Register version management routes: document update, version listing, version retrieval, and pairwise diff computation.
 - authRoutes() — Register authentication routes by proxying all /auth/* requests to the better-auth handler.
-- requireAuth() — Authenticate the request via session cookie. Populates request.user and request.session, or returns 401.
+- generateApiKey() — Generate a new API key.
+- hashApiKey() — Hash a raw API key using SHA-256.  Delegates to crates/llmtxt-core::hash_content via the llmtxt WASM binding. Used both at creation time (to derive the stored hash) and at authentication time (to look up the key by hash).
+- isApiKeyFormat() — Check whether a raw key string looks like an LLMtxt API key. Used to quickly reject obviously wrong Bearer tokens before hashing.
+- requireAuth() — Authenticate the request via Bearer API key first, then session cookie. Populates request.user and request.session, or returns 401.
 - requireRegistered() — Require an authenticated, non-anonymous user. Calls requireAuth first, then rejects anonymous sessions with 403.
 - requireOwner() — Require the authenticated user to be the document owner. Checks slug from route params against document ownerId. Returns 403 if not owner, 404 if document not found.
 - requireOwnerAllowAnon() — Require the authenticated user (anonymous OK) to be the document owner. Reads slug from request body (for routes like POST /signed-urls where slug is a body field). Does NOT call requireRegistered — anonymous owners are permitted. Returns 403 if not owner, 404 if document not found.
@@ -39,15 +59,91 @@ npm install -D @llmtxt/backend
 - lifecycleRoutes() — Register lifecycle and consensus routes: state transitions, approve/reject voting, approval listing, and contributor attribution.
 - patchRoutes() — Register patch route: POST /documents/:slug/patch to apply a unified diff and create a new version. Requires authentication and editable document state.
 - similarityRoutes() — Register similarity route: GET /documents/:slug/similar?q=query&method=ngram&threshold=0 to rank document sections by similarity to a query.
-- graphRoutes() — Register knowledge graph route: GET /documents/:slug/graph to extract mentions, #tags, and /directives from document content.
+- graphRoutes() — Register knowledge graph route: GET /documents/:slug/graph to extract mentions, #tags, /directives from document content, and cross-document links.
 - retrievalRoutes() — Register retrieval planning route: POST /documents/:slug/plan-retrieval for token-budget-aware section selection. Ranks sections by relevance and greedily packs within a token budget.
 - signedUrlRoutes() — Register signed URL route: POST /signed-urls to generate time-limited HMAC-signed access tokens for document retrieval. Requires owner authentication.
 - mergeRoutes() — Register the cherry-pick merge route.
+- apiKeyRoutes() — Register API key management routes.
+- conflictRoutes() — Register conflict resolution routes.
+- createEmbeddingProvider() — Select the best available embedding provider.  - If `OPENAI_API_KEY` is set → `OpenAIEmbeddingProvider` (`text-embedding-3-small`). - Otherwise → `LocalEmbeddingProvider` (TF-IDF, 256-dimensional, no external API).
+- semanticRoutes() — Register semantic diff and consensus routes.
+- accessControlRoutes() — 
+- organizationRoutes() — 
+- wsRoutes() — Register WebSocket subscription routes. The fastify instance must have fastify/websocket registered.
+- persistCrdtUpdate() — Persist a CRDT update to section_crdt_updates and update section_crdt_states.  Steps (all within one transaction):  1. Acquire pg_advisory_xact_lock on the (docId, secId) pair.  2. SELECT MAX(seq)+1 as next seq; default to 1 if no rows.  3. Load current state from section_crdt_states (or empty for new section).  4. Apply the update to derive new state.  5. INSERT into section_crdt_updates (seq, updateBlob, clientId).  6. UPSERT section_crdt_states with the new state.
+- loadSectionState() — Load the consolidated CRDT state for a (documentId, sectionId) pair. Returns null if no state exists yet (section not yet initialized).
+- loadPendingUpdates() — Load all pending CRDT update blobs for a (documentId, sectionId) pair, ordered by seq ascending.
+- initCrdtPubSub() — Initialize the CRDT pub/sub adapter.  Must be called once at server startup (before routes are registered). Idempotent — subsequent calls are no-ops.
+- publishCrdtUpdate() — Publish a CRDT update to all subscribers (both local and cross-instance).
+- subscribeCrdtUpdates() — Subscribe to CRDT updates for a (documentId, sectionId) pair.  Returns an unsubscribe function — call it when the WebSocket closes.
+- compactSection() — Compact a single (documentId, sectionId) pair.  Steps:  1. BEGIN TRANSACTION  2. SELECT all pending updates ordered by seq  3. Merge updates into consolidated state via crdt_merge_updates  4. UPSERT section_crdt_states with merged state, clock = 0  5. DELETE all compacted rows from section_crdt_updates  6. COMMIT  If the transaction fails, no update rows are deleted (rollback guarantee).
+- broadcastAwareness() — Broadcast awareness update bytes to all other connections in the same room. Does NOT decode the awareness state — raw relay only (T256 AC).
+- handleAwarenessMessage() — Handle an awareness message from a client. Relay raw bytes to peers and upsert the presence registry entry.  The awareness payload is NOT decoded server-side — we relay the raw bytes to all other peers in the same (docId, sectionId) room.
+- hasSectionSessions() — Check whether any WS session is active for a given section. Used by the compaction job to avoid compacting while clients are connected.
+- wsCrdtRoutes() — 
+- startCrdtCompactionJob() — Start the CRDT compaction background job.  Runs immediately on startup (to handle backlog) then every 6 hours. Safe to call multiple times — subsequent calls are no-ops.
+- sseRoutes() — Register SSE streaming routes under the provided prefix (e.g. /api).
+- webhookRoutes() — Register webhook CRUD routes. All routes require authentication.
+- startWebhookWorker() — Start the webhook delivery worker.  Call once at server startup. The worker attaches a single listener to the event bus and fans out to all matching webhooks for each event.
+- startEventLogJobs() — Start both background jobs. Call once at server startup (after DB is ready). Safe to call multiple times — subsequent calls are no-ops.
+- stopEventLogJobs() — Stop both background jobs. Useful in tests or graceful shutdown.
+- crossDocRoutes() — Register cross-document routes: enhanced search, document links, and multi-document graph.
+- collectionRoutes() — Register collection management routes.
 - getDocumentWithContent() — Fetch a document by slug, resolving content from cache or database with decompression.
 - handleContentNegotiation() — Handle content negotiation for slug requests. Returns true if the request was handled (response sent), false otherwise.
 - extractSlugWithExtension() — Check if a URL path looks like a document slug with an explicit extension. Supported extensions: .txt, .json, .md
 - extractSlug() — Check if a URL path looks like a document slug. Slugs are short alphanumeric strings at the root level. Returns the slug if valid, null otherwise.
+- registerAuditLogging() — Register an onResponse hook that writes audit log entries for all successful state-changing requests.
+- auditLogRoutes() — Register the GET /api/audit-logs route. Requires authentication. Returns paginated audit logs with optional filtering.  Query parameters:   - action: filter by exact action name (e.g. 'document.create')   - resourceType: filter by resource type   - userId: filter by user ID   - from: start timestamp (unix ms)   - to: end timestamp (unix ms)   - limit: max results (default 50, max 500)   - offset: pagination offset (default 0)
+- documentEventRoutes() — Register document event log routes under the given Fastify scope.
+- agentKeyRoutes() — Register agent key management routes under /agents/keys.
+- crdtRoutes() — 
+- presenceRoutes() — 
+- acquireLease() — Acquire an advisory lease on a section.  Returns the inserted Lease row, or null if the section is already leased by another agent (conflict). The caller may pass ttlMs to override the default.
+- renewLease() — Renew a lease by extending its expiresAt.  Returns the updated Lease, or null if the lease was not found or the requesting agent is not the holder.
+- releaseLease() — Release a lease. No-op if the lease is already expired or does not exist. Returns true if a row was deleted.
+- getActiveLease() — Get the active (non-expired) lease for a (docId, sectionId) pair. Returns null if no active lease exists.
+- leaseRoutes() — 
+- matchPath() — Test whether a path matches a pattern.
+- extractParams() — Extract named parameters from a path according to a pattern.
+- subscribeRoutes() — 
+- bftRoutes() — Register BFT consensus routes.
+- publishScratchpad() — Publish a message to the document scratchpad.  Returns the assigned message ID.
+- readScratchpad() — Read messages from the document scratchpad.  Returns up to `limit` messages after `lastId`.
+- subscribeScratchpad() — Subscribe to new scratchpad messages for SSE fan-out (in-memory fallback).  Returns an unsubscribe function.
+- purgeScratchpad() — Purge expired scratchpad messages (24h TTL cleanup).  For Redis: XTRIM handles this automatically (TTL set on XADD). For in-memory: scans all streams and removes old entries.
+- scratchpadRoutes() — 
+- a2aRoutes() — 
+- purgeExpiredInboxMessages() — Purge expired agent inbox messages older than 48h. Called by the background jobs scheduler.
+- resolveRequestVersion() — Resolve the version from the request. URL path prefix takes precedence and is handled by route registration; this function handles Accept and X-API-Version headers.
+- addVersionResponseHeaders() — Attach standard API version response headers to every reply.    X-API-Version:        served version   X-API-Latest-Version: latest available version
+- addDeprecationHeaders() — Attach RFC 8594 deprecation headers when serving a deprecated (or unversioned-legacy) endpoint.    Deprecation: true   Sunset:      ISO date   Link:        /api/v; rel="successor-version"
+- apiVersionPlugin() — Register this plugin globally so that `request.apiVersion` is always populated, even for requests that are served from legacy /api/* routes.
+- v1Routes() — 
+- healthRoutes() — 
+- securityHeaders() — Register an onSend hook that sets comprehensive security headers on every response.
+- registerCsrf() — Register fastify/cookie and fastify/csrf-protection, and add a preHandler hook that enforces CSRF for cookie-authenticated, state-changing requests.
+- wellKnownAgentsRoutes() — Register the /.well-known/agents/:id discovery route.
+- computeReceipt() — Compute a stateless server receipt HMAC.  receipt = HMAC-SHA256(SERVER_RECEIPT_SECRET, canonical_payload + 'n' + response_hash) Uses signWebhookPayload (WASM Rust HMAC-SHA256, SSOT per docs/SSOT.md). Returns the hex portion only (strips the 'sha256=' prefix for compact storage).
+- buildReceipt() — Build the signature receipt object included in every mutating write response.  When `signatureVerified` is true, `agent_id` and `pubkey_fingerprint` are set.
+- startNonceCleanup() — Start a background interval that purges nonces older than 24 hours. Safe to call multiple times — only one interval is registered.
+- verifyAgentSignature() — Fastify `preHandler` hook that verifies Ed25519 agent signatures.  When no signature headers are present and the requesting user has no registered pubkeys, the request passes through (unsigned writes are allowed when `SIGNATURE_REQUIRED` is not set to `"true"`).
+- agentSignaturePlugin() — Register the agent signature plugin as a Fastify plugin.  Adds: - onRequest hook: calls verifyAgentSignature for write routes - onSend hook: injects receipt into JSON responses for write routes
+- runLeaseExpiryPass() — Run one expiry pass: delete expired rows and emit events.
+- startLeaseExpiryJob() — Start the lease expiry job.
+- stopLeaseExpiryJob() — Stop a previously started lease expiry job.
+- registerObservabilityHooks() — 
+- sanitizeHtml() — Sanitize an HTML string for safe embedding in a server-rendered page.  This function must only be called on content that will be rendered as HTML (e.g., the output of renderMarkdown in viewTemplate.ts). Do not call it on raw content stored in the database or returned via JSON/plain-text APIs.
 - renderViewHtml() — Render the server-side HTML view template for a document page, including meta tags and structured content display.
+- setupTestDb() — Set up a test database.  When `DATABASE_URL_PG` is set, a Postgres connection is opened against a fresh, randomly-named schema.  Otherwise an in-memory SQLite database is created and bootstrapped with the full DDL.  Always call `teardownTestDb(ctx)` in `after()` to release connections and clean up schema.
+- teardownTestDb() — Tear down a test database context returned by `setupTestDb()`.  - SQLite: closes the database file handle. - PostgreSQL: drops the isolated test schema and ends all connections.
+- computeAndStoreEmbeddings() — Compute and store embeddings for all sections of a document.  Skips sections whose content_hash matches the stored value (no recompute). Safe to call on every version write — idempotent and fast for unchanged sections.
+- invalidateDocumentEmbeddings() — Delete all stored embeddings for a document.  Called before regenerating embeddings (e.g. on content change). In practice the ON CONFLICT upsert handles staleness, but explicit invalidation is useful when sections are removed.
+- backfillEmbeddings() — Backfill embeddings for documents that have none.  Fetches the latest version for each document lacking embeddings and computes section embeddings.  Safe to run concurrently — each document is processed independently.
+
+- OpenAIEmbeddingProvider — OpenAI `text-embedding-3-small` provider.  Handles: - Batching (≤ 2 048 inputs per request) - Exponential back-off on 429 / 5xx responses - Result reordering by the index returned in the API response
+- LocalEmbeddingProvider — Lightweight TF-IDF vectorizer for offline / dev use.  Delegates to `crates/llmtxt-core::tfidf::tfidf_embed_batch_wasm` via the `llmtxt` WASM binding (audit item #15 fix). The algorithm is identical to the previous TypeScript implementation: 1. Tokenise into lowercase word unigrams + bigrams. 2. Build global vocabulary, compute TF, IDF (smooth), project via FNV-1a. 3. L2-normalise.  This is intentionally approximate — sufficient for testing and development, NOT a replacement for neural embeddings in production.
+- PresenceRegistry — 
 
 - User — 
 - NewUser — 
@@ -67,6 +163,38 @@ npm install -D @llmtxt/backend
 - NewSignedUrlToken — 
 - VersionAttribution — 
 - NewVersionAttribution — 
+- ApiKey — 
+- NewApiKey — 
+- AuditLog — 
+- NewAuditLog — 
+- DocumentRole — 
+- NewDocumentRole — 
+- Organization — 
+- NewOrganization — 
+- OrgMember — 
+- NewOrgMember — 
+- DocumentOrg — 
+- NewDocumentOrg — 
+- PendingInvite — 
+- NewPendingInvite — 
+- Webhook — 
+- NewWebhook — 
+- DocumentLink — 
+- NewDocumentLink — 
+- Collection — 
+- NewCollection — 
+- CollectionDocument — 
+- NewCollectionDocument — 
+- SectionCrdtState — 
+- NewSectionCrdtState — 
+- SectionCrdtUpdate — 
+- NewSectionCrdtUpdate — 
+- DocumentEvent — 
+- NewDocumentEvent — 
+- AgentPubkey — 
+- NewAgentPubkey — 
+- AgentSignatureNonce — 
+- NewAgentSignatureNonce — 
 - InsertUser — 
 - SelectUser — 
 - InsertSession — 
@@ -85,6 +213,150 @@ npm install -D @llmtxt/backend
 - SelectSignedUrlToken — 
 - InsertVersionAttribution — 
 - SelectVersionAttribution — 
+- InsertApiKey — 
+- SelectApiKey — 
+- InsertAuditLog — 
+- SelectAuditLog — 
+- InsertDocumentRole — 
+- SelectDocumentRole — 
+- InsertOrganization — 
+- SelectOrganization — 
+- InsertOrgMember — 
+- SelectOrgMember — 
+- InsertDocumentOrg — 
+- SelectDocumentOrg — 
+- InsertPendingInvite — 
+- SelectPendingInvite — 
+- InsertWebhook — 
+- SelectWebhook — 
+- InsertDocumentLink — 
+- SelectDocumentLink — 
+- InsertCollection — 
+- SelectCollection — 
+- InsertCollectionDocument — 
+- SelectCollectionDocument — 
+- User — 
+- NewUser — 
+- Session — 
+- NewSession — 
+- Document — 
+- NewDocument — 
+- Version — 
+- NewVersion — 
+- StateTransition — 
+- NewStateTransition — 
+- Approval — 
+- NewApproval — 
+- Contributor — 
+- NewContributor — 
+- SignedUrlToken — 
+- NewSignedUrlToken — 
+- VersionAttribution — 
+- NewVersionAttribution — 
+- ApiKey — 
+- NewApiKey — 
+- AuditLog — 
+- NewAuditLog — 
+- DocumentRole — 
+- NewDocumentRole — 
+- Organization — 
+- NewOrganization — 
+- OrgMember — 
+- NewOrgMember — 
+- DocumentOrg — 
+- NewDocumentOrg — 
+- PendingInvite — 
+- NewPendingInvite — 
+- Webhook — 
+- NewWebhook — 
+- DocumentLink — 
+- NewDocumentLink — 
+- Collection — 
+- NewCollection — 
+- CollectionDocument — 
+- NewCollectionDocument — 
+- SectionCrdtState — 
+- NewSectionCrdtState — 
+- SectionCrdtUpdate — 
+- NewSectionCrdtUpdate — 
+- DocumentEvent — 
+- NewDocumentEvent — 
+- AgentPubkey — 
+- NewAgentPubkey — 
+- AgentSignatureNonce — 
+- NewAgentSignatureNonce — 
+- SectionLease — 
+- NewSectionLease — 
+- AgentInboxMessage — 
+- NewAgentInboxMessage — 
+- SectionEmbedding — 
+- NewSectionEmbedding — 
+- InsertUser — 
+- SelectUser — 
+- InsertSession — 
+- SelectSession — 
+- InsertDocument — 
+- SelectDocument — 
+- InsertVersion — 
+- SelectVersion — 
+- InsertStateTransition — 
+- SelectStateTransition — 
+- InsertApproval — 
+- SelectApproval — 
+- InsertContributor — 
+- SelectContributor — 
+- InsertSignedUrlToken — 
+- SelectSignedUrlToken — 
+- InsertVersionAttribution — 
+- SelectVersionAttribution — 
+- InsertApiKey — 
+- SelectApiKey — 
+- InsertAuditLog — 
+- SelectAuditLog — 
+- InsertDocumentRole — 
+- SelectDocumentRole — 
+- InsertOrganization — 
+- SelectOrganization — 
+- InsertOrgMember — 
+- SelectOrgMember — 
+- InsertDocumentOrg — 
+- SelectDocumentOrg — 
+- InsertPendingInvite — 
+- SelectPendingInvite — 
+- InsertWebhook — 
+- SelectWebhook — 
+- InsertDocumentLink — 
+- SelectDocumentLink — 
+- InsertCollection — 
+- SelectCollection — 
+- InsertCollectionDocument — 
+- SelectCollectionDocument — 
+- InsertSectionCrdtState — 
+- SelectSectionCrdtState — 
+- InsertSectionCrdtUpdate — 
+- SelectSectionCrdtUpdate — 
+- InsertDocumentEvent — 
+- SelectDocumentEvent — 
+- InsertAgentPubkey — 
+- SelectAgentPubkey — 
+- InsertAgentSignatureNonce — 
+- SelectAgentSignatureNonce — 
+- DocumentEventLogType — 
+- AppendDocumentEventInput — 
+- AppendDocumentEventRow — 
+- AppendDocumentEventResult — 
+- ChainValidationResult — 
+- DocumentEventRow — 
+- SectionDelta — 
+- EmbeddingProvider — 
+- PresenceEntry — 
+- PresenceRecord — 
+- PersistResult — 
+- Lease — 
+- ScratchpadMessage — 
+- PublishOptions — 
+- ReadOptions — 
+- TestDbContext — 
 
 - users — Users table - supports both anonymous (24hr TTL) and registered accounts.  Anonymous users get a generated ID and no credentials. They are auto-purged after `expiresAt`. Registered users provide email/password and persist indefinitely until explicitly deleted.
 - sessions — Sessions table - server-side session tokens for both user types.  Anonymous users get a session on first document creation. Registered users get a session on login. Sessions are invalidated on logout or expiration.
@@ -96,7 +368,23 @@ npm install -D @llmtxt/backend
 - approvals — Approvals table - stores individual review/approval records.  Maps directly to the SDK Review interface from consensus.ts. Each row is one review action; the latest per reviewer wins.
 - contributors — Contributors table - materialized aggregation of per-agent attribution.  Maps directly to the SDK ContributorSummary interface. Denormalized from version + attribution data for fast reads. Refreshed on each version creation via application logic.
 - signedUrlTokens — Signed URL tokens table - persists generated signed URL grants.  Maps to the SDK SignedUrlParams interface. Each row represents an active access grant. Expired tokens are cleaned up by the purge job. Supports both conversation-scoped and org-scoped signatures.
+- apiKeys — API keys table - programmatic access tokens for registered users.  Keys are generated once and the raw value is never stored. Only the SHA-256 hash is persisted. The `keyPrefix` stores "llmtxt_" + first 8 chars of the random part for display purposes.  Revocation is soft (revoked=true); rows are never hard-deleted so audit trails are preserved.
 - versionAttributions — Version attributions table - per-version diff metadata for attribution.  Maps directly to the SDK VersionAttribution interface. Stores the computed diff stats (lines/tokens added/removed, sections modified) for each version, enabling fast attribution queries without recomputing diffs.
+- auditLogs — Audit logs table - records all state-changing operations for compliance and forensic investigation. Every successful mutating request (POST/PUT/DELETE) should produce an audit log row.  Growth management: - Four targeted indexes support the most common query patterns (by user, by   action type, by resource, and by timestamp range) without excessive index   overhead for an append-only table. - Old rows should be periodically archived or purged via a background job   (not yet implemented; tracked as a future operational task).
+- documentRoles — Document-level role assignments.  One row per (document, user) pair. The ownerId on the documents table is the source of truth for the 'owner' role; explicit role rows are for 'editor' and 'viewer' grants (and can optionally mirror owner).  Roles: 'owner' | 'editor' | 'viewer'
+- documentLinks — Document links table - directional relationships between documents. Supports typed relationships: references, depends_on, derived_from, supersedes, related. Links are used to build cross-document knowledge graphs and dependency chains.
+- organizations — Organizations table — optional grouping of users for shared document access.  Documents can be associated with one or more organizations via documentOrgs. Members of the organization inherit access based on their org role.
+- collections — Collections table - named, ordered groupings of documents. Allows users to curate sets of related documents (e.g., a spec + design + implementation + test plan) and export them as a single concatenated context for agent consumption.
+- orgMembers — Org members table — maps users to organizations with a role.  Roles: 'admin' | 'member' | 'viewer' Admin: can manage org membership and associate documents. Member: can read/write org-associated documents (per doc visibility). Viewer: read-only access to org documents.
+- documentOrgs — Document-org association table — links a document to an organization.  When a document has visibility='org', all members of associated organizations gain access according to their org role.
+- pendingInvites — Pending invites table — holds invite-by-email records for users who do not yet have an account. On sign-up the invite is resolved and converted to a documentRoles row.
+- webhooks — Webhooks table - stores external HTTP callback registrations. When a matching document event fires, the delivery worker POSTs the event payload to `url` with an HMAC-SHA256 signature in the X-LLMtxt-Signature header. Webhooks are automatically disabled after 10 consecutive delivery failures.
+- collectionDocuments — Collection documents table - ordered membership list. Each row maps a document into a collection with a position for ordering. The position is used for export order and display order.
+- sectionCrdtStates — SQLite mirror of section_crdt_states. bytea → blob('bytes'), timestamptz → integer (unix ms), composite PK via primaryKey.
+- sectionCrdtUpdates — SQLite mirror of section_crdt_updates.
+- documentEvents — SQLite mirror of document_events. jsonb → text with  mode: 'json' , bytea → blob('bytes').
+- agentPubkeys — SQLite mirror of agent_pubkeys.
+- agentSignatureNonces — SQLite mirror of agent_signature_nonces.
 - insertUserSchema — 
 - selectUserSchema — 
 - insertSessionSchema — 
@@ -115,8 +403,137 @@ npm install -D @llmtxt/backend
 - selectSignedUrlTokenSchema — 
 - insertVersionAttributionSchema — 
 - selectVersionAttributionSchema — 
-- db — Drizzle ORM instance connected to the SQLite database with full schema.
+- insertApiKeySchema — 
+- selectApiKeySchema — 
+- insertAuditLogSchema — 
+- selectAuditLogSchema — 
+- insertDocumentRoleSchema — 
+- selectDocumentRoleSchema — 
+- insertOrganizationSchema — 
+- selectOrganizationSchema — 
+- insertOrgMemberSchema — 
+- selectOrgMemberSchema — 
+- insertDocumentOrgSchema — 
+- selectDocumentOrgSchema — 
+- insertPendingInviteSchema — 
+- selectPendingInviteSchema — 
+- insertWebhookSchema — 
+- selectWebhookSchema — 
+- insertDocumentLinkSchema — 
+- selectDocumentLinkSchema — 
+- insertCollectionSchema — 
+- selectCollectionSchema — 
+- insertCollectionDocumentSchema — 
+- selectCollectionDocumentSchema — 
+- users — Users table - supports both anonymous (24hr TTL) and registered accounts.  Anonymous users get a generated ID and no credentials. They are auto-purged after `expiresAt`. Registered users provide email/password and persist indefinitely until explicitly deleted.
+- sessions — Sessions table - server-side session tokens for both user types.  Anonymous users get a session on first document creation. Registered users get a session on login. Sessions are invalidated on logout or expiration.
+- accounts — Accounts table — better-auth manages OAuth and credential providers.
+- verifications — Verifications table — better-auth email verification and password reset tokens.
+- documents — Documents table - stores compressed text documents.  Extended with lifecycle state, ownership, anonymous flag, storage mode, version tracking, and approval policy to support the full SDK feature set (lifecycle, consensus, versioning, signed URLs).
+- versions — Versions table - tracks document version history with patch support.  Extended with patchText for incremental storage (SDK VersionEntry), storage mode, and base version reference for patch chains.
+- stateTransitions — State transitions table - audit trail for document lifecycle changes.  Maps directly to the SDK StateTransition interface. Every call to `LlmtxtDocument.transition()` inserts a row here.
+- approvals — Approvals table - stores individual review/approval records.  Maps directly to the SDK Review interface from consensus.ts. Each row is one review action; the latest per reviewer wins.  W3/T251 extensions:   - sig_hex: Ed25519 signature over canonical_payload (128-char hex)   - canonical_payload: the exact bytes that were signed (for audit/replay)   - chain_hash: SHA-256 hash chaining this approval to the previous one   - prev_chain_hash: hash of the previous approval in the chain   - bft_f: per-document BFT fault tolerance f at time of approval
+- contributors — Contributors table - materialized aggregation of per-agent attribution.  Maps directly to the SDK ContributorSummary interface. Denormalized from version + attribution data for fast reads. Refreshed on each version creation via application logic.
+- signedUrlTokens — Signed URL tokens table - persists generated signed URL grants.  Maps to the SDK SignedUrlParams interface. Each row represents an active access grant. Expired tokens are cleaned up by the purge job. Supports both conversation-scoped and org-scoped signatures.
+- versionAttributions — Version attributions table - per-version diff metadata for attribution.  Maps directly to the SDK VersionAttribution interface. Stores the computed diff stats (lines/tokens added/removed, sections modified) for each version, enabling fast attribution queries without recomputing diffs.
+- apiKeys — API keys table - programmatic access tokens for registered users.  Keys are generated once and the raw value is never stored. Only the SHA-256 hash is persisted. The `keyPrefix` stores "llmtxt_" + first 8 chars of the random part for display purposes.  Revocation is soft (revoked=true); rows are never hard-deleted so audit trails are preserved.
+- auditLogs — Audit logs table - records all state-changing operations for compliance and forensic investigation. Every successful mutating request (POST/PUT/DELETE) should produce an audit log row.
+- documentRoles — Document-level role assignments.  One row per (document, user) pair. The ownerId on the documents table is the source of truth for the 'owner' role; explicit role rows are for 'editor' and 'viewer' grants (and can optionally mirror owner).  Roles: 'owner' | 'editor' | 'viewer'
+- organizations — Organizations table — optional grouping of users for shared document access.  Documents can be associated with one or more organizations via documentOrgs. Members of the organization inherit access based on their org role.
+- orgMembers — Org members table — maps users to organizations with a role.  Roles: 'admin' | 'member' | 'viewer' Admin: can manage org membership and associate documents. Member: can read/write org-associated documents (per doc visibility). Viewer: read-only access to org documents.
+- documentOrgs — Document-org association table — links a document to an organization.  When a document has visibility='org', all members of associated organizations gain access according to their org role.
+- pendingInvites — Pending invites table — holds invite-by-email records for users who do not yet have an account. On sign-up the invite is resolved and converted to a documentRoles row.
+- webhooks — Webhooks table - stores external HTTP callback registrations. When a matching document event fires, the delivery worker POSTs the event payload to `url` with an HMAC-SHA256 signature in the X-LLMtxt-Signature header. Webhooks are automatically disabled after 10 consecutive delivery failures.
+- documentLinks — Document links table - directional relationships between documents. Supports typed relationships: references, depends_on, derived_from, supersedes, related. Links are used to build cross-document knowledge graphs and dependency chains.
+- collections — Collections table - named, ordered groupings of documents. Allows users to curate sets of related documents (e.g., a spec + design + implementation + test plan) and export them as a single concatenated context for agent consumption.
+- collectionDocuments — Collection documents table - ordered membership list. Each row maps a document into a collection with a position for ordering. The position is used for export order and display order.
+- sectionCrdtStates — Section CRDT states — consolidated Yjs state vector per (document, section).  Stores the full Yjs document state after applying all updates. Updated atomically when updates are compacted. FK references documents.slug (the public-facing identifier used in CRDT operations).
+- sectionCrdtUpdates — Section CRDT updates — raw Yjs update messages pending compaction.  Each row is one Yjs update message from a client. Updates are compacted into section_crdt_states by a background job. FK on document_id alone (cascade alignment mirrors states table via document_id).
+- documentEvents — Document events — append-only event log with hash chain for integrity.  Every significant operation on a document emits an event here. The prev_hash column links each event to its predecessor, forming a tamper-evident chain. The first event per document has prev_hash = NULL.  Partial unique index on (document_id, idempotency_key) WHERE idempotency_key IS NOT NULL is added via raw-SQL follow-up migration.
+- agentPubkeys — Agent public keys — Ed25519 (or equivalent) pubkeys for agent signature verification. Each agent_id maps to exactly one active pubkey at a time. Revocation is soft: set revoked_at to the revocation timestamp.  CHECK constraint (octet_length(pubkey) = 32) is added via raw-SQL follow-up migration because Drizzle cannot express this in schema alone.
+- sectionLeases — Section leases — advisory locks for section turn-taking.  Leases are cooperative signals only. The CRDT layer still accepts writes from non-holders; a 409 from POST /lease is a social signal, not a hard block. TTL is enforced server-side by the expiry background job.
+- agentSignatureNonces — 
+- agentInboxMessages — Agent inbox messages — ephemeral A2A message store.  Messages are stored for up to 48 hours. The recipient polls GET /api/v1/agents/:id/inbox or subscribes to SSE. Each message is a signed A2AMessage envelope (JSON).  Background job purges rows where expires_at  now().
+- sectionEmbeddings — Cached per-section embeddings for nearest-neighbour search.  Schema exception: the `embedding` column uses a raw SQL type `vector(384)` because drizzle-orm does not (yet) ship a first-class pgvector column helper. We store the vector as a text column in Drizzle but rely on the raw SQL migration to create it as `vector(384)` so pgvector operators work.  For INSERT/SELECT we convert between `number[]` - JSON string in the embedding service layer (see src/jobs/embeddings.ts).
+- insertUserSchema — 
+- selectUserSchema — 
+- insertSessionSchema — 
+- selectSessionSchema — 
+- insertDocumentSchema — 
+- selectDocumentSchema — 
+- insertVersionSchema — 
+- selectVersionSchema — 
+- insertStateTransitionSchema — 
+- selectStateTransitionSchema — 
+- insertApprovalSchema — 
+- selectApprovalSchema — 
+- insertContributorSchema — 
+- selectContributorSchema — 
+- insertSignedUrlTokenSchema — 
+- selectSignedUrlTokenSchema — 
+- insertVersionAttributionSchema — 
+- selectVersionAttributionSchema — 
+- insertApiKeySchema — 
+- selectApiKeySchema — 
+- insertAuditLogSchema — 
+- selectAuditLogSchema — 
+- insertDocumentRoleSchema — 
+- selectDocumentRoleSchema — 
+- insertOrganizationSchema — 
+- selectOrganizationSchema — 
+- insertOrgMemberSchema — 
+- selectOrgMemberSchema — 
+- insertDocumentOrgSchema — 
+- selectDocumentOrgSchema — 
+- insertPendingInviteSchema — 
+- selectPendingInviteSchema — 
+- insertWebhookSchema — 
+- selectWebhookSchema — 
+- insertDocumentLinkSchema — 
+- selectDocumentLinkSchema — 
+- insertCollectionSchema — 
+- selectCollectionSchema — 
+- insertCollectionDocumentSchema — 
+- selectCollectionDocumentSchema — 
+- insertSectionCrdtStateSchema — 
+- selectSectionCrdtStateSchema — 
+- insertSectionCrdtUpdateSchema — 
+- selectSectionCrdtUpdateSchema — 
+- insertDocumentEventSchema — 
+- selectDocumentEventSchema — 
+- insertAgentPubkeySchema — 
+- selectAgentPubkeySchema — 
+- insertAgentSignatureNonceSchema — 
+- selectAgentSignatureNonceSchema — 
+- insertAgentInboxMessageSchema — 
+- selectAgentInboxMessageSchema — 
+- DATABASE_PROVIDER — Active database provider. Exported so auth.ts can configure drizzleAdapter.
+- db — 
+- schema — 
+- sqlite — 
+- dbDriver — Which driver is active — useful for code paths where transaction syntax differs between SQLite (synchronous .run()/.all()) and PG (async-only).
 - auth — Better-auth instance with email/password + anonymous authentication, cookie-based sessions, and 24hr anonymous user TTL.
 - contentCache — LRU cache for decompressed document content strings, keyed by slug.
 - metadataCache — LRU cache for document metadata objects, keyed by slug.
+- RATE_LIMITS — Tier-based rate limit configuration. All windows are 1 minute.
+- writeRateLimit — Route-level config object for write-operation rate limits. Apply to POST/PUT/DELETE route handlers that mutate state.  Usage:   fastify.post('/route',  config: writeRateLimit , handler)
+- authRateLimit — Route-level config object for authentication endpoint rate limits. Apply to sign-up, sign-in, and key-creation routes.  Usage:   fastify.post('/auth/sign-up/email',  config: authRateLimit , handler)
+- eventBus — 
+- canRead — 
+- canWrite — 
+- canDelete — 
+- canManage — 
+- canApprove — 
+- httpRequestDurationSeconds — HTTP request duration histogram (seconds). Labels: method, route, status_code. SPEC-T145 §7.2
+- httpRequestsTotal — HTTP requests total counter. Labels: method, route, status_code. SPEC-T145 §7.2
+- documentCreatedTotal — Incremented when a document is created successfully.
+- documentApprovalSubmittedTotal — Incremented when an approval vote is submitted.
+- documentStateTransitionTotal — Incremented on every document lifecycle state transition.
+- versionCreatedTotal — Incremented when a new document version is created.
+- webhookDeliveryTotal — Incremented on every webhook delivery attempt.
+- DOCUMENT_EVENT_TYPES — Canonical event type strings for the document event log.  Matches the design spec exactly. Consumers should import from here rather than using raw strings to benefit from exhaustiveness checks.
+- presenceRegistry — 
+- CRDT_COMPACT_THRESHOLD — 
+- CRDT_COMPACT_IDLE_MS — 
 - publicDir — Absolute path to the public assets directory for static file serving.
+- logger — 

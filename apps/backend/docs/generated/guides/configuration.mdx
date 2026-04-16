@@ -1,0 +1,31 @@
+---
+title: ''
+---
+
+How to configure the project using its exported configuration interfaces.
+
+> TODO: Add your own content to this guide. The sections below are auto-generated from code.
+
+{/* FORGE:AUTO-START guide-configuration */}
+
+## Configuration Interfaces
+
+### `PublishOptions`
+
+| Property      | Type                  | Description |
+| ------------- | --------------------- | ----------- |
+| `agentId`     | `string`              | agentId     |
+| `content`     | `string`              | content     |
+| `contentType` | `string \| undefined` | contentType |
+| `threadId`    | `string \| undefined` | threadId    |
+| `sigHex`      | `string \| undefined` | sigHex      |
+
+### `ReadOptions`
+
+| Property   | Type                  | Description                                        |
+| ---------- | --------------------- | -------------------------------------------------- |
+| `threadId` | `string \| undefined` | Only return messages in this thread.               |
+| `lastId`   | `string \| undefined` | Return messages after this stream ID (exclusive).  |
+| `limit`    | `number \| undefined` | Maximum number of messages to return. Default 100. |
+
+{/* FORGE:AUTO-END guide-configuration */}
