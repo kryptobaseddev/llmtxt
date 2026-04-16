@@ -114,7 +114,31 @@ async function main() {
     await app.register(cors, {
       origin: corsOrigin.split(',').map(o => o.trim()),
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-API-Version'],
+      allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'Cookie',
+        'X-API-Version',
+        // Agent Ed25519 signature headers (T221)
+        'X-Agent-Pubkey-Id',
+        'X-Agent-Signature',
+        'X-Agent-Nonce',
+        'X-Agent-Timestamp',
+        // Idempotency key (T308)
+        'Idempotency-Key',
+      ],
+      // Expose X-Server-Receipt so JS clients can read the HMAC proof (T308-a)
+      exposedHeaders: [
+        'X-Server-Receipt',
+        'X-API-Version',
+        'X-API-Latest-Version',
+        'X-RateLimit-Limit',
+        'X-RateLimit-Remaining',
+        'X-RateLimit-Reset',
+        'Deprecation',
+        'Sunset',
+        'Link',
+      ],
       credentials: true,
     });
 

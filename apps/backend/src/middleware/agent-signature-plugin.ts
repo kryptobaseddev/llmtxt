@@ -16,7 +16,7 @@ import type { FastifyInstance } from 'fastify';
 import { hashContent } from 'llmtxt';
 import { verifyAgentSignature, buildReceipt, computeReceipt } from './verify-agent-signature.js';
 
-/** URL patterns for the 5 write routes that require signature middleware. */
+/** URL patterns for write routes that require signature middleware. */
 const WRITE_ROUTE_PATTERNS: Array<{ method: string; pathPattern: RegExp }> = [
   // PUT /api/(v1/)?documents/:slug  — create version (T221 "PUT document routes")
   { method: 'PUT', pathPattern: /\/documents\/[^/]+$/ },
@@ -24,8 +24,10 @@ const WRITE_ROUTE_PATTERNS: Array<{ method: string; pathPattern: RegExp }> = [
   { method: 'POST', pathPattern: /\/compress$/ },
   // POST /api/(v1/)?documents/:slug/transition  — lifecycle (T221 "PATCH lifecycle")
   { method: 'POST', pathPattern: /\/documents\/[^/]+\/transition$/ },
-  // POST /api/(v1/)?documents/:slug/approve  — approvals (T221 "POST approvals")
+  // POST /api/(v1/)?documents/:slug/approve  — lifecycle approvals (T221 "POST approvals")
   { method: 'POST', pathPattern: /\/documents\/[^/]+\/approve$/ },
+  // POST /api/(v1/)?documents/:slug/bft/approve  — BFT-signed approvals (T308-a)
+  { method: 'POST', pathPattern: /\/documents\/[^/]+\/bft\/approve$/ },
   // POST /api/(v1/)?documents/:slug/reject  — rejections (T221 "POST approvals")
   { method: 'POST', pathPattern: /\/documents\/[^/]+\/reject$/ },
   // POST /api/(v1/)?documents/:slug/patch  — sections (T221 "PATCH sections")
