@@ -7,7 +7,6 @@ EXPOSE 9090
 ENTRYPOINT ["/bin/prometheus"]
 CMD [ \
   "--config.file=/etc/prometheus/prometheus.yml", \
-  "--config.expand-env=true", \
   "--storage.tsdb.path=/prometheus", \
   "--storage.tsdb.retention.time=30d", \
   "--web.enable-remote-write-receiver", \

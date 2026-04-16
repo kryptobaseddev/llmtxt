@@ -51,7 +51,8 @@ metrics_generator:
   storage:
     path: /var/tempo/generator/wal
     remote_write:
-      - url: http://${PROMETHEUS_HOST}:9090/api/v1/write
+      # ${{Prometheus.RAILWAY_PRIVATE_DOMAIN}} = prometheus.railway.internal
+      - url: http://prometheus.railway.internal:9090/api/v1/write
         send_exemplars: true
 
 overrides:

@@ -7,14 +7,11 @@
 #   - Loki (port 3100/metrics)
 #   - Prometheus itself
 #
-# OTel Collector and other service hostnames are injected via env vars
-# using Railway Reference Variables at deploy time.
-#
-# Note: Railway private network resolves ${{ServiceName.RAILWAY_PRIVATE_DOMAIN}}
-# Set these env vars in the Railway dashboard for this service:
-#   OTEL_COLLECTOR_HOST = ${{OtelCollector.RAILWAY_PRIVATE_DOMAIN}}
-#   TEMPO_HOST          = ${{Tempo.RAILWAY_PRIVATE_DOMAIN}}
-#   LOKI_HOST           = ${{Loki.RAILWAY_PRIVATE_DOMAIN}}
+# All hostnames use Railway private-network internal DNS.
+# Service private domains (Railway Reference Variable sources):
+#   OtelCollector.RAILWAY_PRIVATE_DOMAIN = otelcollector.railway.internal
+#   Tempo.RAILWAY_PRIVATE_DOMAIN         = tempo.railway.internal
+#   Loki.RAILWAY_PRIVATE_DOMAIN          = loki.railway.internal
 
 global:
   scrape_interval: 15s
@@ -37,27 +34,26 @@ scrape_configs:
       - targets: ['localhost:9090']
 
   # OTel Collector self-telemetry (collector health metrics)
+  # ${{OtelCollector.RAILWAY_PRIVATE_DOMAIN}} = otelcollector.railway.internal
   - job_name: otel-collector
     static_configs:
-      - targets: ['${OTEL_COLLECTOR_HOST}:8888']
+      - targets: ['otelcollector.railway.internal:8888']
 
   # LLMtxt backend metrics (exported by OTel Collector prometheus exporter)
   - job_name: llmtxt-backend
     static_configs:
-      - targets: ['${OTEL_COLLECTOR_HOST}:8889']
-    metric_relabel_configs:
-      - source_labels: [__name__]
-        regex: 'llmtxt_.*'
-        action: keep
+      - targets: ['otelcollector.railway.internal:8889']
 
   # Grafana Tempo metrics
+  # ${{Tempo.RAILWAY_PRIVATE_DOMAIN}} = tempo.railway.internal
   - job_name: tempo
     static_configs:
-      - targets: ['${TEMPO_HOST}:3200']
+      - targets: ['tempo.railway.internal:3200']
     metrics_path: /metrics
 
   # Grafana Loki metrics
+  # ${{Loki.RAILWAY_PRIVATE_DOMAIN}} = loki.railway.internal
   - job_name: loki
     static_configs:
-      - targets: ['${LOKI_HOST}:3100']
+      - targets: ['loki.railway.internal:3100']
     metrics_path: /metrics
