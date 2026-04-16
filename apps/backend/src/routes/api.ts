@@ -9,7 +9,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { db } from '../db/index.js';
 // Schema type imports only — no direct Drizzle query use in refactored handlers.
-import { documents, contributors, versions, documentRoles } from '../db/schema.js';
+// documents still used for access-stat updates (infrastructure concern).
+import { documents } from '../db/schema.js';
 import { eq, desc } from 'drizzle-orm';
 import { auth } from '../auth.js';
 import {
@@ -211,9 +212,14 @@ export async function apiRoutes(fastify: FastifyInstance) {
       // then session user ID.
       const effectiveCreatedBy = bodyCreatedBy || bodyAgentId || user?.id || null;
 
-      // Save to database with format field and ownership
+      // Delegate document creation + version 1 + contributor + role to PostgresBackend.
+      // All content-derived fields are pre-computed above.
       const now = Date.now();
-      await db.insert(documents).values({
+      await request.server.backendCore.createDocument({
+        // Type-cast: CreateDocumentParams extended for compress flow.
+        title: slug,
+        createdBy: effectiveCreatedBy ?? '',
+        // Extended fields consumed by PostgresBackend.createDocument:
         id,
         slug,
         format: contentFormat,
@@ -222,60 +228,16 @@ export async function apiRoutes(fastify: FastifyInstance) {
         originalSize,
         compressedSize,
         tokenCount,
-        createdAt: now,
-        accessCount: 0,
-        currentVersion: 1,
         ownerId: user?.id ?? null,
         isAnonymous: user ? ((user as Record<string, unknown>).isAnonymous === true) : false,
-      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
 
       // Increment document created counter (visibility defaults to 'public')
       documentCreatedTotal.inc({ visibility: 'public' });
 
-      // Create version 1 so the versions tab shows the initial version
-      await db.insert(versions).values({
-        id: generateId(),
-        documentId: id,
-        versionNumber: 1,
-        compressedData,
-        contentHash,
-        tokenCount,
-        createdAt: now,
-        createdBy: effectiveCreatedBy,
-        changelog: 'Initial version',
-      });
-
       // Increment version created counter (source: 'compress' for initial version in compress endpoint)
       versionCreatedTotal.inc({ source: 'compress' });
-
-      // Create initial contributor record if we have an effective author
-      if (effectiveCreatedBy) {
-        await db.insert(contributors).values({
-          id: generateId(),
-          documentId: id,
-          agentId: effectiveCreatedBy,
-          versionsAuthored: 1,
-          totalTokensAdded: tokenCount,
-          totalTokensRemoved: 0,
-          netTokens: tokenCount,
-          firstContribution: now,
-          lastContribution: now,
-        });
-      }
-
-      // Grant the creator 'owner' role in document_roles so RBAC queries have a
-      // stable explicit record. The documents.ownerId FK is the primary source of
-      // truth; this row is a convenience mirror for JOIN-based permission lookups.
-      if (user?.id) {
-        await db.insert(documentRoles).values({
-          id: crypto.randomUUID(),
-          documentId: id,
-          userId: user.id,
-          role: 'owner',
-          grantedBy: user.id,
-          grantedAt: now,
-        });
-      }
 
       // Build URL - use /documents/:slug for API host, /api/documents/:slug otherwise
       const host = request.hostname.split(':')[0];

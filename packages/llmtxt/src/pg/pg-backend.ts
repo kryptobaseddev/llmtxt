@@ -864,10 +864,20 @@ export class PostgresBackend implements Backend {
   }
 
   // ── Approval operations ───────────────────────────────────────────────────
-  // Wave A (T353.4) — approve/reject route logic stays in route handler;
-  // getApprovalProgress and listContributors are implemented here.
+  // Wave A-2: submitSignedApproval implemented.
 
-  async submitSignedApproval(_params: {
+  /**
+   * submitSignedApproval — Wave A-2 implementation.
+   *
+   * Transactionally inserts an approval record, evaluates consensus, and
+   * auto-locks the document when consensus is reached.
+   * Appends approval.submitted / approval.rejected event if
+   * appendDocumentEvent has been injected.
+   *
+   * params: documentId (slug), versionNumber, reviewerId, status, reason?,
+   *         signatureBase64 — plus optional idempotencyKey (cast via Record).
+   */
+  async submitSignedApproval(params: {
     documentId: string;
     versionNumber: number;
     reviewerId: string;
@@ -876,9 +886,132 @@ export class PostgresBackend implements Backend {
     signatureBase64: string;
   }): Promise<{ success: boolean; error?: string; result?: ApprovalResult }> {
     this._assertOpen();
-    // Approve/reject routes have complex consensus + auto-lock transactions.
-    // Route handlers remain owners for Wave A.
-    throw new Error('PostgresBackend: submitSignedApproval — use lifecycle route handler directly (Wave A)');
+    const p = params as unknown as Record<string, unknown>;
+    const { documents, approvals, stateTransitions } = this._s;
+    const { eq, and } = this._orm;
+    const { generateId } = await getSdkHelpers();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sdkModule = (await import('llmtxt/sdk' as any)) as any;
+    const { evaluateApprovals, DEFAULT_APPROVAL_POLICY } = sdkModule;
+
+    const { documentId: slugOrId, versionNumber, reviewerId, status, reason } = params;
+    const signatureHex = Buffer.from((p.signatureBase64 as string) ?? '', 'base64').toString('hex');
+    const idempotencyKey = (p.idempotencyKey as string | null) ?? null;
+    const now = Date.now();
+
+    // Resolve document row
+    const docRows = await this._db
+      .select()
+      .from(documents)
+      .where(eq(documents.slug, slugOrId))
+      .limit(1);
+    const docByIdRows = docRows.length ? docRows : await this._db
+      .select()
+      .from(documents)
+      .where(eq(documents.id, slugOrId))
+      .limit(1);
+    const [doc] = docByIdRows;
+
+    if (!doc) return { success: false, error: 'Document not found' };
+    if (doc.state !== 'REVIEW') {
+      return { success: false, error: 'Document must be in REVIEW state' };
+    }
+
+    // Duplicate check (same reviewer + same status)
+    const dupRows = await this._db
+      .select({ id: approvals.id })
+      .from(approvals)
+      .where(and(
+        eq(approvals.documentId, doc.id),
+        eq(approvals.reviewerId, reviewerId),
+        eq(approvals.status, status),
+      ))
+      .limit(1);
+    if (dupRows.length > 0) {
+      return { success: false, error: `duplicate ${status.toLowerCase()}` };
+    }
+
+    let autoLocked = false;
+    let consensusResult: ApprovalResult | undefined;
+
+    await this._db.transaction(async (tx: unknown) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const txDb = tx as any;
+
+      await txDb.insert(approvals).values({
+        id: generateId(),
+        documentId: doc.id,
+        reviewerId,
+        status,
+        timestamp: now,
+        reason: reason ?? null,
+        atVersion: versionNumber,
+        sigHex: signatureHex,
+        canonicalPayload: null,
+        chainHash: null,
+        prevChainHash: null,
+        bftF: doc.bftF ?? 1,
+      });
+
+      const allReviews = await txDb
+        .select()
+        .from(approvals)
+        .where(eq(approvals.documentId, doc.id));
+
+      const policy = {
+        ...DEFAULT_APPROVAL_POLICY,
+        requiredCount: doc.approvalRequiredCount ?? 1,
+        requireUnanimous: doc.approvalRequireUnanimous ?? false,
+        allowedReviewerIds: (doc.approvalAllowedReviewers ?? '').split(',').filter(Boolean),
+        timeoutMs: doc.approvalTimeoutMs ?? 0,
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const reviews = allReviews.map((r: any) => ({
+        reviewerId: r.reviewerId,
+        status: r.status,
+        timestamp: r.timestamp,
+        reason: r.reason ?? undefined,
+        atVersion: r.atVersion,
+      }));
+
+      consensusResult = evaluateApprovals(reviews, policy, doc.currentVersion ?? versionNumber);
+
+      if (consensusResult?.approved) {
+        const lockResult = await txDb
+          .update(documents)
+          .set({ state: 'LOCKED' })
+          .where(and(eq(documents.id, doc.id), eq(documents.state, 'REVIEW')))
+          .returning({ state: documents.state });
+
+        if (lockResult.length > 0) {
+          await txDb.insert(stateTransitions).values({
+            id: generateId(),
+            documentId: doc.id,
+            fromState: 'REVIEW',
+            toState: 'LOCKED',
+            changedBy: 'system',
+            changedAt: now,
+            reason: 'Auto-locked: consensus reached',
+            atVersion: doc.currentVersion ?? versionNumber,
+          });
+          autoLocked = true;
+        }
+      }
+
+      if (this._appendDocumentEvent) {
+        await this._appendDocumentEvent(txDb, {
+          documentId: doc.slug,
+          eventType: status === 'APPROVED' ? 'approval.submitted' : 'approval.rejected',
+          actorId: reviewerId,
+          payloadJson: { status, atVersion: versionNumber, autoLocked },
+          idempotencyKey,
+        });
+      }
+    });
+
+    return { success: true, result: { ...(consensusResult ?? {}), autoLocked } as ApprovalResult };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
