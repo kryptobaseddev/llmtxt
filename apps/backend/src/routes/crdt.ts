@@ -14,35 +14,17 @@
  *     503 if section not yet initialized.
  *     Idempotent: replaying the same update produces the same state (Yrs guarantee).
  *
- * These endpoints reuse T203 persistence helpers and T199 pub/sub.
+ * Wave B (T353.5): Refactored to use fastify.backendCore.getCrdtState and
+ * fastify.backendCore.applyCrdtUpdate instead of direct CRDT helper calls.
+ *
+ * Note: publishCrdtUpdate (Redis pub/sub broadcast) is still called directly
+ * here for cross-instance delivery, as it is a transport concern (like WS
+ * connection management) that stays in apps/backend.
  */
 
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../middleware/auth.js';
-import { db } from '../db/index.js';
-import { documents } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
-import { crdt_state_vector } from '../crdt/primitives.js';
-import { persistCrdtUpdate, loadSectionState } from '../crdt/persistence.js';
 import { publishCrdtUpdate } from '../realtime/redis-pubsub.js';
-
-// ── Shared auth+RBAC check ────────────────────────────────────────────────────
-
-async function resolveDocAndAccess(
-  slug: string,
-  userId: string,
-): Promise<{ exists: boolean; canWrite: boolean }> {
-  const docRows = await db
-    .select({ ownerId: documents.ownerId })
-    .from(documents)
-    .where(eq(documents.slug, slug))
-    .limit(1);
-
-  if (docRows.length === 0) return { exists: false, canWrite: false };
-  const isOwner = docRows[0].ownerId === userId;
-  // For now owner = editor; future T076 RBAC will refine
-  return { exists: true, canWrite: isOwner };
-}
 
 // ── Route registration ────────────────────────────────────────────────────────
 
@@ -59,26 +41,24 @@ export async function crdtRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const { slug, sid } = request.params;
 
-      const { exists } = await resolveDocAndAccess(slug, request.user!.id);
-      if (!exists) {
+      // Verify document exists
+      const doc = await request.server.backendCore.getDocumentBySlug(slug);
+      if (!doc) {
         return reply.status(404).send({ error: 'Not Found', message: 'Document not found' });
       }
 
-      const stateRow = await loadSectionState(slug, sid);
-      if (!stateRow) {
+      const state = await request.server.backendCore.getCrdtState(slug, sid);
+      if (!state) {
         return reply.status(503).send({
           error: 'Service Unavailable',
           message: 'Section not yet initialized — connect via WS to create initial state',
         });
       }
 
-      const stateVec = crdt_state_vector(stateRow.yrsState);
-
       return reply.send({
-        stateBase64: stateRow.yrsState.toString('base64'),
-        stateVectorBase64: stateVec.toString('base64'),
-        clock: stateRow.clock,
-        updatedAt: stateRow.updatedAt ?? null,
+        stateBase64: state.snapshotBase64,
+        stateVectorBase64: state.stateVectorBase64,
+        updatedAt: state.updatedAt,
       });
     },
   );
@@ -103,11 +83,17 @@ export async function crdtRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(400).send({ error: 'Bad Request', message: 'updateBase64 is required' });
       }
 
-      const { exists, canWrite } = await resolveDocAndAccess(slug, request.user!.id);
-      if (!exists) {
+      // Verify document exists and check ownership
+      const doc = await request.server.backendCore.getDocumentBySlug(slug);
+      if (!doc) {
         return reply.status(404).send({ error: 'Not Found', message: 'Document not found' });
       }
-      if (!canWrite) {
+
+      // RBAC: editor+ required — currently owner = editor
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const docRaw = doc as Record<string, any>;
+      const isOwner = docRaw.ownerId === request.user!.id;
+      if (!isOwner) {
         return reply.status(403).send({ error: 'Forbidden', message: 'Editor role required' });
       }
 
@@ -116,29 +102,31 @@ export async function crdtRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(400).send({ error: 'Bad Request', message: 'updateBase64 decodes to empty buffer' });
       }
 
-      // Check section exists (503 if not)
-      const stateRow = await loadSectionState(slug, sid);
-      if (!stateRow) {
+      // Check section exists (503 if not yet initialized)
+      const existingState = await request.server.backendCore.getCrdtState(slug, sid);
+      if (!existingState) {
         return reply.status(503).send({
           error: 'Service Unavailable',
           message: 'Section not yet initialized — connect via WS collab endpoint first',
         });
       }
 
-      // Persist and broadcast (reuses T203 helper)
-      const persistResult = await persistCrdtUpdate(slug, sid, updateBlob, request.user!.id);
+      // Apply update via backendCore (persist + merge)
+      const newState = await request.server.backendCore.applyCrdtUpdate({
+        documentId: slug,
+        sectionKey: sid,
+        updateBase64,
+        agentId: request.user!.id,
+      });
 
-      // Publish via pub/sub for cross-instance delivery (T199)
+      // Publish via pub/sub for cross-instance delivery (T199) — transport concern
       await publishCrdtUpdate(slug, sid, updateBlob).catch((err: unknown) => {
         app.log.error({ err }, '[crdt-http] pubsub publish failed (non-fatal)');
       });
 
-      const stateVec = crdt_state_vector(persistResult.newState);
-
       return reply.status(200).send({
-        seq: persistResult.seq.toString(),
-        stateBase64: persistResult.newState.toString('base64'),
-        stateVectorBase64: stateVec.toString('base64'),
+        stateBase64: newState.snapshotBase64,
+        stateVectorBase64: newState.stateVectorBase64,
         message: 'update applied',
       });
     },

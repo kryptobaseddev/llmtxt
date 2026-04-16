@@ -22,7 +22,7 @@
  *       0x02 = Update    (incremental update from client → server)
  *
  *   On connect:
- *     1. Load consolidated state from section_crdt_states.
+ *     1. Load consolidated state from backendCore.getCrdtState.
  *     2. Apply any pending updates from section_crdt_updates.
  *     3. Send SyncStep1: [0x00 | serverStateVector].
  *
@@ -31,28 +31,27 @@
  *     - Send SyncStep2: [0x01 | diffUpdate].
  *
  *   On receive Update from client (type 0x02):
- *     - Persist update (write-before-broadcast, T203 AC).
+ *     - Persist update via backendCore.applyCrdtUpdate (write-before-broadcast, T203 AC).
  *     - Apply to in-memory state.
  *     - Publish via pub/sub (T199).
  *     - Broadcast to all other local subscribers.
  *
  * Compaction trigger (T204 hook):
  *   - On WS close, if clock >= CRDT_COMPACT_THRESHOLD, triggers compaction.
+ *
+ * Wave B (T353.5): CRDT persistence calls now go through fastify.backendCore.
+ * WS state machine / auth / upgrade logic is unchanged.
  */
 
 import type { FastifyInstance } from 'fastify';
 import { auth } from '../auth.js';
-import { db } from '../db/index.js';
-import { documents } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
 import { presenceRegistry } from '../presence/registry.js';
 import {
   crdt_state_vector,
   crdt_diff_update,
   crdt_apply_update,
-  crdt_encode_state_as_update,
 } from '../crdt/primitives.js';
-import { persistCrdtUpdate, loadSectionState, loadPendingUpdates } from '../crdt/persistence.js';
+import { loadPendingUpdates } from '../crdt/persistence.js';
 import { publishCrdtUpdate, subscribeCrdtUpdates } from '../realtime/redis-pubsub.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -60,7 +59,6 @@ import { publishCrdtUpdate, subscribeCrdtUpdates } from '../realtime/redis-pubsu
 const SYNC_STEP_1 = 0x00; // client → server: state vector
 const SYNC_STEP_2 = 0x01; // server → client: diff update
 const MSG_UPDATE   = 0x02; // bidirectional: incremental update
-const MSG_AWARENESS = 0x01; // y-sync awareness message type prefix (second byte after 0x00 framing in awareness subprotocol)
 
 // y-sync protocol: awareness messages are prefixed with byte 0x01 when using a
 // multiplexed framing where 0x00=sync, 0x01=awareness. However, this backend
@@ -257,14 +255,10 @@ export async function wsCrdtRoutes(app: FastifyInstance): Promise<void> {
         (request.headers['sec-websocket-protocol'] as string | undefined) ?? '';
       const wantsWrite = requestedSubprotocol.includes(SUBPROTOCOL);
 
-      // Fetch document to verify it exists and determine ownership
-      const docRows = await db
-        .select({ ownerId: documents.ownerId, slug: documents.slug })
-        .from(documents)
-        .where(eq(documents.slug, slug))
-        .limit(1);
+      // Fetch document via backendCore to verify existence and ownership
+      const docRecord = await app.backendCore.getDocumentBySlug(slug);
 
-      if (docRows.length === 0) {
+      if (!docRecord) {
         socket.send(
           Buffer.from(JSON.stringify({ type: 'error', code: 4404, message: 'Document not found' })),
         );
@@ -272,10 +266,10 @@ export async function wsCrdtRoutes(app: FastifyInstance): Promise<void> {
         return;
       }
 
-      const doc = docRows[0];
-      const isOwner = doc.ownerId === user.id;
-
       // For now: owner = editor, others = viewer (RBAC roles T076 will refine this)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const docRaw = docRecord as Record<string, any>;
+      const isOwner = docRaw.ownerId === user.id;
       const canWrite = isOwner;
 
       if (wantsWrite && !canWrite) {
@@ -288,16 +282,17 @@ export async function wsCrdtRoutes(app: FastifyInstance): Promise<void> {
         return;
       }
 
-      // ── Load section state ─────────────────────────────────────────────────
+      // ── Load section state via backendCore ────────────────────────────────
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let serverState: Buffer = Buffer.alloc(0) as any;
 
-      const stateRow = await loadSectionState(slug, sid);
-      if (stateRow) {
-        serverState = Buffer.from(stateRow.yrsState);
+      const crdtState = await app.backendCore.getCrdtState(slug, sid);
+      if (crdtState) {
+        serverState = Buffer.from(crdtState.snapshotBase64, 'base64');
       }
 
-      // Apply any pending updates (section_crdt_updates not yet compacted)
+      // Apply any pending updates (section_crdt_updates not yet compacted).
+      // These represent updates written after the last compaction snapshot.
       const pendingUpdates = await loadPendingUpdates(slug, sid);
       for (const upd of pendingUpdates) {
         serverState = crdt_apply_update(serverState, Buffer.from(upd));
@@ -353,10 +348,15 @@ export async function wsCrdtRoutes(app: FastifyInstance): Promise<void> {
               return;
             }
 
-            // Persist BEFORE broadcast (T203 AC #1)
-            let persistResult;
+            // Persist BEFORE broadcast via backendCore (T203 AC #1)
+            let newCrdtState;
             try {
-              persistResult = await persistCrdtUpdate(slug, sid, payload, user.id);
+              newCrdtState = await app.backendCore.applyCrdtUpdate({
+                documentId: slug,
+                sectionKey: sid,
+                updateBase64: payload.toString('base64'),
+                agentId: user.id,
+              });
             } catch (err) {
               // DB write failed — close connection with 4500 (T203 AC #3)
               app.log.error({ err }, '[ws-crdt] DB write failed — closing WS 4500');
@@ -373,8 +373,8 @@ export async function wsCrdtRoutes(app: FastifyInstance): Promise<void> {
               return;
             }
 
-            // Update in-memory state
-            serverState = Buffer.from(persistResult.newState);
+            // Update in-memory state from the persisted snapshot
+            serverState = Buffer.from(newCrdtState.snapshotBase64, 'base64');
 
             // Broadcast to other local sessions
             broadcastLocal(slug, sid, payload, user.id);
@@ -401,7 +401,7 @@ export async function wsCrdtRoutes(app: FastifyInstance): Promise<void> {
 
         // Trigger compaction check (deferred — don't block close)
         setTimeout(() => {
-          void triggerCompactionIfNeeded(slug, sid);
+          void triggerCompactionIfNeeded(slug, sid, app);
         }, 100);
       });
     },
@@ -415,15 +415,20 @@ const CRDT_COMPACT_THRESHOLD = 100;
 async function triggerCompactionIfNeeded(
   documentId: string,
   sectionId: string,
+  app: FastifyInstance,
 ): Promise<void> {
   // Don't compact while other sessions are active
   if (hasSectionSessions(documentId, sectionId)) return;
 
   try {
-    const stateRow = await loadSectionState(documentId, sectionId);
-    if (!stateRow) return;
+    const state = await app.backendCore.getCrdtState(documentId, sectionId);
+    if (!state) return;
 
-    if (stateRow.clock < CRDT_COMPACT_THRESHOLD) return;
+    // Check compaction threshold via raw schema query — backendCore.getCrdtState
+    // doesn't expose clock. We load it directly from the persistence helper.
+    const { loadSectionState } = await import('../crdt/persistence.js');
+    const stateRow = await loadSectionState(documentId, sectionId);
+    if (!stateRow || stateRow.clock < CRDT_COMPACT_THRESHOLD) return;
 
     // Trigger compaction for this specific section
     const { compactSection } = await import('../crdt/compaction.js');
