@@ -77,6 +77,9 @@ importers:
       fastify:
         specifier: ^5.2.2
         version: 5.8.4
+      fastify-plugin:
+        specifier: ^5.1.0
+        version: 5.1.0
       gpt-tokenizer:
         specifier: ^3.4.0
         version: 3.4.0

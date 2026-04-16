@@ -13,6 +13,7 @@
  * Implementation: uses Fastify onRequest and onSend hooks scoped to write routes.
  */
 import type { FastifyInstance } from 'fastify';
+import fp from 'fastify-plugin';
 import { hashContent } from 'llmtxt';
 import { verifyAgentSignature, buildReceipt, computeReceipt } from './verify-agent-signature.js';
 
@@ -54,7 +55,7 @@ function isWriteRoute(method: string, url: string): boolean {
  * - onRequest hook: calls verifyAgentSignature for write routes
  * - onSend hook: injects receipt into JSON responses for write routes
  */
-export async function agentSignaturePlugin(fastify: FastifyInstance): Promise<void> {
+async function agentSignaturePluginImpl(fastify: FastifyInstance): Promise<void> {
   // onRequest hook: verify agent signature for write routes
   fastify.addHook('onRequest', async (request, reply) => {
     if (!isWriteRoute(request.method, request.url)) {
@@ -113,3 +114,14 @@ export async function agentSignaturePlugin(fastify: FastifyInstance): Promise<vo
     return JSON.stringify(body);
   });
 }
+
+/**
+ * T373: Wrap with fastify-plugin fp() so the plugin is "transparent" (non-encapsulated).
+ * Hooks registered inside propagate to the parent scope (v1Routes) and ALL routes
+ * registered within v1Routes inherit onRequest + onSend hooks, including grandchildren
+ * created by nested app.register() calls.
+ */
+export const agentSignaturePlugin = fp(agentSignaturePluginImpl, {
+  name: 'agent-signature',
+  fastify: '5.x',
+});
