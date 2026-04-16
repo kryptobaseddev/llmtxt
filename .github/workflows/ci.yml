@@ -143,4 +143,8 @@ jobs:
         run: pnpm run openapi:gen
 
       - name: Fail if spec is out of sync
-        run: git diff --exit-code apps/backend/openapi.json apps/backend/postman-collection.json || (echo "ERROR: OpenAPI/Postman artifacts are out of sync. Run pnpm --filter backend run openapi:gen and commit." && exit 1)
+        run: |
+          git diff --exit-code apps/backend/openapi.json apps/backend/postman-collection.json || {
+            echo "ERROR: OpenAPI/Postman artifacts are out of sync. Run 'pnpm --filter backend run openapi:gen' and commit."
+            exit 1
+          }
