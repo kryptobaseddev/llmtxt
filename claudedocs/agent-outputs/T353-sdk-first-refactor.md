@@ -7,6 +7,55 @@
 
 ---
 
+## Phase 2 Complete (Wave A) — Commits ee983fe + c438341
+
+### Wave A: Documents + Versions + Lifecycle domain
+
+**Commits**:
+- `ee983fe` — `feat(T357/Wave-A-C1): refactor api.ts + versions.ts + lifecycle.ts + disclosure.ts through backendCore`
+- `c438341` — `feat(T357/Wave-A-C2): refactor patches.ts + merge.ts + conflicts.ts doc lookup through backendCore`
+
+**CI**: Pushed to main (2 commits)  
+**Tests**: 156/156 backend, 25/25 SDK  
+**Typecheck**: 0 errors  
+**Lint**: 0 warnings
+
+**PostgresBackend methods implemented**:
+- `getDocument(id)` — select by id
+- `getDocumentBySlug(slug)` — select by slug
+- `listDocuments(params?)` — with optional ownerId filter; returns `{items, nextCursor}`
+- `getVersion(documentId, versionNumber)` — fetches version row with compressedData
+- `listVersions(documentId)` — ordered by versionNumber desc, returns metadata columns
+- `getApprovalProgress(documentId, _versionNumber?)` — returns `{doc, reviews}` raw shape
+- `getApprovalPolicy(documentId)` — returns approval policy fields from documents row
+- `listContributors(documentId)` — ordered by netTokens desc
+- `setSchema(schema)` — injects schema table refs (called by postgres-backend-plugin.ts)
+
+**PostgresBackend methods still stubbed** (throw NotImplemented for Wave A):
+- `createDocument` — compress route owns its transaction
+- `publishVersion` — PUT /documents/:slug owns its transaction
+- `transitionVersion` — lifecycle route owns its transaction
+- `submitSignedApproval` — approve/reject routes own their transactions
+
+**Route files refactored (Wave A)**:
+| File | Handlers → backendCore | Remaining db calls |
+|------|------------------------|-------------------|
+| `api.ts` | GET /mine, GET /:slug, POST /decompress | POST /compress (create doc/version/contributor) |
+| `versions.ts` | GET /versions, GET /versions/:num, GET /diff, GET /multi-diff, POST /batch-versions | PUT /:slug (version creation tx) |
+| `lifecycle.ts` | GET /approvals, GET /contributors | POST /transition, POST /approve, POST /reject (complex txs) |
+| `disclosure.ts` | All resolveDocument calls (slug→content) | db.update access count (infrastructure) |
+| `patches.ts` | Initial doc lookup | version insert (complex patchText fields) |
+| `merge.ts` | Initial doc lookup | version creation tx |
+| `conflicts.ts` | Initial doc lookups (both handlers) | persistNewVersion helper |
+
+**Architecture decisions made**:
+1. Schema injection pattern: `setSchema()` called from `postgres-backend-plugin.ts` after `open()` — avoids cross-package static imports
+2. `getVersion(documentId, num)` accepts document.id (not slug) to match existing call patterns
+3. `getApprovalProgress` returns raw `{doc, reviews}` shape (not Backend interface ApprovalResult) — route reconstructs consensus with SDK evaluateApprovals
+4. Complex write transactions (compress, PUT, approve/reject) intentionally stay in routes for Wave A — these become Wave D scope
+
+---
+
 ## Phase 1 Complete (RCASD) — Commit bbe7acf
 
 ### Wave 0: Inventory + Interface + Scaffold
@@ -39,56 +88,7 @@
 
 ## Remaining Waves (Successor Agent Handoff)
 
-### Wave A (T357): Documents + Versions + Lifecycle domain
-
-**Files to refactor** (7 files, ~40 handlers):
-- `apps/backend/src/routes/api.ts` — POST /compress, GET /documents/:slug, POST /decompress, GET /documents/mine
-- `apps/backend/src/routes/versions.ts` — PUT /documents/:slug, GET versions, GET version, GET diff, GET multi-diff
-- `apps/backend/src/routes/lifecycle.ts` — POST transition, POST approve, POST reject, GET approvals, GET contributors
-- `apps/backend/src/routes/disclosure.ts` — GET overview, sections, toc, section/:sid, token-budget
-- `apps/backend/src/routes/patches.ts` — POST /documents/:slug/patch
-- `apps/backend/src/routes/merge.ts` — POST /documents/:slug/merge
-- `apps/backend/src/routes/conflicts.ts` — POST merge-conflict, POST auto-merge
-
-**Backend methods to implement in PostgresBackend** (Wave A):
-```
-createDocument, getDocument, getDocumentBySlug, listDocuments, deleteDocument
-publishVersion, getVersion, listVersions, transitionVersion
-submitSignedApproval, getApprovalProgress, getApprovalPolicy, setApprovalPolicy
-listContributors
-```
-
-**Route refactor pattern** (for each route file):
-```typescript
-// BEFORE (in route file):
-const doc = await db.select().from(documents).where(eq(documents.slug, slug)).limit(1);
-
-// AFTER (in route file):
-const doc = await request.server.backendCore.getDocumentBySlug(slug);
-```
-
-**Key constraints**:
-- `lifecycle.ts` has complex transactions with approval auto-lock logic — implement `transitionVersion` and `submitSignedApproval` in PostgresBackend with equivalent Postgres tx semantics
-- `versions.ts` PUT handler compresses content + runs contributor upsert — these must move to `publishVersion`  
-- `api.ts` POST /compress creates both document and version 1 — route can use `createDocument` + `publishVersion`
-- Schema: `apps/backend/src/db/schema-pg.ts` is the canonical table schema; PostgresBackend imports tables from there
-
-**PostgresBackend implementation guide**:
-The `_db` field after `open()` is a Drizzle instance with the postgres-js driver. Import schema tables:
-```typescript
-// In pg-backend.ts (at top after imports):
-// These are dynamic imports due to the monorepo boundary.
-// The schema lives at apps/backend/src/db/schema-pg.ts.
-// Move to packages/llmtxt/src/pg/schema-pg.ts after Wave A.
-```
-
-**Wave A validation gates** (must pass before push):
-```bash
-pnpm --filter llmtxt run typecheck     # 0 errors
-pnpm --filter llmtxt run test          # 25/25
-cd apps/backend && pnpm exec tsc --noEmit  # 0 errors  
-pnpm --filter @llmtxt/backend test     # 156+
-```
+### Wave A (T357): COMPLETE — see Phase 2 section above
 
 ### Wave B (T358): Events + CRDT domain
 
