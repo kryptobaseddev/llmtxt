@@ -38,6 +38,7 @@ import { subscribeRoutes } from '../subscribe.js';
 import { bftRoutes } from '../bft.js';
 import { scratchpadRoutes } from '../scratchpad.js';
 import { a2aRoutes } from '../a2a.js';
+import { searchRoutes } from '../search.js';
 import {
   API_VERSION_REGISTRY,
   addVersionResponseHeaders,
@@ -90,4 +91,6 @@ export async function v1Routes(app: FastifyInstance): Promise<void> {
   await app.register(bftRoutes);
   await app.register(scratchpadRoutes);
   await app.register(a2aRoutes);
+  // T102/T103: Semantic search + similar-docs
+  await app.register(searchRoutes);
 }

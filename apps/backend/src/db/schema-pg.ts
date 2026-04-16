@@ -1195,6 +1195,60 @@ export const agentInboxMessages = pgTable(
 );
 
 // ────────────────────────────────────────────────────────────────
+// Section Embeddings (T102/T103 — pgvector semantic search)
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Cached per-section embeddings for nearest-neighbour search.
+ *
+ * Schema exception: the `embedding` column uses a raw SQL type `vector(384)`
+ * because drizzle-orm does not (yet) ship a first-class pgvector column helper.
+ * We store the vector as a text column in Drizzle but rely on the raw SQL
+ * migration to create it as `vector(384)` so pgvector operators work.
+ *
+ * For INSERT/SELECT we convert between `number[]` <-> JSON string in the
+ * embedding service layer (see src/jobs/embeddings.ts).
+ */
+export const sectionEmbeddings = pgTable(
+  'section_embeddings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** FK to documents.id */
+    documentId: text('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    /** Normalised section slug (e.g. "introduction"). Empty = whole-doc embedding. */
+    sectionSlug: text('section_slug').notNull().default(''),
+    /** Raw section heading as it appears in the document. */
+    sectionTitle: text('section_title').notNull().default(''),
+    /** SHA-256 hex of the section content (for staleness detection). */
+    contentHash: text('content_hash').notNull(),
+    /** Embedding provider name, e.g. "local-onnx-minilm-l6" */
+    provider: text('provider').notNull().default('local-onnx-minilm-l6'),
+    /** Model name, e.g. "all-MiniLM-L6-v2" */
+    model: text('model').notNull().default('all-MiniLM-L6-v2'),
+    /**
+     * Embedding stored as JSON text "[0.1,0.2,...]" for Drizzle compatibility.
+     * The actual column type is vector(384) — created by the SQL migration.
+     * The embedding service casts to/from number[] via JSON.parse/stringify.
+     */
+    embedding: text('embedding'),
+    /** Unix millisecond timestamp of last computation. */
+    computedAt: bigint('computed_at', { mode: 'number' }).notNull(),
+  },
+  (table) => ({
+    /** Fast per-document lookup for invalidation. */
+    documentIdIdx: index('section_embeddings_document_id_idx').on(table.documentId),
+    /** Unique constraint: one embedding per (document, section, model). */
+    docSectionModelIdx: uniqueIndex('section_embeddings_doc_section_model_idx').on(
+      table.documentId,
+      table.sectionSlug,
+      table.model,
+    ),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
 // Export TypeScript types
 // ────────────────────────────────────────────────────────────────
 
@@ -1252,6 +1306,8 @@ export type SectionLease = typeof sectionLeases.$inferSelect;
 export type NewSectionLease = typeof sectionLeases.$inferInsert;
 export type AgentInboxMessage = typeof agentInboxMessages.$inferSelect;
 export type NewAgentInboxMessage = typeof agentInboxMessages.$inferInsert;
+export type SectionEmbedding = typeof sectionEmbeddings.$inferSelect;
+export type NewSectionEmbedding = typeof sectionEmbeddings.$inferInsert;
 
 // ────────────────────────────────────────────────────────────────
 // Export Zod schemas for validation

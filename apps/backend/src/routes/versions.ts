@@ -26,6 +26,7 @@ import { eventBus } from '../events/bus.js';
 import { canRead, canWrite } from '../middleware/rbac.js';
 import { versionCreatedTotal } from '../middleware/metrics.js';
 import { appendDocumentEvent } from '../lib/document-events.js';
+import { computeAndStoreEmbeddings } from '../jobs/embeddings.js';
 
 /** Try to get the authenticated user from session cookies. */
 async function getOptionalUser(request: FastifyRequest) {
@@ -334,6 +335,12 @@ export async function versionRoutes(fastify: FastifyInstance) {
         version: nextVersionNumber,
         changelog: changelog || null,
         createdBy: effectiveCreatedBy,
+      });
+
+      // Fire-and-forget: recompute section embeddings for updated content.
+      // Embedding failures must never fail the version write response.
+      computeAndStoreEmbeddings(doc.id, content).catch(embErr => {
+        fastify.log.warn({ err: embErr }, '[embeddings] computeAndStoreEmbeddings failed on version write');
       });
 
       return reply.status(200).send({

@@ -29,6 +29,10 @@
     "./crdt-primitives": {
       "types": "./dist/crdt-primitives.d.ts",
       "import": "./dist/crdt-primitives.js"
+    },
+    "./embeddings": {
+      "types": "./dist/embeddings.d.ts",
+      "import": "./dist/embeddings.js"
     }
   },
   "files": [
@@ -67,10 +71,14 @@
     "zod": "^3.25.3"
   },
   "peerDependencies": {
-    "@cleocode/lafs": ">=2026.3"
+    "@cleocode/lafs": ">=2026.3",
+    "onnxruntime-node": ">=1.18.0"
   },
   "peerDependenciesMeta": {
     "@cleocode/lafs": {
+      "optional": true
+    },
+    "onnxruntime-node": {
       "optional": true
     }
   },

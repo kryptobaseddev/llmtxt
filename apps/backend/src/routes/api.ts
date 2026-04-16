@@ -45,6 +45,7 @@ import { eventBus } from '../events/bus.js';
 import { canRead } from '../middleware/rbac.js';
 import { documentCreatedTotal, versionCreatedTotal } from '../middleware/metrics.js';
 import { appendDocumentEvent } from '../lib/document-events.js';
+import { computeAndStoreEmbeddings } from '../jobs/embeddings.js';
 
 // Legacy validation schemas (kept for backward compatibility)
 const slugParamsSchema = z.object({
@@ -331,6 +332,12 @@ export async function apiRoutes(fastify: FastifyInstance) {
       eventBus.emitDocumentCreated(slug, id, effectiveCreatedBy || 'anonymous', {
         tokenCount,
         format: contentFormat,
+      });
+
+      // Fire-and-forget: compute and store section embeddings asynchronously.
+      // Embedding failures must never fail the compress response.
+      computeAndStoreEmbeddings(id, content).catch(embErr => {
+        fastify.log.warn({ err: embErr }, '[embeddings] computeAndStoreEmbeddings failed on document create');
       });
 
       return reply.status(201).send(response);

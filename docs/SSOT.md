@@ -114,6 +114,34 @@ A new Claude session landing on this project should:
 
 That's enough context to resume without losing the plot.
 
+## Documented exceptions
+
+### T102: Local ONNX embedding provider
+
+`packages/llmtxt/src/embeddings.ts` contains `LocalOnnxEmbeddingProvider` — an
+exception to the SSoT rule.
+
+**Rationale**: ML model loading is environment-specific.
+- Node.js uses `onnxruntime-node` (native NAPI binding, CPU inference).
+- Browsers use `onnxruntime-web` (WASM, not yet implemented).
+
+These runtimes cannot be abstracted into a single Rust WASM module because they
+require native file-system access (model download, disk cache) and different WASM
+compilation targets.
+
+**What stays in crates/llmtxt-core (SSoT)**:
+- `cosine_similarity`, `semantic_diff`, `semantic_consensus` — all vector math.
+- Exposed via WASM and re-exported from `packages/llmtxt`.
+
+**What is the exception**:
+- `packages/llmtxt/src/embeddings.ts` — ONNX model download, tokenisation,
+  inference, mean-pooling, L2-normalise, `LocalOnnxEmbeddingProvider`.
+- `onnxruntime-node` dependency in `apps/backend/package.json`.
+
+**Reactivation trigger**: If a Rust candle-core or tract ONNX provider is
+integrated into `crates/llmtxt-core`, this exception should be resolved and the
+TS module removed.
+
 ## TL;DR
 
-**SSoT = crates/llmtxt-core. Everything portable lives there. packages/llmtxt wraps it via WASM. apps/backend imports only from the wrapper. Yrs not Y.js. WASM as the sole JS binding (NAPI-RS deferred). Two artifacts per feature. CI verifies byte-identity.**
+**SSoT = crates/llmtxt-core. Everything portable lives there. packages/llmtxt wraps it via WASM. apps/backend imports only from the wrapper. Yrs not Y.js. WASM as the sole JS binding (NAPI-RS deferred). Two artifacts per feature. CI verifies byte-identity. Exception: ONNX embedding inference in packages/llmtxt/src/embeddings.ts (see above).**
