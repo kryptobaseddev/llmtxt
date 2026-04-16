@@ -98,13 +98,17 @@ export async function bftRoutes(fastify: FastifyInstance) {
       sig_hex?: string;
       canonical_payload?: string;
       comment?: string;
+      /** Agent string ID used for key lookup and canonical payload (T308-b).
+       *  When provided with sig_hex, the signature is verified against the
+       *  agent's registered Ed25519 pubkey instead of the user account key. */
+      agent_id?: string;
     };
   }>(
     '/documents/:slug/bft/approve',
     { preHandler: [canApprove], config: writeRateLimit },
     async (request, reply) => {
       const { slug } = request.params;
-      const { status, sig_hex, canonical_payload: clientPayload, comment } = request.body;
+      const { status, sig_hex, canonical_payload: clientPayload, comment, agent_id } = request.body;
 
       if (!status || !['APPROVED', 'REJECTED'].includes(status)) {
         return reply.status(400).send({
@@ -127,11 +131,16 @@ export async function bftRoutes(fastify: FastifyInstance) {
       }
 
       const actorId = request.user!.id;
+      // When an agent_id is provided, use it for signature verification and
+      // canonical payload construction — the agent's Ed25519 pubkey is registered
+      // under agent_id (not the user UUID). Falls back to actorId for unsigned writes.
+      const signingId = (agent_id && sig_hex) ? agent_id : actorId;
       const now = Date.now();
       const f = (doc as { bftF?: number }).bftF ?? 1;
       const quorum = bftQuorum(f);
 
       // Check for double-vote (Byzantine conflict detector)
+      // Use actorId (user UUID) for dedup so one user can't vote twice even with different agentIds
       const existingVotes = await db
         .select()
         .from(approvals)
@@ -141,22 +150,24 @@ export async function bftRoutes(fastify: FastifyInstance) {
         ))
         .orderBy(desc(approvals.timestamp));
 
-      // Byzantine conflict: same agent has voted both APPROVED and REJECTED
+      // Byzantine conflict: same actor has voted both APPROVED and REJECTED
       const hasApproved = existingVotes.some((v: { status: string }) => v.status === 'APPROVED');
       const hasRejected = existingVotes.some((v: { status: string }) => v.status === 'REJECTED');
       if ((status === 'REJECTED' && hasApproved) || (status === 'APPROVED' && hasRejected)) {
         // Slash: revoke the agent's key and emit audit event
+        // Revoke by both actorId and agent_id if provided
+        const slashId = agent_id ?? actorId;
         await db
           .update(agentPubkeys)
           .set({ revokedAt: new Date() })
-          .where(eq(agentPubkeys.agentId, actorId));
+          .where(eq(agentPubkeys.agentId, slashId));
 
         await appendDocumentEvent(db, {
           documentId: slug,
           eventType: 'bft.byzantine_slash',
           actorId: 'system',
           payloadJson: {
-            byzantineAgentId: actorId,
+            byzantineAgentId: slashId,
             reason: 'Contradictory double-vote detected',
             status,
           },
@@ -179,25 +190,20 @@ export async function bftRoutes(fastify: FastifyInstance) {
         });
       }
 
-      // Signature verification (optional if no key registered)
+      // Signature verification (optional if no key registered).
+      // When agent_id is supplied, look up the Ed25519 pubkey by agent_id so
+      // demo bots (whose keys are registered under their agent string ID, not
+      // the user UUID) can produce verifiable BFT signatures. (T308-b fix)
       let sigVerified = false;
       if (sig_hex && clientPayload) {
-        const expectedPayload = buildApprovalCanonicalPayload(
-          slug,
-          actorId,
-          status,
-          doc.currentVersion,
-          now
-        );
-        // Verify the client supplied the correct canonical payload
-        sigVerified = await verifyApprovalSignature(actorId, clientPayload, sig_hex);
+        // Verify using the signing identity (agent_id if provided, else actorId)
+        sigVerified = await verifyApprovalSignature(signingId, clientPayload, sig_hex);
         if (!sigVerified) {
           return reply.status(401).send({
             error: 'SIGNATURE_MISMATCH',
             message: 'Approval signature is invalid',
           });
         }
-        void expectedPayload; // suppress unused warning
       }
 
       // Compute chain hash

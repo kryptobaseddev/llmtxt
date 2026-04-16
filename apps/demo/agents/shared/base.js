@@ -240,6 +240,10 @@ export class AgentBase {
         status,
         sig_hex: sigHex,
         canonical_payload: canonical,
+        // agent_id tells the backend to look up this agent's Ed25519 pubkey
+        // for signature verification (T308-b: key is registered under agent
+        // string ID, not the user UUID that request.user.id returns)
+        agent_id: this.agentId,
         comment,
       }),
     });
