@@ -577,10 +577,15 @@ export class RemoteBackend implements Backend {
     }
   }
 
-  async pollA2AInbox(agentId: string, limit = 50): Promise<A2AMessage[]> {
-    const result = await this.fetch<{ items: A2AMessage[] } | A2AMessage[]>(
-      'GET', `/v1/a2a/inbox/${agentId}?limit=${limit}`
-    );
+  async pollA2AInbox(
+    agentId: string,
+    limit = 50,
+    since?: number,
+    order: 'asc' | 'desc' = 'desc',
+  ): Promise<A2AMessage[]> {
+    let url = `/v1/a2a/inbox/${agentId}?limit=${limit}&order=${order}`;
+    if (since !== undefined) url += `&since=${since}`;
+    const result = await this.fetch<{ items: A2AMessage[] } | A2AMessage[]>('GET', url);
     if (Array.isArray(result)) return result;
     return (result as { items: A2AMessage[] }).items;
   }

@@ -555,8 +555,12 @@ export interface A2AOps {
   /**
    * Poll messages from an agent's inbox.
    * MUST only return non-expired messages.
+   * @param agentId  Recipient agent ID
+   * @param limit    Max messages to return (default 50, max 500)
+   * @param since    Only return messages with receivedAt > since (unix ms)
+   * @param order    Sort order: 'desc' (newest first, default) or 'asc' (oldest first)
    */
-  pollA2AInbox(agentId: string, limit?: number): Promise<A2AMessage[]>;
+  pollA2AInbox(agentId: string, limit?: number, since?: number, order?: 'asc' | 'desc'): Promise<A2AMessage[]>;
 
   /**
    * Delete a message from an agent's inbox.

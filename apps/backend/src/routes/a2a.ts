@@ -189,23 +189,26 @@ export async function a2aRoutes(fastify: FastifyInstance): Promise<void> {
   );
 
   // GET /agents/:id/inbox — poll inbox (recipient only)
+  // T374: supports ?since=<ms>&limit=<n>&order=asc|desc (default: DESC, newest first)
   fastify.get<{
     Params: { id: string };
-    Querystring: { since?: string; limit?: string; unread_only?: string };
+    Querystring: { since?: string; limit?: string; order?: string; unread_only?: string };
   }>(
     '/agents/:id/inbox',
     { preHandler: [requireAuth] },
     async (request, reply) => {
       const { id: agentId } = request.params;
-      const { limit } = request.query;
+      const { limit, since, order } = request.query;
 
       // Verify requester is authenticated
       const userId = request.user?.id;
       if (!userId) return reply.status(401).send({ error: 'Unauthorized' });
 
-      const maxResults = Math.min(parseInt(limit ?? '50', 10), 200);
+      const maxResults = Math.min(parseInt(limit ?? '50', 10), 500);
+      const sinceMs = since ? parseInt(since, 10) : undefined;
+      const sortOrder = order === 'asc' ? 'asc' : 'desc';
 
-      const messages = await fastify.backendCore.pollA2AInbox(agentId, maxResults);
+      const messages = await fastify.backendCore.pollA2AInbox(agentId, maxResults, sinceMs, sortOrder);
 
       return {
         messages: messages.map((m) => ({
@@ -232,6 +235,28 @@ export async function a2aRoutes(fastify: FastifyInstance): Promise<void> {
         })),
         count: messages.length,
       };
+    }
+  );
+
+  // DELETE /agents/:id/inbox/:messageId — mark a message read (delete from inbox)
+  // T374: agents call this after processing each message to drain the backlog
+  fastify.delete<{
+    Params: { id: string; messageId: string };
+  }>(
+    '/agents/:id/inbox/:messageId',
+    { preHandler: [requireAuth] },
+    async (request, reply) => {
+      const { id: agentId, messageId } = request.params;
+
+      const userId = request.user?.id;
+      if (!userId) return reply.status(401).send({ error: 'Unauthorized' });
+
+      const deleted = await fastify.backendCore.deleteA2AMessage(messageId, agentId);
+      if (!deleted) {
+        return reply.status(404).send({ error: 'Not Found', message: 'Message not found or already deleted' });
+      }
+
+      return reply.status(200).send({ deleted: true, id: messageId });
     }
   );
 }

@@ -1953,21 +1953,39 @@ export class PostgresBackend implements Backend {
     }
   }
 
-  async pollA2AInbox(agentId: string, limit = 50): Promise<A2AMessage[]> {
+  async pollA2AInbox(
+    agentId: string,
+    limit = 50,
+    since?: number,
+    order: 'asc' | 'desc' = 'desc',
+  ): Promise<A2AMessage[]> {
     this._assertOpen();
     const { agentInboxMessages } = this._s;
-    const { eq, and, gt } = this._orm;
+    const { eq, and, gt, desc: descFn, asc: ascFn } = this._orm;
 
     const now = Date.now();
+    const clampedLimit = Math.min(Math.max(1, limit), 500);
+
+    // Build WHERE conditions
+    const conditions = [
+      eq(agentInboxMessages.toAgentId, agentId),
+      gt(agentInboxMessages.expiresAt, now),
+    ];
+    if (since !== undefined && since > 0) {
+      conditions.push(gt(agentInboxMessages.receivedAt, since));
+    }
+
+    // T374: default to DESC so newest messages always surface first
+    const orderExpr = order === 'asc'
+      ? ascFn(agentInboxMessages.receivedAt)
+      : descFn(agentInboxMessages.receivedAt);
+
     const rows = await this._db
       .select()
       .from(agentInboxMessages)
-      .where(and(
-        eq(agentInboxMessages.toAgentId, agentId),
-        gt(agentInboxMessages.expiresAt, now),
-      ))
-      .orderBy(agentInboxMessages.receivedAt)
-      .limit(limit);
+      .where(and(...conditions))
+      .orderBy(orderExpr)
+      .limit(clampedLimit);
 
     return rows.map((r: {
       id: string;

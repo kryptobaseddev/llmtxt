@@ -1181,19 +1181,25 @@ export class LocalBackend implements Backend {
     };
   }
 
-  async pollA2AInbox(agentId: string, limit = 50): Promise<A2AMessage[]> {
+  async pollA2AInbox(
+    agentId: string,
+    limit = 50,
+    since?: number,
+    order: 'asc' | 'desc' = 'desc',
+  ): Promise<A2AMessage[]> {
     this._assertOpen();
+    const clampedLimit = Math.min(Math.max(1, limit), 500);
     const rows = this.db
       .select()
       .from(agentInboxMessages)
       .where(eq(agentInboxMessages.toAgentId, agentId))
-      .orderBy(asc(agentInboxMessages.createdAt))
-      .limit(limit * 2)
+      .orderBy(order === 'asc' ? asc(agentInboxMessages.createdAt) : desc(agentInboxMessages.createdAt))
+      .limit(clampedLimit * 2)
       .all();
 
     return rows
-      .filter((r) => isNotExpired(r.exp))
-      .slice(0, limit)
+      .filter((r) => isNotExpired(r.exp) && (since === undefined || r.createdAt > since))
+      .slice(0, clampedLimit)
       .map((r) => ({
         id: r.id,
         toAgentId: r.toAgentId,
