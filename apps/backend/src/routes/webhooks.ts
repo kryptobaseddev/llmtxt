@@ -7,14 +7,13 @@
  * GET    /webhooks              — List caller's webhooks
  * DELETE /webhooks/:id          — Remove a webhook
  * POST   /webhooks/:id/test     — Send a synthetic test event
+ *
+ * Wave D (T353.7): delegates to fastify.backendCore.* (WebhookOps).
+ * HMAC signing key generation and test delivery remain in route layer.
  */
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { randomBytes } from 'node:crypto';
-import { db } from '../db/index.js';
-import { webhooks } from '../db/schema.js';
-import { eq, and } from 'drizzle-orm';
-import { generateId, signWebhookPayload } from 'llmtxt';
+import { generateId } from 'llmtxt';
 import { requireAuth } from '../middleware/auth.js';
 
 // ── Validation schemas ────────────────────────────────────────────────────────
@@ -31,7 +30,6 @@ const VALID_EVENT_TYPES = [
 ] as const;
 
 const createWebhookSchema = z.object({
-  /** HTTPS callback URL. HTTP is only allowed in development. */
   url: z
     .string()
     .url()
@@ -44,19 +42,8 @@ const createWebhookSchema = z.object({
       },
       { message: 'Webhook URL must use HTTPS in production' },
     ),
-  /**
-   * Optional HMAC signing secret. If omitted, one is generated automatically.
-   * Min 16 chars for sufficient entropy.
-   */
   secret: z.string().min(16).max(256).optional(),
-  /**
-   * Event types to subscribe to. Empty array or omitted = all events.
-   */
   events: z.array(z.enum(VALID_EVENT_TYPES)).optional().default([]),
-  /**
-   * Scope to a specific document slug. Null/omitted = all documents owned by
-   * the caller.
-   */
   documentSlug: z.string().min(1).max(20).optional().nullable(),
 });
 
@@ -67,8 +54,7 @@ export async function webhookRoutes(app: FastifyInstance) {
   /**
    * POST /webhooks
    *
-   * Register a new webhook endpoint. Returns the generated signing secret
-   * in the response — this is the only time it is returned in plaintext.
+   * Register a new webhook endpoint.
    */
   app.post(
     '/webhooks',
@@ -82,31 +68,24 @@ export async function webhookRoutes(app: FastifyInstance) {
         });
       }
 
-      const { url, events, documentSlug } = bodyResult.data;
-      const secret = bodyResult.data.secret ?? randomBytes(32).toString('hex');
-      const now = Date.now();
-      const id = generateId();
+      const { url, events, secret: providedSecret } = bodyResult.data;
 
-      await db.insert(webhooks).values({
-        id,
-        userId: request.user!.id,
+      const webhook = await app.backendCore.createWebhook({
+        ownerId: request.user!.id,
         url,
-        secret,
-        events: JSON.stringify(events),
-        documentSlug: documentSlug ?? null,
-        active: true,
-        failureCount: 0,
-        createdAt: now,
+        secret: providedSecret,
+        events: events as string[],
       });
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const w = webhook as any;
       return reply.status(201).send({
-        id,
-        url,
-        events,
-        documentSlug: documentSlug ?? null,
-        active: true,
-        secret, // Only returned on creation.
-        createdAt: now,
+        id: w.id,
+        url: w.url,
+        events: w.events,
+        active: w.enabled,
+        secret: w.secret, // Only returned on creation.
+        createdAt: w.createdAt,
       });
     },
   );
@@ -121,33 +100,17 @@ export async function webhookRoutes(app: FastifyInstance) {
     '/webhooks',
     { preHandler: [requireAuth] },
     async (request) => {
-      const rows = await db
-        .select({
-          id: webhooks.id,
-          url: webhooks.url,
-          events: webhooks.events,
-          documentSlug: webhooks.documentSlug,
-          active: webhooks.active,
-          failureCount: webhooks.failureCount,
-          lastDeliveryAt: webhooks.lastDeliveryAt,
-          lastSuccessAt: webhooks.lastSuccessAt,
-          createdAt: webhooks.createdAt,
-        })
-        .from(webhooks)
-        .where(eq(webhooks.userId, request.user!.id));
-
+      const webhooks = await app.backendCore.listWebhooks(request.user!.id);
       return {
-        webhooks: rows.map((row: any) => ({
-          ...row,
-          events: (() => {
-            try {
-              return JSON.parse(row.events) as string[];
-            } catch {
-              return [];
-            }
-          })(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        webhooks: webhooks.map((w: any) => ({
+          id: w.id,
+          url: w.url,
+          events: w.events,
+          active: w.enabled,
+          createdAt: w.createdAt,
         })),
-        total: rows.length,
+        total: webhooks.length,
       };
     },
   );
@@ -163,21 +126,11 @@ export async function webhookRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const { id } = request.params;
 
-      const existing = await db
-        .select({ id: webhooks.id, userId: webhooks.userId })
-        .from(webhooks)
-        .where(eq(webhooks.id, id))
-        .limit(1);
+      const deleted = await app.backendCore.deleteWebhook(id, request.user!.id);
 
-      if (!existing.length) {
-        return reply.status(404).send({ error: 'Webhook not found' });
+      if (!deleted) {
+        return reply.status(404).send({ error: 'Webhook not found or not owned by you' });
       }
-
-      if (existing[0].userId !== request.user!.id) {
-        return reply.status(403).send({ error: 'Forbidden', message: 'You do not own this webhook' });
-      }
-
-      await db.delete(webhooks).where(eq(webhooks.id, id));
 
       return reply.status(204).send();
     },
@@ -186,11 +139,7 @@ export async function webhookRoutes(app: FastifyInstance) {
   /**
    * POST /webhooks/:id/test
    *
-   * Send a synthetic `document.created` test event to the webhook URL.
-   * Useful for verifying the endpoint is reachable and the signature logic
-   * is correct on the recipient side.
-   *
-   * Returns 200 with delivery result; does NOT increment failure count.
+   * Send a synthetic test delivery to the webhook URL.
    */
   app.post<{ Params: { id: string } }>(
     '/webhooks/:id/test',
@@ -198,63 +147,25 @@ export async function webhookRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const { id } = request.params;
 
-      const existing = await db
-        .select()
-        .from(webhooks)
-        .where(and(
-          eq(webhooks.id, id),
-          eq(webhooks.userId, request.user!.id),
-        ))
-        .limit(1);
+      // Verify ownership first by listing user's webhooks
+      const userWebhooks = await app.backendCore.listWebhooks(request.user!.id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const owned = userWebhooks.find((w: any) => w.id === id);
 
-      if (!existing.length) {
+      if (!owned) {
         return reply.status(404).send({ error: 'Webhook not found' });
       }
 
-      const hook = existing[0];
-      const testPayload = JSON.stringify({
-        type: 'document.created',
-        slug: 'test000',
-        documentId: 'test-document-id',
-        timestamp: Date.now(),
-        actor: request.user!.id,
-        data: { tokenCount: 42, format: 'text' },
-        delivered_at: Date.now(),
-        test: true,
-      });
-
-      const signature = signWebhookPayload(hook.secret, testPayload);
-
-      let success = false;
-      let statusCode: number | null = null;
-
-      try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 10_000);
-        const response = await fetch(hook.url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'User-Agent': 'llmtxt-webhook/1.0',
-            'X-LLMtxt-Signature': signature,
-            'X-LLMtxt-Event': 'document.created',
-          },
-          body: testPayload,
-          signal: controller.signal,
-        });
-        clearTimeout(timer);
-        success = response.ok;
-        statusCode = response.status;
-      } catch {
-        success = false;
-      }
+      const result = await app.backendCore.testWebhook(id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const r = result as any;
 
       return reply.status(200).send({
         id,
-        url: hook.url,
-        success,
-        statusCode,
-        signature,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        url: (owned as any).url,
+        success: r.delivered ?? false,
+        statusCode: r.statusCode ?? null,
       });
     },
   );
