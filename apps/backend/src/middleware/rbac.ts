@@ -23,6 +23,7 @@ import { db } from '../db/index.js';
 import { documents, documentRoles, documentOrgs, orgMembers } from '../db/schema.js';
 import { ROLE_PERMISSIONS } from 'llmtxt';
 import type { DocumentRole, OrgRole, Permission } from 'llmtxt';
+import { requireAuth } from './auth.js';
 
 export type { DocumentRole, OrgRole, Permission };
 
@@ -172,6 +173,13 @@ export function requirePermission(permission: Permission) {
     if (!slug) {
       // Route does not use :slug — cannot enforce document-level RBAC here.
       return;
+    }
+
+    // Ensure Bearer token auth is resolved before checking RBAC.
+    // This is a no-op if requireAuth was already called as an earlier preHandler.
+    if (!request.user) {
+      await requireAuth(request, reply);
+      if (reply.sent) return; // requireAuth sent a 401 — stop.
     }
 
     const userId = request.user?.id ?? null;
