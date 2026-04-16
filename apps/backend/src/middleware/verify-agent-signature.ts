@@ -18,8 +18,8 @@ import type { FastifyRequest, FastifyReply } from 'fastify';
 import * as ed from '@noble/ed25519';
 import { sha512 } from '@noble/hashes/sha2.js';
 import { hashContent, signWebhookPayload } from 'llmtxt';
-import { eq, isNull, lt } from 'drizzle-orm';
-import { db } from '../db/index.js';
+import { eq, isNull, lt, sql } from 'drizzle-orm';
+import { db, schema } from '../db/index.js';
 import { agentPubkeys, agentSignatureNonces } from '../db/schema.js';
 
 // Noble ed25519 v3 requires setting the hash function in Node.js:
@@ -298,17 +298,18 @@ export async function verifyAgentSignature(
     });
   }
 
-  // Check nonce uniqueness — insert first, then check conflict
-  // A nonce is unique per agent + nonce string (globally in the table)
+  // Check nonce uniqueness — insert first, then check conflict.
+  // Use raw SQL to avoid Drizzle ORM table-definition dialect mismatch: the
+  // module imports agentSignatureNonces from schema.js (SQLite table type)
+  // but db is a Postgres drizzle instance in production. Raw SQL bypasses
+  // the dialect issue entirely and works for both SQLite and Postgres.
   try {
-    // Try inserting the nonce; if it already exists we get a conflict.
-    // firstSeen is omitted — both the SQLite schema ($defaultFn: Date.now()) and
-    // the PG schema (defaultNow()) supply defaults, avoiding a type mismatch when
-    // the same code runs against either backend.
-    await db.insert(agentSignatureNonces).values({
-      nonce: nonce,
-      agentId: agentIdStr,
-    });
+    // INSERT ... ON CONFLICT (nonce) DO UPDATE SET nonce=nonce returns the
+    // xmax column to detect whether this was an insert or an update (conflict).
+    // Simpler: just do a plain INSERT and catch the unique-constraint error.
+    await db.execute(
+      sql`INSERT INTO agent_signature_nonces (nonce, agent_id) VALUES (${nonce}, ${agentIdStr})`
+    );
   } catch (insertErr: unknown) {
     // Duplicate nonce — replay attack
     const msg = insertErr instanceof Error ? insertErr.message : String(insertErr);
