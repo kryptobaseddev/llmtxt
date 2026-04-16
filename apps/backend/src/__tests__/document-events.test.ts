@@ -16,7 +16,6 @@
  */
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { eq, asc } from 'drizzle-orm';
 import { compress, hashContent, generateId } from '../utils/compression.js';
 import { setupTestDb, teardownTestDb, type TestDbContext } from './helpers/test-db.js';
@@ -66,9 +65,11 @@ async function seedDocument(db: TestDbContext['db'], slug?: string): Promise<{ s
 }
 
 // ── Hash chain recompute ──────────────────────────────────────────────────────
+// Mirrors the algorithm in src/lib/document-events.ts — uses hashContent
+// (WASM Rust SHA-256) per SSOT rule.
 
 function recomputeHash(prev: AppendDocumentEventRow): Buffer {
-  const prevHashHex = prev.prevHash ? prev.prevHash.toString('hex') : 'genesis';
+  const prevHashHex = prev.prevHash ? (prev.prevHash as Buffer).toString('hex') : 'genesis';
   const input = [
     prevHashHex,
     prev.id,
@@ -78,7 +79,8 @@ function recomputeHash(prev: AppendDocumentEventRow): Buffer {
     JSON.stringify(prev.payloadJson),
     prev.createdAt.toISOString(),
   ].join('|');
-  return createHash('sha256').update(input, 'utf-8').digest();
+  const hex = hashContent(input);
+  return Buffer.from(hex, 'hex');
 }
 
 // ── Test suite ───────────────────────────────────────────────────────────────

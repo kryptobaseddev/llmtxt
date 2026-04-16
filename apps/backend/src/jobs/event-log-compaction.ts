@@ -20,8 +20,8 @@
  *   startEventLogJobs(); // call once at server start
  */
 
-import { createHash } from 'node:crypto';
-import { eq, desc, asc, count, sql } from 'drizzle-orm';
+import { hashContent } from 'llmtxt';
+import { eq, desc, asc, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { documentEvents } from '../db/schema-pg.js';
 import { validateHashChain } from '../lib/document-events.js';
@@ -84,15 +84,15 @@ async function runCompactionJob(): Promise<void> {
         const toSeq = oldest[oldest.length - 1].seq;
         const eventsCount = oldest.length;
 
-        // Build a summary hash over all collapsed rows
-        const summaryHash = createHash('sha256');
-        for (const row of oldest) {
-          summaryHash.update(
+        // Build a summary hash over all collapsed rows.
+        // Concatenate all row fingerprints into a single string, then hash once
+        // using hashContent (WASM Rust SHA-256 — SSOT per docs/SSOT.md).
+        const summaryInput = oldest
+          .map((row) =>
             [row.id, row.seq.toString(), row.eventType, JSON.stringify(row.payloadJson)].join('|'),
-            'utf-8',
-          );
-        }
-        const summaryHashHex = summaryHash.digest('hex');
+          )
+          .join('\n');
+        const summaryHashHex = hashContent(summaryInput);
 
         // Delete the originals
         for (const row of oldest) {

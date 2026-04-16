@@ -27,7 +27,7 @@
  * node:crypto call with the WASM equivalent.
  */
 
-import { createHash } from 'node:crypto';
+import { hashContent } from 'llmtxt';
 import { eq, desc, and, sql } from 'drizzle-orm';
 import { documentEvents, documents } from '../db/schema-pg.js';
 
@@ -95,6 +95,9 @@ export interface AppendDocumentEventResult {
  *
  * The first event in a document has no previous row — its prevHash = NULL
  * (genesis). Validators start from genesis and walk forward.
+ *
+ * Uses hashContent (from llmtxt SDK / WASM via Rust llmtxt-core) — single
+ * source of truth for SHA-256 per docs/SSOT.md.
  */
 function computeHashChain(prev: AppendDocumentEventRow): Buffer {
   const prevHashHex = prev.prevHash ? prev.prevHash.toString('hex') : 'genesis';
@@ -107,7 +110,9 @@ function computeHashChain(prev: AppendDocumentEventRow): Buffer {
     JSON.stringify(prev.payloadJson),
     prev.createdAt.toISOString(),
   ].join('|');
-  return createHash('sha256').update(input, 'utf-8').digest();
+  // hashContent returns lowercase hex string from WASM Rust SHA-256
+  const hex = hashContent(input);
+  return Buffer.from(hex, 'hex');
 }
 
 // ── Core helper ──────────────────────────────────────────────────────────────
