@@ -9,6 +9,7 @@
 use wasm_bindgen::prelude::*;
 
 use serde::{Deserialize, Serialize};
+use std::cmp::Reverse;
 use std::collections::{HashMap, HashSet};
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -297,7 +298,7 @@ pub fn top_topics_native(graph: &KnowledgeGraph, limit: usize) -> Vec<TopTopic> 
         })
         .collect();
 
-    result.sort_by(|a, b| b.agents.cmp(&a.agents));
+    result.sort_by_key(|t| Reverse(t.agents));
     result.truncate(limit);
     result
 }
@@ -320,7 +321,7 @@ pub fn top_agents_native(graph: &KnowledgeGraph, limit: usize) -> Vec<TopAgent> 
         .map(|(agent, activity)| TopAgent { agent, activity })
         .collect();
 
-    result.sort_by(|a, b| b.activity.cmp(&a.activity));
+    result.sort_by_key(|a| Reverse(a.activity));
     result.truncate(limit);
     result
 }

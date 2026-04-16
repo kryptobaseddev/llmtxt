@@ -228,15 +228,11 @@ pub fn compute_sections_modified_native(old_content: &str, new_content: &str) ->
     // Check for modified or removed sections
     for (name, old_body) in &old_sections {
         match new_sections.get(name) {
-            Some(new_body) if new_body != old_body => {
-                if !name.is_empty() {
-                    modified.push(name.clone());
-                }
+            Some(new_body) if new_body != old_body && !name.is_empty() => {
+                modified.push(name.clone());
             }
-            None => {
-                if !name.is_empty() {
-                    modified.push(name.clone());
-                }
+            None if !name.is_empty() => {
+                modified.push(name.clone());
             }
             _ => {}
         }
