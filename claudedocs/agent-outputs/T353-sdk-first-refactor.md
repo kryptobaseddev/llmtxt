@@ -3,7 +3,116 @@
 **Task**: T353 — Epic: Finish SDK-first refactor — route all apps/backend handlers through BackendCore  
 **Agent**: CLEO Team Lead (claude-sonnet-4-6)  
 **Date**: 2026-04-16  
-**Status**: PARTIAL — Phase 1 (RCASD) complete; Wave A complete; Wave B complete; Waves C-D queued
+**Status**: PARTIAL — Phase 1 (RCASD) complete; Wave A read-ops complete; Wave A-2 write-ops complete; Wave B complete; Wave C complete; Wave D queued
+
+---
+
+## Phase 5 Complete (Wave C) — Commits 6f7645d + 7619ca8 + e9a6001
+
+### Wave C: Leases + Presence + Scratchpad + A2A + BFT domain
+
+**Commits**:
+- `6f7645d` — `feat(T353/Wave-C1): PostgresBackend.leases.* + leases.ts route refactor`
+- `7619ca8` — `feat(T353/Wave-C2): a2a.ts + bft.ts route refactors via backendCore`
+- `e9a6001` — `feat(T353/Wave-C3): presence.ts + scratchpad.ts route refactors via backendCore`
+
+**CI**: Pushed to main (3 commits)
+**Tests**: 156/156 backend (all passes maintained)
+**Build**: tsc clean (SDK + backend)
+**Lint**: 0 warnings
+
+**PostgresBackend methods implemented (Wave C)**:
+
+*Lease ops (PG-backed)*:
+- `acquireLease(params)` — INSERT into `section_leases`, conflict-aware: returns null if another holder holds an active lease; upserts (extends) if same holder; resource format `"docSlug:sectionId"` parsed by `_parseLeaseResource`
+- `renewLease(resource, holder, ttlMs)` — SELECT + UPDATE `expiresAt` if active + holder matches
+- `releaseLease(resource, holder)` — SELECT + DELETE by (docId, sectionId, holderAgentId)
+- `getLease(resource)` — SELECT non-expired lease row, returns `Lease | null`
+
+*Presence ops (in-memory, no PG)*:
+- `joinPresence(docId, agentId, meta)` — delegates to injected `presenceRegistry.upsert`; maps `meta.section` → section field
+- `leavePresence(docId, agentId)` — deletes from registry's internal Map directly (registry has no `remove()` API; internal access via cast)
+- `listPresence(docId)` — calls `registry.expire()` then `registry.getByDoc(docId)`; maps section/cursorOffset → meta fields
+- `heartbeatPresence(docId, agentId)` — re-upserts with existing section to refresh lastSeen
+
+*Scratchpad ops (Redis/in-memory via injected fns)*:
+- `sendScratchpad(params)` — delegates to `scratchpadPublish` using agent-scoped channel `"agent:<toAgentId>"`; maps Backend payload to lib msg format
+- `pollScratchpad(agentId, limit)` — delegates to `scratchpadRead` with agent channel slug
+- `deleteScratchpadMessage(id, agentId)` — returns `true` optimistically (Redis XDEL not supported; TTL handles expiry)
+
+*A2A ops (PG-backed via `agentInboxMessages`)*:
+- `sendA2AMessage(params)` — INSERT with nonce unique constraint; graceful error on duplicate nonce returns `{success: false, error: 'Duplicate nonce'}`; envelope stored as JSONB
+- `pollA2AInbox(agentId, limit)` — SELECT non-expired messages for recipient, ordered by receivedAt
+- `deleteA2AMessage(id, agentId)` — DELETE by (id, toAgentId) ownership check
+
+*BFT ops*:
+- `getApprovalChain(documentId)` — resolves doc by slug, fetches all approvals ordered by timestamp, re-computes and verifies the hash chain using `hashContent` SDK helper; returns `{valid, length, firstInvalidAt, entries}`
+
+**Injection mechanism (Wave C)**:
+- `setWaveCDeps(deps)` — called by `postgres-backend-plugin.ts` after Wave B injection, injecting:
+  - `presenceRegistry` from `apps/backend/src/presence/registry.ts`
+  - `scratchpadPublish` (`publishScratchpad`) from `apps/backend/src/lib/scratchpad.ts`
+  - `scratchpadRead` (`readScratchpad`) from same
+  - `scratchpadSubscribe` (`subscribeScratchpad`) from same
+
+**Route files refactored (Wave C)**:
+| File | Change |
+|------|--------|
+| `leases.ts` | All 4 handlers use `backendCore.acquireLease/getLease/releaseLease/renewLease`; zero Drizzle; removed `lease-service.ts` import, schema imports, `db` import |
+| `presence.ts` | GET presence uses `backendCore.getDocumentBySlug` (doc existence) + `backendCore.listPresence`; removed `db`, `eq`, schema imports |
+| `a2a.ts` | POST inbox uses `backendCore.sendA2AMessage`; GET inbox uses `backendCore.pollA2AInbox`; signature verification stays in-route (Identity ops are Wave D); `db` import retained for pubkey lookup only |
+| `bft.ts` | GET /bft/status uses `backendCore.getApprovalProgress`; GET /chain uses `backendCore.getApprovalChain` (zero Drizzle); POST /bft/approve retains Drizzle (byzantine-detection tx — Tech Debt, see below) |
+| `scratchpad.ts` | Doc existence uses `backendCore.getDocumentBySlug`; fixed schema import bug (was `../db/schema.js` SQLite instead of `schema-pg.js`); lib functions kept as direct imports (non-Drizzle, doc-channel semantics differ from Backend.ScratchpadOps) |
+
+**_orm extension**: Added `gt, lt, gte, lte, asc, or, not, isNull` operators to the cached `_orm` record in `open()` (Wave C methods require them for expiry checks).
+
+**Architecture decisions (Wave C)**:
+
+1. **Lease resource format**: Backend interface uses `resource: string`; DB schema uses separate `docId + sectionId` columns. Decision: parse `"slug:sectionId"` (first colon split) in `_parseLeaseResource`. Route uses same format: `${slug}:${sid}`. No schema change needed.
+
+2. **Presence is in-memory only**: Consistent with LocalBackend spec. PostgresBackend delegates to the same `presenceRegistry` singleton as ws.ts/ws-crdt.ts. `leavePresence` accesses the registry's internal `Map` via cast (registry lacks a `remove()` public API). This is noted as a minor tech debt — the registry should expose `remove(agentId, docId)`.
+
+3. **Scratchpad paradigm mismatch**: Backend `ScratchpadOps` uses agent-inbox semantics (`toAgentId/fromAgentId`); the scratchpad route uses document-scoped broadcast channels (Redis Streams keyed by slug). Decision: implement Backend interface methods using agent-scoped channel slug `"agent:<toAgentId>"` to keep the two semantics separate. The route file keeps `publishScratchpad/readScratchpad` direct imports (not Drizzle — acceptable). A future Wave would add `publishDocScratchpad/readDocScratchpad` doc-scoped methods to the Backend interface.
+
+4. **BFT POST approve retains Drizzle**: The byzantine-detection transaction (double-vote detection → key revocation → chain hash → event append) is a complex multi-step write that cannot be cleanly expressed via the existing `submitSignedApproval` method without refactoring its signature. Noted as Tech Debt for Wave D (`bft.ts` POST approve remains the only handler with direct Drizzle writes in Wave C scope).
+
+5. **`deleteScratchpadMessage` is a no-op**: Redis Streams do not support single-message deletion without XDEL (which our ioredis wrapper doesn't expose). Messages expire via stream TTL (24h). Returns `true` optimistically. Documented as known limitation.
+
+---
+
+## Phase 4 Complete (Wave A-2) — Commits 2da416c + 23bb647 + 0d91a77
+
+### Wave A-2: Write operations — createDocument, publishVersion, transitionVersion, submitSignedApproval
+
+**Commits**:
+- `2da416c` — `feat(T353/Wave-A2-C1): implement PostgresBackend.createDocument + refactor POST /compress`
+- `23bb647` — `feat(T353/Wave-A2-C2): implement PostgresBackend.publishVersion + refactor PUT /documents/:slug`
+- `0d91a77` — `feat(T353/Wave-A2-C3): implement transitionVersion + submitSignedApproval + refactor lifecycle.ts`
+
+**CI**: Pushed to main (3 commits)  
+**Tests**: 156/156 backend, 25/25 SDK  
+**Typecheck**: 0 errors  
+**Lint**: 0 warnings  
+**0 direct Drizzle write calls** in api.ts, versions.ts, lifecycle.ts (verified)
+
+**PostgresBackend methods implemented (Wave A-2)**:
+- `createDocument(params)` — transactional insert: documents + versions (v1) + contributors + document_roles; params pre-computed by route; returns inserted doc row
+- `publishVersion(params)` — transactional: first-update v1 snapshot, new version insert, document head update, contributor upsert (SQL arithmetic), version.published event log append; UNIQUE constraint retry handled by route caller
+- `transitionVersion(params)` — validates via SDK `validateTransition`, updates documents.state, inserts state_transitions row, clears rejection records on REVIEW→DRAFT, appends lifecycle.transitioned event
+- `submitSignedApproval(params)` — inserts approval row, evaluates consensus via SDK `evaluateApprovals`, auto-locks (REVIEW→LOCKED) on consensus.approved, inserts state_transitions row, appends approval.submitted / approval.rejected event
+
+**Route files refactored (Wave A-2)**:
+| File | Change |
+|------|--------|
+| `api.ts` | POST /compress delegates to `backendCore.createDocument`; removed direct db.insert for documents/versions/contributors/documentRoles |
+| `versions.ts` | PUT /:slug delegates to `backendCore.publishVersion`; removed entire Drizzle transaction block; removed contributors/versions schema imports, appendDocumentEvent import |
+| `lifecycle.ts` | POST /transition → `backendCore.transitionVersion`; POST /approve → `backendCore.submitSignedApproval`; POST /reject → `backendCore.submitSignedApproval`; db import dropped entirely; all direct schema imports removed |
+
+**Key design decisions (Wave A-2)**:
+1. Route pre-computes CPU-bound ops (compress, hash, structuredDiff) outside transaction; passes results to backend.
+2. `transitionVersion` route does a pre-flight `getDocumentBySlug` to capture `previousState` for metrics/events (backend returns updated doc with new state).
+3. `submitSignedApproval` accepts `signatureBase64: ''` from route (route auth layer validates caller is allowed, not the signature; BFT approval flow uses bft.ts separately).
+4. `appendDocumentEvent` in `createDocument` remains in the route as fire-and-forget (Wave B dep injection not guaranteed at all call sites).
 
 ---
 
@@ -139,19 +248,7 @@
 
 `ws.ts` (general document WS) was NOT refactored as part of Wave B — it is not in scope per the original dispatch (ws.ts uses presence, not CRDT). It belongs to Wave C.
 
-### Wave C (T359): Leases + Presence + Scratchpad + A2A + BFT
-
-**Files to refactor** (5 files, ~12 handlers):
-- `leases.ts` — POST/GET/DELETE/PATCH lease
-- `presence.ts` — GET presence (read-only; write via WS)
-- `scratchpad.ts` — POST publish, GET read, GET stream  
-- `a2a.ts` — POST inbox, GET inbox
-- `bft.ts` — POST bft/approve, GET bft/status, GET chain
-
-**Notes**:
-- Leases currently use `lease-service.ts` (resource=`"slug:sectionId"` format vs Backend's `resource: string`)
-- Presence currently uses in-memory `presenceRegistry` — PostgresBackend.listPresence should delegate to presenceRegistry
-- Scratchpad uses Redis/in-memory `lib/scratchpad.ts` — paradigm mismatch with Backend.sendScratchpad (doc-scoped vs agent-scoped)
+### Wave C (T359): Leases + Presence + Scratchpad + A2A + BFT — **COMPLETE** (see Phase 5 above)
 
 ### Wave D (T360): Search + Semantic + Collections + Cross-doc + Auth + Identity
 
@@ -185,8 +282,10 @@ After all waves, extend `packages/llmtxt/src/__tests__/backend-contract.test.ts`
 | Backend typecheck (`tsc --noEmit` in apps/backend) | PASS (Wave B) |
 | Backend tests 156/156 | PASS (Wave B) |
 | Wave B T358 | DONE (all gates passed) |
+| Wave C T359 | DONE (all gates passed) |
 | `fastify.backendCore` registered | YES |
 | Wave B routes `db` imports removed | YES — document-events.ts, crdt.ts, ws-crdt.ts removed; subscribe.ts retains one raw Drizzle call for cross-doc catch-up |
+| Wave C routes `db` imports removed | YES — leases.ts, presence.ts, scratchpad.ts: zero Drizzle; a2a.ts: db retained for pubkey lookup only (Wave D Identity); bft.ts: POST /bft/approve retains Drizzle (byzantine tx tech debt) |
 
 ---
 
