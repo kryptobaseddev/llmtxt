@@ -162,6 +162,9 @@ pub use tfidf::{fnv1a_hash, tfidf_embed};
 pub mod identity;
 pub use identity::{body_hash, canonical_payload, keygen, sign_submission, verify_submission};
 
+#[cfg(feature = "crdt")]
+pub mod crdt;
+
 // ── Semantic Diff (WASM) ─────────────────────────────────────────
 
 /// WASM binding for [`semantic_diff`].
