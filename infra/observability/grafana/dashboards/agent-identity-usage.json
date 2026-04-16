@@ -1,18 +1,33 @@
 {
   "title": "Agent Identity Usage",
-  "uid": "llmtxt-agent-identity",
+  "uid": "llmtxt-agent-identity-usage",
   "schemaVersion": 38,
   "version": 1,
   "refresh": "30s",
-  "time": { "from": "now-3h", "to": "now" },
-  "tags": ["llmtxt", "agents", "identity"],
+  "time": {
+    "from": "now-3h",
+    "to": "now"
+  },
+  "tags": [
+    "llmtxt",
+    "agents",
+    "identity"
+  ],
   "panels": [
     {
       "id": 1,
       "title": "Agent Auth Requests / Minute",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum(rate(llmtxt_agent_auth_requests_total[1m])) by (result)",
@@ -20,15 +35,25 @@
         }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "ops" }
+        "defaults": {
+          "unit": "ops"
+        }
       }
     },
     {
       "id": 2,
       "title": "Agent Key Verifications (success vs failure)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "sum(rate(llmtxt_agent_key_verifications_total[1m])) by (status)",
@@ -36,15 +61,25 @@
         }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "ops" }
+        "defaults": {
+          "unit": "ops"
+        }
       }
     },
     {
       "id": 3,
       "title": "Unique Active Agents (last 5m)",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "count(count by (agent_id)(rate(llmtxt_agent_auth_requests_total[5m])))",
@@ -52,15 +87,25 @@
         }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "short" }
+        "defaults": {
+          "unit": "short"
+        }
       }
     },
     {
       "id": 4,
       "title": "Presence Registry Size",
       "type": "timeseries",
-      "gridPos": { "h": 4, "w": 18, "x": 6, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": {
+        "h": 4,
+        "w": 18,
+        "x": 6,
+        "y": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
           "expr": "llmtxt_presence_registry_size",
@@ -68,15 +113,25 @@
         }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "short" }
+        "defaults": {
+          "unit": "short"
+        }
       }
     },
     {
       "id": 5,
       "title": "Well-Known Agent Lookup Logs",
       "type": "logs",
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 12 },
-      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 12
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
       "targets": [
         {
           "expr": "{app=\"llmtxt-backend\"} | json | msg =~ \"(?i)(agent|identity|signature|nonce)\"",

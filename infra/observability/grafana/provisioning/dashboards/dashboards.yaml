@@ -14,5 +14,7 @@ providers:
     updateIntervalSeconds: 30
     allowUiUpdates: true
     options:
-      path: /var/lib/grafana/dashboards
+      # Dashboards stored at /etc/grafana/dashboards (not /var/lib/grafana/dashboards)
+      # because Railway mounts a volume at /var/lib/grafana that shadows build-time COPYs.
+      path: /etc/grafana/dashboards
       foldersFromFilesStructure: false
