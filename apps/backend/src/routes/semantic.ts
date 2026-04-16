@@ -199,7 +199,7 @@ export async function semanticRoutes(fastify: FastifyInstance) {
       if (!bodyResult.success) {
         return reply.status(400).send({
           error: 'Invalid request body',
-          details: bodyResult.error.errors,
+          details: bodyResult.error.issues,
         });
       }
       const { fromVersion, toVersion } = bodyResult.data;
@@ -293,7 +293,7 @@ export async function semanticRoutes(fastify: FastifyInstance) {
       if (!queryResult.success) {
         return reply.status(400).send({
           error: 'Invalid query parameters',
-          details: queryResult.error.errors.map(e => e.message),
+          details: queryResult.error.issues.map(e => e.message),
         });
       }
       const requestedVersions = queryResult.data.versions;
@@ -415,7 +415,7 @@ export async function semanticRoutes(fastify: FastifyInstance) {
       if (!bodyResult.success) {
         return reply.status(400).send({
           error: 'Invalid request body',
-          details: bodyResult.error.errors,
+          details: bodyResult.error.issues,
         });
       }
       const { threshold } = bodyResult.data;

@@ -17,6 +17,11 @@ import type { DocumentState, StateTransition } from '../sdk/lifecycle.js';
 import type { VersionEntry } from '../sdk/versions.js';
 import type { Review, ApprovalPolicy, ApprovalResult } from '../sdk/consensus.js';
 
+// Re-export imported types for convenience of Backend implementors
+export type { DocumentState, StateTransition } from '../sdk/lifecycle.js';
+export type { VersionEntry } from '../sdk/versions.js';
+export type { Review, ApprovalPolicy, ApprovalResult } from '../sdk/consensus.js';
+
 // ── Config ─────────────────────────────────────────────────────
 
 /**

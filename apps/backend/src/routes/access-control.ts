@@ -137,7 +137,7 @@ export async function accessControlRoutes(fastify: FastifyInstance) {
       if (!bodyResult.success) {
         return reply.status(400).send({
           error: 'Validation failed',
-          details: bodyResult.error.errors.map((e) => ({
+          details: bodyResult.error.issues.map((e) => ({
             field: e.path.join('.') || 'body',
             message: e.message,
           })),
@@ -261,7 +261,7 @@ export async function accessControlRoutes(fastify: FastifyInstance) {
       if (!bodyResult.success) {
         return reply.status(400).send({
           error: 'Validation failed',
-          details: bodyResult.error.errors.map((e) => ({
+          details: bodyResult.error.issues.map((e) => ({
             field: e.path.join('.') || 'body',
             message: e.message,
           })),
@@ -294,7 +294,7 @@ export async function accessControlRoutes(fastify: FastifyInstance) {
       if (!bodyResult.success) {
         return reply.status(400).send({
           error: 'Validation failed',
-          details: bodyResult.error.errors.map((e) => ({
+          details: bodyResult.error.issues.map((e) => ({
             field: e.path.join('.') || 'body',
             message: e.message,
           })),

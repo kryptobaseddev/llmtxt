@@ -103,7 +103,7 @@ export async function mergeRoutes(fastify: FastifyInstance) {
         if (!paramsResult.success) {
           return reply.status(400).send({
             error: 'Invalid slug',
-            details: paramsResult.error.errors,
+            details: paramsResult.error.issues,
           });
         }
         const { slug } = paramsResult.data;
@@ -113,7 +113,7 @@ export async function mergeRoutes(fastify: FastifyInstance) {
         if (!bodyResult.success) {
           return reply.status(400).send({
             error: 'Invalid request body',
-            details: bodyResult.error.errors,
+            details: bodyResult.error.issues,
           });
         }
         const { sources, fillFrom, changelog, createdBy, agentId } = bodyResult.data;

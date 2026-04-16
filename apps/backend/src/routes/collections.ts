@@ -128,7 +128,7 @@ export async function collectionRoutes(fastify: FastifyInstance) {
       if (!bodyResult.success) {
         return reply.status(400).send({
           error: 'Invalid request body',
-          details: bodyResult.error.errors.map((e) => ({
+          details: bodyResult.error.issues.map((e) => ({
             field: e.path.join('.') || 'body',
             message: e.message,
             code: e.code,
@@ -324,7 +324,7 @@ export async function collectionRoutes(fastify: FastifyInstance) {
       if (!bodyResult.success) {
         return reply.status(400).send({
           error: 'Invalid request body',
-          details: bodyResult.error.errors.map((e) => ({
+          details: bodyResult.error.issues.map((e) => ({
             field: e.path.join('.') || 'body',
             message: e.message,
             code: e.code,
@@ -486,7 +486,7 @@ export async function collectionRoutes(fastify: FastifyInstance) {
       if (!bodyResult.success) {
         return reply.status(400).send({
           error: 'Invalid request body',
-          details: bodyResult.error.errors.map((e) => ({
+          details: bodyResult.error.issues.map((e) => ({
             field: e.path.join('.') || 'body',
             message: e.message,
             code: e.code,

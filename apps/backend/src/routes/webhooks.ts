@@ -78,7 +78,7 @@ export async function webhookRoutes(app: FastifyInstance) {
       if (!bodyResult.success) {
         return reply.status(400).send({
           error: 'Invalid request body',
-          details: bodyResult.error.errors,
+          details: bodyResult.error.issues,
         });
       }
 

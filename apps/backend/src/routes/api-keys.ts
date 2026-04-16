@@ -88,7 +88,7 @@ export async function apiKeyRoutes(fastify: FastifyInstance) {
       if (!parseResult.success) {
         return reply.status(400).send({
           error: 'Validation failed',
-          details: parseResult.error.errors.map((e) => ({
+          details: parseResult.error.issues.map((e) => ({
             field: e.path.join('.') || 'body',
             message: e.message,
             code: e.code,

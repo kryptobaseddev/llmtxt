@@ -168,7 +168,7 @@ export async function searchRoutes(fastify: FastifyInstance): Promise<void> {
       if (!parsed.success) {
         return reply.status(400).send({
           error: 'Invalid query parameters',
-          details: parsed.error.errors.map((e: { message: string }) => e.message),
+          details: parsed.error.issues.map((e: { message: string }) => e.message),
         });
       }
 

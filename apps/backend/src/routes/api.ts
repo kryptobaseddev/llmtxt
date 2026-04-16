@@ -3,7 +3,7 @@
  * POST /validate, GET /schemas, POST /search, GET /stats/cache, DELETE /cache.
  */
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { z } from 'zod';
+import { z, type ZodIssue } from 'zod';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -164,7 +164,7 @@ export async function apiRoutes(fastify: FastifyInstance) {
       if (!bodyResult.success) {
         return reply.status(400).send({
           error: 'Invalid request body',
-          details: bodyResult.error.errors.map((e) => ({
+          details: bodyResult.error.issues.map((e: ZodIssue) => ({
             field: e.path.join('.') || 'body',
             message: e.message,
             code: e.code,
@@ -345,7 +345,7 @@ export async function apiRoutes(fastify: FastifyInstance) {
       if (error instanceof z.ZodError) {
         return reply.status(400).send({
           error: 'Validation failed',
-          details: error.errors.map((e) => ({
+          details: error.issues.map((e) => ({
             field: e.path.join('.'),
             message: e.message,
             code: e.code,
@@ -547,7 +547,7 @@ export async function apiRoutes(fastify: FastifyInstance) {
       if (error instanceof z.ZodError) {
         return reply.status(400).send({
           error: 'Validation failed',
-          details: error.errors,
+          details: error.issues,
         });
       }
 
@@ -589,7 +589,7 @@ export async function apiRoutes(fastify: FastifyInstance) {
       if (!bodyResult.success) {
         return reply.status(400).send({
           error: 'Invalid request body',
-          details: bodyResult.error.errors.map((e) => ({
+          details: bodyResult.error.issues.map((e: ZodIssue) => ({
             field: e.path.join('.') || 'body',
             message: e.message,
             code: e.code,
@@ -692,7 +692,7 @@ export async function apiRoutes(fastify: FastifyInstance) {
       if (error instanceof z.ZodError) {
         return reply.status(400).send({
           error: 'Validation failed',
-          details: error.errors,
+          details: error.issues,
         });
       }
 

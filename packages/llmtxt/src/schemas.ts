@@ -16,7 +16,7 @@ import { z } from 'zod';
  * the baseline structural check before optional predefined-schema enforcement.
  */
 export const jsonFormatSchema = z.union([
-  z.record(z.unknown()),
+  z.record(z.string(), z.unknown()),
   z.array(z.unknown()),
   z.string(),
   z.number(),
@@ -132,7 +132,7 @@ export function isPredefinedSchema(name: string): name is PredefinedSchemaName {
  * if (schema) schema.parse(data);
  * ```
  */
-export function getPredefinedSchema(name: string): z.ZodSchema | undefined {
+export function getPredefinedSchema(name: string): z.ZodType | undefined {
   return predefinedSchemas[name as PredefinedSchemaName];
 }
 
@@ -150,7 +150,7 @@ export const compressRequestSchema = z.object({
   content: z.string().min(1, 'Content is required'),
   format: z.enum(['json', 'text', 'markdown']).optional().default('text'),
   schema: z.string().optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 /**

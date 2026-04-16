@@ -67,8 +67,9 @@
   "dependencies": {
     "@noble/ed25519": "^3.1.0",
     "@noble/hashes": "^2.2.0",
+    "nanoid": "^5.1.9",
     "yjs": "^13.6.30",
-    "zod": "^3.25.3"
+    "zod": "^4.3.6"
   },
   "peerDependencies": {
     "@cleocode/lafs": ">=2026.3",
@@ -91,8 +92,9 @@
     "@forge-ts/doctest": "^0.21.1",
     "@forge-ts/enforcer": "^0.21.1",
     "@forge-ts/gen": "^0.21.1",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.19.15",
-    "drizzle-kit": "1.0.0-beta.9-e89174b",
+    "drizzle-kit": "1.0.0-beta.21",
     "typescript": "^5.9.3"
   },
   "engines": {
@@ -113,7 +115,6 @@
   },
   "optionalDependencies": {
     "better-sqlite3": "^12.8.0",
-    "drizzle-orm": "1.0.0-beta.9-e89174b",
-    "drizzle-zod": "0.7.0"
+    "drizzle-orm": "1.0.0-beta.21"
   }
 }

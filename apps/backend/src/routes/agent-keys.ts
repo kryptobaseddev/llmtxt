@@ -122,7 +122,7 @@ export async function agentKeyRoutes(fastify: FastifyInstance) {
       if (!parseResult.success) {
         return reply.status(400).send({
           error: 'Validation failed',
-          details: parseResult.error.errors,
+          details: parseResult.error.issues,
         });
       }
 

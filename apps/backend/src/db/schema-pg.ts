@@ -13,7 +13,7 @@ import {
   jsonb,
   primaryKey,
 } from 'drizzle-orm/pg-core';
-import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
+import { createInsertSchema, createSelectSchema } from 'drizzle-orm/zod';
 import type { z } from 'zod';
 
 // PostgreSQL bytea custom type — maps to Node.js Buffer

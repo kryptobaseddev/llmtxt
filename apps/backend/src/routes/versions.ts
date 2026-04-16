@@ -117,13 +117,13 @@ export async function versionRoutes(fastify: FastifyInstance) {
     try {
       const paramsResult = slugParamsSchema.safeParse(request.params);
       if (!paramsResult.success) {
-        return reply.status(400).send({ error: 'Invalid slug', details: paramsResult.error.errors });
+        return reply.status(400).send({ error: 'Invalid slug', details: paramsResult.error.issues });
       }
       const { slug } = paramsResult.data;
 
       const bodyResult = updateBodySchema.safeParse(request.body);
       if (!bodyResult.success) {
-        return reply.status(400).send({ error: 'Invalid request body', details: bodyResult.error.errors });
+        return reply.status(400).send({ error: 'Invalid request body', details: bodyResult.error.issues });
       }
       const { content, changelog, createdBy, agentId, baseVersion } = bodyResult.data;
 
@@ -569,7 +569,7 @@ export async function versionRoutes(fastify: FastifyInstance) {
       if (!queryResult.success) {
         return reply.status(400).send({
           error: 'Invalid query parameters',
-          details: queryResult.error.errors.map(e => e.message),
+          details: queryResult.error.issues.map(e => e.message),
         });
       }
       const requestedVersions = queryResult.data.versions;

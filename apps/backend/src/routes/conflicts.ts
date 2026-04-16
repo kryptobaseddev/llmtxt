@@ -275,7 +275,7 @@ export async function conflictRoutes(fastify: FastifyInstance) {
         if (!paramsResult.success) {
           return reply
             .status(400)
-            .send({ error: 'Invalid slug', details: paramsResult.error.errors });
+            .send({ error: 'Invalid slug', details: paramsResult.error.issues });
         }
         const { slug } = paramsResult.data;
 
@@ -283,7 +283,7 @@ export async function conflictRoutes(fastify: FastifyInstance) {
         if (!bodyResult.success) {
           return reply
             .status(400)
-            .send({ error: 'Invalid request body', details: bodyResult.error.errors });
+            .send({ error: 'Invalid request body', details: bodyResult.error.issues });
         }
         const { baseVersion, oursVersion, theirsVersion, resolution, changelog, createdBy, agentId } =
           bodyResult.data;
@@ -467,7 +467,7 @@ export async function conflictRoutes(fastify: FastifyInstance) {
         if (!paramsResult.success) {
           return reply
             .status(400)
-            .send({ error: 'Invalid slug', details: paramsResult.error.errors });
+            .send({ error: 'Invalid slug', details: paramsResult.error.issues });
         }
         const { slug } = paramsResult.data;
 
@@ -475,7 +475,7 @@ export async function conflictRoutes(fastify: FastifyInstance) {
         if (!bodyResult.success) {
           return reply
             .status(400)
-            .send({ error: 'Invalid request body', details: bodyResult.error.errors });
+            .send({ error: 'Invalid request body', details: bodyResult.error.issues });
         }
         const { content, baseVersion, changelog, createdBy, agentId } = bodyResult.data;
 

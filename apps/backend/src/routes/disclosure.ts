@@ -243,7 +243,7 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
     if (!parsed.success) {
       return reply.status(400).send({
         error: 'Invalid search query',
-        details: parsed.error.errors.map(e => ({
+        details: parsed.error.issues.map(e => ({
           field: e.path.join('.'),
           message: e.message,
         })),
@@ -308,7 +308,7 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
     if (!parsed.success) {
       return reply.status(400).send({
         error: 'Invalid query path',
-        details: parsed.error.errors.map(e => ({
+        details: parsed.error.issues.map(e => ({
           field: e.path.join('.'),
           message: e.message,
         })),
@@ -570,7 +570,7 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
     if (!parsed.success) {
       return reply.status(400).send({
         error: 'Invalid request body',
-        details: parsed.error.errors.map(e => ({
+        details: parsed.error.issues.map(e => ({
           field: e.path.join('.'),
           message: e.message,
         })),

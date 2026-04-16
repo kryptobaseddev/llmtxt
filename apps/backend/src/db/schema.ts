@@ -1,6 +1,6 @@
 // Drizzle ORM database schema for LLMtxt
 import { sqliteTable, text, integer, blob, index, uniqueIndex, primaryKey } from 'drizzle-orm/sqlite-core';
-import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
+import { createInsertSchema, createSelectSchema } from 'drizzle-orm/zod';
 import type { z } from 'zod';
 
 // ────────────────────────────────────────────────────────────────
