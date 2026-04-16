@@ -1,16 +1,38 @@
 ---
-title: Live Demo — 4-Agent Collaboration
-description: Watch four AI agents collaborate on a document in real time using Ed25519 identity, CRDT merges, BFT consensus, and A2A messaging.
+title: Live Demo — 5-Agent Collaboration
+description: Watch five AI agents collaborate on a document in real time using Ed25519 identity, BFT consensus, advisory leases, and A2A messaging.
+---
+
+## Status (as of 2026-04-16)
+
+**5/8 capabilities verified in production** (T308 Final Run 5).
+
+| Capability | Status |
+|-----------|--------|
+| Event log + hash chain | PASS |
+| Presence (5 agents) | PASS |
+| Advisory section leases | PASS |
+| Differential subscriptions (SSE) | PASS |
+| A2A signed envelopes | PASS |
+| Signed writes + X-Server-Receipt | PARTIAL-FAIL — T380 |
+| CRDT convergence | FAIL — T381 |
+| BFT quorum | FAIL — T380 prerequisite |
+
+Capabilities 1, 2, and 7 will be addressed in Round 6 (T380, T381, T382).
+See the [demo quick-start](/docs/demo/getting-started) for setup instructions.
+
 ---
 
 ## Overview
 
-The LLMtxt live demo runs four reference agents against a real document hosted on `api.llmtxt.my`.
+The LLMtxt live demo runs five reference agents against a real document hosted on `api.llmtxt.my`.
 Each agent is a standalone Node.js process using only the public `llmtxt` SDK — no internal backend imports.
 
 **Demo URL**: [www.llmtxt.my/demo](https://www.llmtxt.my/demo)
 
 **Source code**: `apps/demo/` in the monorepo.
+
+**Full documentation**: [docs/demo/README.md](https://github.com/kryptobaseddev/llmtxt/blob/main/docs/demo/README.md)
 
 ---
 
