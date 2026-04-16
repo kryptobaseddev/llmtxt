@@ -46,16 +46,23 @@ declare module 'fastify' {
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-/** Compute SHA-256 fingerprint of a pubkey hex string (first 16 hex chars). */
+/** Compute SHA-256 fingerprint of a pubkey (first 16 hex chars of SHA-256(pubkey_hex_string)). */
 function computeFingerprint(pubkeyHex: string): string {
+  // Hash the hex string representation — deterministic fingerprint for display purposes.
   return hashContent(pubkeyHex).slice(0, 16);
 }
 
-/** Compute SHA-256 of raw body bytes, return lowercase hex. */
+/**
+ * Compute SHA-256 of raw body bytes as lowercase hex.
+ *
+ * Converts Buffer to UTF-8 string before hashing (correct for JSON/text bodies).
+ * This matches what AgentIdentity.buildSignatureHeaders does on the client:
+ * TextEncoder.encode(string) → crypto.subtle.digest('SHA-256', ...).
+ * For binary bodies this may differ; all our API bodies are JSON/UTF-8.
+ */
 function computeBodyHash(body: Buffer | null | undefined): string {
-
-  const hexInput = body && body.length > 0 ? body.toString('hex') : '';
-  return hashContent(hexInput);
+  const utfStr = body && body.length > 0 ? body.toString('utf8') : '';
+  return hashContent(utfStr);
 }
 
 /** Build the canonical payload string. */

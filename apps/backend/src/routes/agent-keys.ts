@@ -16,29 +16,20 @@
  */
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, isNull } from 'drizzle-orm';
 import * as ed from '@noble/ed25519';
-import { sha512 } from '@noble/hashes/sha512';
+import { sha512 } from '@noble/hashes/sha2.js';
 import { hashContent } from 'llmtxt';
 import { db } from '../db/index.js';
 import { agentPubkeys } from '../db/schema.js';
 import { requireAuth } from '../middleware/auth.js';
 import { generateId } from '../utils/compression.js';
 
-// Noble ed25519 v2 requires setting the hash function in Node.js:
-ed.etc.sha512Sync = (...m) => sha512(...m);
+// Noble ed25519 v3 requires setting the hash function in Node.js:
+// https://github.com/paulmillr/noble-ed25519#usage
+ed.hashes.sha512 = sha512;
 
 // ── Helpers ──────────────────────────────────────────────────────
-
-/** Convert a hex string to a Uint8Array. */
-function fromHex(hex: string): Uint8Array {
-  if (hex.length % 2 !== 0) throw new Error('odd-length hex');
-  const out = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < out.length; i++) {
-    out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  }
-  return out;
-}
 
 /**
  * Compute SHA-256 fingerprint of a public key (first 8 hex chars).
@@ -53,12 +44,11 @@ function computeFingerprint(pubkeyHex: string): string {
 }
 
 /** Validate that the 32-byte buffer represents a valid Ed25519 point. */
-async function isValidEd25519Point(pubkeyHex: string): Promise<boolean> {
+function isValidEd25519Point(pubkeyHex: string): boolean {
   try {
-    const bytes = fromHex(pubkeyHex);
-    if (bytes.length !== 32) return false;
-    // Noble's Point.fromHex will throw on an invalid point.
-    ed.ExtendedPoint.fromHex(bytes);
+    if (pubkeyHex.length !== 64) return false;
+    // Noble v3: Point.fromHex accepts a lowercase hex string and throws on invalid points.
+    ed.Point.fromHex(pubkeyHex);
     return true;
   } catch {
     return false;
@@ -139,7 +129,7 @@ export async function agentKeyRoutes(fastify: FastifyInstance) {
       const { agent_id, pubkey_hex, label } = parseResult.data;
 
       // Validate Ed25519 point
-      const valid = await isValidEd25519Point(pubkey_hex.toLowerCase());
+      const valid = isValidEd25519Point(pubkey_hex.toLowerCase());
       if (!valid) {
         return reply.status(422).send({
           error: 'Invalid public key',
@@ -203,7 +193,7 @@ export async function agentKeyRoutes(fastify: FastifyInstance) {
         .from(agentPubkeys)
         .where(isNull(agentPubkeys.revokedAt));
 
-      return { keys: rows.map((r) => safeKeyView(r)) };
+      return { keys: rows.map((r: { id: string; agentId: string; pubkey: Buffer; createdAt: Date | number; revokedAt: Date | number | null }) => safeKeyView(r)) };
     }
   );
 

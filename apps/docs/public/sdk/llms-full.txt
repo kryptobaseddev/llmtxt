@@ -2,8 +2,8 @@
 
 > Primitives and SDK for LLM agent content workflows: compression, patching, progressive disclosure, signed URLs, collaborative document lifecycle, and retrieval planning
 
-Version: 2026.4.1
-Generated: 2026-03-31T04:06:02.373Z
+Version: 2026.4.2
+Generated: 2026-04-13T14:56:47.784Z
 
 ## Package: main
 
@@ -92,6 +92,37 @@ Generated: 2026-03-31T04:06:02.373Z
 #### computeDiff()
 
 (oldText: string, newText: string) => DiffResult
+
+#### structuredDiff()
+
+(oldText: string, newText: string) => StructuredDiffResult
+
+Compute a structured line-level diff between two texts via the Rust LCS algorithm.
+
+#### multiWayDiff()
+
+(base: string, versionsJson: string) => MultiDiffResult
+
+Compute a multi-way diff across a base version and up to 4 additional versions.
+
+Parameters:
+- base: Base version content (typically v1).
+- versionsJson: JSON array of strings, one per additional version.
+
+Returns: Parsed MultiDiffResult.
+
+#### cherryPickMerge()
+
+(base: string, versionsJson: string, selectionJson: string) => CherryPickResult
+
+Assemble document content from line ranges and sections across multiple versions.
+
+Parameters:
+- base: Base version content (index 0 if not supplied in versionsJson).
+- versionsJson: JSON object mapping version index strings to content strings.
+- selectionJson: JSON selection spec `{ sources: [...], fillFrom?: number }`.
+
+Returns: Parsed CherryPickResult.
 
 #### createClient()
 
@@ -1069,6 +1100,230 @@ number
 ##### removedTokens
 
 number
+
+#### StructuredDiffLine
+
+StructuredDiffLine
+
+A single line in a structured diff with type annotation and line numbers.
+
+Members:
+
+##### type
+
+"context" | "added" | "removed"
+
+##### content
+
+string
+
+##### oldLine
+
+number | null
+
+##### newLine
+
+number | null
+
+#### StructuredDiffResult
+
+StructuredDiffResult
+
+Full structured diff result with interleaved lines and summary counts.
+
+Members:
+
+##### lines
+
+StructuredDiffLine[]
+
+##### addedLineCount
+
+number
+
+##### removedLineCount
+
+number
+
+##### addedTokens
+
+number
+
+##### removedTokens
+
+number
+
+#### MultiDiffVariant
+
+MultiDiffVariant
+
+A single version variant at a divergent line position.
+
+Members:
+
+##### versionIndex
+
+number
+
+##### content
+
+string
+
+#### MultiDiffLine
+
+MultiDiffLine
+
+One line entry in a multi-way diff result.
+
+Members:
+
+##### lineNumber
+
+number
+
+##### type
+
+"consensus" | "divergent" | "insertion"
+
+"consensus" when all versions agree, "divergent" when versions differ,  "insertion" when a version adds a line not present in the base.
+
+##### content
+
+string
+
+##### agreement
+
+number
+
+How many versions have `content` at this position.
+
+##### total
+
+number
+
+Total number of versions (including the base).
+
+##### variants
+
+MultiDiffVariant[]
+
+Per-version contents when type is "divergent"; empty for "consensus".
+
+#### MultiDiffStats
+
+MultiDiffStats
+
+Aggregate statistics for a multi-way diff.
+
+Members:
+
+##### totalLines
+
+number
+
+##### consensusLines
+
+number
+
+##### divergentLines
+
+number
+
+##### consensusPercentage
+
+number
+
+#### MultiDiffResult
+
+MultiDiffResult
+
+Full result of a multi-way diff.
+
+Members:
+
+##### baseVersion
+
+number
+
+##### versionCount
+
+number
+
+##### lines
+
+MultiDiffLine[]
+
+##### stats
+
+MultiDiffStats
+
+#### CherryPickProvenance
+
+CherryPickProvenance
+
+A single provenance entry in the cherry-pick merged output.
+
+Members:
+
+##### lineStart
+
+number
+
+##### lineEnd
+
+number
+
+##### fromVersion
+
+number
+
+##### fillFrom
+
+boolean | undefined
+
+#### CherryPickStats
+
+CherryPickStats
+
+Statistics for a cherry-pick merge operation.
+
+Members:
+
+##### totalLines
+
+number
+
+##### sourcesUsed
+
+number
+
+##### sectionsExtracted
+
+number
+
+##### lineRangesExtracted
+
+number
+
+#### CherryPickResult
+
+CherryPickResult
+
+Return value of a cherry-pick merge operation.
+
+Members:
+
+##### content
+
+string
+
+##### provenance
+
+CherryPickProvenance[]
+
+##### stats
+
+CherryPickStats
 
 #### DocumentMeta
 

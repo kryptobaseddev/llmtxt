@@ -318,3 +318,7 @@ export type {
   RetrievalPlan,
   RetrievalOptions,
 } from './sdk/retrieval.js';
+
+// ── Agent Identity (T222) ───────────────────────────────────────
+export { AgentIdentity, bodyHashHex, buildCanonicalPayload, randomNonceHex } from './identity.js';
+export type { SignatureHeaders, CanonicalPayloadOptions } from './identity.js';

@@ -357,6 +357,23 @@ async function createSQLiteTestDb(): Promise<TestDbContext> {
       created_at INTEGER NOT NULL,
       UNIQUE(document_id, version_number)
     );
+
+    CREATE TABLE IF NOT EXISTS agent_pubkeys (
+      id TEXT PRIMARY KEY,
+      agent_id TEXT NOT NULL UNIQUE,
+      pubkey BLOB NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+      revoked_at INTEGER
+    );
+
+    CREATE TABLE IF NOT EXISTS agent_signature_nonces (
+      nonce TEXT PRIMARY KEY,
+      agent_id TEXT NOT NULL,
+      first_seen INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+    );
+
+    CREATE INDEX IF NOT EXISTS agent_signature_nonces_agent_first_seen_idx
+      ON agent_signature_nonces(agent_id, first_seen);
   `);
 
   const db = drizzle({ client: sqlite, schema });

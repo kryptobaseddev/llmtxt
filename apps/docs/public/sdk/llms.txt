@@ -1,6 +1,6 @@
 # llmtxt
 > Primitives and SDK for LLM agent content workflows: compression, patching, progressive disclosure, signed URLs, collaborative document lifecycle, and retrieval planning
-> Version: 2026.4.1
+> Version: 2026.4.2
 
 ## Install
 
@@ -16,7 +16,7 @@ npm install -D llmtxt
 ## Packages
 
 ### main
-84 functions, 71 types, 2 classes, 13 variables
+87 functions, 80 types, 2 classes, 13 variables
 
 - compress() — 
 - decompress() — 
@@ -39,6 +39,9 @@ npm install -D llmtxt
 - wasmTextSimilarityNgram() — 
 - isExpired() — 
 - computeDiff() — 
+- structuredDiff() — Compute a structured line-level diff between two texts via the Rust LCS algorithm.
+- multiWayDiff() — Compute a multi-way diff across a base version and up to 4 additional versions.
+- cherryPickMerge() — Assemble document content from line ranges and sections across multiple versions.
 - createClient() — 
 - getLineRange() — Extract a range of lines from a document, returning content and token statistics.
 - searchContent() — Search document content for lines matching a query string or regex.
@@ -109,6 +112,15 @@ npm install -D llmtxt
 - CacheStats — Snapshot of cache performance statistics.
 - LRUCacheOptions — Configuration options for constructing an `LRUCache` instance.
 - DiffResult — 
+- StructuredDiffLine — A single line in a structured diff with type annotation and line numbers.
+- StructuredDiffResult — Full structured diff result with interleaved lines and summary counts.
+- MultiDiffVariant — A single version variant at a divergent line position.
+- MultiDiffLine — One line entry in a multi-way diff result.
+- MultiDiffStats — Aggregate statistics for a multi-way diff.
+- MultiDiffResult — Full result of a multi-way diff.
+- CherryPickProvenance — A single provenance entry in the cherry-pick merged output.
+- CherryPickStats — Statistics for a cherry-pick merge operation.
+- CherryPickResult — Return value of a cherry-pick merge operation.
 - ContentFormat — Supported content formats.
 - DocumentMode — Lifecycle state for collaborative documents.
 - DocumentMeta — Metadata for a stored document.

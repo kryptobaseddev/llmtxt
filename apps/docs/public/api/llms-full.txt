@@ -1,7 +1,7 @@
 # @llmtxt/backend — Full Context
 
 Version: 1.0.0
-Generated: 2026-03-31T17:01:14.526Z
+Generated: 2026-04-13T14:56:50.214Z
 
 ## Package: main
 
@@ -103,6 +103,18 @@ Require an authenticated, non-anonymous user. Calls requireAuth first, then reje
 
 Require the authenticated user to be the document owner. Checks slug from route params against document ownerId. Returns 403 if not owner, 404 if document not found.
 
+#### requireOwnerAllowAnon()
+
+(request: FastifyRequest, reply: FastifyReply) => Promise<undefined>
+
+Require the authenticated user (anonymous OK) to be the document owner. Reads slug from request body (for routes like POST /signed-urls where slug is a body field). Does NOT call requireRegistered — anonymous owners are permitted. Returns 403 if not owner, 404 if document not found.
+
+#### requireOwnerAllowAnonParams()
+
+(request: FastifyRequest, reply: FastifyReply) => Promise<undefined>
+
+Require the authenticated user (anonymous OK) to be the document owner. Reads slug from route params (for routes like POST /documents/:slug/transition). Does NOT call requireRegistered — anonymous owners are permitted. Returns 403 if not owner, 404 if document not found.
+
 #### lifecycleRoutes()
 
 (fastify: FastifyInstance) => Promise<void>
@@ -138,6 +150,12 @@ Register retrieval planning route: POST /documents/:slug/plan-retrieval for toke
 (fastify: FastifyInstance) => Promise<void>
 
 Register signed URL route: POST /signed-urls to generate time-limited HMAC-signed access tokens for document retrieval. Requires owner authentication.
+
+#### mergeRoutes()
+
+(fastify: FastifyInstance) => Promise<void>
+
+Register the cherry-pick merge route.
 
 #### getDocumentWithContent()
 
