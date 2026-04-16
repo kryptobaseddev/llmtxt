@@ -58,13 +58,15 @@ async function runCompaction(): Promise<void> {
          OR MIN(created_at) < ${cutoffDate.toISOString()}
     `);
 
-    const candidates = candidateQuery.rows as Array<{
+    // drizzle-orm/postgres-js db.execute() returns the rows array directly
+    // (not a { rows: [...] } wrapper). Cast accordingly.
+    const candidates = (candidateQuery as unknown as Array<{
       document_id: string;
       section_id: string;
       cnt: number;
       min_seq: bigint;
       max_seq: bigint;
-    }>;
+    }>);
 
     if (candidates.length === 0) {
       console.log('[crdt-compaction] no sections need compaction');
