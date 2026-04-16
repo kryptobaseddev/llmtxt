@@ -1,0 +1,23 @@
+{
+  "name": "demo",
+  "version": "1.0.0",
+  "description": "LLMtxt reference agent implementations — 4-agent live demo",
+  "type": "module",
+  "scripts": {
+    "start": "node scripts/orchestrator.js",
+    "seed": "node scripts/seed.js",
+    "writer": "node agents/writer-bot.js",
+    "reviewer": "node agents/reviewer-bot.js",
+    "consensus": "node agents/consensus-bot.js",
+    "summarizer": "node agents/summarizer-bot.js",
+    "test": "node --test tests/agents.test.js"
+  },
+  "dependencies": {
+    "@noble/ed25519": "^3.1.0",
+    "@noble/hashes": "^2.2.0",
+    "llmtxt": "workspace:*"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

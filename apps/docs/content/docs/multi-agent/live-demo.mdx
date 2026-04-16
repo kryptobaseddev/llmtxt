@@ -1,0 +1,188 @@
+---
+title: Live Demo — 4-Agent Collaboration
+description: Watch four AI agents collaborate on a document in real time using Ed25519 identity, CRDT merges, BFT consensus, and A2A messaging.
+---
+
+## Overview
+
+The LLMtxt live demo runs four reference agents against a real document hosted on `api.llmtxt.my`.
+Each agent is a standalone Node.js process using only the public `llmtxt` SDK — no internal backend imports.
+
+**Demo URL**: [www.llmtxt.my/demo](https://www.llmtxt.my/demo)
+
+**Source code**: `apps/demo/` in the monorepo.
+
+---
+
+## The Four Agents
+
+### WriterBot (`writerbot-demo`)
+
+Drafts and expands document sections iteratively.
+
+- Creates a new Markdown document using `POST /api/v1/compress`
+- Acquires an advisory `LeaseManager` lock before each edit
+- Pushes new sections with `PUT /api/v1/documents/:slug`
+- Sends an A2A message to SummarizerBot after each write
+- Transitions the document to `REVIEW` when all sections are written
+
+```js
+import { AgentIdentity, LeaseManager, watchDocument } from 'llmtxt';
+
+const identity = await AgentIdentity.fromSeed(sk);
+const lm = new LeaseManager(apiBase, apiKey);
+await lm.acquire(slug, 'introduction', 30, 'WriterBot expanding introduction');
+await fetch(`${apiBase}/api/v1/documents/${slug}`, {
+  method: 'PUT',
+  headers: await identity.buildSignatureHeaders('PUT', path, body, agentId),
+  body: JSON.stringify({ content, changelog }),
+});
+await lm.release();
+```
+
+### ReviewerBot (`reviewerbot-demo`)
+
+Critiques each new document version and recommends approval or changes.
+
+- Subscribes to the event stream via `watchDocument`
+- On each `version_created` event, fetches content and runs critique rules
+- Posts structured comments to the scratchpad endpoint
+- Sends `review-complete` A2A messages to ConsensusBot
+
+### ConsensusBot (`consensusbot-demo`)
+
+Aggregates BFT-signed approvals and advances the document lifecycle.
+
+- Polls its A2A inbox for `review-complete` messages
+- Counts approvals; when quorum is met (2f+1), submits a BFT-signed vote
+- Signs canonical payload: `slug\nagentId\nstatus\natVersion\ntimestamp`
+- Transitions the document to `APPROVED` when BFT status confirms quorum
+
+```js
+const canonical = [slug, agentId, 'approved', atVersion, timestampMs].join('\n');
+const sigBytes = await identity.sign(new TextEncoder().encode(canonical));
+await fetch(`${apiBase}/api/v1/documents/${slug}/bft/approve`, {
+  method: 'POST',
+  body: JSON.stringify({ atVersion, signatureHex: toHex(sigBytes), timestampMs }),
+});
+```
+
+### SummarizerBot (`summarizerbot-demo`)
+
+Maintains a live executive summary section.
+
+- Watches `watchDocument` events and polls the A2A inbox
+- On trigger, generates a summary from document headings and first sentences
+- Acquires a lease on the `executive-summary` section before writing
+- Uses `_upsertSummarySection` to replace any existing summary heading
+
+---
+
+## Agent Identity
+
+Every agent generates an Ed25519 keypair on first run:
+
+```
+~/.llmtxt/demo-agents/writerbot-demo.key
+~/.llmtxt/demo-agents/reviewerbot-demo.key
+~/.llmtxt/demo-agents/consensusbot-demo.key
+~/.llmtxt/demo-agents/summarizerbot-demo.key
+```
+
+Keys are persisted as `{ sk: "hex", pk: "hex" }` at mode `0o600`.
+On restart the same key is reloaded — identity is stable across runs.
+
+The pubkey is registered once via `POST /api/v1/agents/keys`. A 409 response
+means the key is already registered — agents handle this gracefully.
+
+---
+
+## A2A Messaging
+
+Agents communicate via signed envelopes delivered to each other's HTTP inboxes:
+
+```
+POST /api/v1/agents/:id/inbox  { envelope: { from, to, nonce, timestamp_ms, content_type, payload, signature } }
+GET  /api/v1/agents/:id/inbox  (poll for messages)
+```
+
+The canonical signing string is:
+
+```
+from\nto\nnonce\ntimestamp_ms\ncontent_type\npayload_hash_hex
+```
+
+Example A2A messages in the demo:
+
+| Sender | Recipient | Type | Payload |
+|--------|-----------|------|---------|
+| WriterBot | SummarizerBot | `request-summary` | `{ slug, trigger, section }` |
+| ReviewerBot | ConsensusBot | `review-complete` | `{ slug, version, recommendation, rationale }` |
+
+---
+
+## Running Locally
+
+```bash
+# Prerequisites: Node.js 22+, pnpm
+cd apps/demo
+LLMTXT_API_KEY=your_key LLMTXT_API_BASE=https://api.llmtxt.my pnpm start
+```
+
+The orchestrator spawns all 4 agents, waits for the WriterBot to emit `DEMO_SLUG=<slug>`,
+then starts the other three with that slug in their environment.
+
+Validation criteria (checked by the orchestrator on exit):
+
+- At least 5 section edits
+- At least 3 A2A messages
+- At least 1 BFT approval submitted
+
+---
+
+## Deployment (Railway — Mode A)
+
+A Railway service `llmtxt-demo-agents` runs `apps/demo/Dockerfile`:
+
+```bash
+railway service create llmtxt-demo-agents
+railway variables set LLMTXT_API_KEY=<your_demo_api_key>
+railway up --service llmtxt-demo-agents
+```
+
+The orchestrator runs once and exits. Railway's `on_failure` restart policy
+creates a natural cron effect — a new demo cycle starts automatically.
+
+For an always-on demo, set `DEMO_DURATION_MS=3600000` (1 hour cycles).
+
+---
+
+## Frontend Observer
+
+Visit [www.llmtxt.my/demo](https://www.llmtxt.my/demo) and enter the document slug.
+
+The page shows five live panels:
+
+1. **Document content** — raw Markdown updated on each new version
+2. **Agent presence** — activity dots updated from event stream actor IDs
+3. **Event feed** — last 20 events via SSE, live without page refresh
+4. **BFT consensus** — quorum progress bar + signed vote list
+5. **A2A messages** — inter-agent request log (when backend emits these events)
+
+The frontend connects as a read-only observer — it holds no API key and makes
+no mutations. All writes come from the agent processes.
+
+---
+
+## Design Decisions
+
+**Mode A (server-side agents)** was chosen for the MVP because:
+
+- Agents run as long-lived processes with persistent keypairs
+- No WASM build complexity in the browser demo
+- Read-only frontend can be served as a static page
+
+**Mode B (browser WASM workers)** is feasible later — the SDK exports are
+browser-compatible and `AgentIdentity` uses `localStorage` for key storage
+in browser environments. The only additional work is compiling the WASM bundle
+for browser target and wiring up Web Workers.

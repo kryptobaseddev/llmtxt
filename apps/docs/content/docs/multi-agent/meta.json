@@ -3,6 +3,7 @@
   "pages": [
     "presence",
     "leases",
-    "differential-subscriptions"
+    "differential-subscriptions",
+    "live-demo"
   ]
 }

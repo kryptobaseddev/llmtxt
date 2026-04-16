@@ -35,6 +35,7 @@
 			<span class="text-primary">LLM</span><span class="text-base-content/70">txt</span>
 		</a>
 		<div class="flex items-center gap-3">
+			<a href="/demo" class="btn btn-ghost btn-xs font-display text-secondary/80">Live Demo</a>
 			{#if !isLanding}
 				<a href="/" class="btn btn-primary btn-sm font-display">
 					New

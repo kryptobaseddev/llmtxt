@@ -1,0 +1,12 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "apps/demo/Dockerfile"
+buildContext = "."
+
+[deploy]
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+# The demo runs the orchestrator once and exits. Railway's restart policy
+# will restart it for always-on operation, creating a natural cron effect.
+# For a true always-on demo, set DEMO_DURATION_MS to a high value (e.g. 3600000).
