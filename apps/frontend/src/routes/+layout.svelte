@@ -9,10 +9,27 @@
 	let isLanding = $derived(page.url.pathname === '/');
 	const auth = getAuth();
 
+	// Whether the current user has admin access (checked lazily after login)
+	let isAdmin = $state(false);
+
+	const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.llmtxt.my';
+
+	async function checkAdminAccess() {
+		try {
+			const res = await fetch(`${API_BASE}/v1/admin/me`, { credentials: 'include' });
+			isAdmin = res.ok;
+		} catch {
+			isAdmin = false;
+		}
+	}
+
 	// Auto-create anonymous session on app load
 	onMount(async () => {
 		await auth.init();
-		if (!auth.isAuthenticated) {
+		if (auth.isAuthenticated && !auth.isAnonymous) {
+			// Check admin silently — no redirect, just shows/hides nav link
+			checkAdminAccess();
+		} else if (!auth.isAuthenticated) {
 			try {
 				await auth.signInAnonymous();
 			} catch (e) {
@@ -43,6 +60,9 @@
 			{/if}
 			{#if auth.isAuthenticated && !auth.isAnonymous}
 				<a href="/dashboard" class="btn btn-ghost btn-xs font-display text-base-content/60">My Txt</a>
+				{#if isAdmin}
+					<a href="/admin" class="btn btn-ghost btn-xs font-display text-warning/70">Admin</a>
+				{/if}
 			{:else}
 				<a href="/auth?mode=signup" class="btn btn-ghost btn-xs font-display text-warning/80 gap-1">
 					<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>

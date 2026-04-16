@@ -59,6 +59,7 @@ import { logger as pinoLogger } from './lib/logger.js';
 import { registerObservabilityHooks } from './middleware/observability.js';
 import { docsRoutes } from './routes/docs.js';
 import { registerPostgresBackendPlugin } from './plugins/postgres-backend-plugin.js';
+import { adminRoutes } from './routes/admin.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const API_HOSTS = new Set(['api.llmtxt.my']);
@@ -453,6 +454,12 @@ async function main() {
     //   api.llmtxt.my/v1/health   → /api/v1/health   (served here)
     // ──────────────────────────────────────────────────────────────────
     await app.register(v1Routes, { prefix: '/api/v1' });
+
+    // ──────────────────────────────────────────────────────────────────
+    // Admin API: read-only observability endpoints (admin-only).
+    // Registered at /api/v1/admin/* (under the v1 prefix for consistency).
+    // ──────────────────────────────────────────────────────────────────
+    await app.register(adminRoutes, { prefix: '/api/v1' });
 
     // ──────────────────────────────────────────────────────────────────
     // Legacy API routes: /api/* (no version prefix)
