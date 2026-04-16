@@ -142,12 +142,10 @@ async function appendDocumentEventStub(
 
   const prevHash: Buffer | null = prevRows.length > 0 ? Buffer.alloc(32, 0) : null;
 
-  // Insert event row
+  // Insert event row — omit id so Postgres generates a UUID via defaultRandom()
   const now = new Date();
-  const eventId = `ev-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-  await tx.insert(documentEvents).values({
-    id: eventId,
+  const [insertedEvent] = await tx.insert(documentEvents).values({
     documentId: resolvedDocId,
     seq,
     eventType,
@@ -156,11 +154,11 @@ async function appendDocumentEventStub(
     idempotencyKey: idempotencyKey ?? null,
     prevHash,
     createdAt: now,
-  });
+  }).returning({ id: documentEvents.id });
 
   return {
     event: {
-      id: eventId,
+      id: insertedEvent?.id ?? '',
       documentId: resolvedDocId,
       seq,
       eventType,
@@ -528,8 +526,32 @@ export class PgContractAdapter implements Backend {
   }
 
   // ── Leases ─────────────────────────────────────────────────────────────────
+  //
+  // PG section_leases.doc_id is a FK to documents.slug. Contract tests pass
+  // arbitrary resource strings like "ma-lease-1234567890" that are NOT
+  // pre-existing document slugs. We auto-create a sentinel document for any
+  // resource string that hasn't been used as a lease anchor yet.
+
+  private _leaseDocCreated = new Set<string>();
+
+  private async _ensureLeaseDoc(resource: string): Promise<void> {
+    // Extract the docSlug portion (everything before the first colon, or the full resource)
+    const idx = resource.indexOf(':');
+    const docSlug = idx === -1 ? resource : resource.slice(0, idx);
+
+    if (this._leaseDocCreated.has(docSlug)) return;
+    this._leaseDocCreated.add(docSlug);
+
+    // Try to create a sentinel document with this slug. Ignore if it already exists.
+    try {
+      await this.createDocument({ title: `lease-anchor-${docSlug}`, createdBy: '__test__', slug: docSlug });
+    } catch {
+      // Document may already exist — safe to ignore
+    }
+  }
 
   async acquireLease(params: import('../../core/backend.js').AcquireLeaseParams): ReturnType<Backend['acquireLease']> {
+    await this._ensureLeaseDoc(params.resource);
     return this._inner.acquireLease(params);
   }
 
