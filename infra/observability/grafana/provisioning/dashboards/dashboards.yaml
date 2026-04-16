@@ -1,0 +1,18 @@
+# Grafana dashboard provisioning — loads JSON dashboards from /var/lib/grafana/dashboards.
+# Dashboards are read-only from files; edits via UI will not persist unless
+# the dashboard JSON is updated in the repo.
+
+apiVersion: 1
+
+providers:
+  - name: LLMtxt
+    orgId: 1
+    folder: LLMtxt
+    folderUid: llmtxt
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

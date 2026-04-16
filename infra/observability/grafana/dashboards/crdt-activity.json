@@ -1,0 +1,99 @@
+{
+  "title": "CRDT Activity",
+  "uid": "llmtxt-crdt-activity",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "tags": ["llmtxt", "crdt"],
+  "panels": [
+    {
+      "id": 1,
+      "title": "CRDT Operations / Minute",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(llmtxt_crdt_operations_total[1m])) by (operation_type)",
+          "legendFormat": "{{operation_type}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ops" }
+      }
+    },
+    {
+      "id": 2,
+      "title": "CRDT Merge Errors / Minute",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(llmtxt_crdt_merge_errors_total[1m]))",
+          "legendFormat": "merge errors"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "color": { "mode": "fixed", "fixedColor": "red" }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Active CRDT Documents",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "llmtxt_crdt_active_documents",
+          "legendFormat": "active docs"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short" }
+      }
+    },
+    {
+      "id": 4,
+      "title": "CRDT Compaction Job Runs",
+      "type": "timeseries",
+      "gridPos": { "h": 4, "w": 18, "x": 6, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(llmtxt_crdt_compaction_total[5m]))",
+          "legendFormat": "compactions/5m"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short" }
+      }
+    },
+    {
+      "id": 5,
+      "title": "CRDT Logs (all levels)",
+      "type": "logs",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 12 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "expr": "{app=\"llmtxt-backend\"} | json | msg =~ \"(?i)crdt\"",
+          "legendFormat": ""
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending"
+      }
+    }
+  ]
+}

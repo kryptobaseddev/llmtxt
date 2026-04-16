@@ -1,0 +1,25 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/api/health"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+# Environment variables to set in Railway dashboard:
+# GF_SECURITY_ADMIN_USER     = admin
+# GF_SECURITY_ADMIN_PASSWORD = <generate a strong password>
+# GF_SERVER_DOMAIN           = ${{RAILWAY_PUBLIC_DOMAIN}}
+# GF_SERVER_ROOT_URL         = https://${{RAILWAY_PUBLIC_DOMAIN}}
+# PROMETHEUS_HOST            = ${{Prometheus.RAILWAY_PRIVATE_DOMAIN}}
+# LOKI_HOST                  = ${{Loki.RAILWAY_PRIVATE_DOMAIN}}
+# TEMPO_HOST                 = ${{Tempo.RAILWAY_PRIVATE_DOMAIN}}
+# GF_AUTH_ANONYMOUS_ENABLED  = false
+# GF_FEATURE_TOGGLES_ENABLE  = traceqlEditor
+
+[[volumes]]
+mountPath = "/var/lib/grafana"
+# Railway volume name: grafana-data
+# Create with: railway volume create --name grafana-data
