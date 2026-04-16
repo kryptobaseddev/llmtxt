@@ -45,6 +45,7 @@
 
 import type { FastifyInstance } from 'fastify';
 import { auth } from '../auth.js';
+import { resolveApiKeyUserId } from '../middleware/auth.js';
 import { presenceRegistry } from '../presence/registry.js';
 import {
   crdt_state_vector,
@@ -200,12 +201,22 @@ async function resolveWsUser(request: {
   query: Record<string, string | string[] | undefined>;
 }): Promise<{ id: string } | null> {
   try {
+    // T375: accept both ?token= (canonical) and ?apiKey= (legacy/observer-bot compat)
+    const token = request.query['token'] ?? request.query['apiKey'];
+
+    // T379: if a token is provided, try API key lookup first (bypasses session-only getSession).
+    // API keys are NOT better-auth sessions; auth.api.getSession won't recognize them.
+    if (token && typeof token === 'string') {
+      const userId = await resolveApiKeyUserId(token);
+      if (userId) return { id: userId };
+    }
+
+    // Fallback: session cookie (better-auth). Build headers with optional Bearer token
+    // so session-based auth still works for users with cookie sessions.
     const headers = new Headers();
     for (const [key, value] of Object.entries(request.headers)) {
       if (value) headers.append(key, String(value));
     }
-    // T375: accept both ?token= (canonical) and ?apiKey= (legacy/observer-bot compat)
-    const token = request.query['token'] ?? request.query['apiKey'];
     if (token && typeof token === 'string') {
       headers.set('Authorization', `Bearer ${token}`);
     }

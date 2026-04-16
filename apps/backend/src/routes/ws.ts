@@ -23,6 +23,7 @@
  */
 import type { FastifyInstance } from 'fastify';
 import { auth } from '../auth.js';
+import { resolveApiKeyUserId } from '../middleware/auth.js';
 import { eventBus, type DocumentEvent } from '../events/bus.js';
 import { db } from '../db/index.js';
 import { documents } from '../db/schema.js';
@@ -44,18 +45,23 @@ async function resolveWsUser(request: {
   query: Record<string, string | string[] | undefined>;
 }): Promise<{ id: string } | null> {
   try {
+    const token = request.query['token'] ?? request.query['apiKey'];
+
+    // T379: try API key lookup first — auth.api.getSession only handles sessions,
+    // not llmtxt_ Bearer API keys.
+    if (token && typeof token === 'string') {
+      const userId = await resolveApiKeyUserId(token);
+      if (userId) return { id: userId };
+    }
+
+    // Fallback: session cookie via better-auth
     const headers = new Headers();
     for (const [key, value] of Object.entries(request.headers)) {
       if (value) headers.append(key, String(value));
     }
-
-    // Inject token from query param as Authorization header so better-auth
-    // can validate it alongside cookie sessions.
-    const token = request.query['token'];
     if (token && typeof token === 'string') {
       headers.set('Authorization', `Bearer ${token}`);
     }
-
     const session = await auth.api.getSession({ headers });
     return session?.user ? { id: session.user.id } : null;
   } catch {

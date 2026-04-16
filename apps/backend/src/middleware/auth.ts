@@ -136,6 +136,25 @@ export async function tryAuthenticateApiKey(request: FastifyRequest): Promise<vo
   // If tryBearerAuth succeeded it populated request.user; if it failed, request.user stays unset.
 }
 
+/**
+ * Resolve a user ID from a raw API key token (no Fastify request needed).
+ * Used by WebSocket auth where there is no FastifyRequest object.
+ * Returns the user ID string if the token is valid, or null otherwise.
+ */
+export async function resolveApiKeyUserId(token: string): Promise<string | null> {
+  if (!isApiKeyFormat(token)) return null;
+  const keyHash = hashApiKey(token);
+  const now = Date.now();
+  const [keyRow] = await db
+    .select({ userId: apiKeys.userId, revoked: apiKeys.revoked, expiresAt: apiKeys.expiresAt })
+    .from(apiKeys)
+    .where(eq(apiKeys.keyHash, keyHash))
+    .limit(1);
+  if (!keyRow || keyRow.revoked) return null;
+  if (keyRow.expiresAt !== null && keyRow.expiresAt <= now) return null;
+  return keyRow.userId;
+}
+
 /** Authenticate the request via Bearer API key first, then session cookie. Populates request.user and request.session, or returns 401. */
 export async function requireAuth(request: FastifyRequest, reply: FastifyReply) {
   // 1. Try Bearer API key first
