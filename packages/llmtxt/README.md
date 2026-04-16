@@ -67,6 +67,46 @@ import { textSimilarity, rankBySimilarity } from 'llmtxt/similarity';
 import { buildGraph } from 'llmtxt/graph';
 ```
 
+## LocalBackend (Embedded, Zero-Network)
+
+```ts
+import { LocalBackend } from 'llmtxt/local';
+
+const backend = new LocalBackend({ storagePath: './.llmtxt' });
+await backend.open();
+
+const doc = await backend.createDocument({ title: 'My Spec', createdBy: 'agent-1' });
+await backend.publishVersion({ documentId: doc.id, content: '# Spec', patchText: '', createdBy: 'agent-1', changelog: 'Initial' });
+await backend.close();
+```
+
+## RemoteBackend (HTTP/WS Client)
+
+```ts
+import { RemoteBackend } from 'llmtxt/remote';
+
+const backend = new RemoteBackend({ baseUrl: 'https://api.llmtxt.my', apiKey: process.env.LLMTXT_API_KEY });
+await backend.open();
+// Same calls as LocalBackend — same Backend interface.
+await backend.close();
+```
+
+## CLI
+
+```bash
+# Initialise local storage + identity keypair
+llmtxt init
+
+# Create a document
+llmtxt create-doc "My Specification"
+
+# Push a version from stdin
+cat spec.md | llmtxt push-version my-specification "First draft"
+
+# Sync local ↔ remote
+llmtxt sync --remote https://api.llmtxt.my --api-key $KEY
+```
+
 ## What Ships
 
 - Compression, hashing, base62, token estimation (Rust WASM)

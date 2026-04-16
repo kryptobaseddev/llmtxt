@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Portable SDK / LocalBackend (T317)
+
+**T332: RemoteBackend** (`llmtxt/remote`) — thin HTTP/WS client implementing the
+full `Backend` interface. REST for CRUD, SSE for `subscribeStream`, WebSocket for
+`subscribeSection`. Drop-in replacement for `LocalBackend` for remote deployments.
+
+**T333: Backend contract test suite** — 25-test parameterised harness that
+validates any `Backend` implementation against the full interface contract.
+Covers documents, versions, lifecycle transitions, events, leases, scratchpad,
+A2A, identity, and nonces.
+
+**T334: Fastify LocalBackend plugin** (`apps/backend/src/plugins/local-backend-plugin.ts`)
+— Fastify plugin that decorates the app with `fastify.localBackend`. New routes
+can use the portable SDK without touching the existing Drizzle/Postgres layer.
+
+**T335 + T336: `llmtxt` CLI binary** — `packages/llmtxt/src/cli/llmtxt.ts`
+compiled to `dist/cli/llmtxt.js` and listed in `package.json bin`. Commands:
+`init` (SQLite + Ed25519 keypair), `create-doc`, `push-version`, `pull`, `watch`,
+`search`, `keys generate|list|revoke`, `sync`. Defaults to `LocalBackend`; use
+`--remote <url>` for `RemoteBackend`.
+
+**T337: `llmtxt sync`** — pulls remote events/documents not in local, pushes
+local documents/events not in remote. State vector exchange for CRDT sections.
+
+**T338: CLEO integration example** (`apps/examples/cleo-integration/index.ts`)
+— runnable end-to-end example showing 4 patterns: task attachment docs, BFT
+decision records, A2A coordination, real-time presence.
+
+**T339: Docs** (`apps/docs/content/docs/embed/cleo-pm.mdx`) — documentation
+page covering all 4 CLEO + LLMtxt integration patterns with working snippets.
+
+**T340: Subpath exports** — `llmtxt/local`, `llmtxt/remote`, `llmtxt/cli` added
+to `package.json` exports map with `types` + `import` entries.
+
+**Build**: `build` script now copies `src/local/migrations` into `dist/local/migrations`
+so the CLI and embedded consumers find migrations at runtime.
+
 ## [2026.4.4] - 2026-04-15
 
 ### Changed — SDK-First Refactor (T111)
