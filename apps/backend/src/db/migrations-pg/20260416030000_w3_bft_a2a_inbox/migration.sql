@@ -29,9 +29,8 @@ CREATE TABLE IF NOT EXISTS "agent_inbox_messages" (
   "read" boolean NOT NULL DEFAULT false
 );
 
--- Unique nonce constraint for dedup
-ALTER TABLE "agent_inbox_messages"
-  ADD CONSTRAINT "agent_inbox_messages_nonce_unique" UNIQUE ("nonce");
+-- Unique nonce constraint for dedup — emulated idempotently via the unique index
+-- `agent_inbox_nonce_idx` below (avoids non-idempotent ADD CONSTRAINT UNIQUE).
 
 -- Indexes for agent_inbox_messages
 CREATE INDEX IF NOT EXISTS "agent_inbox_to_agent_idx"
