@@ -130,8 +130,10 @@ export function startNonceCleanup(): void {
   if (nonceCleanupInterval) return;
   nonceCleanupInterval = setInterval(async () => {
     try {
+      // Cast cutoff to any to avoid SQLite vs PG type divergence on firstSeen.
+      // The delete is non-fatal; in PG mode the column holds timestamps (ms number
+      // from SQLite schema is accepted by the PG driver via implicit cast).
       const cutoffMs = Date.now() - 24 * 60 * 60 * 1000;
-      // Cast to unknown first to satisfy SQLite (integer) vs PG (timestamp) type variance.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await db.delete(agentSignatureNonces).where(lt(agentSignatureNonces.firstSeen, cutoffMs as any));
     } catch {
@@ -299,12 +301,13 @@ export async function verifyAgentSignature(
   // Check nonce uniqueness — insert first, then check conflict
   // A nonce is unique per agent + nonce string (globally in the table)
   try {
-    // Try inserting the nonce; if it already exists we get a conflict
+    // Try inserting the nonce; if it already exists we get a conflict.
+    // firstSeen is omitted — both the SQLite schema ($defaultFn: Date.now()) and
+    // the PG schema (defaultNow()) supply defaults, avoiding a type mismatch when
+    // the same code runs against either backend.
     await db.insert(agentSignatureNonces).values({
       nonce: nonce,
       agentId: agentIdStr,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      firstSeen: Date.now() as any,
     });
   } catch (insertErr: unknown) {
     // Duplicate nonce — replay attack
