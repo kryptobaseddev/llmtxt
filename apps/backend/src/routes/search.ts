@@ -220,7 +220,11 @@ export async function searchRoutes(fastify: FastifyInstance): Promise<void> {
     },
   );
 
-  // ── GET /documents/:slug/similar?limit=5&mode=semantic ───────────────────
+  // ── GET /documents/:slug/similar-docs?limit=5&mode=semantic ─────────────
+  // NOTE: Path is /similar-docs (not /similar) to avoid collision with
+  // similarityRoutes which registers GET /documents/:slug/similar for
+  // intra-document section similarity queries (ngram/shingle).
+  // This endpoint finds similar OTHER documents (cross-doc semantic search).
 
   /**
    * Find documents similar to the given document.
@@ -229,13 +233,13 @@ export async function searchRoutes(fastify: FastifyInstance): Promise<void> {
    * as the query vector, then finds the top-N most similar OTHER documents.
    *
    * @example
-   *   GET /api/v1/documents/my-doc/similar?limit=5
+   *   GET /api/v1/documents/my-doc/similar-docs?limit=5
    */
   fastify.get<{
     Params: { slug: string };
     Querystring: { limit?: number; mode?: string };
   }>(
-    '/documents/:slug/similar',
+    '/documents/:slug/similar-docs',
     { preHandler: [canRead] },
     async (
       request: FastifyRequest<{

@@ -36,7 +36,6 @@ import { crossDocRoutes } from './routes/cross-doc.js';
 import { collectionRoutes } from './routes/collections.js';
 import { publicDir, extractSlug, extractSlugWithExtension, handleContentNegotiation, getDocumentWithContent } from './routes/web.js';
 import { v1Routes } from './routes/v1/index.js';
-import { documentEventRoutes } from './routes/document-events.js';
 import { healthRoutes } from './routes/health.js';
 import {
   apiVersionPlugin,
@@ -495,7 +494,9 @@ async function main() {
       await legacyScope.register(semanticRoutes);
       await legacyScope.register(crossDocRoutes);
       await legacyScope.register(collectionRoutes);
-      await legacyScope.register(documentEventRoutes);
+      // NOTE: documentEventRoutes is intentionally NOT registered in legacyScope.
+      // T148 (document event log + SSE) is a post-v1 feature with no legacy consumers.
+      // It is only available under /api/v1/documents/:slug/events* via v1Routes.
     }, { prefix: '/api' });
 
     // ──────────────────────────────────────────────────────────────────
