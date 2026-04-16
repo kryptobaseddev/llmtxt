@@ -80,8 +80,9 @@ function isApiHost(hostname: string): boolean {
 //   api.llmtxt.my/v2/compress     → /api/v2/compress     (future versions, same pattern)
 const app = Fastify({
   // Use the explicit Pino instance (with optional Loki transport + redaction).
-  // logger: true would create a default Pino instance without our transports.
-  logger: pinoLogger,
+  // Fastify v5 requires `loggerInstance` (not `logger`) for pre-built Pino
+  // instances — `logger` only accepts a config object or `true` in v5.
+  loggerInstance: pinoLogger,
   serverFactory: (handler) => {
     const server = http.createServer((req, res) => {
       const host = req.headers.host || '';
