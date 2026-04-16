@@ -1,0 +1,546 @@
+[t308] ═══════════════════════════════════════════
+[t308] T308 E2E Production Verification
+[t308] Slug  : ETlHNZ45
+[t308] API   : https://api.llmtxt.my
+[t308] Duration: 180000ms (3.0min)
+[t308] ═══════════════════════════════════════════
+
+[t308] Starting all 5 agents in parallel...
+
+[t308] Spawning writer-bot.js...
+[t308] Spawning reviewer-bot.js...
+[t308] Spawning consensus-bot.js...
+[t308] Spawning summarizer-bot.js...
+[t308] Spawning observer-bot.js...
+  [summarizer-bot] [summarizerbot-demo] initialized, pubkey=3aea8a8c35e3...
+  [summarizer-bot] [summarizerbot-demo] Summarizing document: ETlHNZ45
+  [consensus-bot] [consensusbot-demo] initialized, pubkey=615c87c13f29...
+  [consensus-bot] [consensusbot-demo] Monitoring consensus for document: ETlHNZ45
+  [observer-bot] [observerbot-t308] initialized, pubkey=27cc07b3c48e...
+  [observer-bot] [observerbot-t308] Observing document: ETlHNZ45 for 180000ms
+  [writer-bot] [writerbot-demo] initialized, pubkey=52467930b892...
+  [writer-bot] [writerbot-demo] Adopting existing document: ETlHNZ45
+  [reviewer-bot] [reviewerbot-demo] initialized, pubkey=5287a49990d1...
+  [reviewer-bot] [reviewerbot-demo] Watching document: ETlHNZ45
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 2...
+  [reviewer-bot] [reviewerbot-demo] Version 2: 2 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Receipt test — missing-code-example
+  [summarizer-bot] [summarizerbot-demo] Summary written (New version detected: 0): **Generated at 2026-04-16T19:15:42.911Z**
+
+  [summarizer-bot] This document covers 1 section(s): Re...
+  [observer-bot] [observerbot-t308] Events seen: 5 | versions: 4
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Receipt test — short-section
+  [observer-bot] [observerbot-t308] CRDT[paragraph-1]: WebSocket connected
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 2 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 3...
+  [observer-bot] [observerbot-t308] CRDT[paragraph-1]: WebSocket closed (code=4401)
+  [observer-bot] [observerbot-t308] CRDT[paragraph-2]: WebSocket connected
+  [observer-bot] [observerbot-t308] CRDT[paragraph-2]: WebSocket closed (code=4401)
+  [reviewer-bot] [reviewerbot-demo] Version 3: 3 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Receipt test — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Receipt test — short-section
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 3 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 4...
+  [reviewer-bot] [reviewerbot-demo] Version 4: 3 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Receipt test — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Receipt test — short-section
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 4 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 5...
+  [reviewer-bot] [reviewerbot-demo] Version 5: 3 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Receipt test — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Receipt test — short-section
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 5 recommendation=changes-requested
+  [reviewer-bot] [reviewerbot-demo] Reviewing version 6...
+  [reviewer-bot] [reviewerbot-demo] Version 6: 3 comment(s)
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Executive Summary — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [suggestion] Receipt test — missing-code-example
+  [reviewer-bot] [reviewerbot-demo] Comment posted: [warning] Receipt test — short-section
+  [reviewer-bot] [reviewerbot-demo] A2A → consensusbot-demo: application/json
+  [reviewer-bot] [reviewerbot-demo] A2A → ConsensusBot: version 6 recommendation=changes-requested
+  [writer-bot] [writerbot-demo] Lease acquired for section: architecture
+  [writer-bot] [writerbot-demo] Section written: architecture
+  [writer-bot] [writerbot-demo] A2A → summarizerbot-demo: application/json
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:15:48.405Z**
+
+  [summarizer-bot] This document covers 2 section(s): Re...
+  [writer-bot] [writerbot-demo] Lease acquired for section: multi-agent
+  [observer-bot] [observerbot-t308] Events seen: 10 | versions: 6
+  [writer-bot] [writerbot-demo] Section written: multi-agent
+  [writer-bot] [writerbot-demo] A2A → summarizerbot-demo: application/json
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:15:53.833Z**
+
+  [summarizer-bot] This document covers 3 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:15:54.221Z**
+
+  [summarizer-bot] This document covers 3 section(s): Re...
+  [writer-bot] [writerbot-demo] Lease acquired for section: getting-started
+  [writer-bot] [writerbot-demo] Section written: getting-started
+  [writer-bot] [writerbot-demo] A2A → summarizerbot-demo: application/json
+  [writer-bot] [writerbot-demo] Document ETlHNZ45 transitioned to REVIEW
+  [writer-bot] [writerbot-demo] Run complete.
+[t308] writer-bot.js exited with code 0
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 15 | versions: 6
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:15:59.862Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:16:00.203Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:16:00.899Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:16:06.719Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:16:07.167Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 20 | versions: 6
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:16:07.801Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [observer-bot] [observerbot-t308] CRDT[paragraph-1]: state snapshot — msgs=1 totalBytes=0 lastMsgAge=30s
+  [observer-bot] [observerbot-t308] CRDT[paragraph-1]: state active — connection healthy
+  [observer-bot] [observerbot-t308] CRDT[paragraph-2]: state snapshot — msgs=1 totalBytes=0 lastMsgAge=29s
+  [observer-bot] [observerbot-t308] CRDT[paragraph-2]: state active — connection healthy
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:16:13.398Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:16:13.801Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:16:14.516Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:16:20.106Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 25 | versions: 6
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:16:20.558Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:16:21.306Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:16:27.081Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:16:27.484Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:16:27.979Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 30 | versions: 6
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:16:33.596Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:16:34.075Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:16:34.892Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:16:40.713Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:16:41.128Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 35 | versions: 6
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:16:41.957Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [observer-bot] [observerbot-t308] CRDT[paragraph-1]: state snapshot — msgs=1 totalBytes=0 lastMsgAge=60s
+  [observer-bot] [observerbot-t308] CRDT[paragraph-1]: state active — connection healthy
+  [observer-bot] [observerbot-t308] CRDT[paragraph-2]: state snapshot — msgs=1 totalBytes=0 lastMsgAge=59s
+  [observer-bot] [observerbot-t308] CRDT[paragraph-2]: state active — connection healthy
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:16:47.667Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:16:48.002Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:16:48.582Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:16:54.213Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 40 | versions: 6
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:16:54.629Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:16:55.314Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:17:00.994Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:17:01.400Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:17:02.001Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 45 | versions: 6
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:17:07.802Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:17:08.279Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:17:09.012Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [observer-bot] [observerbot-t308] CRDT[paragraph-1]: state snapshot — msgs=1 totalBytes=0 lastMsgAge=90s
+  [observer-bot] [observerbot-t308] CRDT[paragraph-1]: WARNING — no new state bytes for 90s (possible stale/disconnected)
+  [observer-bot] [observerbot-t308] CRDT[paragraph-2]: state snapshot — msgs=1 totalBytes=0 lastMsgAge=89s
+  [observer-bot] [observerbot-t308] CRDT[paragraph-2]: WARNING — no new state bytes for 89s (possible stale/disconnected)
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:17:14.616Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:17:15.135Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 50 | versions: 6
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:17:15.752Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:17:21.407Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:17:21.811Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:17:22.418Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:17:28.150Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 55 | versions: 6
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:17:28.598Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:17:29.199Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:17:34.885Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:17:35.413Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:17:36.006Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 60 | versions: 6
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:17:41.714Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:17:42.113Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] CRDT[paragraph-1]: state snapshot — msgs=1 totalBytes=0 lastMsgAge=120s
+  [observer-bot] [observerbot-t308] CRDT[paragraph-1]: WARNING — no new state bytes for 120s (possible stale/disconnected)
+  [observer-bot] [observerbot-t308] CRDT[paragraph-2]: state snapshot — msgs=1 totalBytes=0 lastMsgAge=119s
+  [observer-bot] [observerbot-t308] CRDT[paragraph-2]: WARNING — no new state bytes for 119s (possible stale/disconnected)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:17:42.788Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:17:48.503Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:17:48.928Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 65 | versions: 6
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:17:49.509Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:17:55.231Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:17:55.682Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:17:56.179Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:18:01.796Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 70 | versions: 6
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:18:02.214Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:18:02.818Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:18:08.433Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:18:08.889Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:18:09.499Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [observer-bot] [observerbot-t308] CRDT[paragraph-1]: state snapshot — msgs=1 totalBytes=0 lastMsgAge=150s
+  [observer-bot] [observerbot-t308] CRDT[paragraph-1]: WARNING — no new state bytes for 150s (possible stale/disconnected)
+  [observer-bot] [observerbot-t308] CRDT[paragraph-2]: state snapshot — msgs=1 totalBytes=0 lastMsgAge=149s
+  [observer-bot] [observerbot-t308] CRDT[paragraph-2]: WARNING — no new state bytes for 149s (possible stale/disconnected)
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 75 | versions: 6
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:18:15.171Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:18:15.659Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:18:16.304Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:18:21.984Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:18:22.418Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 80 | versions: 6
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:18:23.020Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:18:28.631Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:18:29.086Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:18:29.680Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:18:35.369Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] Events seen: 85 | versions: 6
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:18:35.792Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:18:36.366Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section architecture): **Generated at 2026-04-16T19:18:42.212Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] 
+  [observer-bot] === CRDT State Summary ===
+  [observer-bot] [observerbot-t308]   Section paragraph-1: 1 messages, 0 total bytes
+  [observer-bot] [observerbot-t308]   Section paragraph-2: 1 messages, 0 total bytes
+  [reviewer-bot] [reviewerbot-demo] Run complete. Posted 14 review comments.
+[t308] reviewer-bot.js exited with code 0
+  [observer-bot] [observerbot-t308] Final document state: REVIEW
+  [observer-bot] [observerbot-t308] Final document version: 86
+  [consensus-bot] [consensusbot-demo] Run complete.
+[t308] consensus-bot.js exited with code 0
+  [observer-bot] [observerbot-t308] Hash chain valid: true
+  [observer-bot] [observerbot-t308] Total events in DB: 90
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section multi-agent): **Generated at 2026-04-16T19:18:42.739Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] A2A request-summary received from writerbot-demo (trigger: section-added)
+  [observer-bot] [observerbot-t308] X-Server-Receipt header: ABSENT
+  [observer-bot] [observerbot-t308] 
+  [observer-bot] === ObserverBot Final Metrics ===
+  [observer-bot] [observerbot-t308] Total events: 87
+[t308] Observer metrics captured: {"eventsTotal":87,"versionCreatedEvents":6,"documentUpdatedEvents":1,"transitionEvents":1,"approvalEvents":0,"otherEvents":79,"receiptHeaders":0,"signedWritesObserved":0,"bftApprovalsObserved":0,"a2aMessagesObserved":0,"presenceUpdates":35,"errors":6,"hashChainValid":true,"totalEventsInDB":90,"receiptHeaderPresent":false,"crdt_paragraph-1_msgs":1,"crdt_paragraph-1_bytes":0,"crdt_paragraph-2_msgs":1,"crdt_paragraph-2_bytes":0}
+  [observer-bot] [observerbot-t308] Versions seen: 6
+  [observer-bot] [observerbot-t308] Version created events: 6
+  [observer-bot] [observerbot-t308] Document updated events: 1
+  [observer-bot] [observerbot-t308] Transition events: 1
+  [observer-bot] [observerbot-t308] Approval events: 0
+  [observer-bot] [observerbot-t308] Receipt headers received: 0
+  [observer-bot] [observerbot-t308] Signed writes observed: 0
+  [observer-bot] [observerbot-t308] BFT approvals observed: 0
+  [observer-bot] [observerbot-t308] A2A messages observed: 0
+  [observer-bot] [observerbot-t308] Errors: 6
+  [observer-bot] [observerbot-t308] 
+  [observer-bot] === CRDT WebSocket State ===
+  [observer-bot] [observerbot-t308]   paragraph-1: msgs=1 totalBytes=0 connected=false
+  [observer-bot] [observerbot-t308]   paragraph-2: msgs=1 totalBytes=0 connected=false
+
+  [observer-bot] __OBSERVER_METRICS__{"eventsTotal":87,"versionCreatedEvents":6,"documentUpdatedEvents":1,"transitionEvents":1,"approvalEvents":0,"otherEvents":79,"receiptHeaders":0,"signedWritesObserved":0,"bftApprovalsObserved":0,"a2aMessagesObserved":0,"presenceUpdates":35,"errors":6,"hashChainValid":true,"totalEventsInDB":90,"receiptHeaderPresent":false,"crdt_paragraph-1_msgs":1,"crdt_paragraph-1_bytes":0,"crdt_paragraph-2_msgs":1,"crdt_paragraph-2_bytes":0}__END_METRICS__
+  [observer-bot] [observerbot-t308] Run complete.
+[t308] observer-bot.js exited with code 0
+  [summarizer-bot] [summarizerbot-demo] Summary written (A2A trigger: section-added — section getting-started): **Generated at 2026-04-16T19:18:43.398Z**
+
+  [summarizer-bot] This document covers 4 section(s): Re...
+  [summarizer-bot] [summarizerbot-demo] Run complete. Generated 79 summaries.
+[t308] summarizer-bot.js exited with code 0
+
+[t308] ═══════════════════════════════════════════
+[t308] T308 FINAL METRICS
+[t308] ═══════════════════════════════════════════
+  Duration    : 186.6s
+  Document    : ETlHNZ45
+  API         : https://api.llmtxt.my
+
+  Agent metrics (from stdout parsing):
+    Section edits : 3
+    A2A messages  : 13
+    BFT approvals : 0
+    Reviews posted: 14
+    Summaries gen : 79
+
+  Observer metrics:
+    Total events      : 87
+    Version created   : 6
+    BFT approvals seen: 0
+    A2A seen          : 0
+    Presence updates  : 35
+    Receipt header    : false
+    Hash chain valid  : true
+    Events in DB      : 90
+    Errors            : 6
+
+  Exit codes:
+    writer-bot: 0
+    reviewer-bot: 0
+    consensus-bot: 0
+    observer-bot: 0
+    summarizer-bot: 0
+[t308] ═══════════════════════════════════════════
+
+__T308_FINAL_METRICS__{
+  "sectionEdits": 3,
+  "events": 0,
+  "approvals": 0,
+  "a2aMessages": 13,
+  "reviews": 14,
+  "summaries": 79,
+  "observerMetrics": {
+    "eventsTotal": 87,
+    "versionCreatedEvents": 6,
+    "documentUpdatedEvents": 1,
+    "transitionEvents": 1,
+    "approvalEvents": 0,
+    "otherEvents": 79,
+    "receiptHeaders": 0,
+    "signedWritesObserved": 0,
+    "bftApprovalsObserved": 0,
+    "a2aMessagesObserved": 0,
+    "presenceUpdates": 35,
+    "errors": 6,
+    "hashChainValid": true,
+    "totalEventsInDB": 90,
+    "receiptHeaderPresent": false,
+    "crdt_paragraph-1_msgs": 1,
+    "crdt_paragraph-1_bytes": 0,
+    "crdt_paragraph-2_msgs": 1,
+    "crdt_paragraph-2_bytes": 0
+  },
+  "agentExitCodes": {
+    "writer-bot": 0,
+    "reviewer-bot": 0,
+    "consensus-bot": 0,
+    "observer-bot": 0,
+    "summarizer-bot": 0
+  },
+  "startTimeMs": 1776366942376,
+  "endTimeMs": 1776367129002,
+  "errors": []
+}__END_T308__
+
+[t308] Capability checks:
+  FAIL signed_writes_ge_20
+  FAIL bft_approval_ge_1
+  PASS events_ge_30
+  PASS a2a_messages_ge_3
+  PASS hash_chain_valid
+  PASS all_agents_completed
+
+[t308] RESULT: 4/6 capability checks passed
