@@ -25,6 +25,7 @@ import { enforceContentSize } from '../middleware/content-limits.js';
 import { eventBus } from '../events/bus.js';
 import { canRead, canWrite } from '../middleware/rbac.js';
 import { versionCreatedTotal } from '../middleware/metrics.js';
+import { appendDocumentEvent } from '../lib/document-events.js';
 
 /** Try to get the authenticated user from session cookies. */
 async function getOptionalUser(request: FastifyRequest) {
@@ -287,6 +288,21 @@ export async function versionRoutes(fastify: FastifyInstance) {
               });
             }
           }
+
+          // Append document event (inside same tx: persist-then-emit pattern).
+          const idempotencyKey = (request.headers as Record<string, string>)['idempotency-key'] ?? null;
+          await appendDocumentEvent(tx, {
+            documentId: slug,
+            eventType: 'version.published',
+            actorId: effectiveCreatedBy || 'anonymous',
+            payloadJson: {
+              versionNumber: nextVersionNumber,
+              changelog: changelog ?? null,
+              contentHash,
+              tokenCount,
+            },
+            idempotencyKey,
+          });
 
           return nextVersionNumber;
         });

@@ -19,6 +19,7 @@ import { generateId } from 'llmtxt';
 import { invalidateDocumentCache } from '../middleware/cache.js';
 import { eventBus } from '../events/bus.js';
 import { documentApprovalSubmittedTotal, documentStateTransitionTotal } from '../middleware/metrics.js';
+import { appendDocumentEvent } from '../lib/document-events.js';
 
 function buildPolicy(doc: {
   approvalRequiredCount: number;
@@ -85,36 +86,49 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
       }
 
       const now = Date.now();
-      await db.update(documents).set({ state: effectiveState }).where(eq(documents.slug, slug));
-      await db.insert(stateTransitions).values({
-        id: generateId(),
-        documentId: doc[0].id,
-        fromState: currentState,
-        toState: effectiveState,
-        changedBy: request.user!.id,
-        changedAt: now,
-        reason: reason ?? null,
-        atVersion: doc[0].currentVersion,
+      const actorId = request.user!.id;
+      const idempotencyKey = (request.headers as Record<string, string>)['idempotency-key'] ?? null;
+
+      await db.transaction(async (tx: typeof db) => {
+        await tx.update(documents).set({ state: effectiveState }).where(eq(documents.slug, slug));
+        await tx.insert(stateTransitions).values({
+          id: generateId(),
+          documentId: doc[0].id,
+          fromState: currentState,
+          toState: effectiveState,
+          changedBy: actorId,
+          changedAt: now,
+          reason: reason ?? null,
+          atVersion: doc[0].currentVersion,
+        });
+
+        // When reopening for edits, clear rejection records so the next
+        // review cycle starts clean.
+        if (currentState === 'REVIEW' && effectiveState === 'DRAFT') {
+          await tx.delete(approvals)
+            .where(
+              and(
+                eq(approvals.documentId, doc[0].id),
+                eq(approvals.status, 'REJECTED')
+              )
+            );
+        }
+
+        await appendDocumentEvent(tx, {
+          documentId: slug,
+          eventType: 'lifecycle.transitioned',
+          actorId,
+          payloadJson: { fromState: currentState, toState: effectiveState, reason: reason ?? null },
+          idempotencyKey,
+        });
       });
 
       documentStateTransitionTotal.inc({ from_state: currentState, to_state: effectiveState });
 
-      // When reopening for edits, clear rejection records so the next
-      // review cycle starts clean. Approved records are left intact.
-      if (currentState === 'REVIEW' && effectiveState === 'DRAFT') {
-        await db.delete(approvals)
-          .where(
-            and(
-              eq(approvals.documentId, doc[0].id),
-              eq(approvals.status, 'REJECTED')
-            )
-          );
-      }
-
       invalidateDocumentCache(slug);
 
       // Emit state.changed (or document.locked / document.archived) — non-blocking.
-      eventBus.emitStateChanged(slug, doc[0].id, request.user!.id, {
+      eventBus.emitStateChanged(slug, doc[0].id, actorId, {
         fromState: currentState,
         toState: effectiveState,
         reason: reason ?? null,
@@ -153,56 +167,65 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
       }
 
       const now = Date.now();
-      await db.insert(approvals).values({
-        id: generateId(),
-        documentId: doc[0].id,
-        reviewerId: request.user!.id,
-        status: 'APPROVED',
-        timestamp: now,
-        reason: request.body.comment ?? null,
-        atVersion: doc[0].currentVersion,
+      const actorId = request.user!.id;
+      const idempotencyKey = (request.headers as Record<string, string>)['idempotency-key'] ?? null;
+      let autoLocked = false;
+      let consensus: ReturnType<typeof evaluateApprovals>;
+
+      await db.transaction(async (tx: typeof db) => {
+        await tx.insert(approvals).values({
+          id: generateId(),
+          documentId: doc[0].id,
+          reviewerId: actorId,
+          status: 'APPROVED',
+          timestamp: now,
+          reason: request.body.comment ?? null,
+          atVersion: doc[0].currentVersion,
+        });
+
+        const allReviews = await tx.select().from(approvals).where(eq(approvals.documentId, doc[0].id));
+        const policy = buildPolicy(doc[0]);
+        consensus = evaluateApprovals(toSdkReviews(allReviews), policy, doc[0].currentVersion);
+
+        if (consensus.approved) {
+          const lockResult = await tx.update(documents)
+            .set({ state: 'LOCKED' })
+            .where(and(
+              eq(documents.id, doc[0].id),
+              eq(documents.state, 'REVIEW'),
+            ))
+            .returning({ state: documents.state });
+
+          if (lockResult.length > 0) {
+            await tx.insert(stateTransitions).values({
+              id: generateId(),
+              documentId: doc[0].id,
+              fromState: 'REVIEW',
+              toState: 'LOCKED',
+              changedBy: 'system',
+              changedAt: now,
+              reason: 'Auto-locked: consensus reached',
+              atVersion: doc[0].currentVersion,
+            });
+            autoLocked = true;
+          }
+        }
+
+        await appendDocumentEvent(tx, {
+          documentId: slug,
+          eventType: 'approval.submitted',
+          actorId,
+          payloadJson: { status: 'APPROVED', atVersion: doc[0].currentVersion, autoLocked },
+          idempotencyKey,
+        });
       });
 
       documentApprovalSubmittedTotal.inc({ status: 'approved' });
 
-      const allReviews = await db.select().from(approvals).where(eq(approvals.documentId, doc[0].id));
-      const policy = buildPolicy(doc[0]);
-      const consensus = evaluateApprovals(toSdkReviews(allReviews), policy, doc[0].currentVersion);
-
-      let autoLocked = false;
-      if (consensus.approved) {
-        // Guard against duplicate locking when two approvals arrive simultaneously.
-        // The WHERE on state='REVIEW' means only one concurrent request wins the UPDATE.
-        const lockResult = await db.update(documents)
-          .set({ state: 'LOCKED' })
-          .where(and(
-            eq(documents.id, doc[0].id),
-            eq(documents.state, 'REVIEW'),
-          ))
-          .returning({ state: documents.state });
-
-        if (lockResult.length > 0) {
-          // This request won the race — record the transition exactly once.
-          await db.insert(stateTransitions).values({
-            id: generateId(),
-            documentId: doc[0].id,
-            fromState: 'REVIEW',
-            toState: 'LOCKED',
-            changedBy: 'system',
-            changedAt: now,
-            reason: 'Auto-locked: consensus reached',
-            atVersion: doc[0].currentVersion,
-          });
-          autoLocked = true;
-        }
-        // If lockResult is empty, another concurrent request already locked it — that's fine.
-        // autoLocked remains false so the caller knows this request did not perform the lock.
-      }
-
       invalidateDocumentCache(slug);
 
       // Emit approval event — non-blocking.
-      eventBus.emitApprovalSubmitted(slug, doc[0].id, request.user!.id, {
+      eventBus.emitApprovalSubmitted(slug, doc[0].id, actorId, {
         status: 'APPROVED',
         atVersion: doc[0].currentVersion,
         autoLocked,
@@ -217,7 +240,7 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
         });
       }
 
-      return { slug, status: 'APPROVED', consensus, autoLocked };
+      return { slug, status: 'APPROVED', consensus: consensus!, autoLocked };
     },
   );
 
@@ -250,31 +273,45 @@ export async function lifecycleRoutes(fastify: FastifyInstance) {
       }
 
       const now = Date.now();
-      await db.insert(approvals).values({
-        id: generateId(),
-        documentId: doc[0].id,
-        reviewerId: request.user!.id,
-        status: 'REJECTED',
-        timestamp: now,
-        reason: request.body.comment,
-        atVersion: doc[0].currentVersion,
+      const actorId = request.user!.id;
+      const idempotencyKey = (request.headers as Record<string, string>)['idempotency-key'] ?? null;
+      let consensus: ReturnType<typeof evaluateApprovals>;
+
+      await db.transaction(async (tx: typeof db) => {
+        await tx.insert(approvals).values({
+          id: generateId(),
+          documentId: doc[0].id,
+          reviewerId: actorId,
+          status: 'REJECTED',
+          timestamp: now,
+          reason: request.body.comment,
+          atVersion: doc[0].currentVersion,
+        });
+
+        const allReviews = await tx.select().from(approvals).where(eq(approvals.documentId, doc[0].id));
+        const policy = buildPolicy(doc[0]);
+        consensus = evaluateApprovals(toSdkReviews(allReviews), policy, doc[0].currentVersion);
+
+        await appendDocumentEvent(tx, {
+          documentId: slug,
+          eventType: 'approval.rejected',
+          actorId,
+          payloadJson: { status: 'REJECTED', atVersion: doc[0].currentVersion },
+          idempotencyKey,
+        });
       });
 
       documentApprovalSubmittedTotal.inc({ status: 'rejected' });
 
-      const allReviews = await db.select().from(approvals).where(eq(approvals.documentId, doc[0].id));
-      const policy = buildPolicy(doc[0]);
-      const consensus = evaluateApprovals(toSdkReviews(allReviews), policy, doc[0].currentVersion);
-
       invalidateDocumentCache(slug);
 
       // Emit rejection event — non-blocking.
-      eventBus.emitApprovalSubmitted(slug, doc[0].id, request.user!.id, {
+      eventBus.emitApprovalSubmitted(slug, doc[0].id, actorId, {
         status: 'REJECTED',
         atVersion: doc[0].currentVersion,
       });
 
-      return { slug, status: 'REJECTED', consensus };
+      return { slug, status: 'REJECTED', consensus: consensus! };
     },
   );
 

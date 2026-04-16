@@ -44,6 +44,7 @@ import { enforceContentSize, enforceDocumentLimit } from '../middleware/content-
 import { eventBus } from '../events/bus.js';
 import { canRead } from '../middleware/rbac.js';
 import { documentCreatedTotal, versionCreatedTotal } from '../middleware/metrics.js';
+import { appendDocumentEvent } from '../lib/document-events.js';
 
 // Legacy validation schemas (kept for backward compatibility)
 const slugParamsSchema = z.object({
@@ -309,6 +310,21 @@ export async function apiRoutes(fastify: FastifyInstance) {
       if (schema) {
         response.schema = schema;
         response.validated = true;
+      }
+
+      // Append document.created event to the event log.
+      // Fire-and-forget: event log failure must not fail the compress response.
+      try {
+        const idempotencyKey = (request.headers as Record<string, string>)['idempotency-key'] ?? null;
+        await appendDocumentEvent(db, {
+          documentId: slug,
+          eventType: 'document.created',
+          actorId: effectiveCreatedBy || 'anonymous',
+          payloadJson: { tokenCount, format: contentFormat, id },
+          idempotencyKey,
+        });
+      } catch (evtErr) {
+        fastify.log.warn({ err: evtErr }, 'appendDocumentEvent failed on compress');
       }
 
       // Emit document.created AFTER the successful DB write — non-blocking.
