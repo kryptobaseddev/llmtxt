@@ -3,6 +3,7 @@
   import { getAdmin } from '$lib/stores/admin.svelte';
 
   const admin = getAdmin();
+  const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.llmtxt.my';
 
   interface MetricResult {
     label: string;
@@ -15,6 +16,7 @@
   let metricsLoading = $state(true);
   let metricsError = $state<string | null>(null);
   let prometheusUrl = $state<string | null>(null);
+  let useProxy = $state(false);
   let refreshInterval: ReturnType<typeof setInterval> | null = null;
   let lastRefresh = $state<Date | null>(null);
 
@@ -28,11 +30,31 @@
     { label: 'Error Rate (4xx)', query: 'sum(rate(http_requests_total{status=~"4.."}[1m]))', unit: 'req/s' },
   ];
 
-  async function queryPrometheus(url: string, query: string): Promise<string> {
-    const params = new URLSearchParams({ query });
-    const res = await fetch(`${url}/api/v1/query?${params}`, { credentials: 'omit' });
-    if (!res.ok) throw new Error(`Prometheus ${res.status}`);
-    const data = await res.json();
+  /**
+   * Query Prometheus via the backend proxy to avoid browser CORS restrictions.
+   * Falls back to direct URL if proxy is not available.
+   */
+  async function queryPrometheus(query: string): Promise<string> {
+    let data: { data?: { result?: Array<{ value?: [number, string] }> } };
+
+    if (useProxy) {
+      // Backend proxy: GET /api/v1/admin/metrics/query?q=<promql>
+      const params = new URLSearchParams({ q: query });
+      const res = await fetch(`${API_BASE}/v1/admin/metrics/query?${params}`, {
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error(`Proxy ${res.status}`);
+      data = await res.json();
+    } else if (prometheusUrl) {
+      // Direct fetch (may fail with CORS in browser)
+      const params = new URLSearchParams({ query });
+      const res = await fetch(`${prometheusUrl}/api/v1/query?${params}`, { credentials: 'omit' });
+      if (!res.ok) throw new Error(`Prometheus ${res.status}`);
+      data = await res.json();
+    } else {
+      return 'no data';
+    }
+
     const result = data?.data?.result?.[0];
     if (!result) return 'no data';
     const val = parseFloat(result.value?.[1] ?? 'NaN');
@@ -41,12 +63,12 @@
   }
 
   async function fetchMetrics() {
-    if (!prometheusUrl) return;
+    if (!useProxy && !prometheusUrl) return;
     metricsLoading = true;
     try {
       const results = await Promise.allSettled(
         QUERIES.map(async (q) => {
-          const value = await queryPrometheus(prometheusUrl!, q.query);
+          const value = await queryPrometheus(q.query);
           return { label: q.label, value, unit: q.unit, query: q.query } satisfies MetricResult;
         })
       );
@@ -70,7 +92,8 @@
       if (!admin.loading) {
         clearInterval(check);
         prometheusUrl = admin.config?.prometheus ?? null;
-        if (prometheusUrl) {
+        useProxy = admin.config?.prometheusProxy ?? false;
+        if (useProxy || prometheusUrl) {
           fetchMetrics();
           refreshInterval = setInterval(fetchMetrics, 30_000);
         } else {
@@ -104,6 +127,9 @@
       <h1 class="font-display text-xl font-bold tracking-tight">Metrics</h1>
       <p class="font-display text-xs text-base-content/40 mt-1">
         Prometheus instant query snapshot — refreshes every 30s
+        {#if useProxy}
+          · via backend proxy
+        {/if}
         {#if lastRefresh}
           · last at {lastRefresh.toLocaleTimeString()}
         {/if}
@@ -123,14 +149,14 @@
       <button
         class="btn btn-ghost btn-xs font-display"
         onclick={fetchMetrics}
-        disabled={metricsLoading || !prometheusUrl}
+        disabled={metricsLoading || (!useProxy && !prometheusUrl)}
       >
         {metricsLoading ? 'Loading...' : 'Refresh'}
       </button>
     </div>
   </div>
 
-  {#if !prometheusUrl}
+  {#if !useProxy && !prometheusUrl}
     <div class="rounded-lg border border-base-content/10 p-8 text-center">
       <div class="text-3xl mb-3">∿</div>
       <p class="font-display text-sm text-base-content/50 mb-1">Prometheus not configured</p>
@@ -150,20 +176,22 @@
       {/each}
     </div>
 
-    <!-- Embed Prometheus expression browser -->
-    <div class="mb-4">
-      <h2 class="font-display text-sm font-semibold text-base-content/60 mb-3">Expression Browser</h2>
-      <div class="rounded-lg border border-base-content/10 overflow-hidden" style="height: 600px;">
-        <iframe
-          src="{prometheusUrl}/graph"
-          title="Prometheus Expression Browser"
-          class="w-full h-full border-0"
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-        ></iframe>
+    <!-- Embed Prometheus expression browser (may be blocked by X-Frame-Options) -->
+    {#if prometheusUrl}
+      <div class="mb-4">
+        <h2 class="font-display text-sm font-semibold text-base-content/60 mb-3">Expression Browser</h2>
+        <div class="rounded-lg border border-base-content/10 overflow-hidden" style="height: 600px;">
+          <iframe
+            src="{prometheusUrl}/graph"
+            title="Prometheus Expression Browser"
+            class="w-full h-full border-0"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+          ></iframe>
+        </div>
+        <p class="font-display text-xs text-base-content/25 mt-2">
+          Prometheus UI embedded. If the iframe is blocked, <a href="{prometheusUrl}/graph" target="_blank" rel="noopener noreferrer" class="text-primary">open it directly</a>.
+        </p>
       </div>
-      <p class="font-display text-xs text-base-content/25 mt-2">
-        Prometheus UI embedded. If the iframe is blocked, <a href="{prometheusUrl}/graph" target="_blank" rel="noopener noreferrer" class="text-primary">open it directly</a>.
-      </p>
-    </div>
+    {/if}
   {/if}
 </div>

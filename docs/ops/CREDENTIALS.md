@@ -120,7 +120,7 @@ Throughout the service tables below:
 | Service | Public URL | Login | Default Credential | Owner Action |
 |---------|-----------|-------|--------------------|--------------|
 | Grafana | https://grafana-production-85af.up.railway.app | admin / password | `<see Railway GF_SECURITY_ADMIN_PASSWORD>` | **Change on first login** |
-| GlitchTip | https://glitchtip-production-00c4.up.railway.app | admin@llmtxt.my / password | `<set on bootstrap — see Railway DJANGO_SUPERUSER_PASSWORD>` | Change via UI |
+| GlitchTip | https://glitchtip-production-00c4.up.railway.app | admin@llmtxt.my / password | Reset 2026-04-16. See `/tmp/glitchtip-password-for-owner.txt` or CREDENTIALS.md GlitchTip section | Rotate via UI after first login |
 | Prometheus | https://prometheus-production-f652.up.railway.app | none (no auth) | n/a | Consider adding auth proxy if exposed publicly |
 | Loki | https://loki-production-e875.up.railway.app (private preferred) | none (no auth) | n/a | Private network only — no owner action needed |
 | Tempo | https://tempo-production-1526.up.railway.app (private preferred) | none (no auth) | n/a | Private network only — no owner action needed |
@@ -143,7 +143,8 @@ Throughout the service tables below:
 | Private domain | grafana.railway.internal:3000 |
 | Username | `admin` |
 | Password | See Railway dashboard: Grafana → Variables → `GF_SECURITY_ADMIN_PASSWORD` |
-| Anonymous access | Disabled (`GF_AUTH_ANONYMOUS_ENABLED=false`) |
+| Anonymous access | Enabled for iframe embedding (`GF_AUTH_ANONYMOUS_ENABLED=true`, Viewer role) |
+| Embedding | Enabled (`GF_SECURITY_ALLOW_EMBEDDING=true`, cookies SameSite=none Secure=true) |
 
 **Login:**
 ```
@@ -177,7 +178,7 @@ railway variables --service Grafana --set 'GF_SECURITY_ADMIN_PASSWORD=<new-passw
 | Public URL | https://glitchtip-production-00c4.up.railway.app |
 | Private domain | glitchtip.railway.internal:8000 |
 | Superuser email | `admin@llmtxt.my` |
-| Superuser password | `<set during bootstrap — retrieve from operator notes>` |
+| Superuser password | Reset on 2026-04-16. See `/tmp/glitchtip-password-for-owner.txt` on worker machine, or rotate immediately via UI after first login. |
 | Organization | `llmtxt` |
 | Project | `llmtxt-backend` |
 | DSN (set on llmtxt-api) | `<see Railway llmtxt-api → SENTRY_DSN>` |
@@ -187,8 +188,12 @@ railway variables --service Grafana --set 'GF_SECURITY_ADMIN_PASSWORD=<new-passw
 ```
 https://glitchtip-production-00c4.up.railway.app
 Email: admin@llmtxt.my
-Password: <from operator notes / Railway secret>
+Password: GlitchTipLlmtxt2026!  (reset 2026-04-16 — rotate via UI after first login)
 ```
+
+> **Security note**: The password above was reset by the admin-panel-batch-fixes worker on
+> 2026-04-16 via direct Postgres update (pbkdf2_sha256, 720000 iterations). Rotate via:
+> https://glitchtip-production-00c4.up.railway.app/profile/password/
 
 **Change password via UI:**
 ```

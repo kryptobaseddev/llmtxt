@@ -6,9 +6,11 @@
  * the frontend admin panel.
  *
  * Routes:
- *   GET /admin/services   — Railway service health grid
- *   GET /admin/config     — Public URLs for observability tools
- *   GET /admin/me         — Confirm admin identity (auth check)
+ *   GET /admin/services         — Railway service health grid
+ *   GET /admin/config           — Public URLs for observability tools
+ *   GET /admin/me               — Confirm admin identity (auth check)
+ *   GET /admin/metrics/query    — Server-side Prometheus proxy (avoids browser CORS)
+ *   GET /admin/errors/issues    — Server-side GlitchTip proxy (avoids iframe X-Frame-Options)
  */
 import type { FastifyInstance } from 'fastify';
 import { requireAdmin } from '../middleware/admin.js';
@@ -172,6 +174,115 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   );
 
   /**
+   * GET /admin/metrics/query?q=<promql>
+   *
+   * Server-side proxy to Prometheus. Avoids browser CORS restrictions when
+   * the frontend queries Prometheus directly.
+   *
+   * Queries Prometheus at http://<PROMETHEUS_PRIVATE_HOST>:9090/api/v1/query
+   * using Railway private networking. Falls back to PROMETHEUS_PUBLIC_URL if
+   * no private host is configured.
+   */
+  app.get(
+    '/admin/metrics/query',
+    { preHandler: [requireAdmin] },
+    async (request, reply) => {
+      const { q } = (request.query as Record<string, string>);
+      if (!q || typeof q !== 'string') {
+        return reply.status(400).send({ error: 'Missing query parameter "q"' });
+      }
+
+      // Prefer Railway private network for zero-latency, zero-egress queries.
+      // PROMETHEUS_PRIVATE_HOST is the Railway private domain, e.g. prometheus.railway.internal
+      const privateHost = process.env.PROMETHEUS_PRIVATE_HOST;
+      const publicUrl = process.env.PROMETHEUS_PUBLIC_URL;
+
+      let prometheusBase: string | null = null;
+      if (privateHost) {
+        prometheusBase = `http://${privateHost}:9090`;
+      } else if (publicUrl) {
+        prometheusBase = publicUrl.replace(/\/$/, '');
+      }
+
+      if (!prometheusBase) {
+        return reply.status(503).send({ error: 'Prometheus not configured (set PROMETHEUS_PRIVATE_HOST)' });
+      }
+
+      try {
+        const params = new URLSearchParams({ query: q });
+        const res = await fetch(`${prometheusBase}/api/v1/query?${params}`, {
+          signal: AbortSignal.timeout(10_000),
+        });
+        const data = await res.json();
+        return reply.status(res.status).send(data);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return reply.status(502).send({ error: `Prometheus proxy error: ${message}` });
+      }
+    }
+  );
+
+  /**
+   * GET /admin/errors/issues?limit=<n>&offset=<n>&query=<str>
+   *
+   * Server-side proxy to GlitchTip REST API. Returns recent unresolved issues
+   * as a native JSON list. Used instead of an iframe because GlitchTip's
+   * Django app sets X-Frame-Options: DENY unconditionally.
+   *
+   * Requires GLITCHTIP_API_TOKEN env var (GlitchTip auth token for admin@llmtxt.my).
+   * Falls back to GLITCHTIP_PRIVATE_URL or GLITCHTIP_PUBLIC_URL for the base.
+   */
+  app.get(
+    '/admin/errors/issues',
+    { preHandler: [requireAdmin] },
+    async (request, reply) => {
+      const { limit = '25', offset = '0', query = '' } = (request.query as Record<string, string>);
+
+      const apiToken = process.env.GLITCHTIP_API_TOKEN;
+      const glitchtipBase = (
+        process.env.GLITCHTIP_PRIVATE_URL ||
+        process.env.GLITCHTIP_PUBLIC_URL ||
+        null
+      )?.replace(/\/$/, '');
+
+      if (!glitchtipBase) {
+        return reply.status(503).send({ error: 'GlitchTip not configured (set GLITCHTIP_PUBLIC_URL)' });
+      }
+
+      const headers: Record<string, string> = {
+        'Accept': 'application/json',
+      };
+      if (apiToken) {
+        headers['Authorization'] = `Bearer ${apiToken}`;
+      }
+
+      try {
+        const params = new URLSearchParams({
+          limit: String(Math.min(Number(limit) || 25, 100)),
+          offset: String(Number(offset) || 0),
+          ...(query ? { query } : {}),
+        });
+        const url = `${glitchtipBase}/api/0/issues/?${params}`;
+        const res = await fetch(url, {
+          headers,
+          signal: AbortSignal.timeout(10_000),
+        });
+
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          return reply.status(res.status).send({ error: `GlitchTip returned ${res.status}`, detail: text });
+        }
+
+        const issues = await res.json();
+        return reply.send({ issues, total: res.headers.get('x-hits') ?? null });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return reply.status(502).send({ error: `GlitchTip proxy error: ${message}` });
+      }
+    }
+  );
+
+  /**
    * GET /admin/services
    *
    * Returns the health status of all Railway services.
@@ -204,6 +315,11 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
    * Returns public URLs for each observability tool.
    * Frontend uses these to build iframe src attributes and API query URLs.
    * All values come from environment variables — no secrets exposed.
+   *
+   * prometheusProxy: true when the backend has Prometheus configured server-side
+   * glitchtipProxy:  true when the backend has GlitchTip configured server-side
+   * Both flags tell the frontend to use the /admin/metrics/query and
+   * /admin/errors/issues proxy endpoints instead of direct URLs.
    */
   app.get(
     '/admin/config',
@@ -216,6 +332,10 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
         // Loki and Tempo share Grafana's explore UI — same base URL.
         loki: process.env.GRAFANA_PUBLIC_URL ?? null,
         tempo: process.env.GRAFANA_PUBLIC_URL ?? null,
+        // Proxy capability flags — frontend uses these to switch from direct
+        // iframe/fetch to server-side proxy endpoints.
+        prometheusProxy: !!(process.env.PROMETHEUS_PRIVATE_HOST || process.env.PROMETHEUS_PUBLIC_URL),
+        glitchtipProxy: !!(process.env.GLITCHTIP_PUBLIC_URL),
       });
     }
   );

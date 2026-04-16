@@ -15,6 +15,10 @@ export interface AdminConfig {
   glitchtip: string | null;
   loki: string | null;
   tempo: string | null;
+  /** When true, /admin/metrics/query proxy is available on the backend */
+  prometheusProxy: boolean;
+  /** When true, /admin/errors/issues proxy is available on the backend */
+  glitchtipProxy: boolean;
 }
 
 export interface AdminUser {
