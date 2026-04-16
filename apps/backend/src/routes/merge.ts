@@ -119,10 +119,9 @@ export async function mergeRoutes(fastify: FastifyInstance) {
         const { sources, fillFrom, changelog, createdBy, agentId } = bodyResult.data;
 
         // ── Look up document ────────────────────────────────────────────────
-        const [doc] = await db
-          .select()
-          .from(documents)
-          .where(eq(documents.slug, slug));
+        // Wave A: delegate to backendCore
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const doc = (await request.server.backendCore.getDocumentBySlug(slug)) as any;
 
         if (!doc) {
           return reply.status(404).send({ error: 'Document not found' });

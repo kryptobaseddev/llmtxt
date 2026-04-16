@@ -4,6 +4,7 @@
 import type { FastifyInstance } from 'fastify';
 import { eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
+// Schema type imports for version insert (persistNewVersion stays in route for Wave A).
 import { documents, versions } from '../db/schema.js';
 import { requireAuth } from '../middleware/auth.js';
 import { canWrite } from '../middleware/rbac.js';
@@ -28,19 +29,21 @@ export async function patchRoutes(fastify: FastifyInstance) {
       const { slug } = request.params;
       const { patchText, changelog } = request.body;
 
-      const doc = await db.select().from(documents).where(eq(documents.slug, slug)).limit(1);
-      if (!doc.length) return reply.status(404).send({ error: 'Not Found' });
+      // Wave A: delegate document lookup to backendCore
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const docRow = (await request.server.backendCore.getDocumentBySlug(slug)) as any;
+      if (!docRow) return reply.status(404).send({ error: 'Not Found' });
 
-      if (doc[0].state === 'LOCKED' || doc[0].state === 'ARCHIVED') {
+      if (docRow.state === 'LOCKED' || docRow.state === 'ARCHIVED') {
         return reply.status(423).send({
           error: 'Locked',
-          message: `Document is ${(doc[0].state as string).toLowerCase()} and cannot be modified. Transition to DRAFT to enable editing.`,
+          message: `Document is ${(docRow.state as string).toLowerCase()} and cannot be modified. Transition to DRAFT to enable editing.`,
         });
       }
 
       // Decompress current content
-      const currentContent = doc[0].compressedData
-        ? (await import('llmtxt')).decompress(Buffer.from(doc[0].compressedData as ArrayBuffer))
+      const currentContent = docRow.compressedData
+        ? (await import('llmtxt')).decompress(Buffer.from(docRow.compressedData as ArrayBuffer))
         : '';
 
       // Apply patch
@@ -57,12 +60,12 @@ export async function patchRoutes(fastify: FastifyInstance) {
       const contentHash = hashContent(newContent);
       const tokenCount = countTokens(newContent);
       const compressed = await compress(newContent);
-      const nextVersion = doc[0].currentVersion + 1;
+      const nextVersion = docRow.currentVersion + 1;
       const now = Date.now();
 
       await db.insert(versions).values({
         id: generateId(),
-        documentId: doc[0].id,
+        documentId: docRow.id,
         versionNumber: nextVersion,
         compressedData: compressed,
         contentHash,
@@ -71,7 +74,7 @@ export async function patchRoutes(fastify: FastifyInstance) {
         createdBy: request.user!.id,
         changelog,
         patchText,
-        baseVersion: doc[0].currentVersion,
+        baseVersion: docRow.currentVersion,
         storageType: 'inline',
       });
 
@@ -82,11 +85,11 @@ export async function patchRoutes(fastify: FastifyInstance) {
         originalSize: Buffer.byteLength(newContent, 'utf8'),
         compressedSize: compressed.length,
         currentVersion: nextVersion,
-        versionCount: doc[0].versionCount + 1,
+        versionCount: docRow.versionCount + 1,
       }).where(eq(documents.slug, slug));
 
       // Emit version.created AFTER the successful DB write — non-blocking.
-      eventBus.emitVersionCreated(slug, doc[0].id, request.user!.id, {
+      eventBus.emitVersionCreated(slug, docRow.id, request.user!.id, {
         version: nextVersion,
         changelog,
         createdBy: request.user!.id,
