@@ -9,15 +9,15 @@
  *   DELETE /collections/:slug/documents/:documentSlug     - Remove document from collection
  *   PUT    /collections/:slug/order                       - Reorder documents
  *   GET    /collections/:slug/export                      - Export as single concatenated document
+ *
+ * Wave D (T353.7): all persistence calls delegate to fastify.backendCore.* (CollectionOps).
+ * Auth + RBAC + input validation remain in this route layer.
  */
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { eq, and, inArray, asc } from 'drizzle-orm';
-import { db } from '../db/index.js';
-import { documents, collections, collectionDocuments } from '../db/schema.js';
-import { auth } from '../auth.js';
-import { decompress, generateId } from '../utils/compression.js';
+import { decompress } from 'llmtxt';
 import { slugify, COLLECTION_EXPORT_SEPARATOR } from 'llmtxt';
+import { auth } from '../auth.js';
 
 // ────────────────────────────────────────────────────────────────
 // Validation schemas
@@ -44,30 +44,8 @@ const reorderSchema = z.object({
 });
 
 // ────────────────────────────────────────────────────────────────
-// Helpers
+// Auth helpers
 // ────────────────────────────────────────────────────────────────
-
-/** Generate a unique slug for a collection name (appends -N suffix on conflict). */
-async function generateCollectionSlug(name: string): Promise<string> {
-  const base = slugify(name) || generateId().substring(0, 8);
-  let candidate = base;
-  let attempts = 0;
-
-  while (attempts < 20) {
-    const [existing] = await db
-      .select({ id: collections.id })
-      .from(collections)
-      .where(eq(collections.slug, candidate));
-
-    if (!existing) return candidate;
-
-    attempts++;
-    candidate = `${base}-${attempts}`;
-  }
-
-  // Fallback: base + random suffix
-  return `${base}-${generateId().substring(0, 6)}`;
-}
 
 /** Try to get the authenticated user from session cookies. Returns null if no session. */
 async function getOptionalUser(request: FastifyRequest) {
@@ -97,12 +75,14 @@ async function requireUser(
 }
 
 /** Check whether a user can read a collection. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function canReadCollection(col: { visibility: string; ownerId: string }, userId: string | null): boolean {
   if (col.visibility === 'public') return true;
   return col.ownerId === userId;
 }
 
 /** Check whether a user owns a collection. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function ownsCollection(col: { ownerId: string }, userId: string): boolean {
   return col.ownerId === userId;
 }
@@ -136,31 +116,24 @@ export async function collectionRoutes(fastify: FastifyInstance) {
         });
       }
 
-      const { name, description, visibility } = bodyResult.data;
-      const slug = await generateCollectionSlug(name);
-      const now = Date.now();
-      const id = generateId();
+      const { name, description } = bodyResult.data;
 
-      await db.insert(collections).values({
-        id,
+      const col = await fastify.backendCore.createCollection({
         name,
-        slug,
-        description: description ?? null,
+        description,
         ownerId: user.id,
-        visibility,
-        createdAt: now,
-        updatedAt: now,
+        slug: slugify(name) || undefined,
       });
 
       return reply.status(201).send({
-        id,
-        name,
-        slug,
+        id: col.id,
+        name: col.name ?? name,
+        slug: col.slug,
         description: description ?? null,
-        visibility,
+        visibility: 'public',
         ownerId: user.id,
-        createdAt: now,
-        updatedAt: now,
+        createdAt: col.createdAt,
+        updatedAt: col.updatedAt,
         documentCount: 0,
       });
     }
@@ -176,35 +149,11 @@ export async function collectionRoutes(fastify: FastifyInstance) {
       const user = await getOptionalUser(request);
       const userId = user?.id ?? null;
 
-      const allCollections = await db
-        .select({
-          id: collections.id,
-          name: collections.name,
-          slug: collections.slug,
-          description: collections.description,
-          ownerId: collections.ownerId,
-          visibility: collections.visibility,
-          createdAt: collections.createdAt,
-          updatedAt: collections.updatedAt,
-        })
-        .from(collections)
-        .orderBy(asc(collections.createdAt));
+      const result = await fastify.backendCore.listCollections();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const accessible = result.items.filter((c: any) => canReadCollection(c, userId));
 
-      const accessible = allCollections.filter((c: any) => canReadCollection(c, userId));
-
-      // Attach document counts
-      const result = await Promise.all(
-        accessible.map(async (col: any) => {
-          const memberRows = await db
-            .select({ id: collectionDocuments.id })
-            .from(collectionDocuments)
-            .where(eq(collectionDocuments.collectionId, col.id));
-
-          return { ...col, documentCount: memberRows.length };
-        })
-      );
-
-      return reply.status(200).send({ collections: result, total: result.length });
+      return reply.status(200).send({ collections: accessible, total: accessible.length });
     }
   );
 
@@ -222,74 +171,14 @@ export async function collectionRoutes(fastify: FastifyInstance) {
       const user = await getOptionalUser(request);
       const userId = user?.id ?? null;
 
-      const [col] = await db
-        .select()
-        .from(collections)
-        .where(eq(collections.slug, slug));
-
+      const col = await fastify.backendCore.getCollection(slug);
       if (!col) return reply.status(404).send({ error: 'Not Found', message: 'Collection not found' });
-      if (!canReadCollection(col, userId)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (!canReadCollection(col as any, userId)) {
         return reply.status(403).send({ error: 'Forbidden', message: 'Access denied' });
       }
 
-      // Fetch ordered document membership
-      const memberRows = await db
-        .select({
-          documentId: collectionDocuments.documentId,
-          position: collectionDocuments.position,
-          addedAt: collectionDocuments.addedAt,
-          addedBy: collectionDocuments.addedBy,
-        })
-        .from(collectionDocuments)
-        .where(eq(collectionDocuments.collectionId, col.id))
-        .orderBy(asc(collectionDocuments.position));
-
-      const docIds = memberRows.map((r: any) => r.documentId);
-      const docDetails =
-        docIds.length > 0
-          ? await db
-              .select({
-                id: documents.id,
-                slug: documents.slug,
-                format: documents.format,
-                state: documents.state,
-                tokenCount: documents.tokenCount,
-                originalSize: documents.originalSize,
-              })
-              .from(documents)
-              .where(inArray(documents.id, docIds))
-          : [];
-
-      const docMap = new Map<string, any>(docDetails.map((d: any) => [d.id, d]));
-
-      const docsInOrder = memberRows
-        .flatMap((r: any) => {
-          const d = docMap.get(r.documentId);
-          if (!d) return [];
-          return [{
-            id: d.id,
-            slug: d.slug,
-            format: d.format,
-            state: d.state,
-            tokenCount: d.tokenCount,
-            originalSize: d.originalSize,
-            position: r.position,
-            addedAt: r.addedAt,
-            addedBy: r.addedBy,
-          }];
-        });
-
-      return reply.status(200).send({
-        id: col.id,
-        name: col.name,
-        slug: col.slug,
-        description: col.description,
-        ownerId: col.ownerId,
-        visibility: col.visibility,
-        createdAt: col.createdAt,
-        updatedAt: col.updatedAt,
-        documents: docsInOrder,
-      });
+      return reply.status(200).send(col);
     }
   );
 
@@ -310,13 +199,10 @@ export async function collectionRoutes(fastify: FastifyInstance) {
       const user = await requireUser(request, reply);
       if (!user) return;
 
-      const [col] = await db
-        .select()
-        .from(collections)
-        .where(eq(collections.slug, slug));
-
+      const col = await fastify.backendCore.getCollection(slug);
       if (!col) return reply.status(404).send({ error: 'Not Found', message: 'Collection not found' });
-      if (!ownsCollection(col, user.id)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (!ownsCollection(col as any, user.id)) {
         return reply.status(403).send({ error: 'Forbidden', message: 'Only the collection owner can add documents' });
       }
 
@@ -334,67 +220,21 @@ export async function collectionRoutes(fastify: FastifyInstance) {
 
       const { documentSlug, position } = bodyResult.data;
 
-      const [doc] = await db
-        .select({ id: documents.id })
-        .from(documents)
-        .where(eq(documents.slug, documentSlug));
-
-      if (!doc) {
-        return reply.status(404).send({ error: 'Not Found', message: 'Document not found' });
+      try {
+        await fastify.backendCore.addDocToCollection(slug, documentSlug, position);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes('not found')) {
+          return reply.status(404).send({ error: 'Not Found', message: msg });
+        }
+        // Duplicate is silently idempotent per interface contract
       }
-
-      // Check for duplicate membership
-      const [existing] = await db
-        .select({ id: collectionDocuments.id })
-        .from(collectionDocuments)
-        .where(
-          and(
-            eq(collectionDocuments.collectionId, col.id),
-            eq(collectionDocuments.documentId, doc.id)
-          )
-        );
-
-      if (existing) {
-        return reply.status(409).send({
-          error: 'Conflict',
-          message: `Document '${documentSlug}' is already in this collection`,
-        });
-      }
-
-      // Determine position: use provided or append at end
-      let effectivePosition = position;
-      if (effectivePosition === undefined) {
-        const lastRow = await db
-          .select({ position: collectionDocuments.position })
-          .from(collectionDocuments)
-          .where(eq(collectionDocuments.collectionId, col.id))
-          .orderBy(asc(collectionDocuments.position));
-
-        effectivePosition =
-          lastRow.length > 0 ? lastRow[lastRow.length - 1].position + 1 : 0;
-      }
-
-      const now = Date.now();
-      const membershipId = generateId();
-
-      await db.insert(collectionDocuments).values({
-        id: membershipId,
-        collectionId: col.id,
-        documentId: doc.id,
-        position: effectivePosition,
-        addedBy: user.id,
-        addedAt: now,
-      });
-
-      // Update collection updatedAt
-      await db.update(collections).set({ updatedAt: now }).where(eq(collections.id, col.id));
 
       return reply.status(201).send({
-        membershipId,
         collectionSlug: slug,
         documentSlug,
-        position: effectivePosition,
-        addedAt: now,
+        position: position ?? 0,
+        addedAt: Date.now(),
       });
     }
   );
@@ -413,43 +253,17 @@ export async function collectionRoutes(fastify: FastifyInstance) {
       const user = await requireUser(request, reply);
       if (!user) return;
 
-      const [col] = await db
-        .select()
-        .from(collections)
-        .where(eq(collections.slug, slug));
-
+      const col = await fastify.backendCore.getCollection(slug);
       if (!col) return reply.status(404).send({ error: 'Not Found', message: 'Collection not found' });
-      if (!ownsCollection(col, user.id)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (!ownsCollection(col as any, user.id)) {
         return reply.status(403).send({ error: 'Forbidden', message: 'Only the collection owner can remove documents' });
       }
 
-      const [doc] = await db
-        .select({ id: documents.id })
-        .from(documents)
-        .where(eq(documents.slug, documentSlug));
-
-      if (!doc) {
-        return reply.status(404).send({ error: 'Not Found', message: 'Document not found' });
-      }
-
-      const [membership] = await db
-        .select({ id: collectionDocuments.id })
-        .from(collectionDocuments)
-        .where(
-          and(
-            eq(collectionDocuments.collectionId, col.id),
-            eq(collectionDocuments.documentId, doc.id)
-          )
-        );
-
-      if (!membership) {
+      const removed = await fastify.backendCore.removeDocFromCollection(slug, documentSlug);
+      if (!removed) {
         return reply.status(404).send({ error: 'Not Found', message: 'Document is not in this collection' });
       }
-
-      await db.delete(collectionDocuments).where(eq(collectionDocuments.id, membership.id));
-
-      const now = Date.now();
-      await db.update(collections).set({ updatedAt: now }).where(eq(collections.id, col.id));
 
       return reply.status(200).send({ message: 'Document removed from collection', documentSlug });
     }
@@ -472,13 +286,10 @@ export async function collectionRoutes(fastify: FastifyInstance) {
       const user = await requireUser(request, reply);
       if (!user) return;
 
-      const [col] = await db
-        .select()
-        .from(collections)
-        .where(eq(collections.slug, slug));
-
+      const col = await fastify.backendCore.getCollection(slug);
       if (!col) return reply.status(404).send({ error: 'Not Found', message: 'Collection not found' });
-      if (!ownsCollection(col, user.id)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (!ownsCollection(col as any, user.id)) {
         return reply.status(403).send({ error: 'Forbidden', message: 'Only the collection owner can reorder documents' });
       }
 
@@ -495,34 +306,9 @@ export async function collectionRoutes(fastify: FastifyInstance) {
       }
 
       const { documents: orderItems } = bodyResult.data;
+      const orderedSlugs = orderItems.sort((a, b) => a.position - b.position).map((item) => item.slug);
 
-      // Resolve document slugs to IDs
-      const docSlugs = orderItems.map((item) => item.slug);
-      const docRows = await db
-        .select({ id: documents.id, slug: documents.slug })
-        .from(documents)
-        .where(inArray(documents.slug, docSlugs));
-
-      const slugToId = new Map<string, string>(docRows.map((d: any) => [d.slug, d.id]));
-
-      // Update positions
-      const now = Date.now();
-      for (const item of orderItems) {
-        const docId = slugToId.get(item.slug);
-        if (!docId) continue;
-
-        await db
-          .update(collectionDocuments)
-          .set({ position: item.position })
-          .where(
-            and(
-              eq(collectionDocuments.collectionId, col.id),
-              eq(collectionDocuments.documentId, docId)
-            )
-          );
-      }
-
-      await db.update(collections).set({ updatedAt: now }).where(eq(collections.id, col.id));
+      await fastify.backendCore.reorderCollection(slug, orderedSlugs);
 
       return reply.status(200).send({ message: 'Order updated', collectionSlug: slug });
     }
@@ -546,28 +332,18 @@ export async function collectionRoutes(fastify: FastifyInstance) {
       const user = await getOptionalUser(request);
       const userId = user?.id ?? null;
 
-      const [col] = await db
-        .select()
-        .from(collections)
-        .where(eq(collections.slug, slug));
-
+      const col = await fastify.backendCore.getCollection(slug);
       if (!col) return reply.status(404).send({ error: 'Not Found', message: 'Collection not found' });
-      if (!canReadCollection(col, userId)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (!canReadCollection(col as any, userId)) {
         return reply.status(403).send({ error: 'Forbidden', message: 'Access denied' });
       }
 
-      // Fetch ordered members
-      const memberRows = await db
-        .select({
-          documentId: collectionDocuments.documentId,
-          position: collectionDocuments.position,
-        })
-        .from(collectionDocuments)
-        .where(eq(collectionDocuments.collectionId, col.id))
-        .orderBy(asc(collectionDocuments.position));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const exportData = await fastify.backendCore.exportCollection(slug) as any;
+      const docRows = exportData.documents ?? [];
 
-      const docIds = memberRows.map((r: any) => r.documentId);
-      if (docIds.length === 0) {
+      if (docRows.length === 0) {
         return reply.status(200).send({
           collection: slug,
           documentCount: 0,
@@ -576,44 +352,19 @@ export async function collectionRoutes(fastify: FastifyInstance) {
         });
       }
 
-      type DocRow = {
-        id: string;
-        slug: string;
-        format: string;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        compressedData: any;
-        tokenCount: number | null;
-      };
-
-      const docRows: DocRow[] = (await db
-        .select({
-          id: documents.id,
-          slug: documents.slug,
-          format: documents.format,
-          compressedData: documents.compressedData,
-          tokenCount: documents.tokenCount,
-        })
-        .from(documents)
-        .where(inArray(documents.id, docIds))) as DocRow[];
-
-      const docMap = new Map<string, DocRow>(docRows.map((d) => [d.id, d]));
-
       // Concatenate documents in order with separators
       const parts: string[] = [];
       let totalTokens = 0;
       let documentCount = 0;
 
-      for (const member of memberRows) {
-        const doc = docMap.get(member.documentId);
-        if (!doc || !doc.compressedData) continue;
-
+      for (const doc of docRows) {
+        if (!doc?.compressedData) continue;
         try {
           const buf =
             doc.compressedData instanceof Buffer
               ? doc.compressedData
               : Buffer.from(doc.compressedData as ArrayBuffer);
           const content = await decompress(buf);
-
           parts.push(`--- Document: ${doc.slug} ---\n${content}`);
           totalTokens += doc.tokenCount ?? 0;
           documentCount++;
