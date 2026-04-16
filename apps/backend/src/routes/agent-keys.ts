@@ -157,13 +157,13 @@ export async function agentKeyRoutes(fastify: FastifyInstance) {
 
       const pubkeyLower = pubkey_hex.toLowerCase();
       const fingerprint = computeFingerprint(pubkeyLower);
-      const now = Date.now();
+      const now = new Date();
 
       // Insert new key — let Postgres generate the UUID primary key via defaultRandom()
       await db.insert(agentPubkeys).values({
         agentId: agent_id,
         pubkey: Buffer.from(pubkeyLower, 'hex'),
-        createdAt: now as unknown as Date,
+        createdAt: now,
       });
 
       // Fetch back by agent_id (since we don't have the generated UUID)
