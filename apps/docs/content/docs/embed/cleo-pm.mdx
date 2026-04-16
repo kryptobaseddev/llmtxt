@@ -1,0 +1,207 @@
+---
+title: CLEO Project Management Integration
+description: Use LLMtxt's LocalBackend to give CLEO agents structured, versioned, collaborative document storage — without deploying api.llmtxt.my.
+---
+
+# CLEO Project Management Integration
+
+LLMtxt's `LocalBackend` lets CLEO agents collaborate on structured documents —
+task specs, decision records, agent messages — entirely embedded in your project,
+with zero network dependency.
+
+## Why LocalBackend?
+
+| Concern | Without LLMtxt | With LocalBackend |
+|---------|---------------|-------------------|
+| Spec sharing | Ad-hoc files or git commits | Versioned docs with patch history |
+| Agent decisions | Informal notes | BFT approval records |
+| Agent messaging | Custom IPC | Scratchpad + A2A inbox |
+| Who is editing | None | Real-time presence |
+
+## Quick Start
+
+```ts
+import { LocalBackend } from 'llmtxt/local';
+
+const backend = new LocalBackend({ storagePath: './.llmtxt' });
+await backend.open();
+
+// Attach a versioned spec to a CLEO task
+const spec = await backend.createDocument({
+  title: 'T317 Portable SDK Specification',
+  createdBy: 'cleo-orchestrator',
+  labels: ['spec', 'T317'],
+});
+
+await backend.publishVersion({
+  documentId: spec.id,
+  content: '# T317 Spec\n\n## Requirements\n- LocalBackend\n- RemoteBackend\n- CLI',
+  patchText: '',
+  createdBy: 'agent-architect',
+  changelog: 'Initial specification',
+});
+
+await backend.close();
+```
+
+## Patterns
+
+### 1. Task Attachment Documents
+
+Each CLEO epic or task gets an LLMtxt document. Agents publish versions as the
+spec evolves. The full patch history is preserved — you can always reconstruct
+any past state.
+
+```ts
+// Create a spec doc
+const doc = await backend.createDocument({ title: 'T317 Spec', createdBy: 'agent' });
+
+// Publish versions as the spec changes
+await backend.publishVersion({
+  documentId: doc.id,
+  content: specContent,
+  patchText: diff,          // unified diff from previous version
+  createdBy: 'agent',
+  changelog: 'Add RemoteBackend requirements',
+});
+
+// Query event history
+const events = await backend.queryEvents({ documentId: doc.id });
+```
+
+### 2. Decision Records with BFT Approval
+
+Decisions get an LLMtxt document that requires multi-agent approval before
+it can be marked as accepted. This creates a cryptographically auditable
+record of who agreed to what.
+
+```ts
+// Create decision doc
+const decision = await backend.createDocument({
+  title: 'D004: NAPI-RS Deferred',
+  createdBy: 'orchestrator',
+  labels: ['decision'],
+});
+
+// Transition to REVIEW (allows approvals)
+await backend.transitionVersion({
+  documentId: decision.id,
+  to: 'REVIEW',
+  changedBy: 'orchestrator',
+});
+
+// Require 2-of-3 approval
+await backend.setApprovalPolicy(decision.id, { requiredCount: 2, timeoutMs: 0 });
+
+// Agents submit signed approvals
+await backend.submitSignedApproval({
+  documentId: decision.id,
+  versionNumber: 0,
+  reviewerId: 'agent-1',
+  status: 'APPROVED',
+  signatureBase64: agentSignature,
+});
+
+// Check consensus
+const result = await backend.getApprovalProgress(decision.id, 0);
+console.log(result.approved); // true once quorum is reached
+```
+
+### 3. Agent-to-Agent Coordination
+
+Agents communicate via scratchpad messages (ephemeral) and distributed leases
+(mutual exclusion), without a message broker.
+
+```ts
+// Acquire exclusive access to a shared resource
+const lease = await backend.acquireLease({
+  resource: 'cleo:epic:T317:spec',
+  holder: 'agent-writer',
+  ttlMs: 30_000,
+});
+
+if (!lease) {
+  // Another agent holds the lease — wait and retry
+}
+
+// Send a typed message to another agent
+await backend.sendScratchpad({
+  toAgentId: 'agent-reviewer',
+  fromAgentId: 'agent-writer',
+  payload: { type: 'review.request', taskId: 'T317' },
+});
+
+// Recipient polls its inbox
+const messages = await backend.pollScratchpad('agent-reviewer');
+```
+
+### 4. Presence (Who is Editing?)
+
+Track which agents are currently viewing or editing a document in real-time.
+Presence is in-memory only — no persistence overhead.
+
+```ts
+await backend.joinPresence(docId, 'agent-1', { role: 'author' });
+await backend.joinPresence(docId, 'agent-2', { role: 'reviewer' });
+
+const present = await backend.listPresence(docId);
+// [{ agentId: 'agent-1', ... }, { agentId: 'agent-2', ... }]
+
+await backend.leavePresence(docId, 'agent-2');
+```
+
+## Storage Layout
+
+When LocalBackend is initialised at `./.llmtxt`:
+
+```
+.llmtxt/
+  llmtxt.db          SQLite database (all structured data)
+  identity.json      Agent Ed25519 keypair (created by llmtxt init)
+  blobs/             Large content files (> 10 KB versions)
+    <contentHash>    Raw UTF-8 content
+```
+
+## CLI Companion
+
+The `llmtxt` CLI lets agents use LocalBackend from shell scripts:
+
+```bash
+# Initialise once per project
+llmtxt init
+
+# Create a spec doc
+llmtxt create-doc "T317 Specification"
+
+# Push a version from stdin
+cat spec.md | llmtxt push-version t317-specification "Add RemoteBackend requirements"
+
+# Sync to a remote instance when ready to share
+llmtxt sync --remote https://api.llmtxt.my --api-key $LLMTXT_API_KEY
+```
+
+## Full Example
+
+A runnable end-to-end example is at `apps/examples/cleo-integration/index.ts`.
+
+```bash
+# From the monorepo root:
+pnpm --filter @llmtxt/example-cleo-integration exec tsx index.ts
+```
+
+The example demonstrates all four patterns above with a shared LocalBackend.
+
+## Switching to Remote
+
+When your team outgrows local-only storage, swap to `RemoteBackend` with a
+single config change:
+
+```ts
+import { RemoteBackend } from 'llmtxt/remote';
+
+const backend = new RemoteBackend({
+  baseUrl: 'https://api.llmtxt.my',
+  apiKey: process.env.LLMTXT_API_KEY,
+});
+// All the same calls work — same interface.
+```

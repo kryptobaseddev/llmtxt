@@ -218,6 +218,16 @@ importers:
         specifier: ^6.0.2
         version: 6.0.2
 
+  apps/examples/cleo-integration:
+    dependencies:
+      llmtxt:
+        specifier: workspace:*
+        version: link:../../../packages/llmtxt
+    devDependencies:
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
+
   apps/frontend:
     dependencies:
       daisyui:

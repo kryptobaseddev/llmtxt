@@ -1,0 +1,16 @@
+{
+  "name": "@llmtxt/example-cleo-integration",
+  "version": "0.0.1",
+  "private": true,
+  "description": "CLEO project management + LLMtxt LocalBackend integration example",
+  "type": "module",
+  "scripts": {
+    "start": "tsx index.ts"
+  },
+  "dependencies": {
+    "llmtxt": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0"
+  }
+}
