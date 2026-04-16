@@ -13,17 +13,15 @@
  *
  * Authentication: uses the existing requireAuth middleware (Bearer API key or
  * cookie session).
+ *
+ * Wave D (T353.7): delegates persistence to fastify.backendCore.* (IdentityOps).
  */
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { eq, isNull } from 'drizzle-orm';
 import * as ed from '@noble/ed25519';
 import { sha512 } from '@noble/hashes/sha2.js';
 import { hashContent } from 'llmtxt';
-import { db } from '../db/index.js';
-import { agentPubkeys } from '../db/schema.js';
 import { requireAuth } from '../middleware/auth.js';
-// generateId import removed — agent_pubkeys uses Postgres UUID defaultRandom()
 
 // Noble ed25519 v3 requires setting the hash function in Node.js:
 // https://github.com/paulmillr/noble-ed25519#usage
@@ -32,13 +30,9 @@ ed.hashes.sha512 = sha512;
 // ── Helpers ──────────────────────────────────────────────────────
 
 /**
- * Compute SHA-256 fingerprint of a public key (first 8 hex chars).
- *
- * Returns the first 16 hex chars (64 bits) of SHA-256(pubkey_bytes).
+ * Compute SHA-256 fingerprint of a public key (first 16 hex chars).
  */
 function computeFingerprint(pubkeyHex: string): string {
-  // Hash the canonical hex string of the pubkey bytes (deterministic).
-  // hashContent = WASM Rust SHA-256 (SSOT per docs/SSOT.md).
   const hash = hashContent(pubkeyHex);
   return hash.slice(0, 16);
 }
@@ -47,7 +41,6 @@ function computeFingerprint(pubkeyHex: string): string {
 function isValidEd25519Point(pubkeyHex: string): boolean {
   try {
     if (pubkeyHex.length !== 64) return false;
-    // Noble v3: Point.fromHex accepts a lowercase hex string and throws on invalid points.
     ed.Point.fromHex(pubkeyHex);
     return true;
   } catch {
@@ -78,37 +71,6 @@ const keyIdParamsSchema = z.object({
 type RegisterKeyBody = z.infer<typeof registerKeyBodySchema>;
 type KeyIdParams = z.infer<typeof keyIdParamsSchema>;
 
-// ── Safe view ────────────────────────────────────────────────────
-
-function safeKeyView(row: {
-  id: string;
-  agentId: string;
-  pubkey: Buffer;
-  createdAt: Date | number;
-  revokedAt: Date | number | null;
-}) {
-  const pubkeyHex = Buffer.isBuffer(row.pubkey)
-    ? row.pubkey.toString('hex')
-    : Buffer.from(row.pubkey).toString('hex');
-  return {
-    id: row.id,
-    agent_id: row.agentId,
-    pubkey_hex: pubkeyHex,
-    fingerprint: computeFingerprint(pubkeyHex),
-    created_at:
-      row.createdAt instanceof Date
-        ? row.createdAt.toISOString()
-        : new Date(row.createdAt as number).toISOString(),
-    revoked: row.revokedAt !== null,
-    revoked_at:
-      row.revokedAt instanceof Date
-        ? (row.revokedAt as Date).toISOString()
-        : row.revokedAt !== null
-          ? new Date(row.revokedAt as number).toISOString()
-          : null,
-  };
-}
-
 // ── Route handler ─────────────────────────────────────────────────
 
 /** Register agent key management routes under /agents/keys. */
@@ -137,17 +99,9 @@ export async function agentKeyRoutes(fastify: FastifyInstance) {
         });
       }
 
-      const userId = request.user!.id;
-
-      // Check if this agent_id already has an active key
-      // If so, reject — caller must revoke first
-      const [existing] = await db
-        .select({ id: agentPubkeys.id, revokedAt: agentPubkeys.revokedAt })
-        .from(agentPubkeys)
-        .where(eq(agentPubkeys.agentId, agent_id))
-        .limit(1);
-
-      if (existing && existing.revokedAt === null) {
+      // Check if this agent_id already has an active key — reject if so
+      const existing = await fastify.backendCore.lookupAgentPubkey(agent_id);
+      if (existing) {
         return reply.status(409).send({
           error: 'Conflict',
           message:
@@ -155,47 +109,41 @@ export async function agentKeyRoutes(fastify: FastifyInstance) {
         });
       }
 
-      const pubkeyLower = pubkey_hex.toLowerCase();
-      const fingerprint = computeFingerprint(pubkeyLower);
-      const now = new Date();
-
-      // Insert new key — let Postgres generate the UUID primary key via defaultRandom()
-      await db.insert(agentPubkeys).values({
-        agentId: agent_id,
-        pubkey: Buffer.from(pubkeyLower, 'hex'),
-        createdAt: now,
-      });
-
-      // Fetch back by agent_id (since we don't have the generated UUID)
-      const [row] = await db
-        .select()
-        .from(agentPubkeys)
-        .where(eq(agentPubkeys.agentId, agent_id))
-        .limit(1);
+      const record = await fastify.backendCore.registerAgentPubkey(agent_id, pubkey_hex.toLowerCase(), label);
+      const fingerprint = computeFingerprint(record.pubkeyHex);
 
       return reply.status(201).send({
-        ...safeKeyView(row),
+        agent_id: record.agentId,
+        pubkey_hex: record.pubkeyHex,
         fingerprint,
         label: label ?? null,
+        created_at: new Date(record.createdAt).toISOString(),
+        revoked: false,
+        revoked_at: null,
       });
     }
   );
 
-  // GET /agents/keys — list active keys for the authenticated user
+  // GET /agents/keys — list active keys (all non-revoked keys)
   fastify.get(
     '/agents/keys',
     { preHandler: requireAuth },
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      const rows = await db
-        .select()
-        .from(agentPubkeys)
-        .where(isNull(agentPubkeys.revokedAt));
-
-      return { keys: rows.map((r: { id: string; agentId: string; pubkey: Buffer; createdAt: Date | number; revokedAt: Date | number | null }) => safeKeyView(r)) };
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      const records = await fastify.backendCore.listAgentPubkeys();
+      return reply.send({
+        keys: records.map((r) => ({
+          agent_id: r.agentId,
+          pubkey_hex: r.pubkeyHex,
+          fingerprint: computeFingerprint(r.pubkeyHex),
+          created_at: new Date(r.createdAt).toISOString(),
+          revoked: !!r.revokedAt,
+          revoked_at: r.revokedAt ? new Date(r.revokedAt).toISOString() : null,
+        })),
+      });
     }
   );
 
-  // DELETE /agents/keys/:id — soft-revoke a key
+  // DELETE /agents/keys/:id — soft-revoke a key by agent_id
   fastify.delete<{ Params: KeyIdParams }>(
     '/agents/keys/:id',
     { preHandler: requireAuth },
@@ -205,31 +153,23 @@ export async function agentKeyRoutes(fastify: FastifyInstance) {
         return reply.status(400).send({ error: 'Invalid params' });
       }
 
-      const { id } = parseResult.data;
+      const { id } = parseResult.data; // id is the agent_id in this route
 
-      // Look up the key row
-      const [row] = await db
-        .select()
-        .from(agentPubkeys)
-        .where(eq(agentPubkeys.id, id))
-        .limit(1);
-
-      if (!row) {
+      // Look up the key by agent_id
+      const existing = await fastify.backendCore.lookupAgentPubkey(id);
+      if (!existing) {
         return reply.status(404).send({ error: 'Key not found' });
       }
 
-      // Soft-revoke
-      const now = new Date();
-      await db
-        .update(agentPubkeys)
-        .set({ revokedAt: now })
-        .where(eq(agentPubkeys.id, id));
+      const revoked = await fastify.backendCore.revokeAgentPubkey(id, existing.pubkeyHex);
+      if (!revoked) {
+        return reply.status(404).send({ error: 'Key not found or already revoked' });
+      }
 
       return reply.status(200).send({
-        id,
-        agent_id: row.agentId,
+        agent_id: id,
         revoked: true,
-        revoked_at: now.toISOString(),
+        revoked_at: new Date().toISOString(),
       });
     }
   );

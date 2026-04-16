@@ -10,6 +10,10 @@
  *   DELETE /documents/:slug/access/:userId       — revoke a role grant
  *   PUT    /documents/:slug/visibility           — change document visibility
  *   POST   /documents/:slug/access/invite        — invite by email
+ *
+ * Wave D (T353.7): role grants + visibility changes delegate to
+ * fastify.backendCore.* (AccessControlOps).
+ * Invite resolution and pending invites remain direct (schema-specific logic).
  */
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
@@ -17,11 +21,11 @@ import { eq, and } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import {
   documents,
-  documentRoles,
   documentOrgs,
   organizations,
   users,
   pendingInvites,
+  documentRoles,
 } from '../db/schema.js';
 import { requireAuth } from '../middleware/auth.js';
 import { canManage } from '../middleware/rbac.js';
@@ -48,19 +52,6 @@ const inviteBody = z.object({
 });
 
 // ────────────────────────────────────────────────────────────────
-// Helpers
-// ────────────────────────────────────────────────────────────────
-
-async function resolveDocumentId(slug: string): Promise<{ id: string; ownerId: string | null; visibility: string } | null> {
-  const [doc] = await db
-    .select({ id: documents.id, ownerId: documents.ownerId, visibility: documents.visibility })
-    .from(documents)
-    .where(eq(documents.slug, slug))
-    .limit(1);
-  return doc ?? null;
-}
-
-// ────────────────────────────────────────────────────────────────
 // Route plugin
 // ────────────────────────────────────────────────────────────────
 
@@ -75,21 +66,14 @@ export async function accessControlRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const { slug } = slugParams.parse(request.params);
 
-      const doc = await resolveDocumentId(slug);
+      const doc = await fastify.backendCore.getDocumentBySlug(slug);
       if (!doc) return reply.status(404).send({ error: 'Not Found', message: 'Document not found' });
+      const docRow = doc as unknown as Record<string, unknown>;
+      const docId = docRow.id as string;
 
-      // Fetch explicit role grants
-      const roles = await db
-        .select({
-          userId: documentRoles.userId,
-          role: documentRoles.role,
-          grantedBy: documentRoles.grantedBy,
-          grantedAt: documentRoles.grantedAt,
-        })
-        .from(documentRoles)
-        .where(eq(documentRoles.documentId, doc.id));
+      const acl = await fastify.backendCore.getDocumentAccess(docId);
 
-      // Fetch associated orgs
+      // Fetch associated orgs (schema-specific join — stays direct)
       const orgs = await db
         .select({
           orgId: documentOrgs.orgId,
@@ -99,9 +83,9 @@ export async function accessControlRoutes(fastify: FastifyInstance) {
         })
         .from(documentOrgs)
         .innerJoin(organizations, eq(organizations.id, documentOrgs.orgId))
-        .where(eq(documentOrgs.documentId, doc.id));
+        .where(eq(documentOrgs.documentId, docId));
 
-      // Fetch pending invites
+      // Fetch pending invites (schema-specific — stays direct)
       const invites = await db
         .select({
           id: pendingInvites.id,
@@ -111,13 +95,13 @@ export async function accessControlRoutes(fastify: FastifyInstance) {
           expiresAt: pendingInvites.expiresAt,
         })
         .from(pendingInvites)
-        .where(eq(pendingInvites.documentId, doc.id));
+        .where(eq(pendingInvites.documentId, docId));
 
       return {
         slug,
-        visibility: doc.visibility,
-        ownerId: doc.ownerId,
-        roles,
+        visibility: acl.visibility,
+        ownerId: docRow.ownerId,
+        roles: acl.grants,
         orgs,
         pendingInvites: invites,
       };
@@ -145,11 +129,13 @@ export async function accessControlRoutes(fastify: FastifyInstance) {
       }
       const { userId, role } = bodyResult.data;
 
-      const doc = await resolveDocumentId(slug);
+      const doc = await fastify.backendCore.getDocumentBySlug(slug);
       if (!doc) return reply.status(404).send({ error: 'Not Found', message: 'Document not found' });
+      const docRow = doc as unknown as Record<string, unknown>;
+      const docId = docRow.id as string;
+      const ownerId = docRow.ownerId as string | null;
 
-      // Cannot grant roles to the owner — they already have owner-level access
-      if (doc.ownerId === userId) {
+      if (ownerId === userId) {
         return reply.status(409).send({
           error: 'Conflict',
           message: 'User is the document owner and already has full access',
@@ -168,35 +154,9 @@ export async function accessControlRoutes(fastify: FastifyInstance) {
       }
 
       const now = Date.now();
-      const grantedBy = request.user!.id;
+      await fastify.backendCore.grantDocumentAccess(docId, { userId, role });
 
-      // Upsert: if a role row exists for this (document, user) pair, update the role.
-      const [existing] = await db
-        .select({ id: documentRoles.id })
-        .from(documentRoles)
-        .where(and(eq(documentRoles.documentId, doc.id), eq(documentRoles.userId, userId)))
-        .limit(1);
-
-      if (existing) {
-        await db
-          .update(documentRoles)
-          .set({ role, grantedBy, grantedAt: now })
-          .where(eq(documentRoles.id, existing.id));
-
-        return reply.status(200).send({ slug, userId, role, grantedBy, grantedAt: now, updated: true });
-      }
-
-      const id = crypto.randomUUID();
-      await db.insert(documentRoles).values({
-        id,
-        documentId: doc.id,
-        userId,
-        role,
-        grantedBy,
-        grantedAt: now,
-      });
-
-      return reply.status(201).send({ id, slug, userId, role, grantedBy, grantedAt: now });
+      return reply.status(201).send({ slug, userId, role, grantedAt: now });
     }
   );
 
@@ -213,36 +173,23 @@ export async function accessControlRoutes(fastify: FastifyInstance) {
       }
       const { slug, userId } = paramsResult.data;
 
-      const doc = await resolveDocumentId(slug);
+      const doc = await fastify.backendCore.getDocumentBySlug(slug);
       if (!doc) return reply.status(404).send({ error: 'Not Found', message: 'Document not found' });
+      const docRow = doc as unknown as Record<string, unknown>;
+      const docId = docRow.id as string;
+      const ownerId = docRow.ownerId as string | null;
 
-      // Cannot revoke the owner's implicit access
-      if (doc.ownerId === userId) {
+      if (ownerId === userId) {
         return reply.status(409).send({
           error: 'Conflict',
           message: 'Cannot revoke owner access. Transfer ownership first.',
         });
       }
 
-      const [existing] = await db
-        .select({ id: documentRoles.id, role: documentRoles.role })
-        .from(documentRoles)
-        .where(and(eq(documentRoles.documentId, doc.id), eq(documentRoles.userId, userId)))
-        .limit(1);
-
-      if (!existing) {
+      const revoked = await fastify.backendCore.revokeDocumentAccess(docId, userId);
+      if (!revoked) {
         return reply.status(404).send({ error: 'Not Found', message: 'No role grant found for this user' });
       }
-
-      // Do not allow revoking an 'owner' role through this endpoint
-      if (existing.role === 'owner') {
-        return reply.status(409).send({
-          error: 'Conflict',
-          message: 'Cannot revoke owner role through this endpoint',
-        });
-      }
-
-      await db.delete(documentRoles).where(eq(documentRoles.id, existing.id));
 
       return { slug, userId, revoked: true, revokedAt: Date.now() };
     }
@@ -269,13 +216,11 @@ export async function accessControlRoutes(fastify: FastifyInstance) {
       }
       const { visibility } = bodyResult.data;
 
-      const doc = await resolveDocumentId(slug);
+      const doc = await fastify.backendCore.getDocumentBySlug(slug);
       if (!doc) return reply.status(404).send({ error: 'Not Found', message: 'Document not found' });
+      const docId = (doc as unknown as Record<string, unknown>).id as string;
 
-      await db
-        .update(documents)
-        .set({ visibility })
-        .where(eq(documents.slug, slug));
+      await fastify.backendCore.setDocumentVisibility(docId, visibility);
 
       return { slug, visibility, updatedAt: Date.now() };
     }
@@ -283,6 +228,7 @@ export async function accessControlRoutes(fastify: FastifyInstance) {
 
   // ──────────────────────────────────────────────────────────────
   // POST /documents/:slug/access/invite — invite by email
+  // (Invite logic is schema-specific and stays direct)
   // ──────────────────────────────────────────────────────────────
   fastify.post<{ Params: { slug: string }; Body: z.infer<typeof inviteBody> }>(
     '/documents/:slug/access/invite',
@@ -302,8 +248,11 @@ export async function accessControlRoutes(fastify: FastifyInstance) {
       }
       const { email, role } = bodyResult.data;
 
-      const doc = await resolveDocumentId(slug);
+      const doc = await fastify.backendCore.getDocumentBySlug(slug);
       if (!doc) return reply.status(404).send({ error: 'Not Found', message: 'Document not found' });
+      const docRow = doc as unknown as Record<string, unknown>;
+      const docId = docRow.id as string;
+      const ownerId = docRow.ownerId as string | null;
 
       const now = Date.now();
       const invitedBy = request.user!.id;
@@ -316,36 +265,14 @@ export async function accessControlRoutes(fastify: FastifyInstance) {
         .limit(1);
 
       if (existingUser) {
-        // User exists — skip the invite queue and grant the role directly.
-        // Upsert logic same as POST /access.
-        if (doc.ownerId === existingUser.id) {
+        if (ownerId === existingUser.id) {
           return reply.status(409).send({
             error: 'Conflict',
             message: 'User is the document owner and already has full access',
           });
         }
 
-        const [existingRole] = await db
-          .select({ id: documentRoles.id })
-          .from(documentRoles)
-          .where(and(eq(documentRoles.documentId, doc.id), eq(documentRoles.userId, existingUser.id)))
-          .limit(1);
-
-        if (existingRole) {
-          await db
-            .update(documentRoles)
-            .set({ role, grantedBy: invitedBy, grantedAt: now })
-            .where(eq(documentRoles.id, existingRole.id));
-        } else {
-          await db.insert(documentRoles).values({
-            id: crypto.randomUUID(),
-            documentId: doc.id,
-            userId: existingUser.id,
-            role,
-            grantedBy: invitedBy,
-            grantedAt: now,
-          });
-        }
+        await fastify.backendCore.grantDocumentAccess(docId, { userId: existingUser.id, role });
 
         return reply.status(201).send({
           slug,
@@ -357,12 +284,11 @@ export async function accessControlRoutes(fastify: FastifyInstance) {
         });
       }
 
-      // User does not exist — store a pending invite.
-      // Upsert: update the role if an invite already exists for this (document, email).
+      // User does not exist — store a pending invite
       const [existingInvite] = await db
         .select({ id: pendingInvites.id })
         .from(pendingInvites)
-        .where(and(eq(pendingInvites.documentId, doc.id), eq(pendingInvites.email, email)))
+        .where(and(eq(pendingInvites.documentId, docId), eq(pendingInvites.email, email)))
         .limit(1);
 
       if (existingInvite) {
@@ -371,18 +297,12 @@ export async function accessControlRoutes(fastify: FastifyInstance) {
           .set({ role, invitedBy, createdAt: now })
           .where(eq(pendingInvites.id, existingInvite.id));
 
-        return reply.status(200).send({
-          slug,
-          email,
-          role,
-          status: 'pending',
-          updatedAt: now,
-        });
+        return reply.status(200).send({ slug, email, role, status: 'pending', updatedAt: now });
       }
 
       await db.insert(pendingInvites).values({
         id: crypto.randomUUID(),
-        documentId: doc.id,
+        documentId: docId,
         email,
         role,
         invitedBy,
@@ -390,13 +310,7 @@ export async function accessControlRoutes(fastify: FastifyInstance) {
         expiresAt: null,
       });
 
-      return reply.status(201).send({
-        slug,
-        email,
-        role,
-        status: 'pending',
-        createdAt: now,
-      });
+      return reply.status(201).send({ slug, email, role, status: 'pending', createdAt: now });
     }
   );
 }
