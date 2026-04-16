@@ -1416,6 +1416,110 @@ export class LocalBackend implements Backend {
       .get();
     return !!row;
   }
+
+  // ── New interface stubs (T353) ─────────────────────────────────
+  // These methods are defined in the Backend interface for PostgresBackend.
+  // LocalBackend stubs throw NotImplemented so CI surfaces missing impls clearly.
+
+  async listAgentPubkeys(_userId?: string): Promise<import('./index.js').AgentPubkeyRecord[]> {
+    throw new Error('LocalBackend: listAgentPubkeys not yet implemented');
+  }
+  async listContributors(_documentId: string): Promise<import('../core/backend.js').ContributorRecord[]> {
+    throw new Error('LocalBackend: listContributors not yet implemented');
+  }
+  async getApprovalChain(_documentId: string): Promise<import('../core/backend.js').ApprovalChainResult> {
+    throw new Error('LocalBackend: getApprovalChain not yet implemented');
+  }
+  async createCollection(_params: import('../core/backend.js').CreateCollectionParams): Promise<import('../core/backend.js').Collection> {
+    throw new Error('LocalBackend: createCollection not yet implemented');
+  }
+  async getCollection(_slug: string): Promise<import('../core/backend.js').Collection | null> {
+    throw new Error('LocalBackend: getCollection not yet implemented');
+  }
+  async listCollections(_params?: import('../core/backend.js').ListCollectionsParams): Promise<import('../core/backend.js').ListResult<import('../core/backend.js').Collection>> {
+    throw new Error('LocalBackend: listCollections not yet implemented');
+  }
+  async addDocToCollection(_collectionSlug: string, _documentSlug: string, _position?: number): Promise<void> {
+    throw new Error('LocalBackend: addDocToCollection not yet implemented');
+  }
+  async removeDocFromCollection(_collectionSlug: string, _documentSlug: string): Promise<boolean> {
+    throw new Error('LocalBackend: removeDocFromCollection not yet implemented');
+  }
+  async reorderCollection(_collectionSlug: string, _orderedSlugs: string[]): Promise<void> {
+    throw new Error('LocalBackend: reorderCollection not yet implemented');
+  }
+  async exportCollection(_collectionSlug: string): Promise<import('../core/backend.js').CollectionExport> {
+    throw new Error('LocalBackend: exportCollection not yet implemented');
+  }
+  async createDocumentLink(_params: import('../core/backend.js').CreateDocLinkParams): Promise<import('../core/backend.js').DocumentLink> {
+    throw new Error('LocalBackend: createDocumentLink not yet implemented');
+  }
+  async getDocumentLinks(_documentId: string): Promise<import('../core/backend.js').DocumentLink[]> {
+    throw new Error('LocalBackend: getDocumentLinks not yet implemented');
+  }
+  async deleteDocumentLink(_documentId: string, _linkId: string): Promise<boolean> {
+    throw new Error('LocalBackend: deleteDocumentLink not yet implemented');
+  }
+  async getGlobalGraph(_params?: { maxNodes?: number }): Promise<import('../core/backend.js').GraphResult> {
+    throw new Error('LocalBackend: getGlobalGraph not yet implemented');
+  }
+  async createWebhook(_params: import('../core/backend.js').CreateWebhookParams): Promise<import('../core/backend.js').Webhook> {
+    throw new Error('LocalBackend: createWebhook not yet implemented');
+  }
+  async listWebhooks(_userId: string): Promise<import('../core/backend.js').Webhook[]> {
+    throw new Error('LocalBackend: listWebhooks not yet implemented');
+  }
+  async deleteWebhook(_id: string, _userId: string): Promise<boolean> {
+    throw new Error('LocalBackend: deleteWebhook not yet implemented');
+  }
+  async testWebhook(_id: string): Promise<import('../core/backend.js').WebhookTestResult> {
+    throw new Error('LocalBackend: testWebhook not yet implemented');
+  }
+  async createSignedUrl(_params: import('../core/backend.js').CreateSignedUrlParams): Promise<import('../core/backend.js').SignedUrl> {
+    throw new Error('LocalBackend: createSignedUrl not yet implemented');
+  }
+  async verifySignedUrl(_token: string): Promise<{ documentId: string; permission: 'read' | 'write' } | null> {
+    throw new Error('LocalBackend: verifySignedUrl not yet implemented');
+  }
+  async getDocumentAccess(_documentId: string): Promise<import('../core/backend.js').AccessControlList> {
+    throw new Error('LocalBackend: getDocumentAccess not yet implemented');
+  }
+  async grantDocumentAccess(_documentId: string, _params: import('../core/backend.js').GrantAccessParams): Promise<void> {
+    throw new Error('LocalBackend: grantDocumentAccess not yet implemented');
+  }
+  async revokeDocumentAccess(_documentId: string, _userId: string): Promise<boolean> {
+    throw new Error('LocalBackend: revokeDocumentAccess not yet implemented');
+  }
+  async setDocumentVisibility(_documentId: string, _visibility: import('../core/backend.js').DocumentVisibility): Promise<void> {
+    throw new Error('LocalBackend: setDocumentVisibility not yet implemented');
+  }
+  async createOrganization(_params: import('../core/backend.js').CreateOrgParams): Promise<import('../core/backend.js').Organization> {
+    throw new Error('LocalBackend: createOrganization not yet implemented');
+  }
+  async getOrganization(_slug: string): Promise<import('../core/backend.js').Organization | null> {
+    throw new Error('LocalBackend: getOrganization not yet implemented');
+  }
+  async listOrganizations(_userId: string): Promise<import('../core/backend.js').Organization[]> {
+    throw new Error('LocalBackend: listOrganizations not yet implemented');
+  }
+  async addOrgMember(_orgSlug: string, _userId: string, _role?: string): Promise<void> {
+    throw new Error('LocalBackend: addOrgMember not yet implemented');
+  }
+  async removeOrgMember(_orgSlug: string, _userId: string): Promise<boolean> {
+    throw new Error('LocalBackend: removeOrgMember not yet implemented');
+  }
+  async createApiKey(_params: import('../core/backend.js').CreateApiKeyParams): Promise<import('../core/backend.js').ApiKeyWithSecret> {
+    throw new Error('LocalBackend: createApiKey not yet implemented');
+  }
+  async listApiKeys(_userId: string): Promise<import('../core/backend.js').ApiKey[]> {
+    throw new Error('LocalBackend: listApiKeys not yet implemented');
+  }
+  async deleteApiKey(_id: string, _userId: string): Promise<boolean> {
+    throw new Error('LocalBackend: deleteApiKey not yet implemented');
+  }
+  async rotateApiKey(_id: string, _userId: string): Promise<import('../core/backend.js').ApiKeyWithSecret> {
+    throw new Error('LocalBackend: rotateApiKey not yet implemented');
+  }
 }
 
 // ── Utility ───────────────────────────────────────────────────

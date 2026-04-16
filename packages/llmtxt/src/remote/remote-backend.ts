@@ -661,4 +661,108 @@ export class RemoteBackend implements Backend {
       throw e;
     }
   }
+
+  // ── New interface stubs (T353) ────────────────────────────────────
+  // RemoteBackend delegates to api.llmtxt.my. These stubs will be replaced
+  // with actual HTTP calls during Wave D.
+
+  async listAgentPubkeys(_userId?: string): Promise<import('../core/backend.js').AgentPubkeyRecord[]> {
+    throw new Error('RemoteBackend: listAgentPubkeys not yet implemented');
+  }
+  async listContributors(_documentId: string): Promise<import('../core/backend.js').ContributorRecord[]> {
+    throw new Error('RemoteBackend: listContributors not yet implemented');
+  }
+  async getApprovalChain(_documentId: string): Promise<import('../core/backend.js').ApprovalChainResult> {
+    throw new Error('RemoteBackend: getApprovalChain not yet implemented');
+  }
+  async createCollection(_params: import('../core/backend.js').CreateCollectionParams): Promise<import('../core/backend.js').Collection> {
+    throw new Error('RemoteBackend: createCollection not yet implemented');
+  }
+  async getCollection(_slug: string): Promise<import('../core/backend.js').Collection | null> {
+    throw new Error('RemoteBackend: getCollection not yet implemented');
+  }
+  async listCollections(_params?: import('../core/backend.js').ListCollectionsParams): Promise<import('../core/backend.js').ListResult<import('../core/backend.js').Collection>> {
+    throw new Error('RemoteBackend: listCollections not yet implemented');
+  }
+  async addDocToCollection(_collectionSlug: string, _documentSlug: string, _position?: number): Promise<void> {
+    throw new Error('RemoteBackend: addDocToCollection not yet implemented');
+  }
+  async removeDocFromCollection(_collectionSlug: string, _documentSlug: string): Promise<boolean> {
+    throw new Error('RemoteBackend: removeDocFromCollection not yet implemented');
+  }
+  async reorderCollection(_collectionSlug: string, _orderedSlugs: string[]): Promise<void> {
+    throw new Error('RemoteBackend: reorderCollection not yet implemented');
+  }
+  async exportCollection(_collectionSlug: string): Promise<import('../core/backend.js').CollectionExport> {
+    throw new Error('RemoteBackend: exportCollection not yet implemented');
+  }
+  async createDocumentLink(_params: import('../core/backend.js').CreateDocLinkParams): Promise<import('../core/backend.js').DocumentLink> {
+    throw new Error('RemoteBackend: createDocumentLink not yet implemented');
+  }
+  async getDocumentLinks(_documentId: string): Promise<import('../core/backend.js').DocumentLink[]> {
+    throw new Error('RemoteBackend: getDocumentLinks not yet implemented');
+  }
+  async deleteDocumentLink(_documentId: string, _linkId: string): Promise<boolean> {
+    throw new Error('RemoteBackend: deleteDocumentLink not yet implemented');
+  }
+  async getGlobalGraph(_params?: { maxNodes?: number }): Promise<import('../core/backend.js').GraphResult> {
+    throw new Error('RemoteBackend: getGlobalGraph not yet implemented');
+  }
+  async createWebhook(_params: import('../core/backend.js').CreateWebhookParams): Promise<import('../core/backend.js').Webhook> {
+    throw new Error('RemoteBackend: createWebhook not yet implemented');
+  }
+  async listWebhooks(_userId: string): Promise<import('../core/backend.js').Webhook[]> {
+    throw new Error('RemoteBackend: listWebhooks not yet implemented');
+  }
+  async deleteWebhook(_id: string, _userId: string): Promise<boolean> {
+    throw new Error('RemoteBackend: deleteWebhook not yet implemented');
+  }
+  async testWebhook(_id: string): Promise<import('../core/backend.js').WebhookTestResult> {
+    throw new Error('RemoteBackend: testWebhook not yet implemented');
+  }
+  async createSignedUrl(_params: import('../core/backend.js').CreateSignedUrlParams): Promise<import('../core/backend.js').SignedUrl> {
+    throw new Error('RemoteBackend: createSignedUrl not yet implemented');
+  }
+  async verifySignedUrl(_token: string): Promise<{ documentId: string; permission: 'read' | 'write' } | null> {
+    throw new Error('RemoteBackend: verifySignedUrl not yet implemented');
+  }
+  async getDocumentAccess(_documentId: string): Promise<import('../core/backend.js').AccessControlList> {
+    throw new Error('RemoteBackend: getDocumentAccess not yet implemented');
+  }
+  async grantDocumentAccess(_documentId: string, _params: import('../core/backend.js').GrantAccessParams): Promise<void> {
+    throw new Error('RemoteBackend: grantDocumentAccess not yet implemented');
+  }
+  async revokeDocumentAccess(_documentId: string, _userId: string): Promise<boolean> {
+    throw new Error('RemoteBackend: revokeDocumentAccess not yet implemented');
+  }
+  async setDocumentVisibility(_documentId: string, _visibility: import('../core/backend.js').DocumentVisibility): Promise<void> {
+    throw new Error('RemoteBackend: setDocumentVisibility not yet implemented');
+  }
+  async createOrganization(_params: import('../core/backend.js').CreateOrgParams): Promise<import('../core/backend.js').Organization> {
+    throw new Error('RemoteBackend: createOrganization not yet implemented');
+  }
+  async getOrganization(_slug: string): Promise<import('../core/backend.js').Organization | null> {
+    throw new Error('RemoteBackend: getOrganization not yet implemented');
+  }
+  async listOrganizations(_userId: string): Promise<import('../core/backend.js').Organization[]> {
+    throw new Error('RemoteBackend: listOrganizations not yet implemented');
+  }
+  async addOrgMember(_orgSlug: string, _userId: string, _role?: string): Promise<void> {
+    throw new Error('RemoteBackend: addOrgMember not yet implemented');
+  }
+  async removeOrgMember(_orgSlug: string, _userId: string): Promise<boolean> {
+    throw new Error('RemoteBackend: removeOrgMember not yet implemented');
+  }
+  async createApiKey(_params: import('../core/backend.js').CreateApiKeyParams): Promise<import('../core/backend.js').ApiKeyWithSecret> {
+    throw new Error('RemoteBackend: createApiKey not yet implemented');
+  }
+  async listApiKeys(_userId: string): Promise<import('../core/backend.js').ApiKey[]> {
+    throw new Error('RemoteBackend: listApiKeys not yet implemented');
+  }
+  async deleteApiKey(_id: string, _userId: string): Promise<boolean> {
+    throw new Error('RemoteBackend: deleteApiKey not yet implemented');
+  }
+  async rotateApiKey(_id: string, _userId: string): Promise<import('../core/backend.js').ApiKeyWithSecret> {
+    throw new Error('RemoteBackend: rotateApiKey not yet implemented');
+  }
 }

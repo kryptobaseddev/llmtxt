@@ -48,6 +48,10 @@
     "./embeddings": {
       "types": "./dist/embeddings.d.ts",
       "import": "./dist/embeddings.js"
+    },
+    "./pg": {
+      "types": "./dist/pg/index.d.ts",
+      "import": "./dist/pg/index.js"
     }
   },
   "files": [
