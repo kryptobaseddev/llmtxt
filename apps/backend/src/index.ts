@@ -22,6 +22,9 @@ import { semanticRoutes } from './routes/semantic.js';
 import { accessControlRoutes } from './routes/access-control.js';
 import { organizationRoutes } from './routes/organizations.js';
 import { wsRoutes } from './routes/ws.js';
+import { wsCrdtRoutes } from './routes/ws-crdt.js';
+import { startCrdtCompactionJob } from './jobs/crdt-compaction.js';
+import { initCrdtPubSub } from './realtime/redis-pubsub.js';
 import { sseRoutes } from './routes/sse.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import { startWebhookWorker } from './events/webhooks.js';
@@ -474,6 +477,8 @@ async function main() {
     // SSE and webhook routes live under /api like all other HTTP routes.
     // ──────────────────────────────────────────────────────────────────
     await app.register(wsRoutes, { prefix: '/ws' });
+    // CRDT collaborative editing: /api/v1/documents/:slug/sections/:sid/collab
+    await app.register(wsCrdtRoutes, { prefix: '/api/v1' });
     await app.register(sseRoutes, { prefix: '/api' });
     await app.register(webhookRoutes, { prefix: '/api' });
 
@@ -482,6 +487,12 @@ async function main() {
 
     // Start event log background jobs (compaction + chain validation).
     startEventLogJobs();
+
+    // Initialize CRDT pub/sub adapter (Redis or in-process fallback).
+    await initCrdtPubSub();
+
+    // Start CRDT compaction background job (periodic GC of raw update rows).
+    startCrdtCompactionJob();
 
     // Register error handler
     app.setErrorHandler((error: unknown, request, reply) => {
