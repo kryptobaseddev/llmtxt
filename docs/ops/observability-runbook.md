@@ -7,6 +7,30 @@
 
 ---
 
+## Environment Variable Reference Policy
+
+All env vars that point to another Railway service MUST use Railway Reference
+Variables.  Hardcoded URLs or hostnames are forbidden in `railway variables --set`
+commands — they break silently when Railway rotates public domains on redeploy.
+
+| Use case | Correct form |
+|----------|-------------|
+| Public URL (browser-accessible) | `https://${{Service.RAILWAY_PUBLIC_DOMAIN}}` |
+| Internal endpoint (private network) | `http://${{Service.RAILWAY_PRIVATE_DOMAIN}}:<literal-port>` |
+| Credential from another service | `${{Service.EXPOSED_VAR}}` e.g. `${{Postgres.DATABASE_URL}}` |
+| Port for cross-service wiring | Always a literal number — never `${{Service.PORT}}` |
+
+**PORT pitfall:** `${{OtelCollector.PORT}}` resolves to `13133` (the health-check
+port), not `4318` (OTLP/HTTP).  Always use literal port constants.  See
+[`docs/ops/CREDENTIALS.md` — PORT pitfall section](CREDENTIALS.md#port-pitfall--never-use-serviceport-for-protocol-specific-ports)
+for details.
+
+Note: `railway variables --kv` output shows the **resolved** value, not the raw
+reference template.  The reference IS stored; Railway re-resolves it at every deploy.
+Do not copy the resolved URL back into `--set` as a hardcoded literal.
+
+---
+
 ## Overview
 
 This runbook documents how to deploy and operate the LLMtxt self-hosted
