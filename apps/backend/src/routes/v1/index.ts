@@ -42,9 +42,17 @@ import {
   API_VERSION_REGISTRY,
   addVersionResponseHeaders,
 } from '../../middleware/api-version.js';
+import { agentSignaturePlugin } from '../../middleware/agent-signature-plugin.js';
 
 export async function v1Routes(app: FastifyInstance): Promise<void> {
   const versionInfo = API_VERSION_REGISTRY[1];
+
+  // Register agent signature plugin first — scopes onRequest (signature verify)
+  // and onSend (X-Server-Receipt + receipt body) hooks to every route in v1.
+  // Must be registered before any route module so all handlers inherit the hooks.
+  // (T368: registering at root scope put the hooks in a separate Fastify child
+  // context that v1 route handlers never entered, so X-Server-Receipt was never set.)
+  await app.register(agentSignaturePlugin);
 
   // Stamp every request entering this scope with v1 context.
   // This runs before any route handler so request.apiVersion is always set.

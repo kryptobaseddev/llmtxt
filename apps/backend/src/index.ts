@@ -50,7 +50,6 @@ import { registerAuditLogging, auditLogRoutes } from './middleware/audit.js';
 import { registerRateLimiting } from './middleware/rate-limit.js';
 import { registerMetrics } from './middleware/metrics.js';
 import { wellKnownAgentsRoutes } from './routes/well-known-agents.js';
-import { agentSignaturePlugin } from './middleware/agent-signature-plugin.js';
 import { startNonceCleanup } from './middleware/verify-agent-signature.js';
 import { presenceRegistry } from './presence/registry.js';
 import { presenceRoutes } from './routes/presence.js';
@@ -457,8 +456,9 @@ async function main() {
     // ──────────────────────────────────────────────────────────────────
     // Agent identity routes (T147): key management + well-known discovery
     // ──────────────────────────────────────────────────────────────────
-    // Register agent signature middleware globally (scoped by method+path in plugin)
-    await app.register(agentSignaturePlugin);
+    // NOTE: agentSignaturePlugin is registered INSIDE v1Routes (routes/v1/index.ts)
+    // so that its onSend hook runs within the same Fastify scope as the route
+    // handlers and can set X-Server-Receipt on actual responses. (T368 fix)
     // NOTE: agentKeyRoutes is registered inside v1Routes (see below), so no
     // standalone /api/v1 registration is needed — doing so causes
     // FST_ERR_DUPLICATED_ROUTE. T147 is a new feature (never shipped under
