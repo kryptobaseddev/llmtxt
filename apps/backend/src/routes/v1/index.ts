@@ -27,7 +27,6 @@ import { organizationRoutes } from '../organizations.js';
 import { semanticRoutes } from '../semantic.js';
 import { crossDocRoutes } from '../cross-doc.js';
 import { collectionRoutes } from '../collections.js';
-import { sseRoutes } from '../sse.js';
 import { webhookRoutes } from '../webhooks.js';
 import { documentEventRoutes } from '../document-events.js';
 import { agentKeyRoutes } from '../agent-keys.js';
@@ -79,7 +78,11 @@ export async function v1Routes(app: FastifyInstance): Promise<void> {
   await app.register(semanticRoutes);
   await app.register(crossDocRoutes);
   await app.register(collectionRoutes);
-  await app.register(sseRoutes);
+  // sseRoutes intentionally NOT registered under /api/v1 — it collides with
+  // documentEventRoutes which owns GET /documents/:slug/events on v1.
+  // sse.ts remains registered at the legacy /api prefix in index.ts for
+  // backwards-compatible SSE consumers that haven't migrated to the
+  // T148 event-log endpoint.
   await app.register(webhookRoutes);
   await app.register(documentEventRoutes);
   await app.register(agentKeyRoutes);
