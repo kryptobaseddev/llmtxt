@@ -134,11 +134,8 @@ export function subscribeSection(
   // We import Yjs lazily at runtime so this file can be tree-shaken when the
   // subscribeSection function is not used.
   async function connect(): Promise<void> {
-    // Dynamic import of yjs (optional peer dependency).
-    // The `@ts-expect-error` suppresses the "cannot find module" error since
-    // yjs is an optional dep not listed in package.json for this package —
-    // consumers that use subscribeSection() must install yjs themselves.
-    // @ts-expect-error — yjs is an optional peer dependency
+    // Dynamic import of yjs for tree-shaking: consumers that only use the
+    // HTTP fallback (getSectionText) will not bundle the WS connection code.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const Y: any = await import('yjs');
 
@@ -240,8 +237,7 @@ export async function getSectionText(
 
   const json = (await res.json()) as { stateBase64: string };
 
-  // Decode state and extract text using Yjs (optional peer dep).
-  // @ts-expect-error — yjs is an optional peer dependency
+  // Decode state and extract text using Yjs (dynamic import for tree-shaking).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const Y: any = await import('yjs');
   const stateBytes = Uint8Array.from(atob(json.stateBase64), (c) => c.charCodeAt(0));

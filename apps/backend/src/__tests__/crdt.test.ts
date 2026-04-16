@@ -9,6 +9,9 @@
  *
  * No live server required — tests the primitives and persistence layer
  * directly using in-memory state.
+ *
+ * All CRDT operations go through the llmtxt SDK (packages/llmtxt) — no
+ * direct yjs imports per SSoT (docs/SSOT.md).
  */
 
 import { describe, it } from 'node:test';
@@ -21,8 +24,9 @@ import {
   crdt_state_vector,
   crdt_diff_update,
   crdt_get_text,
+  crdt_make_state,
+  crdt_make_incremental_update,
 } from '../crdt/primitives.js';
-import * as Y from 'yjs';
 
 // ── T207: Byte-identity tests ─────────────────────────────────────────────────
 
@@ -33,12 +37,8 @@ describe('CRDT byte-identity tests (T207)', () => {
   });
 
   it('crdt_encode_state_as_update is stable across two calls', () => {
-    const state = (() => {
-      const doc = new Y.Doc();
-      const text = doc.getText('content');
-      text.insert(0, 'hello world');
-      return Buffer.from(Y.encodeStateAsUpdate(doc));
-    })();
+    // Build a seed state via SDK helper (no direct yjs import needed)
+    const state = crdt_make_state('hello world');
 
     const update1 = crdt_encode_state_as_update(state);
     const update2 = crdt_encode_state_as_update(state);
@@ -51,13 +51,9 @@ describe('CRDT byte-identity tests (T207)', () => {
   });
 
   it('apply_update(init, merge(U1,U2)) == apply_update(apply_update(init,U1),U2) — associativity', () => {
-    const doc1 = new Y.Doc();
-    doc1.getText('content').insert(0, 'Hello ');
-    const u1 = Buffer.from(Y.encodeStateAsUpdate(doc1));
-
-    const doc2 = new Y.Doc();
-    doc2.getText('content').insert(0, 'World');
-    const u2 = Buffer.from(Y.encodeStateAsUpdate(doc2));
+    // Two independent agents each start from empty and insert their content
+    const u1 = crdt_make_state('Hello ');
+    const u2 = crdt_make_state('World');
 
     const init = Buffer.alloc(0);
 
@@ -76,9 +72,7 @@ describe('CRDT byte-identity tests (T207)', () => {
   });
 
   it('apply_update(init, U) applied twice yields same content — idempotency', () => {
-    const doc = new Y.Doc();
-    doc.getText('content').insert(0, 'idempotent content');
-    const update = Buffer.from(Y.encodeStateAsUpdate(doc));
+    const update = crdt_make_state('idempotent content');
 
     const stateOnce = crdt_apply_update(Buffer.alloc(0), update);
     const stateTwice = crdt_apply_update(stateOnce, update);
@@ -96,9 +90,7 @@ describe('CRDT byte-identity tests (T207)', () => {
   });
 
   it('crdt_diff_update: diff from empty sv gives full state', () => {
-    const doc = new Y.Doc();
-    doc.getText('content').insert(0, 'full content');
-    const state = Buffer.from(Y.encodeStateAsUpdate(doc));
+    const state = crdt_make_state('full content');
 
     const diff = crdt_diff_update(state, Buffer.alloc(0));
     assert.ok(diff.length > 0, 'diff should be non-empty');
@@ -115,26 +107,22 @@ describe('CRDT two-agent convergence (T209)', () => {
     // Simulate server in-memory state
     let serverState = Buffer.alloc(0);
 
-    // Agent A sends 5 updates
+    // Agent A: build 5 incremental updates (each appends to previous agent state)
     const agentAUpdates: Buffer[] = [];
-    const docA = new Y.Doc();
-    docA.getText('content');
+    let agentAState: Buffer = Buffer.alloc(0);
     for (let i = 0; i < 5; i++) {
-      const prevSv = Y.encodeStateVector(docA);
-      docA.getText('content').insert(docA.getText('content').length, `A${i} `);
-      const update = Buffer.from(Y.encodeStateAsUpdate(docA, prevSv));
-      agentAUpdates.push(update);
+      const upd = crdt_make_incremental_update(agentAState, `A${i} `);
+      agentAUpdates.push(upd);
+      agentAState = crdt_apply_update(agentAState, upd) as Buffer;
     }
 
-    // Agent B sends 5 updates (concurrently, starting from empty)
+    // Agent B: build 5 incremental updates (starting from empty, concurrently)
     const agentBUpdates: Buffer[] = [];
-    const docB = new Y.Doc();
-    docB.getText('content');
+    let agentBState: Buffer = Buffer.alloc(0);
     for (let i = 0; i < 5; i++) {
-      const prevSv = Y.encodeStateVector(docB);
-      docB.getText('content').insert(docB.getText('content').length, `B${i} `);
-      const update = Buffer.from(Y.encodeStateAsUpdate(docB, prevSv));
-      agentBUpdates.push(update);
+      const upd = crdt_make_incremental_update(agentBState, `B${i} `);
+      agentBUpdates.push(upd);
+      agentBState = crdt_apply_update(agentBState, upd) as Buffer;
     }
 
     // Server applies all 10 updates (simulating ws-crdt.ts handler)
@@ -145,19 +133,20 @@ describe('CRDT two-agent convergence (T209)', () => {
     }
 
     // Agent A reconnects: sends its state vector; server replies with diff
-    const svA = crdt_state_vector(Buffer.from(Y.encodeStateAsUpdate(docA)));
+    const svA = crdt_state_vector(agentAState);
     const diffForA = crdt_diff_update(serverState, svA);
-    Y.applyUpdate(docA, new Uint8Array(diffForA));
+    // Apply diff to agent A's local state to simulate client-side merge
+    const agentAFinal = crdt_apply_update(agentAState, diffForA);
 
     // Agent B reconnects: sends its state vector; server replies with diff
-    const svB = crdt_state_vector(Buffer.from(Y.encodeStateAsUpdate(docB)));
+    const svB = crdt_state_vector(agentBState);
     const diffForB = crdt_diff_update(serverState, svB);
-    Y.applyUpdate(docB, new Uint8Array(diffForB));
+    const agentBFinal = crdt_apply_update(agentBState, diffForB);
 
     // Both agents should now have the same text as the server
     const serverText = crdt_get_text(serverState);
-    const textA = docA.getText('content').toString();
-    const textB = docB.getText('content').toString();
+    const textA = crdt_get_text(agentAFinal);
+    const textB = crdt_get_text(agentBFinal);
 
     assert.equal(textA, serverText, `Agent A must converge to server state`);
     assert.equal(textB, serverText, `Agent B must converge to server state`);
@@ -171,15 +160,9 @@ describe('CRDT two-agent convergence (T209)', () => {
 
   it('Yjs sync step 1+2 completes convergence in one RTT (simulated)', () => {
     // Server state with known content
-    const serverDoc = new Y.Doc();
-    serverDoc.getText('content').insert(0, 'server initial content');
-    const serverState = Buffer.from(Y.encodeStateAsUpdate(serverDoc));
+    const serverState = crdt_make_state('server initial content');
 
-    // Fresh client (empty)
-    const clientDoc = new Y.Doc();
-    clientDoc.getText('content');
-
-    // Sync step 1: client sends SV
+    // Fresh client (empty) — client SV is an empty doc's state vector
     const clientSv = crdt_new_doc(); // empty sv
     assert.ok(clientSv.length > 0);
 
@@ -188,22 +171,17 @@ describe('CRDT two-agent convergence (T209)', () => {
     assert.ok(diff.length > 0, 'diff should be non-empty for fresh client');
 
     // Client applies diff
-    Y.applyUpdate(clientDoc, new Uint8Array(diff));
+    const clientState = crdt_apply_update(Buffer.alloc(0), diff);
     assert.equal(
-      clientDoc.getText('content').toString(),
+      crdt_get_text(clientState),
       'server initial content',
       'client should converge after one RTT',
     );
   });
 
   it('crdt_merge_updates is commutative', () => {
-    const docA = new Y.Doc();
-    docA.getText('content').insert(0, 'Alpha');
-    const uA = Buffer.from(Y.encodeStateAsUpdate(docA));
-
-    const docB = new Y.Doc();
-    docB.getText('content').insert(0, 'Beta');
-    const uB = Buffer.from(Y.encodeStateAsUpdate(docB));
+    const uA = crdt_make_state('Alpha');
+    const uB = crdt_make_state('Beta');
 
     const mergedAB = crdt_get_text(crdt_merge_updates([uA, uB]));
     const mergedBA = crdt_get_text(crdt_merge_updates([uB, uA]));

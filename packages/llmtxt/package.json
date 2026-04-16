@@ -25,6 +25,10 @@
     "./graph": {
       "types": "./dist/graph.d.ts",
       "import": "./dist/graph.js"
+    },
+    "./crdt-primitives": {
+      "types": "./dist/crdt-primitives.d.ts",
+      "import": "./dist/crdt-primitives.js"
     }
   },
   "files": [
@@ -59,6 +63,7 @@
   "dependencies": {
     "@noble/ed25519": "^3.1.0",
     "@noble/hashes": "^2.2.0",
+    "yjs": "^13.6.30",
     "zod": "^3.25.3"
   },
   "peerDependencies": {
