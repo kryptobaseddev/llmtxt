@@ -1,0 +1,36 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# Start command for the web service.
+# For the worker service, override startCommand to:
+#   ./manage.py celery_worker
+startCommand = "gunicorn glitchtip.wsgi --bind 0.0.0.0:8000 --timeout 60 --workers 4"
+healthcheckPath = "/"
+healthcheckTimeout = 60
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+# Required environment variables — set in Railway dashboard:
+#
+# SECRET_KEY              = <generate with: openssl rand -hex 32>
+# DATABASE_URL            = ${{Postgres.DATABASE_URL}}          (use Railway Postgres addon)
+# REDIS_URL               = ${{Redis.REDIS_URL}}                (use Railway Redis addon)
+# GLITCHTIP_DOMAIN        = https://${{RAILWAY_PUBLIC_DOMAIN}}
+# DEFAULT_FROM_EMAIL      = errors@yourdomain.com
+# EMAIL_URL               = smtp://user:pass@smtp.host:587       (optional — needed for email alerts)
+# CELERY_WORKER_CONCURRENCY = 2
+# ENABLE_USER_REGISTRATION = False                               (lock down signup)
+#
+# After first deploy, create org + project via Django admin or API.
+# The generated DSN looks like:
+#   https://<key>@<GLITCHTIP_DOMAIN>/api/<project-id>/envelope/
+# Save this as SENTRY_DSN in the backend service.
+
+[[volumes]]
+# GlitchTip stores uploads (attachments) on disk if not using S3.
+# For small deployments local storage is fine.
+mountPath = "/code/uploads"
+# Railway volume name: glitchtip-uploads
+# Create with: railway volume create --name glitchtip-uploads
