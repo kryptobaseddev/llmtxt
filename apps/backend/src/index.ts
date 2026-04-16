@@ -26,10 +26,6 @@ import { sseRoutes } from './routes/sse.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import { startWebhookWorker } from './events/webhooks.js';
 import { startEventLogJobs } from './jobs/event-log-compaction.js';
-import { startCrdtCompactionJob } from './jobs/crdt-compaction.js';
-import { initCrdtPubSub } from './realtime/redis-pubsub.js';
-import { wsCrdtRoutes } from './routes/ws-crdt.js';
-import { crdtRoutes } from './routes/crdt.js';
 import { crossDocRoutes } from './routes/cross-doc.js';
 import { collectionRoutes } from './routes/collections.js';
 import { publicDir, extractSlug, extractSlugWithExtension, handleContentNegotiation, getDocumentWithContent } from './routes/web.js';
@@ -481,26 +477,11 @@ async function main() {
     await app.register(sseRoutes, { prefix: '/api' });
     await app.register(webhookRoutes, { prefix: '/api' });
 
-    // ── CRDT WebSocket routes: /ws/documents/:slug/sections/:sectionId/crdt
-    // Registered on the same /ws prefix as the existing WS routes so that
-    // the WebSocket plugin is already active.
-    await app.register(wsCrdtRoutes, { prefix: '/ws' });
-
-    // ── CRDT HTTP fallback routes: /api/v1/documents/:slug/sections/:sectionId/crdt-*
-    await app.register(crdtRoutes, { prefix: '/api/v1' });
-
     // Start the webhook delivery worker (attaches a single event-bus listener).
     startWebhookWorker();
 
     // Start event log background jobs (compaction + chain validation).
     startEventLogJobs();
-
-    // ── CRDT pub/sub: initialize Redis adapter (or in-process fallback).
-    // Must run after DB is ready. Fire-and-forget — non-fatal if Redis is down.
-    await initCrdtPubSub();
-
-    // ── CRDT compaction: periodic GC of raw update rows.
-    startCrdtCompactionJob();
 
     // Register error handler
     app.setErrorHandler((error: unknown, request, reply) => {

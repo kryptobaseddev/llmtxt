@@ -14,7 +14,7 @@
  */
 import type { FastifyInstance } from 'fastify';
 import { hashContent } from 'llmtxt';
-import { verifyAgentSignature, buildReceipt } from './verify-agent-signature.js';
+import { verifyAgentSignature, buildReceipt, computeReceipt } from './verify-agent-signature.js';
 
 /** URL patterns for the 5 write routes that require signature middleware. */
 const WRITE_ROUTE_PATTERNS: Array<{ method: string; pathPattern: RegExp }> = [
@@ -102,7 +102,11 @@ export async function agentSignaturePlugin(fastify: FastifyInstance): Promise<vo
       signatureVerified: request.signatureVerified ?? false,
     });
 
-    // Attach receipt to response
+    // Set X-Server-Receipt header: HMAC-SHA256(secret, canonicalPayload + payloadHash)
+    const receiptHex = computeReceipt(canonicalPayload, payloadHash);
+    reply.header('X-Server-Receipt', receiptHex);
+
+    // Attach receipt to response body
     body.receipt = receipt;
     return JSON.stringify(body);
   });

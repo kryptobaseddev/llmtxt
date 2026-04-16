@@ -31,7 +31,6 @@ import { sseRoutes } from '../sse.js';
 import { webhookRoutes } from '../webhooks.js';
 import { documentEventRoutes } from '../document-events.js';
 import { agentKeyRoutes } from '../agent-keys.js';
-import { crdtRoutes } from '../crdt.js';
 import {
   API_VERSION_REGISTRY,
   addVersionResponseHeaders,
@@ -76,5 +75,4 @@ export async function v1Routes(app: FastifyInstance): Promise<void> {
   await app.register(webhookRoutes);
   await app.register(documentEventRoutes);
   await app.register(agentKeyRoutes);
-  await app.register(crdtRoutes);
 }
