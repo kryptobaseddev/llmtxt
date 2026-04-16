@@ -7,6 +7,8 @@
     "sdk",
     "api",
     "---Multi-Agent---",
-    "multi-agent"
+    "multi-agent",
+    "---Demo---",
+    "demo"
   ]
 }

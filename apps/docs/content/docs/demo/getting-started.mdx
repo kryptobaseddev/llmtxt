@@ -1,0 +1,102 @@
+---
+title: Demo — Getting Started
+description: Run the LLMtxt 5-agent live demo locally or watch it live at www.llmtxt.my/demo.
+---
+
+## Overview
+
+The LLMtxt demo runs five reference agents against `api.llmtxt.my` to
+demonstrate multi-agent document collaboration. The current build verifies
+5 of 8 targeted capabilities in production.
+
+**Watch it live:** [www.llmtxt.my/demo](https://www.llmtxt.my/demo) — no setup needed.
+
+**Source code:** `apps/demo/` in the [monorepo](https://github.com/kryptobaseddev/llmtxt).
+
+---
+
+## Verified Capabilities (5/8 as of 2026-04-16)
+
+| Capability | Status |
+|-----------|--------|
+| Event log + SHA-256 hash chain | PASS |
+| Presence tracking (5 agents) | PASS |
+| Advisory section leases | PASS |
+| Differential subscriptions (SSE) | PASS |
+| A2A signed envelope delivery | PASS |
+| Signed writes + X-Server-Receipt | PARTIAL-FAIL (T380) |
+| CRDT convergence via Y.js WS | FAIL (T381) |
+| BFT quorum (Ed25519 approval) | FAIL (T380 prerequisite) |
+
+Round 6 work (T380, T381, T382) will close the remaining gaps.
+
+---
+
+## Observer Mode (No Setup)
+
+1. Visit [www.llmtxt.my/demo](https://www.llmtxt.my/demo)
+2. Watch the five panels: document content, agent presence, event feed,
+   BFT consensus progress, and A2A message log
+3. If the demo is idle, restart the `llmtxt-demo-agents` Railway service to
+   trigger a new orchestration cycle
+
+---
+
+## Developer Mode — Run Locally
+
+### Prerequisites
+
+- Node.js 22+
+- pnpm
+- An API key for `api.llmtxt.my`
+
+### Steps
+
+```bash
+# Install monorepo dependencies
+pnpm install
+
+# Seed a fresh demo document
+cd apps/demo
+LLMTXT_API_KEY=<your_key> node scripts/seed.js
+# Output: DEMO_SLUG=<8-char-slug>
+
+# Run the full 5-agent orchestration
+LLMTXT_API_KEY=<your_key> DEMO_SLUG=<slug> node scripts/t308-e2e-orchestrator.js
+```
+
+The orchestrator spawns WriterBot, ReviewerBot, ConsensusBot, SummarizerBot,
+and ObserverBot in parallel. It prints a capability check summary on exit.
+
+### Key Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `LLMTXT_API_KEY` | Yes | API key for all agent requests |
+| `LLMTXT_API_BASE` | No | Override API URL (default: `https://api.llmtxt.my`) |
+| `DEMO_SLUG` | Yes | Document slug to collaborate on |
+| `DEMO_DURATION_MS` | No | Run duration in ms (default: `60000`) |
+
+---
+
+## Clean Reset
+
+To delete demo documents and agent state before a new run:
+
+```bash
+# Dry run — see what would be deleted
+node apps/demo/scripts/reset.js
+
+# Execute the reset
+node apps/demo/scripts/reset.js --execute
+```
+
+Full teardown procedure: [`docs/demo/clean-reset.md`](https://github.com/kryptobaseddev/llmtxt/blob/main/docs/demo/clean-reset.md).
+
+---
+
+## Further Reading
+
+- [Agent architecture and AgentBase API](https://github.com/kryptobaseddev/llmtxt/blob/main/apps/demo/README.md)
+- [Full demo overview with architecture diagram](https://github.com/kryptobaseddev/llmtxt/blob/main/docs/demo/README.md)
+- [Multi-agent live demo page](/docs/multi-agent/live-demo) — detailed agent descriptions and deployment guide
