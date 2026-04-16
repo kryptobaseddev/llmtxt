@@ -351,8 +351,14 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
    * {
    *   slug: string,
    *   format: string,
-   *   sections: [{ title, depth, startLine, endLine, tokenCount, type }],
+   *   sections: [{ slug, title, depth, startLine, endLine, tokenCount, type }],
    * }
+   *
+   * Each section includes a `slug` field (URL-safe kebab-case derived from the
+   * section title) that clients can use as the `:sectionId` parameter in the
+   * CRDT collab WebSocket URL:
+   *   wss://api.llmtxt.my/api/v1/documents/:slug/sections/:sectionId/collab
+   * (T370 fix: observer-bot needs sectionId to build the /collab WS URL)
    */
   fastify.get<{ Params: { slug: string } }>('/documents/:slug/sections', { preHandler: [canRead] }, async (
     request,
@@ -365,10 +371,24 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
     }
 
     const overview = generateOverview(doc.content);
+
+    // Derive a stable URL-safe slug for each section from its title.
+    // This is the identifier used as :sectionId in the /collab WS endpoint.
+    const sections = overview.sections.map((section, idx) => {
+      const sectionSlug = section.title
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, '')     // strip non-word, non-space, non-hyphen
+        .replace(/\s+/g, '-')         // spaces → hyphens
+        .replace(/-+/g, '-')          // collapse repeated hyphens
+        .replace(/^-+|-+$/g, '')      // trim leading/trailing hyphens
+        || `section-${idx}`;          // fallback for empty titles
+      return { ...section, slug: sectionSlug };
+    });
+
     return reply.send({
       slug,
       format: overview.format,
-      sections: overview.sections,
+      sections,
     });
   });
 
