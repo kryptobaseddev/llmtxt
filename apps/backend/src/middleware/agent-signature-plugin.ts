@@ -52,12 +52,36 @@ function isWriteRoute(method: string, url: string): boolean {
  * Register the agent signature plugin as a Fastify plugin.
  *
  * Adds:
- * - onRequest hook: calls verifyAgentSignature for write routes
+ * - preParsing hook: captures raw body bytes for write routes (needed by verifyAgentSignature)
+ * - preHandler hook: calls verifyAgentSignature for write routes (runs AFTER body is parsed)
  * - onSend hook: injects receipt into JSON responses for write routes
  */
 async function agentSignaturePluginImpl(fastify: FastifyInstance): Promise<void> {
-  // onRequest hook: verify agent signature for write routes
-  fastify.addHook('onRequest', async (request, reply) => {
+  // preParsing hook: capture raw body bytes before JSON parsing.
+  // verifyAgentSignature needs the raw body to recompute the body hash for
+  // signature verification. Fastify does not set request.rawBody by default;
+  // we capture it here by reading the stream and re-emitting it unchanged.
+  fastify.addHook('preParsing', async (request, _reply, payload) => {
+    if (!isWriteRoute(request.method, request.url)) {
+      return payload;
+    }
+    const { Readable } = await import('node:stream');
+    const chunks: Buffer[] = [];
+    for await (const chunk of payload) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array));
+    }
+    const rawBody = Buffer.concat(chunks);
+    // Attach raw body to request for use by verifyAgentSignature
+    (request as unknown as { rawBody: Buffer }).rawBody = rawBody;
+
+    // Re-emit the raw bytes as a new readable stream for Fastify's JSON body parser
+    return Readable.from([rawBody]);
+  });
+
+  // preHandler hook: verify agent signature for write routes.
+  // Runs after preParsing (so rawBody is populated) and after body parsing
+  // (so request.body is available).
+  fastify.addHook('preHandler', async (request, reply) => {
     if (!isWriteRoute(request.method, request.url)) {
       return;
     }
