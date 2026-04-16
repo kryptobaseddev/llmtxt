@@ -807,19 +807,21 @@ export class PostgresBackend implements Backend {
   async getVersion(documentId: string, versionNumber: number): Promise<any> {
     this._assertOpen();
     const { documents, versions } = this._s;
-    const { eq, and } = this._orm;
+    const { eq, and, or } = this._orm;
 
-    // documentId may be document.id or document.slug — resolve to id first
-    let docId = documentId;
-    if (!documentId.includes('-') && documentId.length <= 20) {
-      // Looks like a slug — resolve
-      const [doc] = await this._db
-        .select({ id: documents.id })
-        .from(documents)
-        .where(eq(documents.slug, documentId));
-      if (!doc) return null;
-      docId = doc.id;
-    }
+    // Resolve documentId to the document's primary key (id).
+    // documentId may be either the document.id (base62, 8 chars) or document.slug.
+    // Strategy: look up the document matching EITHER id OR slug, take whichever
+    // is found. This avoids the brittle length/character heuristic that broke
+    // when base62 IDs (8 chars, no dashes) satisfied the slug-detection condition.
+    const [resolved] = await this._db
+      .select({ id: documents.id })
+      .from(documents)
+      .where(or(eq(documents.id, documentId), eq(documents.slug, documentId)))
+      .limit(1);
+
+    if (!resolved) return null;
+    const docId = resolved.id;
 
     const [version] = await this._db
       .select()
@@ -1323,16 +1325,27 @@ export class PostgresBackend implements Backend {
   async queryEvents(params: QueryEventsParams): Promise<ListResult<DocumentEvent>> {
     this._assertOpen();
     const { documentId, type: typeFilter, since, limit: rawLimit } = params;
-    const { documentEvents } = this._s;
-    const { eq, gt, and, asc } = this._orm;
+    const { documents, documentEvents } = this._s;
+    const { eq, or, gt, and, asc } = this._orm;
 
     const limit = rawLimit ?? 50;
     const sinceSeq = since ? BigInt(since) : BigInt(0);
 
+    // document_events.document_id is a FK to documents.slug (not documents.id).
+    // If the caller passed a document.id (base62), resolve it to the slug first.
+    // Use OR lookup so callers may pass either id or slug.
+    let resolvedDocId = documentId;
+    const [docRow] = await this._db
+      .select({ slug: documents.slug })
+      .from(documents)
+      .where(or(eq(documents.id, documentId), eq(documents.slug, documentId)))
+      .limit(1);
+    if (docRow) resolvedDocId = docRow.slug;
+
     // Build filter conditions
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const conditions: any[] = [
-      eq(documentEvents.documentId, documentId),
+      eq(documentEvents.documentId, resolvedDocId),
       gt(documentEvents.seq, sinceSeq),
     ];
     if (typeFilter) {

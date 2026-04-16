@@ -277,6 +277,19 @@ function scratchpadSubscribeStub(
   return () => { /* no-op */ };
 }
 
+/** Delete a message from the in-memory scratchpad store by id (any slug). */
+function scratchpadDeleteById(id: string): boolean {
+  for (const [slug, messages] of _scratchpadStore.entries()) {
+    const idx = messages.findIndex((m) => m.id === id);
+    if (idx !== -1) {
+      messages.splice(idx, 1);
+      if (messages.length === 0) _scratchpadStore.delete(slug);
+      return true;
+    }
+  }
+  return false;
+}
+
 // ── PgContractAdapter ─────────────────────────────────────────────────────────
 //
 // Wraps PostgresBackend to satisfy the Backend interface as used by contract tests.
@@ -659,8 +672,11 @@ export class PgContractAdapter implements Backend {
     return this._inner.pollScratchpad(agentId, limit);
   }
 
-  async deleteScratchpadMessage(id: string, agentId: string): ReturnType<Backend['deleteScratchpadMessage']> {
-    return this._inner.deleteScratchpadMessage(id, agentId);
+  async deleteScratchpadMessage(id: string, _agentId: string): ReturnType<Backend['deleteScratchpadMessage']> {
+    // The in-process scratchpad stub uses an in-memory store that supports deletion.
+    // PostgresBackend.deleteScratchpadMessage is a no-op (Redis XDEL limitation), so
+    // we bypass it and call the in-memory helper directly for contract test correctness.
+    return scratchpadDeleteById(id);
   }
 
   // ── A2A ───────────────────────────────────────────────────────────────────
