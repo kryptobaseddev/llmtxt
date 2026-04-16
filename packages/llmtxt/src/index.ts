@@ -272,6 +272,10 @@ export type {
   AttachmentVersionOptions,
 } from './types.js';
 
+// ── Document Event Stream (T231) ───────────────────────────────
+export { watchDocument } from './watch.js';
+export type { DocumentEventLogEntry, WatchDocumentOptions } from './watch.js';
+
 // ── SDK Types (re-exported for convenience) ────────────────────
 export type { StorageAdapter } from './sdk/storage-adapter.js';
 export type { LlmtxtDocumentOptions, CreateVersionOptions } from './sdk/document.js';
