@@ -1,0 +1,3140 @@
+{
+  "item": [
+    {
+      "id": "ab460d3b-7256-4cef-b97f-a0afc868848f",
+      "name": "diff-helper",
+      "description": {
+        "content": "",
+        "type": "text/plain"
+      },
+      "item": [],
+      "event": []
+    },
+    {
+      "id": "b16b6df3-baba-4a4b-a601-97cc5493ac6e",
+      "name": "document-events",
+      "description": {
+        "content": "",
+        "type": "text/plain"
+      },
+      "item": [],
+      "event": []
+    },
+    {
+      "id": "fc9d853c-0da5-4a85-a097-35d2ec1e04b6",
+      "name": "embeddings",
+      "description": {
+        "content": "",
+        "type": "text/plain"
+      },
+      "item": [],
+      "event": []
+    },
+    {
+      "id": "18a977a2-fce3-4576-9bdc-c48ec305a0b5",
+      "name": "lease-service",
+      "description": {
+        "content": "",
+        "type": "text/plain"
+      },
+      "item": [],
+      "event": []
+    },
+    {
+      "id": "a9cf2d03-242d-4547-be4a-8e75cafe4cbe",
+      "name": "persistence",
+      "description": {
+        "content": "",
+        "type": "text/plain"
+      },
+      "item": [],
+      "event": []
+    },
+    {
+      "id": "3d656bde-1e1c-4998-9983-c5b1ceb9be14",
+      "name": "registry",
+      "description": {
+        "content": "",
+        "type": "text/plain"
+      },
+      "item": [],
+      "event": []
+    },
+    {
+      "id": "38198f0a-0ffe-453c-a28e-d493f25f04a2",
+      "name": "schema",
+      "description": {
+        "content": "",
+        "type": "text/plain"
+      },
+      "item": [],
+      "event": []
+    },
+    {
+      "id": "7a3675b6-0505-47d6-ad0c-02b6d4e13aa7",
+      "name": "schema-pg",
+      "description": {
+        "content": "",
+        "type": "text/plain"
+      },
+      "item": [],
+      "event": []
+    },
+    {
+      "id": "4fa2bd3a-71cb-4ebe-b98d-7d6d9f7e0df2",
+      "name": "scratchpad",
+      "description": {
+        "content": "",
+        "type": "text/plain"
+      },
+      "item": [],
+      "event": []
+    },
+    {
+      "id": "68b2c595-6e08-492f-8b5b-49e53124e7c7",
+      "name": "test-db",
+      "description": {
+        "content": "",
+        "type": "text/plain"
+      },
+      "item": [],
+      "event": []
+    },
+    {
+      "id": "889a7bcb-c19a-4840-ad28-e9d3d7f9c2e6",
+      "name": "openapi-manifest",
+      "description": {
+        "content": "",
+        "type": "text/plain"
+      },
+      "item": [
+        {
+          "id": "138c150e-7c0d-40c0-929c-df05df87a293",
+          "name": "Compress and store a document.  Accepts plaintext, JSON, or Markdown. Auto-detects format when `format` is omitted. Returns a slug that uniquely identifies the stored document.",
+          "request": {
+            "name": "Compress and store a document.  Accepts plaintext, JSON, or Markdown. Auto-detects format when `format` is omitted. Returns a slug that uniquely identifies the stored document.",
+            "description": {
+              "content": "Compress and store a document.  Accepts plaintext, JSON, or Markdown. Auto-detects format when `format` is omitted. Returns a slug that uniquely identifies the stored document.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "compress"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "739f6295-d280-44d3-a7d2-45063a193e55",
+          "name": "WebSocket endpoint for legacy real-time document event streaming.",
+          "request": {
+            "name": "WebSocket endpoint for legacy real-time document event streaming.",
+            "description": {
+              "content": "WebSocket endpoint for legacy real-time document event streaming.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier (WebSocket upgrade)"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "d3168e54-7094-4db1-a1d9-6ebc6a23aebd",
+          "name": "Update a document (creates a new version).  Increments `currentVersion`, stores the new compressed content as a version record, updates contributors, and invalidates cache.",
+          "request": {
+            "name": "Update a document (creates a new version).  Increments `currentVersion`, stores the new compressed content as a version record, updates contributors, and invalidates cache.",
+            "description": {
+              "content": "Update a document (creates a new version).  Increments `currentVersion`, stores the new compressed content as a version record, updates contributors, and invalidates cache.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "PUT",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "5db66d1e-4a92-41c4-ab86-1ffbec759ee9",
+          "name": "Decompress a document body via POST.  Alternative to GET when the slug must be sent as a body parameter.",
+          "request": {
+            "name": "Decompress a document body via POST.  Alternative to GET when the slug must be sent as a body parameter.",
+            "description": {
+              "content": "Decompress a document body via POST.  Alternative to GET when the slug must be sent as a body parameter.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "decompress"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "6d366779-55a4-46be-94d5-86167207f84c",
+          "name": "Validate content against a predefined schema without storing it.",
+          "request": {
+            "name": "Validate content against a predefined schema without storing it.",
+            "description": {
+              "content": "Validate content against a predefined schema without storing it.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "validate"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "f53aa8ec-9374-437b-b2f4-14b193c67959",
+          "name": "List all documents owned by the authenticated user.",
+          "request": {
+            "name": "List all documents owned by the authenticated user.",
+            "description": {
+              "content": "List all documents owned by the authenticated user.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                "mine"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "a7438cf0-b397-44a5-b32f-ce8071b01953",
+          "name": "List available predefined validation schemas.",
+          "request": {
+            "name": "List available predefined validation schemas.",
+            "description": {
+              "content": "List available predefined validation schemas.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "schemas"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "18eb83de-3ce6-42d6-8a37-94f047d1b715",
+          "name": "Get a specific predefined schema by name.",
+          "request": {
+            "name": "Get a specific predefined schema by name.",
+            "description": {
+              "content": "Get a specific predefined schema by name.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "schemas",
+                ":name"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "name",
+                  "description": "(Required) Schema name (e.g., `prompt-v1`)"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "309595fa-149b-4009-bba8-196ce0535e64",
+          "name": "Get cache statistics (hit/miss counts, size).",
+          "request": {
+            "name": "Get cache statistics (hit/miss counts, size).",
+            "description": {
+              "content": "Get cache statistics (hit/miss counts, size).",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "stats",
+                "cache"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "d63d207b-3ed8-4eb6-8893-a53edbe97884",
+          "name": "Invalidate all cached documents.",
+          "request": {
+            "name": "Invalidate all cached documents.",
+            "description": {
+              "content": "Invalidate all cached documents.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "cache"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "DELETE",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "5df00d7d-3998-4625-8466-89c8e60785e2",
+          "name": "Serve the llms.txt autodiscovery file.",
+          "request": {
+            "name": "Serve the llms.txt autodiscovery file.",
+            "description": {
+              "content": "Serve the llms.txt autodiscovery file.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "llms.txt"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "7c6b226a-3952-4d2a-a354-f7916519c7b5",
+          "name": "List all versions of a document.",
+          "request": {
+            "name": "List all versions of a document.",
+            "description": {
+              "content": "List all versions of a document.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "versions"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "29617575-a5ab-472a-a332-41e8b4417e6e",
+          "name": "Get a specific version of a document.",
+          "request": {
+            "name": "Get a specific version of a document.",
+            "description": {
+              "content": "Get a specific version of a document.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "versions",
+                ":num"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                },
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "num",
+                  "description": "(Required) Version number (1-based)"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "74b4d1f1-d0c7-4a50-bf9a-20e0ca534005",
+          "name": "Get a two-way diff between two versions of a document.",
+          "request": {
+            "name": "Get a two-way diff between two versions of a document.",
+            "description": {
+              "content": "Get a two-way diff between two versions of a document.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "diff"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "909eeab1-e027-4ccf-8329-cf23243bcad4",
+          "name": "Get a multi-way diff across N versions (N ≥ 2).  Uses LCS-based alignment to produce a consensus view of divergent versions.",
+          "request": {
+            "name": "Get a multi-way diff across N versions (N ≥ 2).  Uses LCS-based alignment to produce a consensus view of divergent versions.",
+            "description": {
+              "content": "Get a multi-way diff across N versions (N ≥ 2).  Uses LCS-based alignment to produce a consensus view of divergent versions.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "multi-diff"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "3e7a8e5a-10d7-43a0-82a7-1fd0f4f76f71",
+          "name": "Create multiple versions in a single atomic batch.  Each entry in the batch becomes a separate version record in order.",
+          "request": {
+            "name": "Create multiple versions in a single atomic batch.  Each entry in the batch becomes a separate version record in order.",
+            "description": {
+              "content": "Create multiple versions in a single atomic batch.  Each entry in the batch becomes a separate version record in order.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "batch-versions"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "bfc70212-ef2e-46f3-8857-4a1e56224e89",
+          "name": "Transition a document through its lifecycle state machine.  Valid transitions: DRAFT→REVIEW, REVIEW→APPROVED, REVIEW→REJECTED, APPROVED→LOCKED, LOCKED→DRAFT (unlock).",
+          "request": {
+            "name": "Transition a document through its lifecycle state machine.  Valid transitions: DRAFT→REVIEW, REVIEW→APPROVED, REVIEW→REJECTED, APPROVED→LOCKED, LOCKED→DRAFT (unlock).",
+            "description": {
+              "content": "Transition a document through its lifecycle state machine.  Valid transitions: DRAFT→REVIEW, REVIEW→APPROVED, REVIEW→REJECTED, APPROVED→LOCKED, LOCKED→DRAFT (unlock).",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "transition"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "d69aa400-a442-4533-8b34-9e4b3dd62890",
+          "name": "Submit an approval vote for a document in REVIEW state.",
+          "request": {
+            "name": "Submit an approval vote for a document in REVIEW state.",
+            "description": {
+              "content": "Submit an approval vote for a document in REVIEW state.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "approve"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "e5adbe8f-8769-4e7c-bdea-2720c61ff720",
+          "name": "Submit a rejection for a document in REVIEW state.",
+          "request": {
+            "name": "Submit a rejection for a document in REVIEW state.",
+            "description": {
+              "content": "Submit a rejection for a document in REVIEW state.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "reject"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "bb51979c-ca28-4c49-9c8b-6cce4802c4df",
+          "name": "Get approval records for a document.",
+          "request": {
+            "name": "Get approval records for a document.",
+            "description": {
+              "content": "Get approval records for a document.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "approvals"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "02c62df6-804c-44a4-ab8a-d0f8b9007979",
+          "name": "Get contributor statistics for a document.",
+          "request": {
+            "name": "Get contributor statistics for a document.",
+            "description": {
+              "content": "Get contributor statistics for a document.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "contributors"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "8e1351a4-de2c-4d47-8f63-f036b1b0257f",
+          "name": "Register an Ed25519 public key for an agent.  The key is validated as a valid Ed25519 point before storage. A SHA-256 fingerprint (first 16 hex chars) is returned for identification.",
+          "request": {
+            "name": "Register an Ed25519 public key for an agent.  The key is validated as a valid Ed25519 point before storage. A SHA-256 fingerprint (first 16 hex chars) is returned for identification.",
+            "description": {
+              "content": "Register an Ed25519 public key for an agent.  The key is validated as a valid Ed25519 point before storage. A SHA-256 fingerprint (first 16 hex chars) is returned for identification.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "agents",
+                "keys"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "4015d5ec-c035-4484-97f7-13b974279a86",
+          "name": "List all active (non-revoked) Ed25519 keys for the authenticated user.",
+          "request": {
+            "name": "List all active (non-revoked) Ed25519 keys for the authenticated user.",
+            "description": {
+              "content": "List all active (non-revoked) Ed25519 keys for the authenticated user.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "agents",
+                "keys"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "47cb9cad-d8e8-4353-8ce3-a8fe37fc427b",
+          "name": "Revoke (soft-delete) an agent key by ID.  Sets `revoked_at` timestamp; the key is excluded from all future lookups.",
+          "request": {
+            "name": "Revoke (soft-delete) an agent key by ID.  Sets `revoked_at` timestamp; the key is excluded from all future lookups.",
+            "description": {
+              "content": "Revoke (soft-delete) an agent key by ID.  Sets `revoked_at` timestamp; the key is excluded from all future lookups.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "agents",
+                "keys",
+                ":id"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "id",
+                  "description": "(Required) Key record ID"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "04701e19-084e-4887-a990-7c6ea4a83302",
+          "name": "Create a new API key for programmatic access.",
+          "request": {
+            "name": "Create a new API key for programmatic access.",
+            "description": {
+              "content": "Create a new API key for programmatic access.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "keys"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "eed6f93c-f03d-416c-8352-06c05ff0ba59",
+          "name": "List all active API keys for the authenticated user.",
+          "request": {
+            "name": "List all active API keys for the authenticated user.",
+            "description": {
+              "content": "List all active API keys for the authenticated user.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "keys"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "218a0520-8fa7-4f81-bbe0-42b166061fb0",
+          "name": "Delete (revoke) an API key by ID.",
+          "request": {
+            "name": "Delete (revoke) an API key by ID.",
+            "description": {
+              "content": "Delete (revoke) an API key by ID.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "keys",
+                ":id"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "id",
+                  "description": "(Required) API key ID"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "83e7d7bc-8af4-45e7-b03b-8bc6f27dcdb2",
+          "name": "Rotate an API key — atomically replaces the secret.",
+          "request": {
+            "name": "Rotate an API key — atomically replaces the secret.",
+            "description": {
+              "content": "Rotate an API key — atomically replaces the secret.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "keys",
+                ":id",
+                "rotate"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "id",
+                  "description": "(Required) API key ID"
+                }
+              ]
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "c544332c-9587-454e-9756-31c4f18f7482",
+          "name": "Liveness probe — no I/O, always 200 when process is alive.",
+          "request": {
+            "name": "Liveness probe — no I/O, always 200 when process is alive.",
+            "description": {
+              "content": "Liveness probe — no I/O, always 200 when process is alive.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "health"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "ccea247b-9bbf-43a9-88f9-db89ac10f8c8",
+          "name": "Readiness probe — pings the database before returning 200.",
+          "request": {
+            "name": "Readiness probe — pings the database before returning 200.",
+            "description": {
+              "content": "Readiness probe — pings the database before returning 200.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "ready"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "9e405fdd-4d4a-4c0b-97ed-6515d8033f78",
+          "name": "Prometheus metrics endpoint (prom-client).  Protected by `METRICS_TOKEN` env var when set.",
+          "request": {
+            "name": "Prometheus metrics endpoint (prom-client).  Protected by `METRICS_TOKEN` env var when set.",
+            "description": {
+              "content": "Prometheus metrics endpoint (prom-client).  Protected by `METRICS_TOKEN` env var when set.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "metrics"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "f25e771f-cda7-458c-b7d1-610b4ce761b0",
+          "name": "Get a structural overview of a document (section list, stats).",
+          "request": {
+            "name": "Get a structural overview of a document (section list, stats).",
+            "description": {
+              "content": "Get a structural overview of a document (section list, stats).",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "overview"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "e3b23851-fdca-4724-b51c-75347acce9d2",
+          "name": "Get all sections of a document.",
+          "request": {
+            "name": "Get all sections of a document.",
+            "description": {
+              "content": "Get all sections of a document.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "sections"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "9b8c3cc6-bce3-4743-87d6-21a59f9dcbcc",
+          "name": "Get the table of contents for a document.",
+          "request": {
+            "name": "Get the table of contents for a document.",
+            "description": {
+              "content": "Get the table of contents for a document.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "toc"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "187b57c3-1cb9-4dd9-978e-63d3f3c51cc6",
+          "name": "Get a named section from a document.",
+          "request": {
+            "name": "Get a named section from a document.",
+            "description": {
+              "content": "Get a named section from a document.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "sections",
+                ":name"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                },
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "name",
+                  "description": "(Required) Section heading identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "9a763d34-5af4-4a87-8761-8dec5141cea4",
+          "name": "Full-text search within a document.",
+          "request": {
+            "name": "Full-text search within a document.",
+            "description": {
+              "content": "Full-text search within a document.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "search"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "430574e4-21b5-42b5-acb9-cd05079a7a84",
+          "name": "Fetch a document's raw (unformatted) content.",
+          "request": {
+            "name": "Fetch a document's raw (unformatted) content.",
+            "description": {
+              "content": "Fetch a document's raw (unformatted) content.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "raw"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "fb541042-bf20-4e50-9581-3c098f92a1d8",
+          "name": "Batch-fetch multiple sections from a document.",
+          "request": {
+            "name": "Batch-fetch multiple sections from a document.",
+            "description": {
+              "content": "Batch-fetch multiple sections from a document.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "batch"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "9cfa2b3d-6a04-48e4-97ef-257253809c72",
+          "name": "Get the current CRDT state for a document section (HTTP fallback).",
+          "request": {
+            "name": "Get the current CRDT state for a document section (HTTP fallback).",
+            "description": {
+              "content": "Get the current CRDT state for a document section (HTTP fallback).",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "sections",
+                ":sid",
+                "crdt-state"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                },
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "sid",
+                  "description": "(Required) Section identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "a26ee37a-cff8-409d-b35a-62de06396862",
+          "name": "Apply a CRDT update to a document section (HTTP fallback for WebSocket).",
+          "request": {
+            "name": "Apply a CRDT update to a document section (HTTP fallback for WebSocket).",
+            "description": {
+              "content": "Apply a CRDT update to a document section (HTTP fallback for WebSocket).",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "sections",
+                ":sid",
+                "crdt-update"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                },
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "sid",
+                  "description": "(Required) Section identifier"
+                }
+              ]
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "22e59ce2-20bf-4d47-b97f-ce61f487edb5",
+          "name": "WebSocket endpoint for real-time CRDT collaboration on a document section.  Subprotocol: `yjs-sync-v1`. Auth via `?token=<apiKey>` query param or session cookie. Unauthenticated connections are closed with code 4401.",
+          "request": {
+            "name": "WebSocket endpoint for real-time CRDT collaboration on a document section.  Subprotocol: `yjs-sync-v1`. Auth via `?token=<apiKey>` query param or session cookie. Unauthenticated connections are closed with code 4401.",
+            "description": {
+              "content": "WebSocket endpoint for real-time CRDT collaboration on a document section.  Subprotocol: `yjs-sync-v1`. Auth via `?token=<apiKey>` query param or session cookie. Unauthenticated connections are closed with code 4401.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "documents",
+                ":slug",
+                "sections",
+                ":sid",
+                "collab"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                },
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "sid",
+                  "description": "(Required) Section identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "0b203c23-10bb-44ba-8033-fb39be0c8daf",
+          "name": "Get all agents currently active in a document (within the last 30 seconds).",
+          "request": {
+            "name": "Get all agents currently active in a document (within the last 30 seconds).",
+            "description": {
+              "content": "Get all agents currently active in a document (within the last 30 seconds).",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "documents",
+                ":slug",
+                "presence"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "37ede7ab-a58b-4589-b3a4-80b7f2b6ca6d",
+          "name": "Acquire an exclusive write lease on a document section.",
+          "request": {
+            "name": "Acquire an exclusive write lease on a document section.",
+            "description": {
+              "content": "Acquire an exclusive write lease on a document section.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "documents",
+                ":slug",
+                "sections",
+                ":sid",
+                "lease"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                },
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "sid",
+                  "description": "(Required) Section identifier"
+                }
+              ]
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "470f0525-202d-4175-9746-a6343e1a572e",
+          "name": "Get the current lease holder for a document section.",
+          "request": {
+            "name": "Get the current lease holder for a document section.",
+            "description": {
+              "content": "Get the current lease holder for a document section.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "documents",
+                ":slug",
+                "sections",
+                ":sid",
+                "lease"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                },
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "sid",
+                  "description": "(Required) Section identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "268ad5d6-f597-4829-a863-cae8ffdc2789",
+          "name": "Release a lease on a document section.",
+          "request": {
+            "name": "Release a lease on a document section.",
+            "description": {
+              "content": "Release a lease on a document section.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "documents",
+                ":slug",
+                "sections",
+                ":sid",
+                "lease"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                },
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "sid",
+                  "description": "(Required) Section identifier"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "706e1d69-e734-43a3-9127-9659426e5f68",
+          "name": "Renew (heartbeat) a lease on a document section.",
+          "request": {
+            "name": "Renew (heartbeat) a lease on a document section.",
+            "description": {
+              "content": "Renew (heartbeat) a lease on a document section.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "documents",
+                ":slug",
+                "sections",
+                ":sid",
+                "lease"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                },
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "sid",
+                  "description": "(Required) Section identifier"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "8d58a51e-ec22-4813-bdc5-772f5b9737ee",
+          "name": "Write to an agent's scratchpad within a document.",
+          "request": {
+            "name": "Write to an agent's scratchpad within a document.",
+            "description": {
+              "content": "Write to an agent's scratchpad within a document.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "documents",
+                ":slug",
+                "scratchpad"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "7c786679-a18a-4545-8c54-9ca055fe7e24",
+          "name": "Read all scratchpad entries for a document (optionally filtered by agent).",
+          "request": {
+            "name": "Read all scratchpad entries for a document (optionally filtered by agent).",
+            "description": {
+              "content": "Read all scratchpad entries for a document (optionally filtered by agent).",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "documents",
+                ":slug",
+                "scratchpad"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "098591cd-f86b-4ef7-aea6-b6be5de32456",
+          "name": "Server-sent events stream of new scratchpad entries.",
+          "request": {
+            "name": "Server-sent events stream of new scratchpad entries.",
+            "description": {
+              "content": "Server-sent events stream of new scratchpad entries.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "documents",
+                ":slug",
+                "scratchpad",
+                "stream"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "dd445dd0-2654-4e4a-8944-b9d03d2bde4b",
+          "name": "Submit a BFT consensus vote for a document section.",
+          "request": {
+            "name": "Submit a BFT consensus vote for a document section.",
+            "description": {
+              "content": "Submit a BFT consensus vote for a document section.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "documents",
+                ":slug",
+                "bft",
+                "vote"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "c18210c7-d9c5-40c3-b44e-73e89e8fdbb0",
+          "name": "Get BFT consensus status for a document.",
+          "request": {
+            "name": "Get BFT consensus status for a document.",
+            "description": {
+              "content": "Get BFT consensus status for a document.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "bft",
+                "status"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "d77b6714-ba89-487e-a889-6e48e424886e",
+          "name": "Get the BFT hash chain for audit verification.",
+          "request": {
+            "name": "Get the BFT hash chain for audit verification.",
+            "description": {
+              "content": "Get the BFT hash chain for audit verification.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "chain"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "c9744c6f-105a-462d-971f-0439399ca30b",
+          "name": "Send a message to an agent's inbox.",
+          "request": {
+            "name": "Send a message to an agent's inbox.",
+            "description": {
+              "content": "Send a message to an agent's inbox.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "agents",
+                ":id",
+                "inbox"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "id",
+                  "description": "(Required) Agent identifier"
+                }
+              ]
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "f5848073-a699-4ff8-962a-043e66b68767",
+          "name": "Read messages from an agent's inbox (poll).",
+          "request": {
+            "name": "Read messages from an agent's inbox (poll).",
+            "description": {
+              "content": "Read messages from an agent's inbox (poll).",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "agents",
+                ":id",
+                "inbox"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "id",
+                  "description": "(Required) Agent identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "7d1bfd53-3f10-4528-afbb-c5e401c92d04",
+          "name": "Get the event log for a document (paginated).",
+          "request": {
+            "name": "Get the event log for a document (paginated).",
+            "description": {
+              "content": "Get the event log for a document (paginated).",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "events"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "e3ceffcd-8996-41aa-8043-d26a9bd5075c",
+          "name": "Subscribe to document events as a server-sent event stream.",
+          "request": {
+            "name": "Subscribe to document events as a server-sent event stream.",
+            "description": {
+              "content": "Subscribe to document events as a server-sent event stream.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "events",
+                "stream"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "5055c18a-aca6-48de-9ec2-4f110f4fce65",
+          "name": "Subscribe to global document events via SSE.",
+          "request": {
+            "name": "Subscribe to global document events via SSE.",
+            "description": {
+              "content": "Subscribe to global document events via SSE.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "v1",
+                "subscribe"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "e7eed7a0-ed10-4f75-a625-81e537887b15",
+          "name": "Generate a time-limited signed URL for unauthenticated document access.",
+          "request": {
+            "name": "Generate a time-limited signed URL for unauthenticated document access.",
+            "description": {
+              "content": "Generate a time-limited signed URL for unauthenticated document access.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "signed-urls"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "163b722e-36fa-4bb0-88ff-7ec9ef07c894",
+          "name": "Three-way merge two document versions with a common ancestor.",
+          "request": {
+            "name": "Three-way merge two document versions with a common ancestor.",
+            "description": {
+              "content": "Three-way merge two document versions with a common ancestor.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "merge"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "c5124ee2-c683-466c-9ec7-c43fbac772ca",
+          "name": "Apply a patch to a document.",
+          "request": {
+            "name": "Apply a patch to a document.",
+            "description": {
+              "content": "Apply a patch to a document.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "patch"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "0f6ba742-2149-4bbb-85c5-2fe0f81bccd5",
+          "name": "Cross-document semantic search.",
+          "request": {
+            "name": "Cross-document semantic search.",
+            "description": {
+              "content": "Cross-document semantic search.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "search"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "ced7b78c-b9b1-4633-9a1c-5aa9d6f90f53",
+          "name": "List outgoing links from a document.",
+          "request": {
+            "name": "List outgoing links from a document.",
+            "description": {
+              "content": "List outgoing links from a document.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "links"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Source document identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "ec64f2e9-fb48-4c97-993f-ef563d42acc3",
+          "name": "Create a link between two documents.",
+          "request": {
+            "name": "Create a link between two documents.",
+            "description": {
+              "content": "Create a link between two documents.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "links"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Source document identifier"
+                }
+              ]
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "a825de7c-c889-4640-9c19-80b29b51aa36",
+          "name": "Delete a link between documents.",
+          "request": {
+            "name": "Delete a link between documents.",
+            "description": {
+              "content": "Delete a link between documents.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "links",
+                ":linkId"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Source document identifier"
+                },
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "linkId",
+                  "description": "(Required) Link record ID"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "baaaf414-a4f7-464b-a1ef-bebaf9083328",
+          "name": "Get the cross-document relationship graph.",
+          "request": {
+            "name": "Get the cross-document relationship graph.",
+            "description": {
+              "content": "Get the cross-document relationship graph.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "graph"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "c11377c0-f3c6-48ca-8391-4a3d937cb46c",
+          "name": "Compute a semantic (embedding-based) diff between two versions.",
+          "request": {
+            "name": "Compute a semantic (embedding-based) diff between two versions.",
+            "description": {
+              "content": "Compute a semantic (embedding-based) diff between two versions.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "semantic-diff"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "40aaaaa3-c7ce-41a0-b20c-b577d4084227",
+          "name": "Compute semantic similarity between two documents.",
+          "request": {
+            "name": "Compute semantic similarity between two documents.",
+            "description": {
+              "content": "Compute semantic similarity between two documents.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "semantic-similarity"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Source document identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "e3ce1af9-c3a1-49a7-a044-b84fb8a63e9f",
+          "name": "Run a semantic consensus check across multiple agent versions.",
+          "request": {
+            "name": "Run a semantic consensus check across multiple agent versions.",
+            "description": {
+              "content": "Run a semantic consensus check across multiple agent versions.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "semantic-consensus"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "7d1e5677-4ca6-4820-a3bf-b51d0b1adee3",
+          "name": "Get the well-known agent descriptor for a registered agent.",
+          "request": {
+            "name": "Get the well-known agent descriptor for a registered agent.",
+            "description": {
+              "content": "Get the well-known agent descriptor for a registered agent.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                ".well-known",
+                "agents",
+                ":id"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "id",
+                  "description": "(Required) Agent identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "e785cb65-d423-4aac-a753-198147dab179",
+          "name": "Register a new webhook endpoint.",
+          "request": {
+            "name": "Register a new webhook endpoint.",
+            "description": {
+              "content": "Register a new webhook endpoint.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "webhooks"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "894a9efc-d4e9-4ca8-ab46-7aef5ef75cc1",
+          "name": "List all webhooks for the authenticated user.",
+          "request": {
+            "name": "List all webhooks for the authenticated user.",
+            "description": {
+              "content": "List all webhooks for the authenticated user.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "webhooks"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "41678a30-69ad-4a3e-b6b6-c320c6efe2b2",
+          "name": "Delete a webhook by ID.",
+          "request": {
+            "name": "Delete a webhook by ID.",
+            "description": {
+              "content": "Delete a webhook by ID.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "webhooks",
+                ":id"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "id",
+                  "description": "(Required) Webhook ID"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "78879727-5718-47c7-b16c-da22a6ff7415",
+          "name": "Get the access control list (ACL) for a document.",
+          "request": {
+            "name": "Get the access control list (ACL) for a document.",
+            "description": {
+              "content": "Get the access control list (ACL) for a document.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "access"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "a65ba6ad-8787-4f70-9577-d41df9051164",
+          "name": "Grant a role to a user on a document.",
+          "request": {
+            "name": "Grant a role to a user on a document.",
+            "description": {
+              "content": "Grant a role to a user on a document.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "access"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                }
+              ]
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "5f25ad5d-247f-48bb-b795-44ea0cce3b64",
+          "name": "Revoke a user's role on a document.",
+          "request": {
+            "name": "Revoke a user's role on a document.",
+            "description": {
+              "content": "Revoke a user's role on a document.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "documents",
+                ":slug",
+                "access",
+                ":userId"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Document identifier"
+                },
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "userId",
+                  "description": "(Required) User ID to revoke"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "378bc12d-bdd3-4112-9b8e-bb7fe648923f",
+          "name": "Create a new organization.",
+          "request": {
+            "name": "Create a new organization.",
+            "description": {
+              "content": "Create a new organization.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "organizations"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "88c64a38-d6cc-49ef-bba8-f6db0787120e",
+          "name": "List organizations the authenticated user belongs to.",
+          "request": {
+            "name": "List organizations the authenticated user belongs to.",
+            "description": {
+              "content": "List organizations the authenticated user belongs to.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "organizations"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "ac191b29-dded-4d54-9797-b5f04d16325c",
+          "name": "Get an organization by slug.",
+          "request": {
+            "name": "Get an organization by slug.",
+            "description": {
+              "content": "Get an organization by slug.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "organizations",
+                ":slug"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Organization slug"
+                }
+              ]
+            },
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "92986777-d1c4-4a56-962f-6a4c1a46734c",
+          "name": "Add a member to an organization.",
+          "request": {
+            "name": "Add a member to an organization.",
+            "description": {
+              "content": "Add a member to an organization.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "organizations",
+                ":slug",
+                "members"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Organization slug"
+                }
+              ]
+            },
+            "method": "POST",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "78db1cf0-818d-415e-a8fb-b6449f4df0e3",
+          "name": "Remove a member from an organization.",
+          "request": {
+            "name": "Remove a member from an organization.",
+            "description": {
+              "content": "Remove a member from an organization.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "organizations",
+                ":slug",
+                "members",
+                ":userId"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "slug",
+                  "description": "(Required) Organization slug"
+                },
+                {
+                  "disabled": false,
+                  "type": "any",
+                  "value": "<string>",
+                  "key": "userId",
+                  "description": "(Required) User ID to remove"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        }
+      ],
+      "event": []
+    }
+  ],
+  "event": [],
+  "variable": [
+    {
+      "type": "string",
+      "value": "https://api.llmtxt.my",
+      "key": "baseUrl"
+    }
+  ],
+  "info": {
+    "_postman_id": "d295fe79-e4e1-4d39-ac3a-fa042a55228c",
+    "name": "@llmtxt/backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": {
+      "content": "Generated by forge-ts",
+      "type": "text/plain"
+    }
+  }
+}
