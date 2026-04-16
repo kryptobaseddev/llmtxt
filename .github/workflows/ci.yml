@@ -76,6 +76,12 @@ jobs:
         working-directory: packages/llmtxt
         run: pnpm run typecheck
 
+      - name: SDK contract tests (LocalBackend + PostgresBackend)
+        # DATABASE_URL_PG is set above via job-level env so both backends run.
+        # LocalBackend always runs; PostgresBackend runs via the service container.
+        working-directory: packages/llmtxt
+        run: pnpm run test
+
       - name: Lint (backend)
         working-directory: apps/backend
         run: pnpm run lint
