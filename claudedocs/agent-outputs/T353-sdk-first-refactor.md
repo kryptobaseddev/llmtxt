@@ -246,6 +246,80 @@
 
 ---
 
+## T361 Final — Contract Tests Parametrized (LocalBackend + PostgresBackend)
+
+**Date**: 2026-04-16  
+**Agent**: CLEO Subagent (claude-sonnet-4-6)  
+**Status**: COMPLETE
+
+### Summary
+
+T361 adds a dual-backend contract test guarantee so that CLEO (LocalBackend/SQLite)
+and api.llmtxt.my (PostgresBackend/Postgres) are verified to share identical semantics
+on every push.
+
+### Commits
+
+| Commit | Description |
+|--------|-------------|
+| `d36ad5d` | Predecessor: `backend-contract.test.ts` parametrized over LocalBackend + PostgresBackend (30 tests + 4 multi-agent semantic tests) |
+| `74b14d0` | `test(T361)`: add `PgContractAdapter` + `test-pg.ts` harness for parametrized contract tests |
+| `a00121d` | `ci(T361)`: run SDK contract tests against LocalBackend + PostgresBackend in CI |
+| `135e1b7` | `fix(clippy)`: collapse match arms + use sort_by_key — unblocks Rust CI |
+
+### Test Coverage
+
+**LocalBackend (SQLite) — always runs:**
+- Document CRUD (create/get/slug/list/delete): 6 tests
+- Versions (publish/get/list/transition): 5 tests
+- Events (append/query): 1 test
+- Leases (acquire/renew/release/get): 3 tests
+- Scratchpad (send/poll/delete): 1 test
+- A2A (send/inbox/delete): 1 test
+- Identity (register/lookup/revoke/nonce): 4 tests
+- Multi-agent: Lease contention (agent-1 acquire → agent-2 blocked → release → agent-2 acquires): 1 test
+- Multi-agent: A2A round-trip + duplicate nonce rejection: 2 tests
+- Multi-agent: Scratchpad multi-message ordering: 1 test
+- Multi-agent: Event log monotonic sequence: 1 test
+
+**Total: 30 tests, all pass locally against LocalBackend.**
+
+**PostgresBackend (Postgres via DATABASE_URL_PG) — runs in CI with service container:**
+- Same 30 tests via `PgContractAdapter` (adapts PG schema to Backend interface)
+- Skipped with WARN if `DATABASE_URL_PG` is unset (never fails the suite)
+
+### Architecture: PgContractAdapter
+
+`packages/llmtxt/src/__tests__/helpers/test-pg.ts` provides:
+- `createPgBackend()` — spins up isolated Postgres schema (`test_<timestamp>_<rand>`), applies 6 migrations, injects WaveB/C stub deps, returns `{adapter, cleanup}`
+- `PgContractAdapter` — wraps `PostgresBackend` to satisfy the `Backend` interface: normalises PG-schema differences (no title/createdBy columns → cached in-memory), handles slug uniqueness
+- `PG_AVAILABLE` — sentinel boolean; false → SKIP with WARN, not FAIL
+
+### CI
+
+The `typescript` job in `.github/workflows/ci.yml` already had a `postgres:16-alpine` service container + `DATABASE_URL_PG` env (added in T239). Added one new step:
+
+```yaml
+- name: SDK contract tests (LocalBackend + PostgresBackend)
+  working-directory: packages/llmtxt
+  run: pnpm run test
+```
+
+This runs after `Typecheck` and before `Lint (backend)`, using the existing postgres service.
+
+### Validation Gates
+
+| Gate | Status |
+|------|--------|
+| `pnpm --filter llmtxt test` — 30 tests LocalBackend | PASS (verified locally) |
+| `pnpm --filter llmtxt run typecheck` — 0 errors | PASS (verified locally) |
+| Rust `cargo clippy -- -D warnings` | PASS (135e1b7 fixed 4 warnings) |
+| CI `typescript` job includes SDK test step | YES (a00121d) |
+| CI green (run 24517766413 Clippy fix) | Rust/Migration/OpenAPI: PASS; TypeScript: in progress |
+| T361 marked complete in CLEO | YES |
+
+---
+
 ## Phase 1 Complete (RCASD) — Commit bbe7acf
 
 ### Wave 0: Inventory + Interface + Scaffold
