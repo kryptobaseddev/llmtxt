@@ -27,7 +27,9 @@
  *   --help                  Print help and exit
  */
 
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline';
 
@@ -64,6 +66,11 @@ interface CliArgs {
   // Blob flags
   name?: string;
   contentType?: string;
+  // Mesh flags
+  transport?: string;
+  port?: number;
+  peer?: string;
+  meshDir?: string;
 }
 
 function parseArgs(argv: string[]): CliArgs {
@@ -105,6 +112,14 @@ function parseArgs(argv: string[]): CliArgs {
       args.name = argv[++i];
     } else if ((arg === '--content-type' || arg === '--mime') && argv[i + 1]) {
       args.contentType = argv[++i];
+    } else if (arg === '--transport' && argv[i + 1]) {
+      args.transport = argv[++i];
+    } else if (arg === '--port' && argv[i + 1]) {
+      args.port = parseInt(argv[++i]!, 10);
+    } else if (arg === '--peer' && argv[i + 1]) {
+      args.peer = argv[++i];
+    } else if (arg === '--mesh-dir' && argv[i + 1]) {
+      args.meshDir = argv[++i];
     } else {
       rest.push(arg!);
     }
@@ -1131,6 +1146,525 @@ async function cmdBlobs(args: CliArgs) {
   }
 }
 
+// ── Mesh helpers ──────────────────────────────────────────────────
+
+/** Default mesh directory: ~/.llmtxt/mesh/ */
+const DEFAULT_MESH_DIR = path.join(os.homedir(), '.llmtxt', 'mesh');
+
+/** Path to the mesh PID file. */
+function meshPidPath(): string {
+  const meshDir = process.env['LLMTXT_MESH_DIR'] ?? DEFAULT_MESH_DIR;
+  return path.join(path.dirname(meshDir), 'mesh.pid');
+}
+
+/** Path to the mesh status file (written by a running mesh process). */
+function meshStatusPath(): string {
+  const meshDir = process.env['LLMTXT_MESH_DIR'] ?? DEFAULT_MESH_DIR;
+  return path.join(path.dirname(meshDir), 'mesh.status.json');
+}
+
+/**
+ * Read the mesh PID from ~/.llmtxt/mesh.pid.
+ * Returns null if file does not exist or is invalid.
+ */
+function readMeshPid(): number | null {
+  const pidFile = meshPidPath();
+  try {
+    const raw = fs.readFileSync(pidFile, 'utf8').trim();
+    const pid = parseInt(raw, 10);
+    return Number.isFinite(pid) && pid > 0 ? pid : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check whether a process with the given PID is still running.
+ * Uses signal 0 (does not kill the process).
+ */
+function isPidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Derive the agent's transport socket path from storage dir.
+ * Follows the convention: <storageDir>/mesh.sock
+ */
+function defaultSocketPath(storagePath: string): string {
+  return path.join(path.resolve(storagePath), 'mesh.sock');
+}
+
+/**
+ * llmtxt mesh start — initialize the sync engine and begin listening.
+ *
+ * Steps:
+ *  1. Load or generate identity.
+ *  2. Open LocalBackend.
+ *  3. Build PeerRegistry, transport (unix|http), SyncEngine.
+ *  4. Register peer file in LLMTXT_MESH_DIR.
+ *  5. Write PID to ~/.llmtxt/mesh.pid.
+ *  6. Run until SIGTERM/SIGINT.
+ */
+async function cmdMeshStart(args: CliArgs): Promise<void> {
+  const storagePath = path.resolve(args.db ?? args.storage);
+  const transportType = args.transport ?? 'unix';
+  const meshDir = args.meshDir ?? process.env['LLMTXT_MESH_DIR'] ?? DEFAULT_MESH_DIR;
+
+  // 1. Load identity (required for mesh peer authentication).
+  let identity = loadIdentity(storagePath);
+  if (!identity) {
+    console.log('[mesh] No identity found — generating one now...');
+    identity = await generateIdentity();
+    fs.mkdirSync(storagePath, { recursive: true });
+    fs.writeFileSync(identityPath(storagePath), JSON.stringify(identity, null, 2), { mode: 0o600 });
+    console.log(`[mesh] New agent ID: ${identity.agentId}`);
+  }
+
+  // 2. Open LocalBackend.
+  const { LocalBackend } = await import('../local/local-backend.js');
+  const backend = new LocalBackend({ storagePath });
+  await backend.open();
+
+  // 3. Build AgentIdentity for signing.
+  const { AgentIdentity } = await import('../identity.js');
+  const ed = await import('@noble/ed25519');
+  const { sha512 } = await import('@noble/hashes/sha2.js');
+  ed.hashes.sha512 = sha512;
+
+  const privkeyBytes = Buffer.from(identity.privkeyHex, 'hex');
+  const pubkeyBytes = await ed.getPublicKeyAsync(privkeyBytes);
+  const agentIdentity = await AgentIdentity.fromSeed(privkeyBytes);
+
+  // agentId derived as hex SHA-256 of pubkey bytes (per P3 spec §2.2).
+  const agentIdForMesh = createHash('sha256').update(pubkeyBytes).digest('hex');
+  const pubkeyB64 = Buffer.from(pubkeyBytes).toString('base64');
+
+  // 4. Build transport.
+  let transport: import('../mesh/transport.js').PeerTransport;
+  let listenAddress: string;
+
+  const transportIdentity = {
+    agentId: agentIdForMesh,
+    publicKey: pubkeyBytes,
+    privateKey: privkeyBytes,
+  };
+
+  if (transportType === 'unix') {
+    const { UnixSocketTransport } = await import('../mesh/transport.js');
+    const socketPath = defaultSocketPath(storagePath);
+    transport = new UnixSocketTransport({ identity: transportIdentity, socketPath });
+    listenAddress = `unix:${socketPath}`;
+  } else if (transportType === 'http') {
+    const { HttpTransport } = await import('../mesh/transport.js');
+    const port = args.port ?? 7890;
+    transport = new HttpTransport({ identity: transportIdentity, port });
+    listenAddress = `http://127.0.0.1:${port}`;
+  } else {
+    console.error(`Unknown transport type: ${transportType}. Use 'unix' or 'http'.`);
+    process.exit(1);
+  }
+
+  // 5. Build PeerRegistry.
+  const { PeerRegistry } = await import('../mesh/discovery.js');
+  const registry = new PeerRegistry({ agentId: agentIdForMesh, pubkeyB64, meshDir });
+
+  // Write peer file.
+  await registry.register({
+    agentId: agentIdForMesh,
+    transport: listenAddress,
+    pubkey: pubkeyB64,
+    capabilities: ['sync', 'presence', 'a2a'],
+    startedAt: new Date().toISOString(),
+  });
+
+  // 6. Build SyncEngine.
+  const { SyncEngine } = await import('../mesh/sync-engine.js');
+  const syncEngine = new SyncEngine({
+    backend,
+    transport,
+    discovery: {
+      discover: async () => {
+        const peers = await registry.discover();
+        return peers.map((p) => ({
+          agentId: p.agentId,
+          address: p.transport,
+          pubkeyBase64: p.pubkey,
+        }));
+      },
+      markInactive: (agentId: string) => {
+        console.warn(`[mesh] Peer ${agentId} marked inactive.`);
+      },
+    },
+    identity: agentIdentity,
+    syncIntervalMs: 5000,
+  });
+
+  // 7. Start sync engine.
+  await syncEngine.start();
+
+  // Discover initial peers.
+  const initialPeers = await registry.discover();
+
+  // 8. Write PID file.
+  const pidPath = meshPidPath();
+  fs.mkdirSync(path.dirname(pidPath), { recursive: true });
+  fs.writeFileSync(pidPath, String(process.pid), { mode: 0o600 });
+
+  // 9. Write status file (updated by running process).
+  const startedAt = new Date().toISOString();
+  const writeStatus = () => {
+    try {
+      const statusPath = meshStatusPath();
+      const peerStates = syncEngine.getPeerStates();
+      const statusData = {
+        pid: process.pid,
+        startedAt,
+        agentId: agentIdForMesh,
+        transport: listenAddress,
+        peers: [...peerStates.entries()].map(([id, state]) => ({
+          agentId: id,
+          lastSyncVersion: state.lastSyncVersion.toString(),
+          failureCount: state.failureCount,
+          lastFailureAt: state.lastFailureAt ?? null,
+        })),
+        bytesExchanged: 0,
+        uptime: Date.now() - Date.parse(startedAt),
+      };
+      fs.writeFileSync(statusPath, JSON.stringify(statusData, null, 2), { mode: 0o600 });
+    } catch {
+      // Non-fatal.
+    }
+  };
+
+  // Write initial status.
+  writeStatus();
+
+  // Refresh status every 5 seconds.
+  const statusInterval = setInterval(writeStatus, 5000);
+
+  console.log(
+    `Mesh started. Listening on ${listenAddress}. Discovered ${initialPeers.length} peers.`
+  );
+
+  // 10. Shutdown handler.
+  const shutdown = async () => {
+    console.log('\n[mesh] Shutting down...');
+    clearInterval(statusInterval);
+    await syncEngine.stop();
+    await registry.deregister();
+    await backend.close();
+    try {
+      fs.unlinkSync(pidPath);
+    } catch {
+      // Best-effort.
+    }
+    try {
+      fs.unlinkSync(meshStatusPath());
+    } catch {
+      // Best-effort.
+    }
+    console.log('[mesh] Shutdown complete.');
+    process.exit(0);
+  };
+
+  process.once('SIGTERM', () => void shutdown());
+  process.once('SIGINT', () => void shutdown());
+
+  // Keep the process alive.
+  await new Promise<never>(() => { /* run until signal */ });
+}
+
+/**
+ * llmtxt mesh stop — send SIGTERM to the running mesh process.
+ */
+async function cmdMeshStop(_args: CliArgs): Promise<void> {
+  const pid = readMeshPid();
+  if (pid === null) {
+    console.error('[mesh] No running mesh process found (mesh.pid not found or invalid).');
+    process.exit(1);
+  }
+
+  if (!isPidAlive(pid)) {
+    console.log(`[mesh] Process ${pid} is not running. Cleaning up stale PID file.`);
+    try { fs.unlinkSync(meshPidPath()); } catch { /* ignore */ }
+    process.exit(0);
+  }
+
+  console.log(`[mesh] Sending SIGTERM to mesh process (PID ${pid})...`);
+  process.kill(pid, 'SIGTERM');
+
+  // Wait up to 10 seconds for clean shutdown.
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    await new Promise<void>((r) => setTimeout(r, 200));
+    if (!isPidAlive(pid)) {
+      console.log('[mesh] Mesh process stopped.');
+      return;
+    }
+  }
+
+  console.warn('[mesh] Process did not stop within 10 seconds. It may still be running.');
+  process.exit(1);
+}
+
+/**
+ * llmtxt mesh status — print peer count, last-sync timestamp, bytes-exchanged, uptime.
+ */
+async function cmdMeshStatus(_args: CliArgs): Promise<void> {
+  const statusPath = meshStatusPath();
+
+  if (!fs.existsSync(statusPath)) {
+    console.log('[mesh] No running mesh process detected (status file not found).');
+    console.log('Run `llmtxt mesh start` to start the mesh.');
+    return;
+  }
+
+  let status: {
+    pid?: number;
+    startedAt?: string;
+    agentId?: string;
+    transport?: string;
+    peers?: Array<{
+      agentId: string;
+      lastSyncVersion: string;
+      failureCount: number;
+      lastFailureAt: number | null;
+    }>;
+    bytesExchanged?: number;
+    uptime?: number;
+  };
+
+  try {
+    status = JSON.parse(fs.readFileSync(statusPath, 'utf8')) as typeof status;
+  } catch {
+    console.error('[mesh] Failed to read status file. The mesh process may have crashed.');
+    process.exit(1);
+  }
+
+  const pid = status.pid ?? 0;
+  const running = pid > 0 && isPidAlive(pid);
+
+  console.log(`Mesh status: ${running ? 'RUNNING' : 'STOPPED (stale status file)'}`);
+  if (status.pid) console.log(`  PID:       ${status.pid}`);
+  if (status.agentId) console.log(`  Agent ID:  ${status.agentId}`);
+  if (status.transport) console.log(`  Transport: ${status.transport}`);
+  if (status.startedAt) {
+    const uptimeSec = Math.floor((Date.now() - Date.parse(status.startedAt)) / 1000);
+    console.log(`  Started:   ${status.startedAt} (uptime: ${uptimeSec}s)`);
+  }
+
+  const peers = status.peers ?? [];
+  console.log(`  Peers:     ${peers.length}`);
+
+  if (peers.length > 0) {
+    console.log('');
+    console.log('  PEER ID                                                           LAST SYNC VER  FAILURES');
+    console.log('  ' + '-'.repeat(100));
+    for (const peer of peers) {
+      const lastSync = peer.lastFailureAt
+        ? `last-failure: ${new Date(peer.lastFailureAt).toISOString()}`
+        : 'no failures';
+      console.log(
+        `  ${peer.agentId.padEnd(64)}  ${peer.lastSyncVersion.padEnd(13)}  ${peer.failureCount} (${lastSync})`
+      );
+    }
+  }
+}
+
+/**
+ * llmtxt mesh peers — list discovered peers from LLMTXT_MESH_DIR.
+ */
+async function cmdMeshPeers(args: CliArgs): Promise<void> {
+  const meshDir = args.meshDir ?? process.env['LLMTXT_MESH_DIR'] ?? DEFAULT_MESH_DIR;
+
+  if (!fs.existsSync(meshDir)) {
+    console.log(`[mesh] Mesh directory does not exist: ${meshDir}`);
+    console.log('Run `llmtxt mesh start` first.');
+    return;
+  }
+
+  // Read peer files without needing our own agentId (pass a placeholder).
+  const { PeerRegistry } = await import('../mesh/discovery.js');
+  const registry = new PeerRegistry({
+    agentId: '__cli__', // sentinel — won't match any real peer
+    pubkeyB64: '',
+    meshDir,
+  });
+
+  const peers = await registry.discover();
+
+  if (peers.length === 0) {
+    console.log('[mesh] No peers discovered.');
+    return;
+  }
+
+  console.log(`Discovered ${peers.length} peer(s):\n`);
+  console.log(
+    `${'AGENT ID'.padEnd(64)}  ${'TRANSPORT'.padEnd(40)}  ${'ACTIVE'.padEnd(6)}  STARTED AT`
+  );
+  console.log('-'.repeat(130));
+
+  for (const peer of peers) {
+    const active = peer.active ? 'yes' : 'no';
+    console.log(
+      `${peer.agentId.padEnd(64)}  ${peer.transport.padEnd(40)}  ${active.padEnd(6)}  ${peer.startedAt}`
+    );
+  }
+}
+
+/**
+ * llmtxt mesh sync — trigger an immediate one-shot sync with a specific peer.
+ */
+async function cmdMeshSync(args: CliArgs): Promise<void> {
+  const peerAgentId = args.peer;
+  const storagePath = path.resolve(args.db ?? args.storage);
+  const meshDir = args.meshDir ?? process.env['LLMTXT_MESH_DIR'] ?? DEFAULT_MESH_DIR;
+
+  // Load identity.
+  const identity = loadIdentity(storagePath);
+  if (!identity) {
+    console.error('[mesh] No identity found. Run `llmtxt init` or `llmtxt mesh start` first.');
+    process.exit(1);
+  }
+
+  // Open backend.
+  const { LocalBackend } = await import('../local/local-backend.js');
+  const backend = new LocalBackend({ storagePath });
+  await backend.open();
+
+  // Build transport identity.
+  const ed = await import('@noble/ed25519');
+  const { sha512 } = await import('@noble/hashes/sha2.js');
+  ed.hashes.sha512 = sha512;
+
+  const privkeyBytes = Buffer.from(identity.privkeyHex, 'hex');
+  const pubkeyBytes = await ed.getPublicKeyAsync(privkeyBytes);
+  const agentIdForMesh = createHash('sha256').update(pubkeyBytes).digest('hex');
+  const pubkeyB64 = Buffer.from(pubkeyBytes).toString('base64');
+
+  const { PeerRegistry } = await import('../mesh/discovery.js');
+  const registry = new PeerRegistry({ agentId: agentIdForMesh, pubkeyB64, meshDir });
+
+  const peers = await registry.discover();
+
+  if (peers.length === 0) {
+    console.error('[mesh] No peers discovered. Is the mesh running?');
+    await backend.close();
+    process.exit(1);
+  }
+
+  // Filter to target peer if --peer was specified.
+  const targets = peerAgentId ? peers.filter((p) => p.agentId === peerAgentId) : peers;
+
+  if (peerAgentId && targets.length === 0) {
+    console.error(`[mesh] Peer not found: ${peerAgentId}`);
+    console.error(`Available peers: ${peers.map((p) => p.agentId).join(', ')}`);
+    await backend.close();
+    process.exit(1);
+  }
+
+  // Use the low-level cr-sqlite changeset exchange for each target.
+  let synced = 0;
+  for (const peer of targets) {
+    // Determine if peer is HTTP or unix.
+    const isHttp =
+      peer.transport.startsWith('http://') || peer.transport.startsWith('https://');
+
+    if (isHttp) {
+      // HTTP peer: use cmdSync's HTTP exchange path.
+      console.log(`[mesh sync] Syncing with ${peer.agentId} via ${peer.transport}...`);
+      try {
+        const localChangeset = await backend.getChangesSince(0n);
+        const { remoteChangeset } = await _httpChangesetExchange(
+          peer.transport,
+          localChangeset,
+          0n,
+          args.apiKey
+        );
+        if (remoteChangeset.length > 0) {
+          await backend.applyChanges(remoteChangeset);
+        }
+        console.log(`[mesh sync] Done with ${peer.agentId}.`);
+        synced++;
+      } catch (err) {
+        console.error(`[mesh sync] Failed with ${peer.agentId}: ${(err as Error).message}`);
+      }
+    } else {
+      // Unix socket peer: attempt file-based exchange if socket is accessible.
+      // Fall back to finding the storage path from the peer's transport address.
+      const socketPath = peer.transport.startsWith('unix:')
+        ? peer.transport.slice('unix:'.length)
+        : peer.transport;
+
+      // Derive storage dir from socket path (convention: <storageDir>/mesh.sock).
+      const peerStoragePath = path.dirname(socketPath);
+
+      console.log(`[mesh sync] Syncing with ${peer.agentId} via ${peer.transport}...`);
+      try {
+        const { remoteChangeset } = await _localFileChangesetExchange(
+          peerStoragePath,
+          await backend.getChangesSince(0n),
+          0n
+        );
+        if (remoteChangeset.length > 0) {
+          await backend.applyChanges(remoteChangeset);
+        }
+        console.log(`[mesh sync] Done with ${peer.agentId}.`);
+        synced++;
+      } catch (err) {
+        console.error(`[mesh sync] Failed with ${peer.agentId}: ${(err as Error).message}`);
+      }
+    }
+  }
+
+  await backend.close();
+  console.log(`[mesh sync] Sync complete. ${synced}/${targets.length} peer(s) synced.`);
+}
+
+/**
+ * Dispatch for `llmtxt mesh <subcommand>` commands.
+ */
+async function cmdMesh(args: CliArgs): Promise<void> {
+  const subcommand = args.positional[0];
+
+  // Rebuild args with positional stripped of the subcommand.
+  const subArgs: CliArgs = {
+    ...args,
+    positional: args.positional.slice(1),
+  };
+
+  switch (subcommand) {
+    case 'start':
+      await cmdMeshStart(subArgs);
+      break;
+    case 'stop':
+      await cmdMeshStop(subArgs);
+      break;
+    case 'status':
+      await cmdMeshStatus(subArgs);
+      break;
+    case 'peers':
+      await cmdMeshPeers(subArgs);
+      break;
+    case 'sync':
+      await cmdMeshSync(subArgs);
+      break;
+    default:
+      if (!subcommand) {
+        console.error('Usage: llmtxt mesh <start|stop|status|peers|sync>');
+      } else {
+        console.error(`Unknown mesh subcommand: ${subcommand}`);
+        console.error('Usage: llmtxt mesh <start|stop|status|peers|sync>');
+      }
+      process.exit(1);
+  }
+}
+
 // ── Help text ─────────────────────────────────────────────────────
 
 function printHelp() {
@@ -1165,6 +1699,21 @@ COMMANDS
   attach <slug> <filepath>   Attach a binary file to a document
   detach <slug> <blobname>   Remove a named blob attachment from a document
   blobs <slug>               List all blob attachments for a document
+  mesh <subcommand>          P2P mesh operations (start/stop/status/peers/sync)
+
+MESH SUBCOMMANDS
+  mesh start                 Start the P2P sync engine (runs until SIGTERM)
+  mesh stop                  Send SIGTERM to the running mesh process
+  mesh status                Print connected peers, last-sync timestamps, uptime
+  mesh peers                 List all discovered peers from LLMTXT_MESH_DIR
+  mesh sync [--peer <id>]    One-shot sync with a specific peer (or all peers)
+
+MESH FLAGS
+  --transport unix|http      Transport type (default: unix)
+  --port <n>                 HTTP transport port (default: 7890)
+  --peer <agentId>           Target peer for mesh sync
+  --mesh-dir <path>          Override mesh directory (default: ~/.llmtxt/mesh/)
+  --db <path>                Override local storage path for mesh start
 
 BLOB FLAGS
   --name <name>              Attachment name (default: basename of filepath)
@@ -1259,6 +1808,9 @@ async function main() {
         break;
       case 'blobs':
         await cmdBlobs(args);
+        break;
+      case 'mesh':
+        await cmdMesh(args);
         break;
       default:
         console.error(`Unknown command: ${args.command}`);
