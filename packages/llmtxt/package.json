@@ -41,6 +41,10 @@
       "types": "./dist/graph.d.ts",
       "import": "./dist/graph.js"
     },
+    "./crdt": {
+      "types": "./dist/crdt.d.ts",
+      "import": "./dist/crdt.js"
+    },
     "./crdt-primitives": {
       "types": "./dist/crdt-primitives.d.ts",
       "import": "./dist/crdt-primitives.js"
