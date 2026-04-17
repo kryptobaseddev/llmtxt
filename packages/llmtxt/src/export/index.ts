@@ -15,6 +15,11 @@ export { formatJson } from './json.js';
 export { formatTxt } from './txt.js';
 export { formatLlmtxt } from './llmtxt.js';
 
+// ── Import parser ───────────────────────────────────────────────
+
+export { parseImportFile } from './import-parser.js';
+export type { ParsedImport } from './import-parser.js';
+
 // ── Shared types ───────────────────────────────────────────────
 
 export type { DocumentExportState, ExportOpts } from './types.js';

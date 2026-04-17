@@ -862,6 +862,54 @@ export class PgContractAdapter implements Backend {
   async rotateApiKey(id: string, userId: string): ReturnType<Backend['rotateApiKey']> {
     return this._inner.rotateApiKey(id, userId);
   }
+
+  // ── BlobOps (stubs — not required for contract tests) ───────────────────────
+
+  async attachBlob(params: Parameters<Backend['attachBlob']>[0]): ReturnType<Backend['attachBlob']> {
+    return this._inner.attachBlob(params);
+  }
+
+  async getBlob(docSlug: string, blobName: string, opts?: Parameters<Backend['getBlob']>[2]): ReturnType<Backend['getBlob']> {
+    return this._inner.getBlob(docSlug, blobName, opts);
+  }
+
+  async listBlobs(docSlug: string): ReturnType<Backend['listBlobs']> {
+    return this._inner.listBlobs(docSlug);
+  }
+
+  async detachBlob(docSlug: string, blobName: string, detachedBy: string): ReturnType<Backend['detachBlob']> {
+    return this._inner.detachBlob(docSlug, blobName, detachedBy);
+  }
+
+  async fetchBlobByHash(hash: string): ReturnType<Backend['fetchBlobByHash']> {
+    return this._inner.fetchBlobByHash(hash);
+  }
+
+  // ── ExportOps (stubs — contract tests don't test export) ────────────────────
+
+  async exportDocument(params: Parameters<Backend['exportDocument']>[0]): ReturnType<Backend['exportDocument']> {
+    return this._inner.exportDocument(params);
+  }
+
+  async exportAll(params: Parameters<Backend['exportAll']>[0]): ReturnType<Backend['exportAll']> {
+    return this._inner.exportAll(params);
+  }
+
+  // ── ImportOps (T427.8) ────────────────────────────────────────────────────
+
+  async importDocument(params: import('../../core/backend.js').ImportDocumentParams): Promise<import('../../core/backend.js').ImportDocumentResult> {
+    return this._inner.importDocument(params);
+  }
+
+  // ── CrSqlite changeset sync stubs (P2.6/P2.7) — PgBackend not supported ──
+
+  async getChangesSince(_dbVersion: bigint): Promise<Uint8Array> {
+    throw new Error('PgContractAdapter: getChangesSince not implemented — PgBackend does not support cr-sqlite sync');
+  }
+
+  async applyChanges(_changeset: Uint8Array): Promise<bigint> {
+    throw new Error('PgContractAdapter: applyChanges not implemented — PgBackend does not support cr-sqlite sync');
+  }
 }
 
 // ── PG factory ────────────────────────────────────────────────────────────────

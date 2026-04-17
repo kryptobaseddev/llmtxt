@@ -96,6 +96,8 @@ import type {
   ExportDocumentResult,
   ExportAllParams,
   ExportAllResult,
+  ImportDocumentParams,
+  ImportDocumentResult,
 } from '../core/backend.js';
 import { ExportError } from '../core/backend.js';
 import {
@@ -104,6 +106,7 @@ import {
   contentHashHex,
 } from '../export/backend-export.js';
 import type { DocumentExportState } from '../export/types.js';
+import { parseImportFile } from '../export/import-parser.js';
 import type { VersionEntry } from '../sdk/versions.js';
 
 // ── SDK helpers (generateId + hashContent from llmtxt WASM/Rust core) ─────────
@@ -346,6 +349,12 @@ export class PostgresBackend implements Backend {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _scratchpadSubscribe: ScratchpadSubscribeFn | null = null;
 
+  // ── Blob injectable dependency ──────────────────────────────────────────────
+  // BlobPgAdapter lives in apps/backend (monorepo boundary: cannot static import).
+  // Injected by postgres-backend-plugin.ts after open() via setBlobAdapter().
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private _blobAdapter: any | null = null;
+
   constructor(config: PostgresBackendConfig = {}) {
     this.config = config;
   }
@@ -438,6 +447,19 @@ export class PostgresBackend implements Backend {
     this._subscribeCrdtUpdates = deps.subscribeCrdtUpdates;
     this._eventBus = deps.eventBus;
     this._crdtStateVector = deps.crdtStateVector;
+  }
+
+  /**
+   * Inject the BlobPgAdapter from apps/backend (monorepo boundary).
+   * Called by postgres-backend-plugin.ts after open().
+   *
+   * The BlobPgAdapter cannot be statically imported from this package because it
+   * lives in apps/backend/src/storage/. Injecting it at plugin registration time
+   * keeps this class free of cross-package imports.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  setBlobAdapter(adapter: any): void {
+    this._blobAdapter = adapter;
   }
 
   /**
@@ -3237,26 +3259,50 @@ export class PostgresBackend implements Backend {
     };
   }
 
-  // ── BlobOps (stubs — T427 does not require PG blob storage) ──────────────────
+  // ── BlobOps — delegated to BlobPgAdapter (injected via setBlobAdapter) ───────
 
-  async attachBlob(_params: import('../core/backend.js').AttachBlobParams): Promise<import('../core/backend.js').BlobAttachment> {
-    throw new Error('PostgresBackend: attachBlob not yet implemented');
+  async attachBlob(params: import('../core/backend.js').AttachBlobParams): Promise<import('../core/backend.js').BlobAttachment> {
+    this._assertOpen();
+    if (!this._blobAdapter) {
+      throw new Error('PostgresBackend: BlobPgAdapter not injected — call setBlobAdapter() first');
+    }
+    return this._blobAdapter.attachBlob(params);
   }
 
-  async getBlob(_docSlug: string, _blobName: string, _opts?: { includeData?: boolean }): Promise<import('../core/backend.js').BlobData | null> {
-    throw new Error('PostgresBackend: getBlob not yet implemented');
+  async getBlob(
+    docSlug: string,
+    blobName: string,
+    opts?: { includeData?: boolean }
+  ): Promise<import('../core/backend.js').BlobData | null> {
+    this._assertOpen();
+    if (!this._blobAdapter) {
+      throw new Error('PostgresBackend: BlobPgAdapter not injected — call setBlobAdapter() first');
+    }
+    return this._blobAdapter.getBlob(docSlug, blobName, opts);
   }
 
-  async listBlobs(_docSlug: string): Promise<import('../core/backend.js').BlobAttachment[]> {
-    throw new Error('PostgresBackend: listBlobs not yet implemented');
+  async listBlobs(docSlug: string): Promise<import('../core/backend.js').BlobAttachment[]> {
+    this._assertOpen();
+    if (!this._blobAdapter) {
+      throw new Error('PostgresBackend: BlobPgAdapter not injected — call setBlobAdapter() first');
+    }
+    return this._blobAdapter.listBlobs(docSlug);
   }
 
-  async detachBlob(_docSlug: string, _blobName: string, _detachedBy: string): Promise<boolean> {
-    throw new Error('PostgresBackend: detachBlob not yet implemented');
+  async detachBlob(docSlug: string, blobName: string, detachedBy: string): Promise<boolean> {
+    this._assertOpen();
+    if (!this._blobAdapter) {
+      throw new Error('PostgresBackend: BlobPgAdapter not injected — call setBlobAdapter() first');
+    }
+    return this._blobAdapter.detachBlob(docSlug, blobName, detachedBy);
   }
 
-  async fetchBlobByHash(_hash: string): Promise<Buffer | null> {
-    throw new Error('PostgresBackend: fetchBlobByHash not yet implemented');
+  async fetchBlobByHash(hash: string): Promise<Buffer | null> {
+    this._assertOpen();
+    if (!this._blobAdapter) {
+      throw new Error('PostgresBackend: BlobPgAdapter not injected — call setBlobAdapter() first');
+    }
+    return this._blobAdapter.fetchBlobByHash(hash);
   }
 
   // ── ExportOps (T427.6) ────────────────────────────────────────────────────────
@@ -3403,5 +3449,89 @@ export class PostgresBackend implements Backend {
       totalCount: exported.length + skipped.length,
       failedCount: skipped.length,
     };
+  }
+
+  // ── ImportOps (T427.8) ────────────────────────────────────────
+
+  /**
+   * Import a document from a file on disk into the Postgres backend.
+   *
+   * @throws {ExportError} PARSE_FAILED on I/O or parse errors.
+   * @throws {ExportError} HASH_MISMATCH when frontmatter content_hash mismatches.
+   * @throws {ExportError} SLUG_EXISTS when onConflict='create' and slug exists.
+   */
+  async importDocument(params: ImportDocumentParams): Promise<ImportDocumentResult> {
+    this._assertOpen();
+
+    const { filePath, importedBy, onConflict = 'new_version' } = params;
+
+    // 1. Parse the file.
+    const parsed = parseImportFile(filePath);
+    const { slug, title, content } = parsed;
+
+    // 2. Check for an existing document.
+    const existing = await this.getDocumentBySlug(slug);
+
+    if (existing !== null) {
+      if (onConflict === 'create') {
+        throw new ExportError(
+          'SLUG_EXISTS',
+          `A document with slug "${slug}" already exists. Use onConflict='new_version' to append.`,
+        );
+      }
+
+      const version = await this.publishVersion({
+        documentId: existing.id,
+        content,
+        patchText: '',
+        createdBy: importedBy,
+        changelog: `Imported from ${filePath}`,
+      });
+
+      return {
+        action: 'version_appended',
+        slug: existing.slug,
+        documentId: existing.id,
+        versionNumber: version.versionNumber,
+        contentHash: version.contentHash,
+      };
+    }
+
+    // 3. Create a new document.
+    const doc = await this.createDocument({
+      title,
+      createdBy: importedBy,
+      slug,
+    });
+
+    const version = await this.publishVersion({
+      documentId: doc.id,
+      content,
+      patchText: '',
+      createdBy: importedBy,
+      changelog: `Imported from ${filePath}`,
+    });
+
+    return {
+      action: 'created',
+      slug: doc.slug,
+      documentId: doc.id,
+      versionNumber: version.versionNumber,
+      contentHash: version.contentHash,
+    };
+  }
+
+  // ── CrSqlite changeset sync (P2.6 / P2.7 — T404 / T405) ─────
+
+  /**
+   * Not supported by PgBackend — cr-sqlite sync is a LocalBackend feature.
+   * PostgresBackend participates in P2P sync via a different protocol (P3).
+   */
+  async getChangesSince(_dbVersion: bigint): Promise<Uint8Array> {
+    throw new Error('PgBackend: getChangesSince not implemented — cr-sqlite sync is LocalBackend-only (P2.6)');
+  }
+
+  async applyChanges(_changeset: Uint8Array): Promise<bigint> {
+    throw new Error('PgBackend: applyChanges not implemented — cr-sqlite sync is LocalBackend-only (P2.7)');
   }
 }

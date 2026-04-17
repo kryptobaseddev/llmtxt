@@ -51,6 +51,12 @@ interface CliArgs {
   apiKey?: string;
   storage: string;
   agentId?: string;
+  // Export/import flags
+  format?: string;
+  output?: string;
+  sign?: boolean;
+  onConflict?: string;
+  importedBy?: string;
 }
 
 function parseArgs(argv: string[]): CliArgs {
@@ -72,6 +78,16 @@ function parseArgs(argv: string[]): CliArgs {
       args.storage = argv[++i];
     } else if (arg === '--agent' && argv[i + 1]) {
       args.agentId = argv[++i];
+    } else if ((arg === '--format' || arg === '-f') && argv[i + 1]) {
+      args.format = argv[++i];
+    } else if ((arg === '--output' || arg === '-o') && argv[i + 1]) {
+      args.output = argv[++i];
+    } else if (arg === '--sign') {
+      args.sign = true;
+    } else if (arg === '--on-conflict' && argv[i + 1]) {
+      args.onConflict = argv[++i];
+    } else if (arg === '--imported-by' && argv[i + 1]) {
+      args.importedBy = argv[++i];
     } else {
       rest.push(arg!);
     }
@@ -384,6 +400,158 @@ async function cmdKeys(args: CliArgs) {
   process.exit(1);
 }
 
+// ── Export format helpers ─────────────────────────────────────────
+
+/** Normalise user-supplied format alias to an ExportFormat value. */
+function normaliseFormat(raw: string | undefined): 'markdown' | 'json' | 'txt' | 'llmtxt' {
+  switch (raw?.toLowerCase()) {
+    case 'md':
+    case 'markdown':
+      return 'markdown';
+    case 'json':
+      return 'json';
+    case 'txt':
+    case 'text':
+      return 'txt';
+    case 'llmtxt':
+      return 'llmtxt';
+    default:
+      return 'markdown'; // sensible default
+  }
+}
+
+/** Map ExportFormat to file extension. */
+function fmtExt(format: 'markdown' | 'json' | 'txt' | 'llmtxt'): string {
+  switch (format) {
+    case 'markdown': return 'md';
+    case 'json':     return 'json';
+    case 'txt':      return 'txt';
+    case 'llmtxt':   return 'llmtxt';
+  }
+}
+
+// ── llmtxt export <slug> ──────────────────────────────────────────
+
+/**
+ * Export a single document to a file.
+ *
+ * Usage:
+ *   llmtxt export <slug> [--format md] [--output <dir|file>] [--sign]
+ *
+ * If --output points to a directory (or ends with a path separator), the file
+ * is written as <slug>.<ext> inside that directory. Otherwise it is used as
+ * the literal output path.
+ *
+ * Prints ExportDocumentResult as JSON to stdout on success.
+ */
+async function cmdExport(args: CliArgs) {
+  const slug = args.positional[0];
+  if (!slug) {
+    console.error('Usage: llmtxt export <slug> [--format md|json|txt|llmtxt] [--output <path>] [--sign]');
+    process.exit(1);
+  }
+
+  const format = normaliseFormat(args.format);
+  const outputBase = args.output ?? '.';
+
+  // If the output looks like an existing directory or ends with /, write <slug>.<ext> inside it.
+  let outputPath: string;
+  if (
+    outputBase.endsWith('/') ||
+    outputBase.endsWith(path.sep) ||
+    (fs.existsSync(outputBase) && fs.statSync(outputBase).isDirectory())
+  ) {
+    outputPath = path.join(outputBase, `${slug}.${fmtExt(format)}`);
+  } else {
+    outputPath = outputBase;
+  }
+
+  const backend = await createBackend(args);
+  await backend.open();
+
+  try {
+    const result = await backend.exportDocument({
+      slug,
+      format,
+      outputPath,
+      sign: args.sign,
+    });
+
+    console.log(JSON.stringify(result, null, 2));
+  } finally {
+    await backend.close();
+  }
+}
+
+// ── llmtxt export-all ─────────────────────────────────────────────
+
+/**
+ * Export all documents to a directory.
+ *
+ * Usage:
+ *   llmtxt export-all [--format md] [--output <dir>] [--sign]
+ *
+ * Prints ExportAllResult as JSON to stdout on success.
+ */
+async function cmdExportAll(args: CliArgs) {
+  const format = normaliseFormat(args.format);
+  const outputDir = path.resolve(args.output ?? '.');
+
+  const backend = await createBackend(args);
+  await backend.open();
+
+  try {
+    const result = await backend.exportAll({
+      format,
+      outputDir,
+      sign: args.sign,
+    });
+
+    console.log(JSON.stringify(result, null, 2));
+  } finally {
+    await backend.close();
+  }
+}
+
+// ── llmtxt import <file> ──────────────────────────────────────────
+
+/**
+ * Import a document from a file.
+ *
+ * Usage:
+ *   llmtxt import <file> [--imported-by <agentId>] [--on-conflict new_version|create]
+ *
+ * Supported file types: .md, .json, .txt, .llmtxt
+ * Prints ImportDocumentResult as JSON to stdout on success.
+ */
+async function cmdImport(args: CliArgs) {
+  const filePath = args.positional[0];
+  if (!filePath) {
+    console.error('Usage: llmtxt import <file> [--imported-by <agentId>] [--on-conflict new_version|create]');
+    process.exit(1);
+  }
+
+  const identity = loadIdentity(path.resolve(args.storage));
+  const importedBy = args.importedBy ?? args.agentId ?? identity?.agentId ?? 'anonymous';
+
+  const onConflict = (args.onConflict === 'create') ? 'create' : 'new_version';
+
+  const backend = await createBackend(args);
+  await backend.open();
+
+  try {
+    const result = await backend.importDocument({
+      filePath: path.resolve(filePath),
+      importedBy,
+      onConflict,
+    });
+
+    console.log(JSON.stringify(result, null, 2));
+  } finally {
+    await backend.close();
+  }
+}
+
 async function cmdSync(args: CliArgs) {
   if (!args.remote) {
     console.error('sync requires --remote <url>');
@@ -495,13 +663,26 @@ COMMANDS
   keys generate              Generate a new Ed25519 keypair
   keys list                  Show the current agent identity
   keys revoke <agentId>      Revoke an agent's registered public key
+  export <slug>              Export a document to a file
+  export-all                 Export all documents to a directory
+  import <file>              Import a document from a file
   sync                       Sync local ↔ remote (requires --remote)
+
+EXPORT / IMPORT FLAGS
+  --format md|json|txt|llmtxt  Export format (default: md)
+  --output <path>              Output file or directory (default: current dir)
+  --sign                       Sign export with Ed25519 identity
+  --imported-by <agentId>      Agent ID for import attribution
+  --on-conflict new_version|create  Conflict strategy for import (default: new_version)
 
 EXAMPLES
   llmtxt init
   llmtxt create-doc "My Spec"
   echo "# Hello" | llmtxt push-version my-spec
   llmtxt pull my-spec
+  llmtxt export my-spec --format md --output ./specs/
+  llmtxt export-all --format json --output ./docs/
+  llmtxt import ./specs/my-spec.md
   llmtxt search "authentication design"
   llmtxt sync --remote https://api.llmtxt.my --api-key $API_KEY
 `.trim());
@@ -546,6 +727,15 @@ async function main() {
         break;
       case 'keys':
         await cmdKeys(args);
+        break;
+      case 'export':
+        await cmdExport(args);
+        break;
+      case 'export-all':
+        await cmdExportAll(args);
+        break;
+      case 'import':
+        await cmdImport(args);
         break;
       case 'sync':
         await cmdSync(args);

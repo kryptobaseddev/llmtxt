@@ -506,6 +506,20 @@ export class HubSpokeBackend implements Backend {
   async exportAll(params: Parameters<Backend['exportAll']>[0]) {
     return this.local.exportAll(params);
   }
+
+  async importDocument(params: Parameters<Backend['importDocument']>[0]) {
+    return this.local.importDocument(params);
+  }
+
+  // ── CrSqlite changeset sync (P2.6/P2.7) — delegates to LocalBackend ────────
+
+  async getChangesSince(dbVersion: bigint): Promise<Uint8Array> {
+    return this.local.getChangesSince(dbVersion);
+  }
+
+  async applyChanges(changeset: Uint8Array): Promise<bigint> {
+    return this.local.applyChanges(changeset);
+  }
 }
 
 // ── MeshBackend ─────────────────────────────────────────────────────────────
@@ -884,6 +898,20 @@ export class MeshBackend implements Backend {
 
   async exportAll(params: Parameters<Backend['exportAll']>[0]) {
     return this.local.exportAll(params);
+  }
+
+  async importDocument(params: Parameters<Backend['importDocument']>[0]) {
+    return this.local.importDocument(params);
+  }
+
+  // ── CrSqlite changeset sync (P2.6/P2.7) — delegates to LocalBackend ────────
+
+  async getChangesSince(dbVersion: bigint): Promise<Uint8Array> {
+    return this.local.getChangesSince(dbVersion);
+  }
+
+  async applyChanges(changeset: Uint8Array): Promise<bigint> {
+    return this.local.applyChanges(changeset);
   }
 }
 

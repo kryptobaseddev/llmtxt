@@ -71,6 +71,8 @@ import type {
   ExportDocumentResult,
   ExportAllParams,
   ExportAllResult,
+  ImportDocumentParams,
+  ImportDocumentResult,
 } from '../core/backend.js';
 import { ExportError } from '../core/backend.js';
 import {
@@ -80,6 +82,7 @@ import {
   FORMAT_EXT,
 } from '../export/backend-export.js';
 import type { DocumentExportState } from '../export/types.js';
+import { parseImportFile } from '../export/import-parser.js';
 
 import {
   BlobFsAdapter,
@@ -123,6 +126,20 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const MIGRATIONS_PATH = path.join(__dirname, 'migrations');
+
+// ── Lazy CRDT primitives cache ─────────────────────────────────
+// Loaded on first applyCrdtUpdate call; avoids circular import at module init.
+// Safe to cache: crdt-primitives module is stateless (pure functions).
+let _crdtPrimitivesCache: typeof import('../crdt-primitives.js') | null = null;
+async function _loadCrdtPrimitives(): Promise<typeof import('../crdt-primitives.js') | null> {
+  if (_crdtPrimitivesCache !== null) return _crdtPrimitivesCache;
+  try {
+    _crdtPrimitivesCache = await import('../crdt-primitives.js');
+    return _crdtPrimitivesCache;
+  } catch {
+    return null;
+  }
+}
 
 // ── cr-sqlite schema version ───────────────────────────────────
 /**
@@ -986,15 +1003,25 @@ export class LocalBackend implements Backend {
       createdAt: now,
     }).run();
 
-    // Update state snapshot (simple: store the latest update as snapshot)
-    // A production implementation would merge via WASM merge_updates
+    // Merge update into existing snapshot via Loro CRDT primitives (SSoT: crdt-primitives).
+    // crdt_apply_update is idempotent — applying same update twice yields same result.
+    // Uses a lazy async import that is safe since applyCrdtUpdate is already async.
     const existingState = currentState?.crdtState as Buffer | null;
     let newState: Buffer;
-    if (!existingState) {
-      newState = updateBlob;
-    } else {
-      // For now, store the concatenation; a real implementation merges via WASM
-      newState = updateBlob;
+    {
+      const crdtPrimitives = await _loadCrdtPrimitives();
+      if (crdtPrimitives !== null) {
+        newState = crdtPrimitives.crdt_apply_update(
+          existingState ?? Buffer.alloc(0),
+          updateBlob,
+        );
+      } else {
+        console.warn(
+          '[LocalBackend] applyCrdtUpdate: crdt-primitives WASM unavailable — ' +
+          'falling back to raw update blob (convergence not guaranteed).'
+        );
+        newState = updateBlob;
+      }
     }
 
     // Upsert state
@@ -1024,10 +1051,16 @@ export class LocalBackend implements Backend {
     // Emit to subscribers
     this.bus.emit(`crdt:${params.documentId}:${params.sectionKey}`, crdtUpdate);
 
+    // Compute Loro VersionVector for stateVectorBase64 field
+    const crdtPrimitivesForSv = await _loadCrdtPrimitives();
+    const svBase64 = crdtPrimitivesForSv
+      ? crdtPrimitivesForSv.crdt_state_vector(newState).toString('base64')
+      : newState.toString('base64'); // WASM unavailable: use snapshot as fallback
+
     return {
       documentId: params.documentId,
       sectionKey: params.sectionKey,
-      stateVectorBase64: newState.toString('base64'),
+      stateVectorBase64: svBase64,
       snapshotBase64: newState.toString('base64'),
       updatedAt: now,
     };
@@ -1047,10 +1080,17 @@ export class LocalBackend implements Backend {
       .get();
     if (!row) return null;
     const stateBlob = row.crdtState as Buffer;
+
+    // Compute Loro VersionVector for stateVectorBase64 field
+    const crdtPrimitivesForSv = await _loadCrdtPrimitives();
+    const svBase64 = crdtPrimitivesForSv
+      ? crdtPrimitivesForSv.crdt_state_vector(stateBlob).toString('base64')
+      : stateBlob.toString('base64'); // WASM unavailable: use snapshot as fallback
+
     return {
       documentId,
       sectionKey,
-      stateVectorBase64: stateBlob.toString('base64'),
+      stateVectorBase64: svBase64,
       snapshotBase64: stateBlob.toString('base64'),
       updatedAt: row.updatedAt,
     };
@@ -1690,6 +1730,231 @@ export class LocalBackend implements Backend {
     throw new Error('LocalBackend: rotateApiKey not yet implemented');
   }
 
+  // ── CrSqlite sync ops (T404, T405) ───────────────────────────
+
+  /**
+   * Returns all changes made to this database since `dbVersion`.
+   *
+   * Wraps: SELECT * FROM crsql_changes WHERE db_version > ?
+   *
+   * The changeset is serialized as a compact binary format:
+   *   [4-byte row count LE] [per-row entries...]
+   *
+   * Each row entry:
+   *   [1-byte col count] [table name: 1-byte len + bytes]
+   *   [col values: per column — 1-byte type tag + payload]
+   *
+   * Type tags: 0=null, 1=integer (8-byte LE), 2=real (8-byte IEEE 754),
+   *            3=text (4-byte len LE + UTF-8 bytes), 4=blob (4-byte len LE + bytes)
+   *
+   * DR-P2-03: Binary wire format to minimize size. Callers needing HTTP
+   * transport MUST base64-encode the returned Uint8Array.
+   *
+   * dbVersion=0 returns the full history.
+   * Returns empty Uint8Array (not null) when no changes exist.
+   *
+   * @throws CrSqliteNotLoadedError when hasCRR is false.
+   */
+  async getChangesSince(dbVersion: bigint): Promise<Uint8Array> {
+    this._assertOpen();
+    if (!this.hasCRR) {
+      const { CrSqliteNotLoadedError } = await import('../crsqlite-loader.js');
+      throw new CrSqliteNotLoadedError();
+    }
+
+    // better-sqlite3 is synchronous; wrap in resolved Promise at boundary only.
+    const rows = this.rawDb
+      .prepare('SELECT * FROM crsql_changes WHERE db_version > ?')
+      .all(dbVersion.toString()) as CrSqliteChangeRow[];
+
+    return serializeChangeset(rows);
+  }
+
+  /**
+   * Applies a changeset received from a peer.
+   *
+   * Steps (all in a single better-sqlite3 transaction — synchronous):
+   *  1. Deserialize the changeset from Uint8Array wire format.
+   *  2. INSERT each row into crsql_changes (cr-sqlite applies LWW for all
+   *     relational columns).
+   *  3. Post-process rows where the table is `section_crdt_states` and the
+   *     column is `crdt_state`: fetch local blob, merge via crdt_merge_updates,
+   *     write merged result back. (DR-P2-04 MANDATORY — not LWW.)
+   *  4. Recompute documents.version_count for any document_id seen in the
+   *     changeset (spec §6 of P2-crr-column-strategy.md).
+   *  5. Return SELECT crsql_db_version() as bigint.
+   *
+   * Idempotent: cr-sqlite guarantees idempotency for relational columns; the
+   * Loro merge is also idempotent (CRDT property).
+   *
+   * Invalid crdt_state blob in the changeset: logs a warning and retains the
+   * local blob rather than corrupting the transaction.
+   *
+   * @throws CrSqliteNotLoadedError when hasCRR is false.
+   * @returns New local db_version after applying.
+   */
+  async applyChanges(changeset: Uint8Array): Promise<bigint> {
+    this._assertOpen();
+    if (!this.hasCRR) {
+      const { CrSqliteNotLoadedError } = await import('../crsqlite-loader.js');
+      throw new CrSqliteNotLoadedError();
+    }
+
+    const rows = deserializeChangeset(changeset);
+    if (rows.length === 0) {
+      // Nothing to apply — return current db_version.
+      const versionRow = this.rawDb
+        .prepare('SELECT crsql_db_version() AS v')
+        .get() as { v: number };
+      return BigInt(versionRow.v);
+    }
+
+    // Collect document IDs that appear in the changeset so we can recompute
+    // version_count (spec §6 of P2-crr-column-strategy.md).
+    const affectedDocIds = new Set<string>();
+
+    // Track section_crdt_states rows needing Loro merge (DR-P2-04).
+    // Structure: { documentId, sectionId, incomingBlob }
+    const crdtStateUpdates: Array<{
+      documentId: string;
+      sectionId: string;
+      incomingBlob: Buffer;
+    }> = [];
+
+    // Identify crdt_state rows before applying (pre-scan the incoming changeset).
+    for (const row of rows) {
+      if (row.tableName === 'documents' && row.pk !== null) {
+        // pk is the document id for the documents table.
+        const docId = typeof row.pk === 'string' ? row.pk : String(row.pk);
+        affectedDocIds.add(docId);
+      }
+      if (row.tableName === 'versions' && row.documentId !== null) {
+        const docId = typeof row.documentId === 'string'
+          ? row.documentId
+          : String(row.documentId);
+        affectedDocIds.add(docId);
+      }
+      if (row.tableName === 'section_crdt_states' && row.crdtStateBlob !== null) {
+        // DR-P2-04: this column MUST use Loro merge — capture incoming blob.
+        const incoming = row.crdtStateBlob instanceof Buffer
+          ? row.crdtStateBlob
+          : Buffer.from(row.crdtStateBlob as Uint8Array);
+        crdtStateUpdates.push({
+          documentId: String(row.documentId ?? row.pk ?? ''),
+          sectionId: String(row.sectionId ?? ''),
+          incomingBlob: incoming,
+        });
+      }
+    }
+
+    // Execute everything in a single synchronous transaction.
+    const applyTx = this.rawDb.transaction(() => {
+      // Step 2: Insert rows into crsql_changes.
+      const insertStmt = this.rawDb.prepare(
+        'INSERT INTO crsql_changes ' +
+        '("table", "pk", "cid", "val", "col_version", "db_version", "site_id", "cl", "seq") ' +
+        'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      );
+      for (const row of rows) {
+        insertStmt.run(
+          row.tableName,
+          row.pk,
+          row.cid,
+          row.val,
+          row.colVersion,
+          row.dbVersion,
+          row.siteId,
+          row.cl,
+          row.seq,
+        );
+      }
+
+      // Step 3: DR-P2-04 — Loro merge for section_crdt_states.crdt_state.
+      if (crdtStateUpdates.length > 0) {
+        // Lazy import of crdt_merge_updates (sync function, no await needed).
+        // We require the module synchronously since better-sqlite3 transactions
+        // MUST NOT be async. The module is pre-loaded by the time we reach here
+        // because crdt-primitives is a plain CJS-compatible module.
+        let mergeFn: ((updates: Buffer[]) => Buffer) | null = null;
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          const crdtPrimitives = require('../crdt-primitives.js') as typeof import('../crdt-primitives.js');
+          mergeFn = crdtPrimitives.crdt_merge_updates;
+        } catch {
+          // WASM not available — fallback: keep local blob (safe, no corruption).
+          console.warn(
+            '[LocalBackend] applyChanges: crdt-primitives WASM unavailable — ' +
+            'crdt_state Loro merge skipped; local blob retained (no corruption).'
+          );
+        }
+
+        if (mergeFn !== null) {
+          const fetchLocalStmt = this.rawDb.prepare(
+            'SELECT crdt_state FROM section_crdt_states ' +
+            'WHERE document_id = ? AND section_id = ?'
+          );
+          const writeBackStmt = this.rawDb.prepare(
+            'UPDATE section_crdt_states SET crdt_state = ? ' +
+            'WHERE document_id = ? AND section_id = ?'
+          );
+
+          for (const update of crdtStateUpdates) {
+            const localRow = fetchLocalStmt.get(
+              update.documentId,
+              update.sectionId
+            ) as { crdt_state: Buffer | null } | undefined;
+
+            const localBlob: Buffer | null = localRow?.crdt_state ?? null;
+
+            if (localBlob === null || localBlob.length === 0) {
+              // No local state — incoming blob wins (no merge needed).
+              writeBackStmt.run(update.incomingBlob, update.documentId, update.sectionId);
+              continue;
+            }
+
+            let mergedBlob: Buffer;
+            try {
+              mergedBlob = mergeFn([localBlob, update.incomingBlob]);
+            } catch (err) {
+              // Invalid incoming blob — log warning and keep local blob.
+              // Per T405 acceptance criterion: "logs a warning and reverts only
+              // the blob column to local state (does not corrupt entire transaction)."
+              console.warn(
+                '[LocalBackend] applyChanges: Loro merge failed for ' +
+                `section_crdt_states(${update.documentId}, ${update.sectionId}) — ` +
+                `retaining local blob. Error: ${(err as Error).message}`
+              );
+              writeBackStmt.run(localBlob, update.documentId, update.sectionId);
+              continue;
+            }
+
+            writeBackStmt.run(mergedBlob, update.documentId, update.sectionId);
+          }
+        }
+      }
+
+      // Step 4: Recompute version_count for affected document IDs.
+      if (affectedDocIds.size > 0) {
+        const recomputeStmt = this.rawDb.prepare(
+          'UPDATE documents SET version_count = ' +
+          '(SELECT COUNT(*) FROM versions WHERE document_id = documents.id) ' +
+          'WHERE id = ?'
+        );
+        for (const docId of affectedDocIds) {
+          recomputeStmt.run(docId);
+        }
+      }
+
+      // Step 5: Return new db_version.
+      const versionRow = this.rawDb
+        .prepare('SELECT crsql_db_version() AS v')
+        .get() as { v: number };
+      return BigInt(versionRow.v);
+    });
+
+    return applyTx() as bigint;
+  }
+
   // ── BlobOps ───────────────────────────────────────────────────
 
   async attachBlob(params: AttachBlobParams): Promise<BlobAttachment> {
@@ -1860,6 +2125,276 @@ export class LocalBackend implements Backend {
       failedCount: skipped.length,
     };
   }
+
+  // ── ImportOps (T427.8) ────────────────────────────────────────
+
+  /**
+   * Import a document from a file on disk.
+   *
+   * Parsing strategy:
+   *  - .md / .llmtxt: parse YAML frontmatter; body follows closing fence.
+   *  - .json: parse JSON; use 'content' field as body.
+   *  - .txt: entire file is body; slug derived from filename stem.
+   *
+   * Conflict strategy:
+   *  - 'create': throw ExportError('SLUG_EXISTS') if slug is already in use.
+   *  - 'new_version' (default): append a new version to the existing document.
+   *
+   * @throws {ExportError} PARSE_FAILED on I/O or parse errors.
+   * @throws {ExportError} HASH_MISMATCH when frontmatter content_hash mismatches.
+   * @throws {ExportError} SLUG_EXISTS when onConflict='create' and slug exists.
+   */
+  async importDocument(params: ImportDocumentParams): Promise<ImportDocumentResult> {
+    this._assertOpen();
+
+    const { filePath, importedBy, onConflict = 'new_version' } = params;
+
+    // 1. Parse the file — throws PARSE_FAILED or HASH_MISMATCH on error.
+    const parsed = parseImportFile(filePath);
+    const { slug, title, content } = parsed;
+
+    // 2. Check for an existing document with the same slug.
+    const existing = await this.getDocumentBySlug(slug);
+
+    if (existing !== null) {
+      if (onConflict === 'create') {
+        throw new ExportError(
+          'SLUG_EXISTS',
+          `A document with slug "${slug}" already exists. Use onConflict='new_version' to append.`,
+        );
+      }
+
+      // onConflict = 'new_version': publish a new version on the existing document.
+      const version = await this.publishVersion({
+        documentId: existing.id,
+        content,
+        patchText: '',
+        createdBy: importedBy,
+        changelog: `Imported from ${filePath}`,
+      });
+
+      return {
+        action: 'version_appended',
+        slug: existing.slug,
+        documentId: existing.id,
+        versionNumber: version.versionNumber,
+        contentHash: version.contentHash,
+      };
+    }
+
+    // 3. No existing document — create a new one with the imported slug/title.
+    const doc = await this.createDocument({
+      title,
+      createdBy: importedBy,
+      slug,
+    });
+
+    const version = await this.publishVersion({
+      documentId: doc.id,
+      content,
+      patchText: '',
+      createdBy: importedBy,
+      changelog: `Imported from ${filePath}`,
+    });
+
+    return {
+      action: 'created',
+      slug: doc.slug,
+      documentId: doc.id,
+      versionNumber: version.versionNumber,
+      contentHash: version.contentHash,
+    };
+  }
+}
+
+// ── CrSqlite changeset wire format (T404/T405) ────────────────
+//
+// Binary encoding for the cr-sqlite changeset. Keeps the changeset compact
+// while remaining fully self-describing. All integers are little-endian.
+//
+// Wire format (T404 getChangesSince output / T405 applyChanges input):
+//   Header:  4 bytes — row count (uint32 LE)
+//   Per row: see encodeChangeRow / decodeChangeRow below.
+//
+// Column value type tags (1 byte):
+//   0 = null
+//   1 = integer (8 bytes signed LE)
+//   2 = real    (8 bytes IEEE 754 double LE)
+//   3 = text    (4 bytes len LE) + UTF-8 bytes
+//   4 = blob    (4 bytes len LE) + raw bytes
+
+/** Raw row from `SELECT * FROM crsql_changes`. */
+interface CrSqliteChangeRow {
+  /** crsql_changes column: "table" */
+  tableName: string;
+  /** crsql_changes column: pk */
+  pk: string | number | Buffer | null;
+  /** crsql_changes column: cid (column id) */
+  cid: string;
+  /** crsql_changes column: val */
+  val: string | number | Buffer | null;
+  /** crsql_changes column: col_version */
+  colVersion: number;
+  /** crsql_changes column: db_version */
+  dbVersion: number;
+  /** crsql_changes column: site_id */
+  siteId: Buffer | null;
+  /** crsql_changes column: cl (causal length) */
+  cl: number;
+  /** crsql_changes column: seq */
+  seq: number;
+
+  // Derived helpers populated by deserializeChangeset (not from raw row):
+  documentId?: string | null;
+  sectionId?: string | null;
+  crdtStateBlob?: Buffer | null;
+}
+
+type CrSqliteValue = string | number | Buffer | null;
+
+function encodeValue(buf: Buffer[], v: CrSqliteValue): void {
+  if (v === null || v === undefined) {
+    buf.push(Buffer.from([0]));
+    return;
+  }
+  if (typeof v === 'number') {
+    const tag = Number.isInteger(v) ? Buffer.from([1]) : Buffer.from([2]);
+    const b = Buffer.allocUnsafe(8);
+    if (Number.isInteger(v)) {
+      b.writeBigInt64LE(BigInt(v));
+    } else {
+      b.writeDoubleBE(v); // Note: using writeDoubleBE for cross-arch portability
+    }
+    buf.push(tag, b);
+    return;
+  }
+  if (typeof v === 'string') {
+    const text = Buffer.from(v, 'utf8');
+    const lenBuf = Buffer.allocUnsafe(4);
+    lenBuf.writeUInt32LE(text.length);
+    buf.push(Buffer.from([3]), lenBuf, text);
+    return;
+  }
+  // blob (Buffer / Uint8Array)
+  const blobBuf = v instanceof Buffer ? v : Buffer.from(v as Uint8Array);
+  const lenBuf = Buffer.allocUnsafe(4);
+  lenBuf.writeUInt32LE(blobBuf.length);
+  buf.push(Buffer.from([4]), lenBuf, blobBuf);
+}
+
+function decodeValue(data: Buffer, offset: number): { value: CrSqliteValue; next: number } {
+  const tag = data[offset]!;
+  offset += 1;
+  if (tag === 0) return { value: null, next: offset };
+  if (tag === 1) {
+    const n = data.readBigInt64LE(offset);
+    // Safe cast: cr-sqlite version/seq numbers fit in Number range.
+    return { value: Number(n), next: offset + 8 };
+  }
+  if (tag === 2) {
+    const f = data.readDoubleBE(offset);
+    return { value: f, next: offset + 8 };
+  }
+  if (tag === 3) {
+    const len = data.readUInt32LE(offset);
+    offset += 4;
+    const str = data.slice(offset, offset + len).toString('utf8');
+    return { value: str, next: offset + len };
+  }
+  if (tag === 4) {
+    const len = data.readUInt32LE(offset);
+    offset += 4;
+    const blob = Buffer.from(data.slice(offset, offset + len));
+    return { value: blob, next: offset + len };
+  }
+  throw new Error(`[CrSqlite] Unknown value tag: ${tag}`);
+}
+
+/** Fixed-order column list matching SELECT * FROM crsql_changes column order. */
+const CRSQL_COLS = ['tableName', 'pk', 'cid', 'val', 'colVersion', 'dbVersion', 'siteId', 'cl', 'seq'] as const;
+
+function serializeChangeset(rows: CrSqliteChangeRow[]): Uint8Array {
+  const parts: Buffer[] = [];
+
+  const countBuf = Buffer.allocUnsafe(4);
+  countBuf.writeUInt32LE(rows.length);
+  parts.push(countBuf);
+
+  for (const row of rows) {
+    // Encode 9 fixed columns in order.
+    encodeValue(parts, row.tableName);
+    encodeValue(parts, row.pk);
+    encodeValue(parts, row.cid);
+    encodeValue(parts, row.val);
+    encodeValue(parts, row.colVersion);
+    encodeValue(parts, row.dbVersion);
+    encodeValue(parts, row.siteId);
+    encodeValue(parts, row.cl);
+    encodeValue(parts, row.seq);
+  }
+
+  return Buffer.concat(parts);
+}
+
+function deserializeChangeset(data: Uint8Array): CrSqliteChangeRow[] {
+  if (data.length === 0) return [];
+
+  const buf = data instanceof Buffer ? data : Buffer.from(data);
+  let offset = 0;
+
+  const rowCount = buf.readUInt32LE(offset);
+  offset += 4;
+
+  const rows: CrSqliteChangeRow[] = [];
+
+  for (let i = 0; i < rowCount; i++) {
+    const values: CrSqliteValue[] = [];
+    for (let c = 0; c < CRSQL_COLS.length; c++) {
+      const result = decodeValue(buf, offset);
+      values.push(result.value);
+      offset = result.next;
+    }
+
+    const row: CrSqliteChangeRow = {
+      tableName: values[0] as string,
+      pk: values[1] as CrSqliteValue,
+      cid: values[2] as string,
+      val: values[3] as CrSqliteValue,
+      colVersion: values[4] as number,
+      dbVersion: values[5] as number,
+      siteId: values[6] as Buffer | null,
+      cl: values[7] as number,
+      seq: values[8] as number,
+    };
+
+    // Populate derived helpers for DR-P2-04 detection.
+    // cid identifies the column name in the row; val is the column value.
+    if (row.tableName === 'section_crdt_states' && row.cid === 'crdt_state') {
+      row.crdtStateBlob = row.val instanceof Buffer
+        ? row.val
+        : (row.val !== null && row.val !== undefined ? Buffer.from(String(row.val)) : null);
+      // pk for section_crdt_states is composite JSON: {"document_id":"...","section_id":"..."}
+      if (typeof row.pk === 'string') {
+        try {
+          const parsed = JSON.parse(row.pk) as Record<string, string>;
+          row.documentId = parsed.document_id ?? null;
+          row.sectionId = parsed.section_id ?? null;
+        } catch {
+          // Fallback: treat pk as document_id
+          row.documentId = row.pk;
+          row.sectionId = null;
+        }
+      }
+    }
+
+    if (row.tableName === 'versions' && row.cid === 'document_id') {
+      row.documentId = typeof row.val === 'string' ? row.val : null;
+    }
+
+    rows.push(row);
+  }
+
+  return rows;
 }
 
 // ── Utility ───────────────────────────────────────────────────

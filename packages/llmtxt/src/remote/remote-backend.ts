@@ -53,6 +53,8 @@ import type {
   ExportDocumentResult,
   ExportAllParams,
   ExportAllResult,
+  ImportDocumentParams,
+  ImportDocumentResult,
 } from '../core/backend.js';
 import { ExportError } from '../core/backend.js';
 import {
@@ -61,6 +63,7 @@ import {
   contentHashHex,
 } from '../export/backend-export.js';
 import type { DocumentExportState } from '../export/types.js';
+import { parseImportFile } from '../export/import-parser.js';
 
 import type { VersionEntry } from '../sdk/versions.js';
 
@@ -782,26 +785,108 @@ export class RemoteBackend implements Backend {
     throw new Error('RemoteBackend: rotateApiKey not yet implemented');
   }
 
-  // ── BlobOps (stubs — T427 does not require remote blob storage) ───────────
+  // ── BlobOps — HTTP proxy to /v1/documents/:slug/blobs ─────────────────────
 
-  async attachBlob(_params: import('../core/backend.js').AttachBlobParams): Promise<import('../core/backend.js').BlobAttachment> {
-    throw new Error('RemoteBackend: attachBlob not yet implemented');
+  async attachBlob(params: import('../core/backend.js').AttachBlobParams): Promise<import('../core/backend.js').BlobAttachment> {
+    this._assertOpen();
+    const { docSlug, name, contentType, data } = params;
+    const bytes = data instanceof Buffer ? data : Buffer.from(data);
+
+    // POST /v1/documents/:slug/blobs?name=<name>&contentType=<mime>
+    // Body: raw binary bytes (Content-Type: blob's mime type)
+    const qs = new URLSearchParams({ name });
+    if (contentType) qs.set('contentType', contentType);
+    const url = `${this.config.baseUrl!}/v1/documents/${encodeURIComponent(docSlug)}/blobs?${qs.toString()}`;
+
+    const headers: Record<string, string> = {
+      'Content-Type': contentType ?? 'application/octet-stream',
+    };
+    if (this.config.apiKey) {
+      headers['Authorization'] = `Bearer ${this.config.apiKey}`;
+    }
+
+    const res = await fetch(url, { method: 'POST', headers, body: bytes });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`RemoteBackend: attachBlob → HTTP ${res.status}: ${text}`);
+    }
+    const json = await res.json() as { data: import('../core/backend.js').BlobAttachment };
+    return json.data ?? json as unknown as import('../core/backend.js').BlobAttachment;
   }
 
-  async getBlob(_docSlug: string, _blobName: string, _opts?: { includeData?: boolean }): Promise<import('../core/backend.js').BlobData | null> {
-    throw new Error('RemoteBackend: getBlob not yet implemented');
+  async getBlob(
+    docSlug: string,
+    blobName: string,
+    opts: { includeData?: boolean } = {}
+  ): Promise<import('../core/backend.js').BlobData | null> {
+    this._assertOpen();
+    const includeData = opts.includeData ?? false;
+    const url = `${this.config.baseUrl!}/v1/documents/${encodeURIComponent(docSlug)}/blobs/${encodeURIComponent(blobName)}${includeData ? '?includeData=true' : ''}`;
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    if (this.config.apiKey) headers['Authorization'] = `Bearer ${this.config.apiKey}`;
+
+    const res = await fetch(url, { method: 'GET', headers });
+    if (res.status === 404) return null;
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`RemoteBackend: getBlob → HTTP ${res.status}: ${text}`);
+    }
+
+    if (includeData) {
+      // Server returns raw bytes with metadata headers when includeData=true
+      const contentType = res.headers.get('X-Blob-Content-Type') ?? 'application/octet-stream';
+      const hash = res.headers.get('X-Blob-Hash') ?? '';
+      const size = parseInt(res.headers.get('X-Blob-Size') ?? '0', 10);
+      const uploadedBy = res.headers.get('X-Blob-Uploaded-By') ?? '';
+      const uploadedAt = parseInt(res.headers.get('X-Blob-Uploaded-At') ?? '0', 10);
+      const id = res.headers.get('X-Blob-Id') ?? '';
+      const buf = Buffer.from(await res.arrayBuffer());
+      return { id, docSlug, blobName, hash, size, contentType, uploadedBy, uploadedAt, data: buf };
+    }
+
+    const json = await res.json() as { data: import('../core/backend.js').BlobData } | import('../core/backend.js').BlobData;
+    if (json && typeof json === 'object' && 'data' in json) return (json as { data: import('../core/backend.js').BlobData }).data;
+    return json as import('../core/backend.js').BlobData;
   }
 
-  async listBlobs(_docSlug: string): Promise<import('../core/backend.js').BlobAttachment[]> {
-    throw new Error('RemoteBackend: listBlobs not yet implemented');
+  async listBlobs(docSlug: string): Promise<import('../core/backend.js').BlobAttachment[]> {
+    this._assertOpen();
+    const result = await this.fetch<{ items: import('../core/backend.js').BlobAttachment[] } | import('../core/backend.js').BlobAttachment[]>(
+      'GET',
+      `/v1/documents/${encodeURIComponent(docSlug)}/blobs`
+    );
+    if (Array.isArray(result)) return result;
+    return (result as { items: import('../core/backend.js').BlobAttachment[] }).items ?? [];
   }
 
-  async detachBlob(_docSlug: string, _blobName: string, _detachedBy: string): Promise<boolean> {
-    throw new Error('RemoteBackend: detachBlob not yet implemented');
+  async detachBlob(docSlug: string, blobName: string, _detachedBy: string): Promise<boolean> {
+    this._assertOpen();
+    try {
+      await this.fetch<unknown>(
+        'DELETE',
+        `/v1/documents/${encodeURIComponent(docSlug)}/blobs/${encodeURIComponent(blobName)}`
+      );
+      return true;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('HTTP 404')) return false;
+      throw err;
+    }
   }
 
-  async fetchBlobByHash(_hash: string): Promise<Buffer | null> {
-    throw new Error('RemoteBackend: fetchBlobByHash not yet implemented');
+  async fetchBlobByHash(hash: string): Promise<Buffer | null> {
+    this._assertOpen();
+    const url = `${this.config.baseUrl!}/v1/blobs/${encodeURIComponent(hash)}`;
+    const headers: Record<string, string> = {};
+    if (this.config.apiKey) headers['Authorization'] = `Bearer ${this.config.apiKey}`;
+
+    const res = await fetch(url, { method: 'GET', headers });
+    if (res.status === 404) return null;
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`RemoteBackend: fetchBlobByHash → HTTP ${res.status}: ${text}`);
+    }
+    return Buffer.from(await res.arrayBuffer());
   }
 
   // ── ExportOps (T427.6) ────────────────────────────────────────────────────
@@ -928,5 +1013,93 @@ export class RemoteBackend implements Backend {
       totalCount: exported.length + skipped.length,
       failedCount: skipped.length,
     };
+  }
+
+  // ── ImportOps (T427.8) ────────────────────────────────────────
+
+  /**
+   * Import a document from a file on disk into the remote backend.
+   *
+   * Parses the file locally (same logic as LocalBackend), then uses the
+   * remote API to create or update the document.
+   *
+   * @throws {ExportError} PARSE_FAILED on I/O or parse errors.
+   * @throws {ExportError} HASH_MISMATCH when frontmatter content_hash mismatches.
+   * @throws {ExportError} SLUG_EXISTS when onConflict='create' and slug exists.
+   */
+  async importDocument(params: ImportDocumentParams): Promise<ImportDocumentResult> {
+    this._assertOpen();
+
+    const { filePath, importedBy, onConflict = 'new_version' } = params;
+
+    // 1. Parse the file.
+    const parsed = parseImportFile(filePath);
+    const { slug, title, content } = parsed;
+
+    // 2. Check for an existing document with the same slug.
+    const existing = await this.getDocumentBySlug(slug);
+
+    if (existing !== null) {
+      if (onConflict === 'create') {
+        throw new ExportError(
+          'SLUG_EXISTS',
+          `A document with slug "${slug}" already exists. Use onConflict='new_version' to append.`,
+        );
+      }
+
+      // Append a new version.
+      const version = await this.publishVersion({
+        documentId: existing.id,
+        content,
+        patchText: '',
+        createdBy: importedBy,
+        changelog: `Imported from ${filePath}`,
+      });
+
+      return {
+        action: 'version_appended',
+        slug: existing.slug,
+        documentId: existing.id,
+        versionNumber: version.versionNumber,
+        contentHash: version.contentHash,
+      };
+    }
+
+    // 3. Create a new document.
+    const doc = await this.createDocument({
+      title,
+      createdBy: importedBy,
+      slug,
+    });
+
+    const version = await this.publishVersion({
+      documentId: doc.id,
+      content,
+      patchText: '',
+      createdBy: importedBy,
+      changelog: `Imported from ${filePath}`,
+    });
+
+    return {
+      action: 'created',
+      slug: doc.slug,
+      documentId: doc.id,
+      versionNumber: version.versionNumber,
+      contentHash: version.contentHash,
+    };
+  }
+
+  // ── CrSqlite changeset sync (P2.6 / P2.7 — T404 / T405) ─────
+
+  /**
+   * Not supported by RemoteBackend — cr-sqlite sync is a LocalBackend feature.
+   * The remote api.llmtxt.my endpoint for changeset exchange is planned in P3.
+   */
+  async getChangesSince(_dbVersion: bigint): Promise<Uint8Array> {
+    throw new Error('RemoteBackend: getChangesSince not implemented — cr-sqlite sync is LocalBackend-only (P2.6)');
+  }
+
+  async applyChanges(_changeset: Uint8Array): Promise<bigint> {
+    throw new Error('RemoteBackend: applyChanges not implemented — cr-sqlite sync is LocalBackend-only (P2.7)');
   }
 }

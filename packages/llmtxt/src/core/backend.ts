@@ -1367,6 +1367,36 @@ export interface ExportAllResult {
   failedCount: number;
 }
 
+/**
+ * Parameters for importing a document from a file.
+ * @see docs/specs/ARCH-T427-document-export-ssot.md §5.6
+ */
+export interface ImportDocumentParams {
+  /** Path to the file to import (.md, .json, .txt, .llmtxt). */
+  filePath: string;
+  /** Agent performing the import. */
+  importedBy: string;
+  /**
+   * Conflict strategy when a document with the same slug already exists.
+   * 'new_version': publish the imported content as a new version (default).
+   * 'create': fail with ExportError('SLUG_EXISTS') if the slug already exists.
+   */
+  onConflict?: 'new_version' | 'create';
+}
+
+/**
+ * Result returned by importDocument().
+ * @see docs/specs/ARCH-T427-document-export-ssot.md §5.7
+ */
+export interface ImportDocumentResult {
+  /** Whether a new document was created or a version was appended. */
+  action: 'created' | 'version_appended';
+  slug: string;
+  documentId: string;
+  versionNumber: number;
+  contentHash: string;
+}
+
 /** Document export operations. */
 export interface ExportOps {
   /**
@@ -1394,4 +1424,47 @@ export interface ExportOps {
    * @see docs/specs/ARCH-T427-document-export-ssot.md §5.5
    */
   exportAll(params: ExportAllParams): Promise<ExportAllResult>;
+
+  /**
+   * Import a document from a file on disk.
+   *
+   * MUST parse frontmatter from .md and .llmtxt files.
+   * MUST parse the `content` field from .json files.
+   * MUST read raw body from .txt files (no frontmatter).
+   * MUST NOT silently ignore a frontmatter content_hash that does not match the body.
+   * MUST create a new document if no document with the slug exists.
+   * MUST publish a new version if the document exists and onConflict='new_version'.
+   * MUST return ExportError('SLUG_EXISTS') if document exists and onConflict='create'.
+   *
+   * @see docs/specs/ARCH-T427-document-export-ssot.md §5.8
+   */
+  importDocument(params: ImportDocumentParams): Promise<ImportDocumentResult>;
+
+  // ── CrSqlite changeset sync (P2.6 / P2.7 — T404 / T405) ─────
+
+  /**
+   * Returns all changes made to this database since `dbVersion`.
+   *
+   * `dbVersion = 0n` returns the full change history.
+   * Returns an empty Uint8Array (not null) when no changes exist.
+   *
+   * The changeset is the cr-sqlite binary wire format as defined in
+   * docs/specs/P2-cr-sqlite.md §3.3 (DR-P2-03).
+   *
+   * @throws CrSqliteNotLoadedError when cr-sqlite is not loaded.
+   */
+  getChangesSince(dbVersion: bigint): Promise<Uint8Array>;
+
+  /**
+   * Applies a changeset received from a peer.
+   *
+   * MUST be idempotent: applying the same changeset twice produces identical state.
+   *
+   * For rows affecting section_crdt_states.crdt_state, the implementation MUST
+   * perform application-level Loro merge instead of cr-sqlite LWW (DR-P2-04).
+   *
+   * @returns The new local db_version after applying the changeset.
+   * @throws CrSqliteNotLoadedError when cr-sqlite is not loaded.
+   */
+  applyChanges(changeset: Uint8Array): Promise<bigint>;
 }
