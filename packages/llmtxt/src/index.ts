@@ -14,6 +14,7 @@ export {
   decompress,
   generateId,
   hashContent,
+  hashBlob,
   calculateTokens,
   calculateCompressionRatio,
   computeDiff,

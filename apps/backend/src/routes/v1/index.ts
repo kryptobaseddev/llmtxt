@@ -39,6 +39,7 @@ import { scratchpadRoutes } from '../scratchpad.js';
 import { a2aRoutes } from '../a2a.js';
 import { searchRoutes } from '../search.js';
 import { exportRoutes } from '../export.js';
+import { blobRoutes } from '../blobs.js';
 import {
   API_VERSION_REGISTRY,
   addVersionResponseHeaders,
@@ -102,4 +103,6 @@ export async function v1Routes(app: FastifyInstance): Promise<void> {
   await app.register(searchRoutes);
   // T427.6: Document export endpoint
   await app.register(exportRoutes);
+  // T428.8: Blob attachment endpoints
+  await app.register(blobRoutes);
 }

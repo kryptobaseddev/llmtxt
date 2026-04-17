@@ -23,8 +23,8 @@
  * @module
  */
 
-import { createHash } from 'node:crypto';
 import { nanoid } from 'nanoid';
+import { hashBlob as wasmHashBlob } from 'llmtxt';
 
 // ── Error classes (re-exported for consumers) ──────────────────
 
@@ -132,13 +132,15 @@ function newId(): string {
 }
 
 /**
- * Compute SHA-256 hash of bytes using Node.js crypto.
- * Fallback used when WASM is not available in the backend context.
- * The WASM hashBlob primitive and this produce identical output.
+ * Compute SHA-256 hash of bytes via the WASM hashBlob primitive.
+ * Mirrors crates/llmtxt-core::hash_blob — SSOT for all blob hashing.
+ * Returns lowercase hex string (64 chars).
  */
 function hashBytes(data: Buffer | Uint8Array): string {
-  const buf = data instanceof Buffer ? data : Buffer.from(data);
-  return createHash('sha256').update(buf).digest('hex');
+  const bytes = data instanceof Buffer
+    ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+    : data;
+  return wasmHashBlob(bytes);
 }
 
 /**

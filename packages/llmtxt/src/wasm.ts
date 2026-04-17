@@ -41,6 +41,17 @@ export function hashContent(data: string): string {
   return wasmModule.hash_content(data);
 }
 
+/**
+ * Compute SHA-256 hash of raw binary data.
+ * Returns a lowercase hex string (64 characters).
+ *
+ * Use this for blob content-addressing — mirrors crates/llmtxt-core::hash_blob.
+ * Prefer this over node:crypto createHash (SSOT rule — see docs/SSOT.md).
+ */
+export function hashBlob(data: Uint8Array): string {
+  return wasmModule.hashBlob(data);
+}
+
 // ── Token Estimation ────────────────────────────────────────────
 
 export function calculateTokens(text: string): number {

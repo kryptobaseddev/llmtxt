@@ -22,7 +22,7 @@
 
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
+import { hashBlob } from 'llmtxt';
 
 import {
   BlobPgAdapter,
@@ -34,7 +34,7 @@ import {
 // ── Helpers ────────────────────────────────────────────────────
 
 function sha256hex(data: Buffer): string {
-  return createHash('sha256').update(data).digest('hex');
+  return hashBlob(new Uint8Array(data.buffer, data.byteOffset, data.byteLength));
 }
 
 function makeTestBytes(content: string = 'test blob content'): Buffer {

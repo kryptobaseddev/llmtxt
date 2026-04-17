@@ -22,7 +22,7 @@
 
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
+import { hashContent } from 'llmtxt';
 import Fastify, { type FastifyInstance } from 'fastify';
 
 // ── Inline mock backend ────────────────────────────────────────────────────────
@@ -70,7 +70,7 @@ function makeMockDoc(slug: string): MockDocument {
 function makeMockVersion(content: string): MockVersionRow {
   return {
     versionNumber: 1,
-    contentHash: createHash('sha256').update(content, 'utf8').digest('hex'),
+    contentHash: hashContent(content),
     createdBy: 'agent-test',
     createdAt: 1745000000000,
     compressedData: Buffer.from(content, 'utf8'),
