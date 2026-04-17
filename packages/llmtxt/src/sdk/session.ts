@@ -1,11 +1,12 @@
 /**
- * Ephemeral Agent Session Lifecycle
+ * Ephemeral Agent Lifecycle — AgentSession
  *
  * Provides AgentSession class for managing the lifecycle of ephemeral and
  * persistent agents with explicit state transitions, contribution tracking,
  * and auditable receipts.
  *
  * Spec: docs/specs/ARCH-T426-ephemeral-agent-lifecycle.md
+ * Implements: T430 (skeleton), T431 (open), T432 (contribute), T433 (close), T437 (receipt)
  */
 
 import { randomUUID } from "node:crypto";
@@ -48,7 +49,7 @@ export interface ContributionReceipt {
 	/** Agent identity ID (must match authenticated identity in backend). */
 	agentId: string;
 
-	/** Unique document IDs written during the session. */
+	/** Unique document IDs written during the session (sorted for determinism). */
 	documentIds: string[];
 
 	/** Total successful write operations performed via contribute(). */
@@ -70,8 +71,20 @@ export interface ContributionReceipt {
 	 *
 	 * Signature covers: SHA-256(sessionId + agentId + documentIds.sort().join(',') +
 	 *                   eventCount + openedAt + closedAt)
+	 *
+	 * Stub for now — T461 will add Ed25519 signing to AgentSession.
 	 */
 	signature?: string;
+}
+
+/**
+ * Error raised when one or more close() teardown steps fail while the session
+ * still reaches the Closed state. Callers can inspect `errors` for details
+ * and `receipt` for the partial receipt.
+ */
+export interface CloseStepError {
+	step: string;
+	error: Error;
 }
 
 /**
@@ -88,6 +101,10 @@ export interface ContributionReceipt {
 export class AgentSessionError extends Error {
 	readonly code: string;
 	readonly cause?: unknown;
+	/** Partial receipt attached when code is SESSION_CLOSE_PARTIAL. */
+	receipt?: ContributionReceipt;
+	/** Step-level errors attached when code is SESSION_CLOSE_PARTIAL. */
+	errors?: CloseStepError[];
 
 	constructor(code: string, message: string, cause?: unknown) {
 		super(message);
@@ -140,6 +157,18 @@ interface ContributeResult {
 }
 
 /**
+ * Backend extended surface used by close() teardown.
+ *
+ * The core Backend interface does not yet declare these optional session
+ * primitives. We cast to this broader type inside close() to call them
+ * when they exist at runtime. T461 will promote these into Backend proper.
+ */
+interface BackendWithOptionalSessionPrimitives {
+	/** Flush any pending in-memory writes to durable storage. */
+	flushPendingWrites?: () => Promise<void>;
+}
+
+/**
  * AgentSession: explicit, auditable lifecycle for ephemeral and persistent agents.
  *
  * Usage:
@@ -158,10 +187,15 @@ interface ContributeResult {
  * State machine is mutex-protected to prevent concurrent close() calls.
  *
  * Backend interface note (T461 follow-up):
- *   The current Backend interface has no registerSession / unregisterSession
- *   methods. open() uses joinPresence() on a sentinel document ID derived
- *   from the sessionId to signal activity. If T461 adds dedicated session
- *   primitives to Backend, open() should be updated to call them.
+ *   The current Backend interface has no registerSession / unregisterSession /
+ *   flushPendingWrites / releaseAllLeases methods. open() uses joinPresence()
+ *   on a sentinel document ID derived from the sessionId to signal activity.
+ *   T461 will add dedicated session primitives to the Backend interface.
+ *
+ * Receipt persistence note (T461 follow-up):
+ *   When documents were touched, close() calls backend.appendEvent() to persist
+ *   the receipt as a 'session.closed' event on the first touched document.
+ *   A dedicated backend.persistContributionReceipt() is deferred to T461.
  */
 export class AgentSession {
 	private state: AgentSessionState = AgentSessionState.Idle;
@@ -325,29 +359,37 @@ export class AgentSession {
 	/**
 	 * close(): Transition Active -> Closing -> Closed.
 	 *
-	 * Teardown steps (all attempted even if earlier steps fail; spec §3.4):
-	 * 1. Drain inbox: backend.pollA2AInbox(agentId) until empty
-	 * 2. Deregister presence: backend.leavePresence()
-	 * 3. Emit ContributionReceipt
-	 * 4. Return receipt
+	 * Teardown steps (spec §3.4 — all attempted even if earlier steps fail):
+	 * 1. Flush pending writes via backend.flushPendingWrites() if available
+	 * 2. Drain A2A inbox: backend.pollA2AInbox(agentId) until empty
+	 * 3. Release all leases (none tracked at session level — T461 will add
+	 *    per-resource lease tracking; skipped with T461 note)
+	 * 4. For LocalBackend: temp .db cleanup is deferred to T461 (backend owns paths)
+	 * 5. Deregister presence: backend.leavePresence()
+	 * 6. Build ContributionReceipt (documentIds sorted for determinism)
+	 * 7. Persist receipt via backend.appendEvent() on first touched document
+	 * 8. Return receipt
+	 *
+	 * All teardown steps MUST be attempted even if earlier steps fail. Failures
+	 * are collected and surfaced as SESSION_CLOSE_PARTIAL with the partial receipt
+	 * and a list of CloseStepError. The receipt is always returned (or rethrown
+	 * attached to the error).
+	 *
+	 * Idempotency: calling close() on an already-closed session returns the
+	 * cached receipt immediately without re-executing teardown steps.
 	 *
 	 * Throws AgentSessionError:
-	 * - INVALID_STATE if state is not Active or Closed
-	 * - SESSION_CLOSE_PARTIAL if teardown completes with failures
+	 * - INVALID_STATE if state is not Active or Closed (i.e., Idle, Open, Closing)
+	 * - SESSION_CLOSE_PARTIAL if teardown completed with step failures
 	 *
-	 * Idempotency: calling close() on Closed session returns cached receipt.
+	 * Note on leases: Per spec §3.4 step 3, leases should be released here.
+	 * The current Backend interface tracks leases by resource key, not by session.
+	 * AgentSession does not intercept acquireLease calls (it wraps via contribute()),
+	 * so it cannot enumerate what the agent acquired. T461 will add a
+	 * backend.releaseSessionLeases(sessionId) primitive. Until then, caller-acquired
+	 * leases expire via TTL per the crash recovery contract (spec §5).
 	 */
 	async close(): Promise<ContributionReceipt> {
-		if (
-			this.state !== AgentSessionState.Active &&
-			this.state !== AgentSessionState.Closed
-		) {
-			throw new AgentSessionError(
-				"INVALID_STATE",
-				`Cannot close: session state is ${this.state}, expected Active or Closed`,
-			);
-		}
-
 		// Idempotency: return cached receipt if already closed
 		if (this.state === AgentSessionState.Closed) {
 			if (this.cachedReceipt) {
@@ -359,7 +401,15 @@ export class AgentSession {
 			);
 		}
 
-		// Mutex guard: prevent concurrent close()
+		// Guard: only Active state can transition to Closing
+		if (this.state !== AgentSessionState.Active) {
+			throw new AgentSessionError(
+				"INVALID_STATE",
+				`Cannot close: session state is ${this.state}, expected Active or Closed`,
+			);
+		}
+
+		// Mutex guard: prevent concurrent close() execution
 		if (this.closeGuard) {
 			throw new AgentSessionError(
 				"INVALID_STATE",
@@ -373,57 +423,120 @@ export class AgentSession {
 			this.state = AgentSessionState.Closing;
 			this.closedAt = new Date();
 
-			const closeErrors: Error[] = [];
+			const closeErrors: CloseStepError[] = [];
 
-			// Step 1: Drain A2A inbox until empty
+			// ── Step 1: Flush pending writes ─────────────────────────────────
+			// Optional — flushPendingWrites is not in Backend interface (T461).
+			// Cast to extended type to call it when available at runtime.
+			try {
+				const extended = this
+					.backend as unknown as BackendWithOptionalSessionPrimitives;
+				if (typeof extended.flushPendingWrites === "function") {
+					await extended.flushPendingWrites();
+				}
+			} catch (err) {
+				closeErrors.push({
+					step: "flushPendingWrites",
+					error: err instanceof Error ? err : new Error(String(err)),
+				});
+			}
+
+			// ── Step 2: Drain A2A inbox ──────────────────────────────────────
+			// Poll until empty; delete each message. Best-effort — failures collected.
 			try {
 				let batch: Awaited<ReturnType<Backend["pollA2AInbox"]>>;
 				do {
 					batch = await this.backend.pollA2AInbox(this.agentId, 50);
 					for (const msg of batch) {
+						// Best-effort per-message delete — failures don't abort drain
 						await this.backend
 							.deleteA2AMessage(msg.id, this.agentId)
 							.catch(() => {});
 					}
 				} while (batch.length > 0);
 			} catch (err) {
-				closeErrors.push(err instanceof Error ? err : new Error(String(err)));
+				closeErrors.push({
+					step: "drainA2AInbox",
+					error: err instanceof Error ? err : new Error(String(err)),
+				});
 			}
 
-			// Step 2: Deregister presence for the session sentinel
+			// ── Step 3: Release leases ───────────────────────────────────────
+			// T461 follow-up: AgentSession does not currently track which resources
+			// the agent acquired leases on (leases are acquired inside contribute()
+			// callbacks without interception). Until T461 adds a dedicated
+			// backend.releaseSessionLeases(sessionId) method, leases expire via
+			// the TTL-based crash recovery contract documented in spec §5.
+			// No action taken here; documented as known gap per spec acknowledgment.
+
+			// ── Step 4: Temp .db cleanup ─────────────────────────────────────
+			// T461 follow-up: LocalBackend owns the temp DB path allocation.
+			// AgentSession does not know the path. T461 will expose
+			// backend.cleanupSessionStorage(sessionId) for this purpose.
+			// TTL-based cleanup via OS temp dir GC covers the interim.
+
+			// ── Step 5: Deregister presence ──────────────────────────────────
+			// Non-fatal: TTL will clean up if leavePresence fails.
 			try {
 				await this.backend.leavePresence(
 					`session:${this.sessionId}`,
 					this.agentId,
 				);
-			} catch {
-				// Presence deregistration failure is non-fatal; TTL will clean up.
+			} catch (err) {
+				closeErrors.push({
+					step: "leavePresence",
+					error: err instanceof Error ? err : new Error(String(err)),
+				});
 			}
 
-			// Build and cache receipt
+			// ── Step 6: Build ContributionReceipt ────────────────────────────
+			// documentIds sorted for deterministic output (spec §4.1).
 			const openedAtTs = this.openedAt ?? new Date();
+			const sortedDocumentIds = Array.from(this._documentIds).sort();
 			const receipt: ContributionReceipt = {
 				sessionId: this.sessionId,
 				agentId: this.agentId,
-				documentIds: Array.from(this._documentIds),
+				documentIds: sortedDocumentIds,
 				eventCount: this._eventCount,
 				sessionDurationMs: this.closedAt.getTime() - openedAtTs.getTime(),
 				openedAt: openedAtTs.toISOString(),
 				closedAt: this.closedAt.toISOString(),
+				// signature: undefined — T461 will add Ed25519 signing
 			};
 
+			// ── Step 7: Persist receipt ──────────────────────────────────────
+			// Append a 'session.closed' event on the first touched document.
+			// If no documents were touched, skip persistence (spec §4.3 OPTIONAL).
+			// T461 will add backend.persistContributionReceipt() for both LocalBackend
+			// (JSONL append) and RemoteBackend (dedicated endpoint).
+			if (sortedDocumentIds.length > 0) {
+				try {
+					await this.backend.appendEvent({
+						documentId: sortedDocumentIds[0],
+						type: "session.closed",
+						agentId: this.agentId,
+						payload: receipt as unknown as Record<string, unknown>,
+					});
+				} catch (err) {
+					closeErrors.push({
+						step: "persistReceipt",
+						error: err instanceof Error ? err : new Error(String(err)),
+					});
+				}
+			}
+
+			// ── Step 8: Cache receipt and finalize state ─────────────────────
 			this.cachedReceipt = receipt;
 			this.state = AgentSessionState.Closed;
 
+			// Surface collected step errors as SESSION_CLOSE_PARTIAL
 			if (closeErrors.length > 0) {
 				const partial = new AgentSessionError(
 					"SESSION_CLOSE_PARTIAL",
-					`close() completed with ${closeErrors.length} error(s): ${closeErrors.map((e) => e.message).join("; ")}`,
+					`close() completed with ${closeErrors.length} error(s): ${closeErrors.map((e) => `${e.step}: ${e.error.message}`).join("; ")}`,
 				);
-				// Attach the receipt even on partial close so callers can inspect it
-				(
-					partial as AgentSessionError & { receipt: ContributionReceipt }
-				).receipt = receipt;
+				partial.receipt = receipt;
+				partial.errors = closeErrors;
 				throw partial;
 			}
 
