@@ -874,6 +874,239 @@ runContractSuite('LocalBackend', async () => {
   };
 });
 
+// ── T410: getChangesSince + applyChanges contract tests (P2.12) ───────────
+//
+// These tests extend the contract suite with targeted coverage for the two
+// new Backend interface methods: getChangesSince() and applyChanges().
+//
+// Test matrix:
+//  1. LocalBackend: getChangesSince(0) after a document write returns non-empty Uint8Array.
+//  2. LocalBackend: applyChanges round-trip — doc created on A appears in B.
+//  3. LocalBackend: applyChanges twice with the same changeset is idempotent.
+//  4. PostgresBackend stub: both methods throw (not implemented).
+//
+// Skip strategy (DR-P2-01): if @vlcn.io/crsqlite is not available (hasCRR=false),
+// CRR-dependent assertions are skipped. The "not loaded" error path is always tested.
+
+async function isCrSqliteAvailable(): Promise<boolean> {
+  const dir = makeTempDir();
+  const b = new LocalBackend({ storagePath: dir, wal: false, leaseReaperIntervalMs: 0 });
+  try {
+    await b.open();
+    return b.hasCRR;
+  } catch {
+    return false;
+  } finally {
+    try { await b.close(); } catch { /* ignore */ }
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ }
+  }
+}
+
+describe('[T410] Contract: getChangesSince + applyChanges — LocalBackend', () => {
+  let crSqliteAvail = false;
+
+  before(async () => {
+    crSqliteAvail = await isCrSqliteAvailable();
+    if (!crSqliteAvail) {
+      console.log('[T410] @vlcn.io/crsqlite not available — CRR-dependent tests will skip');
+    }
+  });
+
+  it('getChangesSince(0n) after a document create returns non-empty Uint8Array', async () => {
+    const dir = makeTempDir();
+    const backend = new LocalBackend({ storagePath: dir, wal: false, leaseReaperIntervalMs: 0 });
+    await backend.open();
+    try {
+      if (!backend.hasCRR) {
+        // hasCRR=false path: must throw CrSqliteNotLoadedError (not crash).
+        await assert.rejects(
+          () => backend.getChangesSince(0n),
+          (err: Error) => err.name === 'CrSqliteNotLoadedError' || err.message.includes('crsqlite'),
+          'getChangesSince must throw CrSqliteNotLoadedError when hasCRR=false'
+        );
+        return;
+      }
+
+      // hasCRR=true: write a document, then verify changeset is non-empty.
+      await backend.createDocument({ title: 'Contract getChangesSince test', createdBy: 'agent-t410' });
+      const changeset = await backend.getChangesSince(0n);
+
+      assert.ok(changeset instanceof Uint8Array, 'Must return Uint8Array');
+      assert.ok(changeset.length > 0, 'Changeset must be non-empty after a write');
+    } finally {
+      try { await backend.close(); } catch { /* ignore */ }
+      try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ }
+    }
+  });
+
+  it('applyChanges round-trip: doc created in A is visible in B after apply', async () => {
+    if (!crSqliteAvail) {
+      console.log('[SKIP] @vlcn.io/crsqlite not available — skipping applyChanges round-trip');
+      return;
+    }
+
+    const dirA = makeTempDir();
+    const dirB = makeTempDir();
+    const backendA = new LocalBackend({ storagePath: dirA, wal: false, leaseReaperIntervalMs: 0 });
+    const backendB = new LocalBackend({ storagePath: dirB, wal: false, leaseReaperIntervalMs: 0 });
+    await backendA.open();
+    await backendB.open();
+
+    try {
+      // Create a document on A.
+      const doc = await backendA.createDocument({
+        title: 'Round-trip contract doc',
+        createdBy: 'agent-t410-a',
+      });
+
+      // Extract changeset from A.
+      const changeset = await backendA.getChangesSince(0n);
+      assert.ok(changeset.length > 0, 'Changeset must be non-empty');
+
+      // Apply to B.
+      const newVersion = await backendB.applyChanges(changeset);
+      assert.ok(typeof newVersion === 'bigint', 'applyChanges must return bigint db_version');
+
+      // Document must now be visible in B.
+      const found = await backendB.getDocument(doc.id);
+      assert.ok(found !== null, 'Document created in A must be visible in B after applyChanges');
+      assert.equal(found!.title, 'Round-trip contract doc');
+      assert.equal(found!.createdBy, 'agent-t410-a');
+    } finally {
+      try { await backendA.close(); } catch { /* ignore */ }
+      try { await backendB.close(); } catch { /* ignore */ }
+      try { fs.rmSync(dirA, { recursive: true, force: true }); } catch { /* ignore */ }
+      try { fs.rmSync(dirB, { recursive: true, force: true }); } catch { /* ignore */ }
+    }
+  });
+
+  it('applyChanges twice with the same changeset is idempotent (no duplicates, no errors)', async () => {
+    if (!crSqliteAvail) {
+      console.log('[SKIP] @vlcn.io/crsqlite not available — skipping idempotency contract test');
+      return;
+    }
+
+    const dirA = makeTempDir();
+    const dirB = makeTempDir();
+    const backendA = new LocalBackend({ storagePath: dirA, wal: false, leaseReaperIntervalMs: 0 });
+    const backendB = new LocalBackend({ storagePath: dirB, wal: false, leaseReaperIntervalMs: 0 });
+    await backendA.open();
+    await backendB.open();
+
+    try {
+      const doc = await backendA.createDocument({
+        title: 'Idempotency contract doc',
+        createdBy: 'agent-t410-b',
+      });
+
+      const changeset = await backendA.getChangesSince(0n);
+
+      // Apply once.
+      await backendB.applyChanges(changeset);
+      // Apply same changeset again — must not throw or create duplicate rows.
+      await assert.doesNotReject(
+        () => backendB.applyChanges(changeset),
+        'Applying same changeset twice must not throw'
+      );
+
+      // Verify no duplicate rows — document must exist exactly once.
+      const found = await backendB.getDocument(doc.id);
+      assert.ok(found !== null, 'Document must exist after double-apply');
+
+      const list = await backendB.listDocuments({ limit: 1000 });
+      const copies = list.items.filter((d) => d.id === doc.id);
+      assert.equal(copies.length, 1, 'Document must appear exactly once (idempotency guarantee)');
+    } finally {
+      try { await backendA.close(); } catch { /* ignore */ }
+      try { await backendB.close(); } catch { /* ignore */ }
+      try { fs.rmSync(dirA, { recursive: true, force: true }); } catch { /* ignore */ }
+      try { fs.rmSync(dirB, { recursive: true, force: true }); } catch { /* ignore */ }
+    }
+  });
+});
+
+describe('[T410] Contract: getChangesSince + applyChanges — PostgresBackend stub', () => {
+  it('PostgresBackend.getChangesSince throws (not implemented — cr-sqlite is LocalBackend-only)', async () => {
+    if (!PG_AVAILABLE) {
+      // Even without a PG connection we can test the contract adapter stub via
+      // the PgContractAdapter which is constructed independently of a live DB.
+      // If PG is not available we verify the contract via a LocalBackend with
+      // a fake crsqliteExtPath (hasCRR=false path) as an analogous "not supported" stub.
+      const dir = makeTempDir();
+      const backend = new LocalBackend({
+        storagePath: dir,
+        wal: false,
+        leaseReaperIntervalMs: 0,
+        crsqliteExtPath: path.join(dir, 'nonexistent.so'),
+      });
+      await backend.open();
+      try {
+        await assert.rejects(
+          () => backend.getChangesSince(0n),
+          (err: Error) => err.name === 'CrSqliteNotLoadedError' || err.message.includes('crsqlite'),
+          'Must throw when cr-sqlite not loaded'
+        );
+      } finally {
+        try { await backend.close(); } catch { /* ignore */ }
+        try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ }
+      }
+      return;
+    }
+
+    // PG available: test the real PgContractAdapter stub.
+    const { adapter, cleanup } = await createPgBackend();
+    await adapter.open();
+    try {
+      await assert.rejects(
+        () => adapter.getChangesSince(0n),
+        (err: Error) => err.message.includes('getChangesSince') || err.message.includes('not implemented'),
+        'PostgresBackend must throw on getChangesSince (not implemented)'
+      );
+    } finally {
+      await adapter.close();
+      await cleanup();
+    }
+  });
+
+  it('PostgresBackend.applyChanges throws (not implemented — cr-sqlite is LocalBackend-only)', async () => {
+    if (!PG_AVAILABLE) {
+      const dir = makeTempDir();
+      const backend = new LocalBackend({
+        storagePath: dir,
+        wal: false,
+        leaseReaperIntervalMs: 0,
+        crsqliteExtPath: path.join(dir, 'nonexistent.so'),
+      });
+      await backend.open();
+      try {
+        await assert.rejects(
+          () => backend.applyChanges(new Uint8Array(0)),
+          (err: Error) => err.name === 'CrSqliteNotLoadedError' || err.message.includes('crsqlite'),
+          'Must throw when cr-sqlite not loaded'
+        );
+      } finally {
+        try { await backend.close(); } catch { /* ignore */ }
+        try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ }
+      }
+      return;
+    }
+
+    // PG available: test the real PgContractAdapter stub.
+    const { adapter, cleanup } = await createPgBackend();
+    await adapter.open();
+    try {
+      await assert.rejects(
+        () => adapter.applyChanges(new Uint8Array(0)),
+        (err: Error) => err.message.includes('applyChanges') || err.message.includes('not implemented'),
+        'PostgresBackend must throw on applyChanges (not implemented)'
+      );
+    } finally {
+      await adapter.close();
+      await cleanup();
+    }
+  });
+});
+
 // ── PostgresBackend suite ─────────────────────────────────────────
 //
 // Skipped (with WARN) if DATABASE_URL_PG is not set.
