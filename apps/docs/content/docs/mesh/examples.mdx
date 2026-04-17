@@ -1,0 +1,211 @@
+---
+title: Mesh Examples
+description: Working examples for a 3-agent local mesh, CLEO integration, and hybrid server-as-peer configuration.
+---
+
+# Mesh Examples
+
+## 3-Agent Local Mesh (Unix Sockets)
+
+This example runs three agents on the same machine, each with its own cr-sqlite database, syncing via Unix domain sockets. It mirrors the `cleo-mesh-demo` reference example.
+
+### 1. Install dependencies
+
+```bash
+mkdir mesh-demo && cd mesh-demo
+pnpm init
+pnpm add llmtxt @vlcn.io/crsqlite
+```
+
+### 2. Create `agent.ts`
+
+```typescript
+import { createBackend } from 'llmtxt';
+
+export async function runAgent(name: string, peers: string[]) {
+  const socketPath = `/tmp/llmtxt-${name}.sock`;
+
+  const backend = createBackend({
+    topology: 'mesh',
+    storagePath: `./data/${name}`,
+    peers,
+    transport: 'unix',
+    // meshDir defaults to /tmp/llmtxt-mesh — shared across agents on same machine
+  });
+
+  await backend.open();
+  console.log(`[${name}] started, listening on ${socketPath}`);
+
+  return { backend, name };
+}
+```
+
+### 3. Create `run.ts`
+
+```typescript
+import { runAgent } from './agent.js';
+
+async function main() {
+  // Alice starts first with no peers; she writes her peer file to /tmp/llmtxt-mesh/
+  const alice = await runAgent('alice', []);
+
+  // Bob and Carol discover alice via the shared mesh directory automatically
+  const bob = await runAgent('bob', []);
+  const carol = await runAgent('carol', []);
+
+  // Alice writes a document
+  await alice.backend.createDocument({
+    title: 'Shared Spec',
+    slug: 'shared-spec',
+    createdBy: 'agent-alice',
+  });
+
+  // Wait two sync intervals for convergence (2 × 5s = 10s)
+  await new Promise((r) => setTimeout(r, 11_000));
+
+  // Bob and Carol should now see the document
+  const docBob = await bob.backend.getDocumentBySlug('shared-spec');
+  const docCarol = await carol.backend.getDocumentBySlug('shared-spec');
+
+  console.log('Bob sees doc:', docBob?.title);    // 'Shared Spec'
+  console.log('Carol sees doc:', docCarol?.title); // 'Shared Spec'
+
+  // Clean shutdown — deletes peer files, closes sockets
+  await alice.backend.close();
+  await bob.backend.close();
+  await carol.backend.close();
+}
+
+main().catch(console.error);
+```
+
+```bash
+pnpm ts-node run.ts
+# [alice] started, listening on /tmp/llmtxt-alice.sock
+# [bob]   started, listening on /tmp/llmtxt-bob.sock
+# [carol] started, listening on /tmp/llmtxt-carol.sock
+# Bob sees doc: Shared Spec
+# Carol sees doc: Shared Spec
+```
+
+## CLI-Based 3-Agent Mesh
+
+The same workflow using the `llmtxt mesh` CLI:
+
+```bash
+# Terminal 1 — alice
+LLMTXT_MESH_DIR=/tmp/llmtxt-mesh \
+  llmtxt mesh start --db ./data/alice --transport unix
+# Mesh started. Listening on unix:/tmp/llmtxt-alice.sock. Discovered 0 peers.
+
+# Terminal 2 — bob (discovers alice via /tmp/llmtxt-mesh/)
+LLMTXT_MESH_DIR=/tmp/llmtxt-mesh \
+  llmtxt mesh start --db ./data/bob --transport unix
+# Mesh started. Listening on unix:/tmp/llmtxt-bob.sock. Discovered 1 peer (alice).
+
+# Terminal 3 — carol
+LLMTXT_MESH_DIR=/tmp/llmtxt-mesh \
+  llmtxt mesh start --db ./data/carol --transport unix
+# Mesh started. Listening on unix:/tmp/llmtxt-carol.sock. Discovered 2 peers (alice, bob).
+
+# Check status from carol
+llmtxt mesh status
+# Peers: 2 connected
+#   agent-alice  unix:/tmp/llmtxt-alice.sock  last sync: 0.8s ago  sent: 1.2 KB  rcvd: 3.4 KB
+#   agent-bob    unix:/tmp/llmtxt-bob.sock    last sync: 1.1s ago  sent: 0.8 KB  rcvd: 1.2 KB
+
+# Force an immediate one-shot sync with alice
+llmtxt mesh sync --peer agent-alice
+```
+
+## CLEO Integration Example
+
+This shows how a CLEO-orchestrated agent uses the mesh backend:
+
+```typescript
+import { createBackend, AgentSession } from 'llmtxt';
+
+// CLEO sets environment variables for agent identity and mesh config
+const backend = createBackend({
+  topology: 'mesh',
+  storagePath: process.env.LLMTXT_STORAGE_PATH ?? './agent-data',
+  identityPath: process.env.LLMTXT_IDENTITY_PATH,
+  meshDir: process.env.LLMTXT_MESH_DIR ?? '/tmp/llmtxt-mesh',
+  transport: 'unix',
+});
+
+// Use AgentSession for clean lifecycle management
+const session = new AgentSession({
+  backend,
+  agentId: process.env.CLEO_AGENT_ID ?? 'cleo-worker',
+});
+
+await session.open();
+
+const receipt = await session.contribute(async (b) => {
+  // Write the output document
+  const doc = await b.createDocument({
+    title: 'Analysis Result',
+    slug: `analysis-${Date.now()}`,
+    createdBy: session.agentId,
+  });
+  await b.publishVersion(doc.id, {
+    content: '# Analysis\n\nResult: ...',
+    publishedBy: session.agentId,
+  });
+  return doc;
+});
+
+const contributionReceipt = await session.close();
+console.log(JSON.stringify(contributionReceipt, null, 2));
+// {
+//   "sessionId": "01h8x...",
+//   "agentId": "cleo-worker",
+//   "documentIds": ["doc-abc123"],
+//   "eventCount": 2,
+//   "sessionDurationMs": 1248,
+//   ...
+// }
+```
+
+## Hybrid: Server as Mesh Peer
+
+Add `api.llmtxt.my` as a mesh peer for cross-network synchronization:
+
+```typescript
+const backend = createBackend({
+  topology: 'mesh',
+  storagePath: './data/agent',
+  peers: [
+    'http://api.llmtxt.my:7642', // the cloud hub joins as a peer
+    'unix:/tmp/llmtxt-bob.sock', // local peers
+  ],
+  transport: 'unix', // local transport; HTTP used for the server peer
+});
+```
+
+The server peer runs `PostgresBackend` internally and translates Postgres rows to/from cr-sqlite changeset format via the `PostgresChangesetAdapter`. From the agent's perspective it is just another peer.
+
+## Peer Allowlist Example
+
+Restrict which agents can connect to your mesh node:
+
+```json
+// ~/.llmtxt/trusted-peers.json
+{
+  "allowlist": [
+    "a3f1b2c4d5e6f7a8...",
+    "b4c5d6e7f8a9b0c1..."
+  ]
+}
+```
+
+Agents not on the allowlist are rejected after the Ed25519 handshake succeeds but before any data flows. The allowlist is hot-reloaded on each new connection — no restart required.
+
+## Related Docs
+
+- [Getting Started](/docs/mesh/) — mesh overview and quickstart
+- [Architecture](/docs/mesh/architecture) — sync engine and transport details
+- [Security Model](/docs/mesh/security-model) — Ed25519 handshake, threat model
+- [Session Lifecycle](/docs/multi-agent/session-lifecycle) — using `AgentSession` with mesh
+- [cr-sqlite Sync](/docs/sync/cr-sqlite) — changeset exchange primitives

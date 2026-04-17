@@ -5,6 +5,7 @@
     "leases",
     "differential-subscriptions",
     "crdt-sections",
+    "session-lifecycle",
     "live-demo"
   ]
 }

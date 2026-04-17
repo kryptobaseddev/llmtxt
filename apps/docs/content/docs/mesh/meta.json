@@ -1,0 +1,9 @@
+{
+  "title": "P2P Mesh",
+  "pages": [
+    "index",
+    "architecture",
+    "security-model",
+    "examples"
+  ]
+}

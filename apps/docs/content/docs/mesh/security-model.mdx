@@ -1,0 +1,172 @@
+---
+title: Mesh Security Model
+description: Threat model, Ed25519 mutual handshake walkthrough, Loro blob integrity verification, changeset size limits, and peer allowlist configuration.
+---
+
+# Mesh Security Model
+
+Security in the LLMtxt mesh is **built into each layer** — discovery, transport, and sync engine — not bolted on afterward. There are no standalone security tasks; each mechanism is a requirement of its parent component.
+
+**Principle**: An unauthenticated peer MUST be rejected before any data exchange begins.
+
+## Threat Model
+
+| Threat | Enforcement layer | Mitigation |
+|--------|------------------|-----------|
+| Malicious peer sends corrupt cr-sqlite changeset | Sync engine | cr-sqlite validates changeset structure internally; reject on parse error |
+| Malicious peer sends corrupt Loro blob | Sync engine | SHA-256 hash verification before apply; reject blobs that do not match declared hash |
+| Replay attack (old changeset re-sent) | Sync engine | Track `db_version` per peer; discard changesets older than `lastSyncVersion[peer]` — harmless due to cr-sqlite idempotency |
+| Rogue peer impersonates another agent | Transport | Ed25519 mutual handshake is mandatory; no data exchange before handshake completes |
+| Peer file injection (attacker writes `.peer` file) | Discovery | Discovery layer rejects unsigned or pubkey-inconsistent advertisements; handshake confirms identity before data exchange |
+| Presence flood (peer sends thousands of presence messages) | Sync engine | Rate-limit presence messages: max 1 per peer per 5 seconds; drop excess |
+| A2A message spoofing | Sync engine | Verify `sig` field against sender's known public key before processing payload |
+| Changeset size bomb | Transport | Enforce max changeset size: 10 MB; reject and log oversized changesets |
+
+## Ed25519 Mutual Handshake
+
+Every transport connection — Unix socket or HTTP — completes a 3-message challenge-response handshake before any payload data is exchanged.
+
+### Step-by-Step Walkthrough
+
+```
+Initiator (Agent A)                    Responder (Agent B)
+─────────────────────────────────────────────────────────────
+
+  Message 1:
+  A generates random_32_bytes (challenge_A)
+  A ──{ agentId_A, pubkey_A, challenge_A }──────────────────► B
+
+  Message 2:
+  B verifies pubkey_A is consistent with agentId_A
+  B signs challenge_A with its private key
+  B generates random_32_bytes (challenge_B)
+  B ──{ agentId_B, pubkey_B, sig_B(challenge_A), challenge_B }► A
+                                          ◄─────────────────────
+
+  Message 3:
+  A verifies sig_B against pubkey_B
+  A verifies pubkey_B is consistent with agentId_B
+  A signs challenge_B with its private key
+  A ──{ sig_A(challenge_B) }──────────────────────────────────► B
+
+  B verifies sig_A against pubkey_A
+
+  ✓ Both parties hold verified peer identities
+  → Changeset exchange begins
+```
+
+If signature verification fails at any step, the connection is closed immediately with no data transferred. There is no retry or fallback to unauthenticated mode.
+
+The Ed25519 keys come from the existing `crates/llmtxt-core/src/identity.rs` infrastructure — no new crypto primitive is introduced for the mesh.
+
+### Why Ed25519
+
+- Already implemented in `crates/llmtxt-core` (D004 — no new crypto deps)
+- 256-bit security, fast verification (≈ 0.1ms per verify on modern hardware)
+- Small keys (32 bytes public, 64 bytes private) — low handshake overhead
+- Deterministic signatures (no random per signature — replay-resistant by design)
+
+## Discovery-Layer Security
+
+Peer advertisement files in `$LLMTXT_MESH_DIR` are untrusted input. The discovery layer enforces:
+
+1. **`pubkey` field required**: advertisement files without a `pubkey` field are silently skipped.
+2. **Pubkey-AgentId consistency**: the discovery layer verifies that `SHA-256(pubkey) == agentId` before making any connection attempt. Inconsistent files are logged and skipped.
+3. **Transport handshake confirmation**: even if a peer file passes discovery validation, the transport handshake confirms identity before data flows.
+
+An attacker who can write to `$LLMTXT_MESH_DIR` cannot inject a connection to a legitimate agent's session without possessing the corresponding Ed25519 private key.
+
+## Loro Blob Integrity Verification
+
+Every `applyChanges()` call that touches a `crdt_state` column executes the following verification:
+
+```
+1. Receive changeset containing a crdt_state update
+2. Compute SHA-256(blob_bytes)
+3. Compare against crdt_state_hash declared by peer in changeset metadata
+4. If hash does not match:
+   - Reject the entire changeset
+   - Log a security warning with peer agentId and blob hash
+   - Do NOT modify any local database row
+5. After Loro merge succeeds:
+   - Compute SHA-256(merged_blob)
+   - Store in crdt_state_hash column
+```
+
+This prevents two classes of attack:
+- **Corruption injection**: a peer sends a blob that, when Loro-merged, would corrupt the local CRDT state.
+- **Storage tampering**: a byte flip in stored blob data is detected on next read and surfaced as `BlobCorruptError`.
+
+## Changeset Size Limits
+
+Oversized changesets are a denial-of-service vector. The transport layer enforces:
+
+- **Maximum changeset size**: 10 MB per changeset message.
+- Changesets exceeding this limit are rejected at the framing layer (before deserialization).
+- The peer failure is recorded; repeated violations can trigger a connection block.
+
+The limit is configurable via `BackendConfig`:
+
+```typescript
+const backend = createBackend({
+  topology: 'mesh',
+  storagePath: './agent',
+  maxChangesetBytes: 5 * 1024 * 1024, // 5 MB limit
+});
+```
+
+## Peer Allowlist
+
+Agents MAY configure a peer allowlist. If configured, connections from peers not in the allowlist are rejected — even if their Ed25519 signature is valid.
+
+```json
+// ~/.llmtxt/trusted-peers.json
+{
+  "allowlist": [
+    "a3f1b2c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2",
+    "b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5"
+  ]
+}
+```
+
+When an allowlist is configured:
+
+1. After the handshake verifies the peer's public key, the peer's `agentId` is checked against the allowlist.
+2. If not present, the connection is closed with a `PEER_NOT_ALLOWED` log entry.
+3. The allowlist is re-read from disk on each new connection (hot-reload, no restart required).
+
+## Presence Rate Limiting
+
+The sync engine enforces a rate limit on presence broadcasts to prevent a flood from a misbehaving peer:
+
+- Maximum 1 presence message per peer per 5 seconds.
+- Excess presence messages are dropped without error.
+- The peer is not disconnected (presence flood is non-destructive); only repeated changeset integrity failures trigger disconnection.
+
+## A2A Message Signature Verification
+
+All A2A messages carry an Ed25519 signature over the canonical JSON payload:
+
+```typescript
+// Canonical form: alphabetically sorted keys, no trailing whitespace
+const canonical = canonicalJson({ from, to, payload, sentAt });
+const sig = sign(canonical, agentPrivateKey);
+```
+
+The recipient verifies the `sig` field against the sender's known public key (from the `agent_pubkeys` table, populated during identity registration). Messages with missing or invalid signatures are discarded without processing.
+
+## Security Invariants (Must Hold)
+
+The following invariants are tested by the P3.9 multi-peer integration test suite:
+
+1. A peer with an invalid Ed25519 signature is rejected before any changeset exchange begins.
+2. A changeset with a mismatched `crdt_state_hash` is rejected; local state is not modified.
+3. Unsigned peer advertisement files are skipped by the discovery layer.
+4. A presence flood (1000 messages in 1 second from one peer) does not crash or stall the sync engine.
+5. An oversized changeset (>10 MB) is rejected at the framing layer.
+
+## Related Docs
+
+- [Architecture](/docs/mesh/architecture) — Ed25519 handshake in context of the full sync flow
+- [Getting Started](/docs/mesh/) — mesh quickstart
+- [cr-sqlite Sync](/docs/sync/cr-sqlite) — Loro blob merge correctness requirement (DR-P2-04)

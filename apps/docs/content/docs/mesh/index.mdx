@@ -1,0 +1,104 @@
+---
+title: P2P Agent Mesh
+description: Connect multiple LLMtxt agents into a serverless peer-to-peer mesh — agents collaborate without api.llmtxt.my acting as coordinator.
+---
+
+# P2P Agent Mesh
+
+The LLMtxt mesh lets a team of agents collaborate directly with each other using Unix sockets or HTTP, with no central server required. Each agent holds its own [cr-sqlite LocalBackend](/docs/sync/cr-sqlite) and syncs by exchanging lightweight changesets.
+
+**Guiding star**: *Never lose work, never duplicate work, never act on stale information.* The mesh satisfies all three:
+
+- **Never lose**: every changeset is acknowledged before being discarded.
+- **Never duplicate**: CRDT idempotency means the same changeset can be applied safely multiple times.
+- **Never stale**: periodic sync (every 5 seconds) and event-triggered sync ensure bounded convergence.
+
+## When to Use Mesh Mode
+
+| Scenario | Recommended topology |
+|----------|---------------------|
+| Single developer / local testing | [Standalone](/docs/architecture/topology#standalone) |
+| 100+ ephemeral swarm workers | [Hub-and-Spoke](/docs/architecture/topology#hub-and-spoke) |
+| Small team of persistent agents (2–10) | **Mesh** |
+| Offline-first, no network required | **Mesh** or Standalone |
+| Air-gapped environment | **Mesh** |
+| Production audit trail required | Hub-and-Spoke |
+
+Mesh shines for small persistent-agent teams where no central coordinator is acceptable. For large swarms (100+ agents), hub-and-spoke is more practical because O(n²) mesh connections become expensive.
+
+## 5-Minute Quickstart
+
+Install the package with cr-sqlite support:
+
+```bash
+pnpm add llmtxt @vlcn.io/crsqlite
+```
+
+Start a mesh agent in code:
+
+```typescript
+import { createBackend } from 'llmtxt';
+
+const backend = createBackend({
+  topology: 'mesh',
+  storagePath: './agent-alice',
+  peers: ['unix:/tmp/llmtxt-agent-bob.sock'],
+  transport: 'unix',
+});
+
+await backend.open(); // starts peer discovery + sync engine
+
+// Work normally — the backend syncs in the background
+const doc = await backend.createDocument({
+  title: 'Shared Spec',
+  slug: 'shared-spec',
+  createdBy: 'agent-alice',
+});
+
+// When done
+await backend.close(); // cleanly shuts down mesh, removes peer file
+```
+
+Or use the CLI:
+
+```bash
+# Terminal 1 — agent alice
+llmtxt mesh start --db ./alice --transport unix
+
+# Terminal 2 — agent bob (discovers alice via mesh directory)
+llmtxt mesh start --db ./bob --transport unix
+
+# Check status
+llmtxt mesh status
+# Peers: 1 connected (agent-alice)
+# Last sync: 0.3s ago
+# Bytes exchanged: 4.2 KB sent, 3.1 KB received
+
+# Manual one-shot sync to a specific peer
+llmtxt mesh sync --peer agent-alice
+```
+
+## How Peers Discover Each Other
+
+Discovery works in order of priority:
+
+1. **Static config** — peer addresses in `~/.llmtxt/mesh.json` or in `createBackend({ peers: [...] })`.
+2. **Shared directory** — agents write a `.peer` file to `$LLMTXT_MESH_DIR` on startup; others read the directory periodically.
+3. **mDNS/DNS-SD** — `_llmtxt._tcp.local` (plugin, Phase 3+).
+4. **HTTP rendezvous** — `GET /api/mesh/peers` on api.llmtxt.my (opt-in, requires connectivity).
+
+For local development the shared directory approach requires zero config — just point all agents at the same `$LLMTXT_MESH_DIR`.
+
+## Security: Built-In, Not Bolted On
+
+Every peer connection completes an **Ed25519 mutual handshake** before any data is exchanged. Unauthenticated peers are rejected immediately — there is no "trust but verify" mode.
+
+See [Security Model](/docs/mesh/security-model) for the full threat model.
+
+## Further Reading
+
+- [Architecture](/docs/mesh/architecture) — topology diagram, sync engine internals, A2A routing
+- [Security Model](/docs/mesh/security-model) — Ed25519 handshake, threat table, allowlist config
+- [Examples](/docs/mesh/examples) — 3-agent local mesh, CLEO integration
+- [cr-sqlite Sync](/docs/sync/cr-sqlite) — the changeset exchange primitives the mesh builds on
+- [Topology Guide](/docs/architecture/topology) — choosing between standalone, hub-spoke, and mesh

@@ -1,0 +1,337 @@
+---
+title: Document Export and Import
+description: Export LLMtxt documents to disk in 4 formats (markdown, JSON, plain text, native .llmtxt), import files as new documents or new versions, and use signed exports for audit trails.
+---
+
+# Document Export and Import
+
+LLMtxt documents live inside the database (SQLite or Postgres). Export produces a file on disk from a document's current state. Import reads a file and creates a new document or publishes a new version. Both operations are available via the SDK and the CLI.
+
+**Key constraint**: Export is **read-only**. It never mutates any database row. The converged state in the database is always the Single Source of Truth.
+
+## Installation
+
+```bash
+pnpm add llmtxt
+```
+
+## Export Formats
+
+### Markdown (`.md`)
+
+YAML frontmatter + document body. Best for human review and version control.
+
+```typescript
+import { createBackend } from 'llmtxt';
+
+const backend = createBackend({ topology: 'standalone', storagePath: '.llmtxt' });
+await backend.open();
+
+const result = await backend.exportDocument({
+  slug: 'api-spec',
+  format: 'markdown',
+  outputPath: './exports/api-spec.md',
+});
+
+console.log(result.filePath);  // absolute path of written file
+console.log(result.fileHash);  // SHA-256 of written bytes
+console.log(result.version);   // version number exported
+```
+
+**Example output** (`api-spec.md`):
+
+```markdown
+---
+title: "API Specification"
+slug: "api-spec"
+version: 3
+state: "APPROVED"
+contributors:
+  - "agent-alice"
+  - "agent-bob"
+content_hash: "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+exported_at: "2026-04-17T19:00:00.000Z"
+---
+
+# API Specification
+
+Version 3 body content here...
+```
+
+The frontmatter is produced by the **canonical frontmatter serializer** in `crates/llmtxt-core` (Rust). Key order is fixed; contributors are sorted lexicographically. Same document state → identical bytes on every machine.
+
+### JSON (`.json`)
+
+Full structured object — all document metadata plus body content.
+
+```typescript
+const result = await backend.exportDocument({
+  slug: 'api-spec',
+  format: 'json',
+  outputPath: './exports/api-spec.json',
+});
+```
+
+**Example output** (`api-spec.json`):
+
+```json
+{
+  "schema": "llmtxt-export/1",
+  "title": "API Specification",
+  "slug": "api-spec",
+  "version": 3,
+  "state": "APPROVED",
+  "contributors": ["agent-alice", "agent-bob"],
+  "content_hash": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+  "exported_at": "2026-04-17T19:00:00.000Z",
+  "content": "# API Specification\n\nVersion 3 body content here...",
+  "labels": ["sdk", "spec"],
+  "created_by": "agent-alice",
+  "created_at": 1745000000000,
+  "updated_at": 1745010000000,
+  "version_count": 3
+}
+```
+
+Object keys are always in this fixed order for determinism. `schema: "llmtxt-export/1"` identifies the format version.
+
+### Plain Text (`.txt`)
+
+Body content only — no frontmatter, no metadata. Best for piping into other tools or clipboard.
+
+```typescript
+const result = await backend.exportDocument({
+  slug: 'api-spec',
+  format: 'txt',
+  outputPath: './exports/api-spec.txt',
+});
+```
+
+**Example output** (`api-spec.txt`):
+
+```
+# API Specification
+
+Version 3 body content here...
+```
+
+One trailing newline, LF line endings, no BOM.
+
+### Native LLMtxt (`.llmtxt`)
+
+Superset of markdown that is explicitly round-trippable. Includes `chain_ref` (BFT approval chain hash) and `format: "llmtxt/1"`.
+
+```typescript
+const result = await backend.exportDocument({
+  slug: 'api-spec',
+  format: 'llmtxt',
+  outputPath: './exports/api-spec.llmtxt',
+});
+```
+
+**Example output** (`api-spec.llmtxt`):
+
+```
+---
+title: "API Specification"
+slug: "api-spec"
+version: 3
+state: "APPROVED"
+contributors:
+  - "agent-alice"
+  - "agent-bob"
+content_hash: "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+exported_at: "2026-04-17T19:00:00.000Z"
+chain_ref: "bft:abc123def456"
+format: "llmtxt/1"
+---
+
+# API Specification
+
+Version 3 body content here...
+```
+
+`chain_ref` is the BFT approval chain hash (from `getApprovalChain`), or `null` if no approvals exist. This field makes the `.llmtxt` format the most faithful representation of the document's provenance.
+
+## Export All Documents
+
+Export every document in the backend to a directory:
+
+```typescript
+const result = await backend.exportAll({
+  format: 'markdown',
+  outputDir: './docs-backup',
+  // Optional: filter by lifecycle state
+  // state: 'APPROVED',
+  sign: false,
+});
+
+console.log(`Exported: ${result.exported.length}`);
+console.log(`Failed:   ${result.failedCount}`);
+// Failed documents are in result.skipped with reasons, never thrown
+```
+
+Each file is named `<slug>.<ext>` inside `outputDir`. Directory is created if it does not exist.
+
+## Signed Export
+
+For audit trails, sign the export with the local Ed25519 identity:
+
+```typescript
+const result = await backend.exportDocument({
+  slug: 'api-spec',
+  format: 'llmtxt',
+  outputPath: './exports/api-spec.llmtxt',
+  sign: true,
+});
+
+// result.signatureHex is a 64-byte Ed25519 signature over SHA-256(file bytes)
+console.log(result.signatureHex);
+// Optionally write companion .sig file
+await fs.writeFile('./exports/api-spec.llmtxt.sig', result.signatureHex);
+```
+
+The signature is over the raw SHA-256 of the written file bytes (not the content hash). It is returned in `ExportDocumentResult` but is NOT embedded in the file. Callers write it to a companion `.sig` file if needed.
+
+## ExportDocumentResult
+
+```typescript
+interface ExportDocumentResult {
+  filePath: string;       // absolute path of written file
+  slug: string;           // document slug
+  version: number;        // version number exported
+  fileHash: string;       // SHA-256 hex of written bytes
+  byteCount: number;      // bytes written
+  exportedAt: string;     // ISO 8601 UTC timestamp
+  signatureHex: string | null; // Ed25519 sig (null when sign=false)
+}
+```
+
+## CLI Usage
+
+```bash
+# Export a single document as markdown
+llmtxt export api-spec --format md --output ./exports/
+# Wrote ./exports/api-spec.md  (version 3, 4.2 KB, sha256: 2cf24d...)
+
+# Export as JSON
+llmtxt export api-spec --format json --output ./exports/
+
+# Export with Ed25519 signature
+llmtxt export api-spec --format llmtxt --output ./exports/ --sign
+
+# Export all documents as markdown
+llmtxt export-all --format md --output ./docs-backup/
+# Exported 12 documents to ./docs-backup/
+# Skipped 0
+
+# Export only APPROVED documents
+llmtxt export-all --format md --output ./approved/ --state APPROVED
+```
+
+The CLI prints `ExportDocumentResult` as JSON to stdout on success. Use `jq` to extract specific fields:
+
+```bash
+llmtxt export api-spec --format md --output /tmp/ | jq '.fileHash'
+# "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+```
+
+## Import
+
+### Import a File
+
+Import creates a new document or publishes a new version of an existing document:
+
+```typescript
+const result = await backend.importDocument({
+  filePath: './exports/api-spec.md',
+  importedBy: 'agent-alice',
+  // onConflict: 'new_version' (default) | 'create'
+});
+
+console.log(result.action);       // 'created' | 'version_appended'
+console.log(result.slug);         // 'api-spec'
+console.log(result.versionNumber); // version number of imported content
+console.log(result.contentHash);  // SHA-256 of imported content
+```
+
+All 4 formats are supported for import:
+- `.md` / `.llmtxt` — frontmatter is parsed; body is extracted after the closing `---` fence
+- `.json` — `content` field is used as body; `title` and `slug` from structured fields
+- `.txt` — body only; slug defaults to the filename stem
+
+The content hash in the frontmatter is verified against the actual body before import proceeds. Hash mismatch throws `ExportError('HASH_MISMATCH')`.
+
+### CLI Import
+
+```bash
+# Import a markdown file (creates or appends version)
+llmtxt import ./exports/api-spec.md --imported-by agent-alice
+# {"action":"version_appended","slug":"api-spec","versionNumber":4,...}
+
+# Import and require document to be new (fails if slug exists)
+llmtxt import ./new-doc.md --on-conflict create
+```
+
+## Round-Trip Guarantee
+
+Export then import produces a **logically equivalent** document:
+
+```
+exportDocument({ slug, format: 'markdown', outputPath })
+  → importDocument({ filePath: outputPath })
+  → getDocumentBySlug(slug)
+  → listVersions(doc.id)
+  → latest_version.content === original_content   ✓
+```
+
+**Preserved** on round-trip:
+- Document title
+- Body content (byte-identical SHA-256)
+- Slug
+
+**Not preserved** (these are reset on import):
+- `documentId` — generated fresh (nanoid)
+- `createdAt` / `updatedAt` — set at import time
+- `versionCount` — reset to 1 for new documents
+- Approval chain — approvals are not portable
+
+The round-trip guarantee is specifically about content fidelity, not database row identity.
+
+## Determinism Guarantee
+
+For the same `(slug, versionNumber, format, exportedAt)` parameter tuple, `fileHash` is identical:
+- Across repeated calls on the same machine
+- Across calls on different machines
+- Across calls using `LocalBackend` vs `PostgresBackend`
+
+This makes exported files safe to hash and compare in CI, store in version control with stable hashes, and use as audit evidence.
+
+## Error Codes
+
+```typescript
+type ExportErrorCode =
+  | 'DOC_NOT_FOUND'      // slug does not exist in backend
+  | 'VERSION_NOT_FOUND'  // requested version not found
+  | 'WRITE_FAILED'       // filesystem write error
+  | 'UNSUPPORTED_FORMAT' // unknown format string
+  | 'SIGN_FAILED'        // identity not configured or key error
+  | 'SLUG_EXISTS'        // import with onConflict='create' but slug exists
+  | 'PARSE_FAILED'       // frontmatter parse error on import
+  | 'HASH_MISMATCH';     // content_hash in frontmatter doesn't match body
+```
+
+## File Extension Mapping
+
+| Format | Extension |
+|--------|----------|
+| `markdown` | `.md` |
+| `json` | `.json` |
+| `txt` | `.txt` |
+| `llmtxt` | `.llmtxt` |
+
+## Related Docs
+
+- [SDK Reference](/docs/sdk) — full Backend interface
+- [Blob Attachments](/docs/sdk/blob-attachments) — attaching binary files to documents
+- [Session Lifecycle](/docs/multi-agent/session-lifecycle) — using export in an AgentSession

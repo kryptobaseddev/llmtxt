@@ -1,0 +1,322 @@
+---
+title: Blob Attachments
+description: Attach binary files to LLMtxt documents — content-addressed storage, Last-Write-Wins merge semantics, lazy sync, S3/R2 or PG large objects backend, and hash verification on every read.
+---
+
+# Blob Attachments
+
+LLMtxt documents are text and JSON. Binary artifacts — rendered diagrams, screenshots, compiled outputs, PDFs — travel alongside documents via **blob attachments**. Blobs are content-addressed (SHA-256 hash = storage key), scoped per document, and merged via Last-Write-Wins when two agents upload the same attachment name concurrently.
+
+**Blobs are not CRDT-merged.** A PNG from two concurrent editors cannot be meaningfully merged. The correct primitive is LWW per attachment name.
+
+## Concepts
+
+### Content Addressing
+
+Every blob is identified by its SHA-256 hash. The hash is the storage key. Two attachments with identical bytes share one storage object. The hash is computed by `hash_blob` in `crates/llmtxt-core`.
+
+```
+storage path (LocalBackend): .llmtxt/blobs/<sha256-64-char-hex>
+object key (S3/R2):          blobs/<sha256-64-char-hex>
+```
+
+The hash is verified on every read that returns bytes. If the stored bytes produce a different hash than the recorded hash field, `BlobCorruptError` is returned and the corrupt file is quarantined.
+
+### Attachment Names
+
+An **attachment name** is the user-visible label for a blob within a document (e.g., `diagram.png`, `report.pdf`). Names are scoped per document. The same name on two different documents refers to two independent records.
+
+Name validation (enforced in Rust `blob_name_validate`):
+- Length: 1–255 bytes (UTF-8)
+- Must not contain `..` (path traversal prefix)
+- Must not contain `/` or `\` (path separators)
+- Must not contain null bytes (`\0`)
+- Must not start or end with whitespace
+
+Invalid names are rejected before any storage operation.
+
+### LWW Merge Rule
+
+When two agents independently upload an attachment with the same name on the same document, the conflict resolves by **Last Write Wins per attachment name**:
+
+```
+winner = agent with the larger uploadedAt timestamp
+tie-break = larger uploadedBy string (lexicographic — deterministic)
+```
+
+This rule applies to the manifest record only. Blob bytes are not merged. The winning record's `hash` determines which bytes are canonical.
+
+## API Reference
+
+### `attachBlob(params)`
+
+Attach a binary blob to a document.
+
+```typescript
+import { createBackend } from 'llmtxt';
+import { readFileSync } from 'node:fs';
+
+const backend = createBackend({ topology: 'standalone', storagePath: '.llmtxt' });
+await backend.open();
+
+const imageBytes = readFileSync('./diagram.png');
+
+const attachment = await backend.attachBlob({
+  docSlug: 'api-spec',
+  name: 'diagram.png',
+  contentType: 'image/png',
+  data: imageBytes,
+  uploadedBy: 'agent-alice',
+});
+
+console.log(attachment.hash);        // SHA-256 hex (64 chars)
+console.log(attachment.size);        // byte count
+console.log(attachment.uploadedAt);  // unix ms timestamp
+```
+
+Behavior:
+- Computes SHA-256 of `data` and uses it as the storage key
+- Validates the attachment name before any storage operation
+- Enforces `maxBlobSizeBytes` (default 100 MB); throws `BlobTooLargeError` if exceeded
+- If a blob with the same name already exists on the document, soft-deletes it and inserts the new record (LWW)
+- Does NOT store duplicate bytes when the hash already exists in the store (content-addressed dedup within the same backend)
+
+### `getBlob(docSlug, blobName, opts?)`
+
+Retrieve a blob attachment record, optionally including raw bytes.
+
+```typescript
+// Metadata only (no bytes transferred — fast)
+const meta = await backend.getBlob('api-spec', 'diagram.png');
+if (meta) {
+  console.log(meta.hash, meta.size, meta.contentType);
+}
+
+// With bytes — hash verified on read
+const blobData = await backend.getBlob('api-spec', 'diagram.png', { includeData: true });
+if (blobData?.data) {
+  // blobData.data is a Buffer containing the raw bytes
+  await fs.writeFile('./local-diagram.png', blobData.data);
+}
+```
+
+Returns `null` (not a thrown error) when no blob with `blobName` is attached to the document.
+
+When `includeData: true`, the hash is verified after reading. A mismatch throws `BlobCorruptError`.
+
+### `listBlobs(docSlug)`
+
+List all active (non-deleted) blob attachments for a document.
+
+```typescript
+const attachments = await backend.listBlobs('api-spec');
+
+for (const a of attachments) {
+  console.log(`${a.blobName}  ${a.size} bytes  ${a.contentType}  by ${a.uploadedBy}`);
+}
+// diagram.png  43210 bytes  image/png  by agent-alice
+// report.pdf   1245678 bytes  application/pdf  by agent-bob
+```
+
+Returns an empty array (not an error) when no blobs are attached.
+
+### `detachBlob(docSlug, blobName, detachedBy)`
+
+Soft-delete a named blob attachment from a document.
+
+```typescript
+const removed = await backend.detachBlob('api-spec', 'diagram.png', 'agent-alice');
+console.log(removed); // true if found and soft-deleted; false if not found
+```
+
+Returns `false` (not an error) when no active attachment with that name exists.
+
+The blob bytes are NOT deleted from storage — V1 has no automatic garbage collection. The manifest record is soft-deleted (`deleted_at` set); the bytes remain in the store until a future `llmtxt gc-blobs` command runs.
+
+### `fetchBlobByHash(hash)`
+
+Fetch blob bytes directly by hash, bypassing the document manifest. Used by the sync layer for lazy blob pull.
+
+```typescript
+const bytes = await backend.fetchBlobByHash(
+  'e3b0c44298fc1c149afbf4c8996fb924...'
+);
+// Returns null if the hash is not present in the local store
+```
+
+This method requires the caller to hold read access to at least one document that references the requested hash.
+
+## BlobAttachment Type
+
+```typescript
+interface BlobAttachment {
+  id: string;           // nanoid record ID
+  docSlug: string;      // document slug
+  blobName: string;     // user-visible attachment name
+  hash: string;         // SHA-256 hex (64 chars)
+  size: number;         // byte count (original, uncompressed)
+  contentType: string;  // MIME type
+  uploadedBy: string;   // agentId of uploader
+  uploadedAt: number;   // unix timestamp ms
+}
+```
+
+## CLI Commands
+
+### `llmtxt attach`
+
+```bash
+# Attach a file to a document
+llmtxt attach api-spec ./diagram.png
+# Attached diagram.png to api-spec
+# Hash: e3b0c44298fc1c149afbf4c8996fb924...
+# Size: 42.2 KB
+
+# Override attachment name
+llmtxt attach api-spec ./diagram-v2.png --name diagram.png
+
+# Override MIME type
+llmtxt attach api-spec ./data.bin --name data.bin --content-type application/octet-stream
+```
+
+MIME type is auto-detected from the file extension when `--content-type` is not supplied.
+
+### `llmtxt detach`
+
+```bash
+llmtxt detach api-spec diagram.png
+# Detached diagram.png from api-spec
+```
+
+### `llmtxt blobs`
+
+```bash
+llmtxt blobs api-spec
+# NAME          SIZE     TYPE              UPLOADED BY   UPLOADED AT
+# diagram.png   42.2 KB  image/png         agent-alice   2026-04-17T19:00:00Z
+# report.pdf    1.2 MB   application/pdf   agent-bob     2026-04-17T18:55:00Z
+```
+
+## Backend Configuration
+
+### LocalBackend (Filesystem)
+
+Blob bytes are stored at `.llmtxt/blobs/<sha256>`. No additional configuration is required. The directory is created on first use.
+
+```typescript
+const backend = createBackend({
+  topology: 'standalone',
+  storagePath: '.llmtxt',
+  // maxBlobSizeBytes: 100 * 1024 * 1024, // default 100 MB
+});
+```
+
+File write is atomic: bytes are written to `<hash>.tmp` and then renamed to `<hash>`. This prevents a partially written blob from being visible to other processes.
+
+### PostgresBackend — S3/R2 (Default)
+
+For production deployments, blobs are stored in S3-compatible object storage:
+
+```typescript
+const backend = createBackend({
+  topology: 'hub-spoke',
+  hubUrl: 'https://api.llmtxt.my',
+  apiKey: process.env.LLMTXT_API_KEY,
+  // Blob storage config on the hub side (BackendConfig)
+  blobStorageMode: 's3',
+  s3Endpoint: 'https://s3.us-east-1.amazonaws.com',
+  s3Bucket: 'my-llmtxt-blobs',
+  s3Region: 'us-east-1',
+  s3AccessKeyId: process.env.S3_ACCESS_KEY_ID,
+  s3SecretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+  maxBlobSizeBytes: 50 * 1024 * 1024, // 50 MB limit
+});
+```
+
+For Cloudflare R2, set `s3Endpoint` to your R2 endpoint (`https://<account-id>.r2.cloudflarestorage.com`). R2 uses the S3 API.
+
+Upload uses server-side SHA-256 integrity check (`x-amz-checksum-sha256`) where the provider supports it.
+
+### PostgresBackend — PG Large Objects (Fallback)
+
+When S3 is not configured, blobs are stored in PostgreSQL large objects:
+
+```typescript
+// In BackendConfig (server-side)
+{
+  blobStorageMode: 'pg-lo',  // uses pg_largeobject catalog
+  maxBlobSizeBytes: 10 * 1024 * 1024, // 10 MB recommended for PG-LO
+}
+```
+
+Large object creation and the `blob_attachments` insert happen in the same transaction. Bytes are written in 64 KB chunks to avoid memory pressure. Hash is verified after reading all chunks.
+
+PG large objects do not scale as well as S3 for large files. Use S3/R2 for production.
+
+## Changeset Sync (Lazy Pull)
+
+In mesh or hub-spoke topologies with cr-sqlite, blob references travel in sync changesets but bytes are NOT pushed eagerly:
+
+1. Agent A attaches a blob; `attachBlob` writes bytes to local store.
+2. Next sync: the changeset includes a `BlobRef` (name, hash, size, contentType, uploadedBy, uploadedAt).
+3. Agent B receives the changeset, applies the LWW rule to its manifest, and records the `BlobRef`.
+4. Agent B's manifest now shows the attachment, but bytes are not yet local.
+5. When Agent B calls `getBlob('api-spec', 'diagram.png', { includeData: true })`, bytes are pulled lazily via `fetchBlobByHash(hash)` from Agent A (or the hub).
+
+This lazy-pull protocol keeps changeset sizes small. Manifest metadata (a few hundred bytes) travels with the changeset; megabytes of bytes are only fetched on demand.
+
+## Security Model
+
+### Hash Verification
+
+Every read that returns bytes verifies the SHA-256 hash. If the stored bytes produce a different hash than the recorded `hash` field:
+- `BlobCorruptError` is thrown
+- The corrupt file is quarantined (renamed to `<hash>.corrupt` on LocalBackend)
+- The error is propagated — corrupt bytes are NEVER returned to the caller
+
+### Path Traversal Prevention
+
+Blob names are validated by `blob_name_validate` in Rust before any storage operation. The filesystem storage path for `LocalBackend` is derived solely from the content hash (never the attachment name), so even if name validation were bypassed, no path traversal is possible in the storage layer.
+
+### Access Control
+
+Blob access inherits the document's access control policy:
+
+| Caller capability | Permitted blob operations |
+|------------------|--------------------------|
+| Read document | `listBlobs`, `getBlob` |
+| Write document | `attachBlob`, `detachBlob` |
+| Sync layer | `fetchBlobByHash` (requires read access to at least one referencing document) |
+
+HTTP API endpoints enforce `requireAuth` and document-level RBAC before delegating to blob operations. HTTP responses for blob downloads include `Content-Disposition: attachment` to prevent browser execution.
+
+### Size Limits
+
+The default maximum blob size is **100 MB** (`maxBlobSizeBytes: 100 * 1024 * 1024`). The check occurs before any storage allocation. Violations throw `BlobTooLargeError` with the configured limit in the message.
+
+## Limitations and Future Work
+
+| Limitation | V1 behavior | Future |
+|-----------|------------|--------|
+| No CRDT merge | Blobs use LWW only — no byte-level merging | Not planned (binary files are not meaningfully CRDT-mergeable) |
+| No automatic garbage collection | Soft-deleted and orphaned blobs remain in store | Future `llmtxt gc-blobs` command |
+| Memory-buffered | Full blob bytes held in memory during hash verification | Future streaming with progressive hash computation |
+| No blob versioning | One canonical record per name (LWW) | Future `llmtxt blob-history` command |
+| No cross-document dedup | Dedup within a single backend instance only | Future shared hash registry |
+
+## Error Reference
+
+| Error class | Condition |
+|-------------|-----------|
+| `BlobTooLargeError` | `data.byteLength > maxBlobSizeBytes` |
+| `BlobNameInvalidError` | Name fails `blob_name_validate` |
+| `BlobCorruptError` | Hash mismatch on read |
+| `BlobNotFoundError` | Hash not in store (sync pull failure) |
+| `BlobAccessDeniedError` | Caller lacks read/write permission on the document |
+
+## Related Docs
+
+- [Export and Import](/docs/sdk/export-import) — exporting document content (text only; blobs are separate)
+- [cr-sqlite Sync](/docs/sync/cr-sqlite) — changeset exchange that carries `BlobRef` entries
+- [Session Lifecycle](/docs/multi-agent/session-lifecycle) — managing blob operations within an AgentSession
+- [SDK Reference](/docs/sdk) — full Backend interface

@@ -1,0 +1,234 @@
+---
+title: cr-sqlite Changeset Sync
+description: How LLMtxt uses cr-sqlite to exchange delta changesets between LocalBackend instances — enabling offline-first, peer-to-peer agent collaboration without a central coordinator.
+---
+
+# cr-sqlite Changeset Sync
+
+LLMtxt's `LocalBackend` can load the **cr-sqlite** SQLite extension to turn every table into a Conflict-free Replicated Relation (CRR). Two agents with separate `.db` files converge by exchanging only the rows that changed since their last sync — no snapshot, no full diff, no central coordinator required.
+
+## Architecture Overview
+
+```
+Agent A                          Agent B
+┌───────────────────────┐        ┌───────────────────────┐
+│  LocalBackend         │        │  LocalBackend         │
+│  agent-a.db           │        │  agent-b.db           │
+│  + cr-sqlite ext      │        │  + cr-sqlite ext      │
+│  + Loro CRDT blobs    │        │  + Loro CRDT blobs    │
+└───────────────────────┘        └───────────────────────┘
+          │                                 │
+          │  getChangesSince(dbVersion)      │
+          │─────────────────────────────────►
+          │                                 │
+          │◄─────────────────────────────────
+          │  applyChanges(changeset)         │
+          │                                 │
+          └──────── api.llmtxt.my ──────────┘
+                    (optional cloud peer,
+                     PostgresBackend)
+```
+
+This is the **changeset exchange model**: Agent A calls `getChangesSince(lastKnownVersion)` on its own database, sends the opaque binary changeset to Agent B, and Agent B calls `applyChanges(changeset)`. Both sides then repeat in the other direction.
+
+## CRR Tables
+
+After enabling cr-sqlite, all 13 LocalBackend tables are registered as Conflict-free Replicated Relations:
+
+```sql
+SELECT crsql_as_crr('documents');
+SELECT crsql_as_crr('versions');
+SELECT crsql_as_crr('state_transitions');
+SELECT crsql_as_crr('approvals');
+SELECT crsql_as_crr('section_crdt_states');
+SELECT crsql_as_crr('section_crdt_updates');
+SELECT crsql_as_crr('document_events');
+SELECT crsql_as_crr('agent_pubkeys');
+SELECT crsql_as_crr('agent_signature_nonces');
+SELECT crsql_as_crr('section_leases');
+SELECT crsql_as_crr('agent_inbox_messages');
+SELECT crsql_as_crr('scratchpad_entries');
+SELECT crsql_as_crr('section_embeddings');
+```
+
+Once registered, cr-sqlite tracks every write in the `crsql_changes` virtual table, keyed by `db_version`. This is the foundation of incremental changeset exchange.
+
+## The Changeset Exchange API
+
+Two new methods on the `Backend` interface enable agent-to-agent sync:
+
+```typescript
+import { LocalBackend } from 'llmtxt/sdk';
+
+const agentA = new LocalBackend({ storagePath: './agent-a', crsqlite: true });
+const agentB = new LocalBackend({ storagePath: './agent-b', crsqlite: true });
+
+await agentA.open();
+await agentB.open();
+
+// Agent A writes a document
+await agentA.createDocument({ title: 'Spec Draft', slug: 'spec-draft', createdBy: 'agent-a' });
+
+// --- Sync A → B ---
+const changeset = await agentA.getChangesSince(0n); // 0n = full history
+const newVersion = await agentB.applyChanges(changeset);
+
+// Agent B now has the document
+const doc = await agentB.getDocumentBySlug('spec-draft');
+console.log(doc?.title); // 'Spec Draft'
+
+// --- Bidirectional sync ---
+// B → A (sends any changes agent-b made since last sync)
+const bChanges = await agentB.getChangesSince(0n);
+await agentA.applyChanges(bChanges);
+```
+
+### `getChangesSince(dbVersion: bigint): Promise<Uint8Array>`
+
+Returns all changes made to the local database since `dbVersion`. Use `0n` to return the full history. The returned value is cr-sqlite's native binary changeset format (compact, not JSON).
+
+```typescript
+// Incremental: only changes since last sync
+const lastVersion = 42n; // stored from previous applyChanges() call
+const delta = await backend.getChangesSince(lastVersion);
+```
+
+### `applyChanges(changeset: Uint8Array): Promise<bigint>`
+
+Applies a changeset received from a peer. Returns the new local `db_version` after applying. This method is idempotent — applying the same changeset twice is safe.
+
+```typescript
+const newDbVersion = await backend.applyChanges(remoteDelta);
+// Persist newDbVersion to resume incremental sync next time
+```
+
+## Two-Agent Sync: Step-by-Step
+
+```
+1. Agent A writes to its db
+2. A: changes = getChangesSince(lastVersion_A_sent_to_B)
+3. A → B: transfer changeset bytes (HTTP, file, socket)
+4. B: newVersion = applyChanges(changes)
+5. B stores newVersion as "last version received from A"
+
+6. B writes to its db
+7. B: changes = getChangesSince(lastVersion_B_sent_to_A)
+8. B → A: transfer changeset bytes
+9. A: newVersion = applyChanges(changes)
+10. A stores newVersion
+```
+
+After both directions, all documents, versions, and events present on either agent are present on both. Order of operation does not matter — cr-sqlite is associative, commutative, and idempotent.
+
+## CRR Column Merge Semantics
+
+Most columns use **Last-Write-Wins (LWW)** per row — the agent with the later logical timestamp owns the value. Key exceptions:
+
+| Table | Column | Merge rule | Notes |
+|-------|--------|-----------|-------|
+| `documents` | all scalars | LWW | `version_count` is recomputed from `versions` after sync |
+| `versions` | all | LWW | Rows are write-once; LWW on the PK is safe |
+| `state_transitions` | all | LWW | Append-only audit; same row won't be written twice |
+| `approvals` | `status` | LWW | Latest approval/rejection wins |
+| `section_crdt_states` | `crdt_state` | **App-level Loro merge** | See Loro Blob Merge section below |
+| `section_leases` | `expires_at`, `holder` | LWW | Last writer holds the lease |
+| `document_events` | all | LWW on `id` PK | Sort by `created_at` after sync, not by `seq` |
+
+## Loro Blob Merge (DR-P2-04)
+
+The `section_crdt_states.crdt_state` column stores a **Loro binary blob** — a CRDT state vector. cr-sqlite's default LWW behavior MUST NOT be used on this column. LWW on binary CRDT state silently discards one agent's edits.
+
+Instead, `applyChanges` detects updates to the `crdt_state` column and calls the Loro merge function:
+
+```
+1. applyChanges() receives a changeset containing a crdt_state update
+2. Fetch both the local blob and the incoming blob from the changeset
+3. Call crdt_merge_updates([local_blob, remote_blob])  ← Loro merge (WASM)
+4. Write the merged result back to crdt_state
+```
+
+This happens inside a SQLite transaction to remain atomic. The result is that both agents' CRDT edits are preserved — neither is lost.
+
+This is a **correctness requirement**, not optional. The P2.11 integration test verifies this by proving that if LWW were used on the blob column, the test fails.
+
+## CLI Usage
+
+Once cr-sqlite is enabled, the `llmtxt sync` command exchanges changesets between two peers:
+
+```bash
+# Sync local db with api.llmtxt.my (cloud peer)
+llmtxt sync --from https://api.llmtxt.my --db ./agent.db
+
+# Sync with a local peer database
+llmtxt sync --from ./peer-agent.db --db ./agent.db
+
+# Sync only changes since a known version
+llmtxt sync --from ./peer-agent.db --since 42
+```
+
+Output:
+
+```
+Synced with ./peer-agent.db
+  Sent:     12 rows (3.2 KB)
+  Received: 8 rows (1.8 KB)
+  New db_version: 47
+```
+
+## Enabling cr-sqlite on a LocalBackend
+
+cr-sqlite is an **optional peer dependency** of the `llmtxt` package. Install it alongside:
+
+```bash
+pnpm add llmtxt @vlcn.io/crsqlite
+```
+
+Then pass `crsqlite: true` in the config:
+
+```typescript
+import { createBackend } from 'llmtxt';
+
+const backend = createBackend({
+  topology: 'standalone',
+  storagePath: './my-agent',
+  crsqlite: true,
+  // Optional: override extension path for air-gapped environments
+  // crsqliteExtPath: '/usr/local/lib/crsqlite.so',
+});
+
+await backend.open();
+```
+
+If `@vlcn.io/crsqlite` is not installed, the backend opens normally without CRR support. Calling `getChangesSince()` or `applyChanges()` throws `CrSqliteNotLoadedError` — no crash on startup.
+
+## Platform Support
+
+The `@vlcn.io/crsqlite` package downloads a prebuilt native extension at install time from GitHub releases. Supported platforms:
+
+| OS | Architecture | Supported |
+|----|-------------|-----------|
+| Linux | x86_64 (amd64) | Yes |
+| Linux | aarch64 (arm64) | Yes |
+| macOS | Apple Silicon (arm64) | Yes |
+| macOS | Intel (x86_64) | Yes |
+| Windows | x64 | Yes |
+
+For air-gapped or Docker environments that cannot download at install time, supply the extension path via `crsqliteExtPath` in the backend config.
+
+## Performance Notes
+
+cr-sqlite adds approximately **15% write overhead** compared to plain better-sqlite3 (measured by vlcn.io on representative workloads). For LLMtxt's typical usage — infrequent document writes, not high-throughput OLTP — this overhead is acceptable.
+
+A CI benchmark asserts that write overhead does not exceed 25% above the non-cr-sqlite baseline.
+
+Read performance is unaffected. The `crsql_changes` virtual table query is indexed by `db_version`.
+
+## Idempotency Guarantee
+
+Applying the same changeset twice is safe. cr-sqlite tracks which rows it has already seen and skips duplicates. This means retrying a failed sync operation is always safe — you cannot corrupt your database by replaying a changeset.
+
+## Related Docs
+
+- [Topology Guide](/docs/architecture/topology) — when to use standalone vs. hub-spoke vs. mesh
+- [P2P Mesh](/docs/mesh/) — connecting multiple cr-sqlite agents into a serverless peer-to-peer mesh
+- [CRDT Section Collaboration](/docs/multi-agent/crdt-sections) — Loro-based text editing on sections

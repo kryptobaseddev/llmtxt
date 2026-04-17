@@ -1,0 +1,187 @@
+---
+title: Mesh Architecture
+description: Full mesh topology diagram, peer discovery protocol, transport implementations, sync engine internals, and A2A message routing.
+---
+
+# Mesh Architecture
+
+## Topology: Fully-Connected Mesh
+
+The default mesh topology connects every agent directly to every other agent. On a 5-agent team this means at most 10 pairs — manageable on a single machine or local network.
+
+```
+  Agent A ──── Agent B
+    │  \      / │  \
+    │   \    /  │   \
+  Agent C ──── Agent D
+          \    /
+          Agent E
+```
+
+Each edge in this diagram is a bidirectional transport channel over which changesets flow in both directions. Every agent eventually reaches every other agent directly — no relay hops, no coordinator single point of failure.
+
+For large teams (>10 agents) where O(n²) connections become expensive, use [hub-and-spoke topology](/docs/architecture/topology#hub-and-spoke) instead.
+
+## Agent Identity
+
+Each agent is identified by the **hex-encoded hash of its Ed25519 public key**. This is the same identity established by the identity system (`crates/llmtxt-core/src/identity.rs`). No separate mesh registration step is required — agents announce their public key during the handshake.
+
+## Peer Discovery
+
+### Discovery Sources (priority order)
+
+| Source | Mechanism | Use case |
+|--------|-----------|---------|
+| Static config | `~/.llmtxt/mesh.json` or `peers` in `createBackend()` | Air-gapped, reproducible environments |
+| Shared directory | `$LLMTXT_MESH_DIR/*.peer` files | Same machine or NFS share |
+| mDNS/DNS-SD | `_llmtxt._tcp.local` | Local network auto-discovery (plugin) |
+| HTTP rendezvous | `GET /api/mesh/peers` on api.llmtxt.my | Cross-network, opt-in |
+
+### Peer Advertisement File
+
+When an agent starts, it writes a `.peer` file to `$LLMTXT_MESH_DIR` (default `/tmp/llmtxt-mesh`):
+
+```json
+{
+  "agentId": "a3f1b2c4d5e6...",
+  "transport": "unix:/tmp/llmtxt-agent-alice.sock",
+  "pubkey": "base64-ed25519-public-key",
+  "capabilities": ["sync", "presence", "a2a"],
+  "startedAt": "2026-04-17T00:00:00Z"
+}
+```
+
+The file is named `<agentId>.peer`. On clean shutdown the agent deletes it. Stale files from crashed agents are tolerated — connection attempts that fail after 3 retries mark the peer as inactive.
+
+**Security constraint**: Peer advertisement files missing a valid `pubkey` field, or where `pubkey` is inconsistent with `agentId`, are rejected before any connection attempt.
+
+## Transport Layer
+
+### UnixSocketTransport (primary)
+
+Each agent listens on a Unix domain socket. Address format: `unix:<absolute-path>`.
+
+- Binary framing: `[4-byte message-length LE][message-bytes]`
+- Requires Node.js `net` module — zero external dependencies
+- Ideal for same-machine collaboration (lowest latency, no firewall config)
+
+### HttpTransport (cross-machine)
+
+Each agent listens on a local HTTP port (default 7642). Address format: `http://host:port`.
+
+- Changeset push: `POST /mesh/changeset` with `Content-Type: application/octet-stream`
+- Response carries the peer's delta in one round-trip (bidirectional)
+- Handshake via `POST /mesh/handshake` precedes any changeset exchange
+
+## Ed25519 Mutual Handshake
+
+Every connection — regardless of transport — completes a 3-message mutual handshake before any data is exchanged:
+
+```
+1. Initiator sends:
+   { agentId, pubkey, challenge: random_32_bytes }
+
+2. Responder signs the challenge with its private key, sends:
+   { agentId, pubkey, sig: sign(challenge), challenge: random_32_bytes }
+
+3. Initiator verifies responder's signature, signs responder's challenge, sends:
+   { sig: sign(responder_challenge) }
+
+Both parties now hold verified peer identities.
+```
+
+Connections where signature verification fails are closed immediately. No data is exchanged before the handshake completes. This is enforced at the transport layer, not the application layer.
+
+## Sync Engine
+
+### Sync Loop
+
+The sync engine runs a periodic loop (every 5 seconds) and also triggers immediately when the local database is written:
+
+```
+for each peer in discoveredPeers:
+  try:
+    localChanges = backend.getChangesSince(lastSyncVersion[peer])
+    if localChanges.length > 0:
+      await transport.sendChangeset(peer.id, peer.address, localChanges)
+    remoteChanges = await transport.requestChanges(peer.id, peer.address, ...)
+    if remoteChanges.length > 0:
+      newVersion = await backend.applyChanges(remoteChanges)
+      lastSyncVersion[peer] = newVersion
+  catch (err):
+    recordPeerFailure(peer.id, err)
+```
+
+`lastSyncVersion` is persisted in a local `llmtxt_mesh_state` table so it survives agent restarts.
+
+### Changeset Integrity Verification
+
+Before calling `applyChanges()`, the sync engine verifies each received changeset:
+
+1. Compute `SHA-256(changeset_bytes)`
+2. Compare against the `crdt_state_hash` declared by the peer
+3. For `crdt_state` column updates: after Loro merge, compute `SHA-256` of the merged blob and store it
+4. Hash mismatch → reject, log a security warning, do NOT apply
+
+Corrupted changesets and tampered Loro blobs are detected and rejected before they touch the local database.
+
+### Convergence Guarantee
+
+Given finite network partitions, all peers converge to the same state within **2× the sync interval** (10 seconds under default config) after a partition heals. This is guaranteed by:
+
+- cr-sqlite's CRDT properties (associativity, commutativity, idempotency)
+- Loro's CRDT merge for `crdt_state` blob columns
+- Full mesh topology: every peer can reach every other peer directly
+
+## Presence (Ephemeral)
+
+Presence state — which agent is editing which section — is **not stored in cr-sqlite**. It is ephemeral.
+
+Each agent broadcasts its presence to all connected peers every 10 seconds:
+
+```json
+{
+  "type": "presence",
+  "agentId": "a3f1b2c4...",
+  "documentId": "doc-abc",
+  "sectionId": "intro",
+  "updatedAt": "2026-04-17T10:30:00Z",
+  "ttl": 30
+}
+```
+
+Peers store presence state in memory only. Entries expire after `ttl` seconds if no refresh arrives. No persistence, no database rows.
+
+## Agent-to-Agent (A2A) Messages
+
+A2A messages (task assignments, approvals, notifications) travel over the mesh transport, not via the HTTP API:
+
+```json
+{
+  "type": "a2a",
+  "from": "agent-alice",
+  "to": "agent-bob",
+  "payload": { "type": "task.assign", "taskId": "T123" },
+  "sig": "base64-ed25519-sig-of-canonical-json",
+  "sentAt": "2026-04-17T10:30:00Z"
+}
+```
+
+If the target peer is not directly connected, the message is relayed through any connected peer that knows the target. After 3 relay attempts with no path, the message is queued locally and retried when the target reconnects.
+
+## Server-as-Peer (Hybrid Mode)
+
+`api.llmtxt.my` can join the mesh as a regular peer using HTTP transport. When configured:
+
+- The server participates in changeset exchange like any other agent.
+- Changesets are applied to the `PostgresBackend` via a `PostgresChangesetAdapter`.
+- This enables hybrid architectures: some agents local, some cloud.
+
+This is opt-in and not required for local-only mesh operation.
+
+## Related Docs
+
+- [Getting Started](/docs/mesh/) — quickstart guide
+- [Security Model](/docs/mesh/security-model) — full threat table and mitigations
+- [cr-sqlite Sync](/docs/sync/cr-sqlite) — the changeset primitives the mesh uses
+- [Topology Guide](/docs/architecture/topology) — when to choose mesh vs. hub-spoke
