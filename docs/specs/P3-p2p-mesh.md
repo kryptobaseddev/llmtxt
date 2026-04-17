@@ -1,8 +1,17 @@
 # Spec P3: P2P Agent Mesh (Serverless Collaboration)
 
 **Version**: 1.1.0
-**Status**: DRAFT — planning only, no implementation
+**Status**: AUTHORITATIVE ARCHITECTURE SOURCE OF TRUTH — validated 2026-04-17
+**Validated by**: T413 review — all sections confirmed complete and accurate
 **RFC 2119 Key words**: MUST, MUST NOT, SHOULD, MAY
+
+> **Note**: This document is the architecture source of truth for Phase 3 (P2P
+> Mesh). All implementation tasks (T414–T425) MUST conform to this spec.
+> Security requirements are woven into P3.2 (discovery), P3.3 (transport), and
+> P3.4 (sync engine) — not in separate tasks. T415 (P3.3) and T417 (P3.4) are
+> the implementation homes for transport-layer and sync-layer security
+> respectively. T416 and T424 (standalone security tasks) are cancelled per
+> owner mandate 2026-04-17.
 
 ---
 
