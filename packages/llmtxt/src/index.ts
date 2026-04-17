@@ -338,3 +338,20 @@ export type { Lease, LeaseOptions } from './leases.js';
 // ── Subscriptions / Differential (T301) ──────────────────────────────────────
 export { subscribe, fetchSectionDelta } from './subscriptions.js';
 export type { SubscribeOptions, SubscriptionEvent, SectionDeltaResponse } from './subscriptions.js';
+
+// ── Topology Config (T436 + T457) ─────────────────────────────────────────────
+export {
+  TopologyConfigError,
+  validateTopologyConfig,
+  standaloneConfigSchema,
+  hubSpokeConfigSchema,
+  meshConfigSchema,
+  topologyConfigSchema,
+} from './topology.js';
+export type {
+  TopologyMode,
+  TopologyConfig,
+  StandaloneConfig,
+  HubSpokeConfig,
+  MeshConfig,
+} from './topology.js';
