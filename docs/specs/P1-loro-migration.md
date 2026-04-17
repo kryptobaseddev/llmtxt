@@ -1,6 +1,6 @@
 # Spec P1: Yrs → Loro CRDT Migration
 
-**Version**: 1.0.0
+**Version**: 1.1.0
 **Status**: DRAFT — planning only, no implementation
 **RFC 2119 Key words**: MUST, MUST NOT, SHOULD, MAY
 
@@ -43,7 +43,7 @@ cr-sqlite or P2P mesh (Phases 2 and 3).
 - `crates/llmtxt-core/src/crdt.rs` rewrite
 - `packages/llmtxt/src/crdt-primitives.ts` and `crdt.ts` updates
 - `apps/backend/src/routes/ws-crdt.ts` sync protocol update
-- Database migration strategy for `section_crdt_states.yrs_state`
+- CRDT table reset on deploy (see section 4)
 - Test suite updates
 
 **Out of scope:**
@@ -96,62 +96,46 @@ return an error.
 
 ---
 
-## 4. Migration Strategy
+## 4. Clean Break: No Migration, Drop and Rebuild
 
-### 4.1 Production Data Migration
+### 4.1 Design Decision: Greenfield Loro
 
-Two options are evaluated:
+We have zero production Yrs CRDT state worth preserving. The move to Loro is a
+**clean break**:
 
-**Option A — Blob reset (recommended for MVP)**
-1. Export all existing CRDT sections to plain text via `crdt_get_text(yrs_state)`.
-2. Create fresh Loro docs with that text content.
-3. Replace `section_crdt_states.yrs_state` with the new Loro snapshot.
-4. Truncate `section_crdt_updates` (pending updates become stale).
+- `DROP` all rows from `section_crdt_states` and `section_crdt_updates` on deploy.
+- Loro format is the only format from this point forward.
+- No dual-format detection is implemented.
+- No migration script converting Yrs blobs → Loro blobs is needed or written.
 
-Pros: Simple, no Yrs dependency in migration path.
-Cons: Loses edit history (client IDs, timestamps). Acceptable because Yrs history
-is not surfaced to end users.
+**Decision record DR-P1-02**: Clean break selected over incremental migration.
+The deploy MUST:
+1. Truncate `section_crdt_states`.
+2. Truncate `section_crdt_updates`.
+3. Rename the `yrs_state` column to `crdt_state`.
 
-**Option B — Preserve history via intermediary**
-Not recommended. Requires running both Yrs and Loro in the migration binary,
-converting operation-by-operation. Fragile and not worth the complexity for
-section state that users never inspect at the op-log level.
+This is implemented as a standard Drizzle schema migration. No pre-migration
+binary is required.
 
-**Decision record DR-P1-02**: Option A selected. Migration script MUST:
-1. Extract text content from every `section_crdt_states` row using the Yrs
-   Rust binary (or a pre-compiled migration binary that still has yrs).
-2. Insert fresh Loro-encoded snapshots.
-3. Truncate `section_crdt_updates`.
+### 4.2 Column Rename
 
-This MUST run as a database migration **before** the new backend binary starts.
-It MUST be idempotent (skip rows already in Loro format).
-
-### 4.2 Format Detection
-
-A Loro snapshot starts with a fixed magic header `[0x6c, 0x6f, 0x72, 0x6f]`
-("loro" in ASCII). A Yrs state starts with `[0x00]` (lib0 v1 length prefix).
-The migration script and backend MUST check the first byte to determine format
-and reject cross-format operations with a clear error.
-
-### 4.3 Column Rename
-
-`section_crdt_states.yrs_state` (bytea) SHOULD be renamed to
+`section_crdt_states.yrs_state` (bytea) MUST be renamed to
 `section_crdt_states.crdt_state` to remove library coupling. This is a pure
-column rename; the schema migration MUST be included in P1.7.
+column rename included in P1.7.
 
 ---
 
-## 5. Risk Assessment
+## 5. Production Constraints
 
-| Risk | Severity | Likelihood | Mitigation |
-|---|---|---|---|
-| Loro sync protocol differs from y-sync | High | Certain | Custom framing (DR-P1-01); update SDK + WS handler together |
-| Binary format incompatibility corrupts existing data | Critical | Certain without migration | Migration script (DR-P1-02); format detection; staging test before prod |
-| Loro 1.0 has undiscovered bugs in Rust WASM target | Medium | Low | Pin `loro = "1.0"` exactly; integration tests on WASM target |
-| WASM binary size increases | Medium | Medium | `wasm-opt` pass; measure before/after; budget: +50KB max |
-| y-sync clients (if any external) break | High | Low (internal only) | Audit all SDK consumers; confirm no external Yjs clients |
-| `crdt_merge_updates` changes convergence semantics | Critical | Low | Byte-identity test suite (P1.8) must cover all convergence invariants |
-| Loro `VersionVector` encoding differs from Yjs state vector | Medium | Certain | New framing means no cross-library interpretation needed |
+| Constraint | Detail |
+|---|---|
+| Loro sync protocol differs from y-sync | Custom framing (DR-P1-01); update SDK + WS handler together — this is a hard requirement, not a risk |
+| Binary format incompatibility | Greenfield approach (DR-P1-02) eliminates this entirely; no Yrs bytes exist post-deploy |
+| Loro 1.0 Rust WASM target | Pin `loro = "1.0"` exactly; integration tests on WASM target |
+| WASM binary size increase | `wasm-opt` pass; measure before/after; production constraint: +50KB max |
+| y-sync clients | No external Yjs clients exist; this is confirmed via SDK audit |
+| `crdt_merge_updates` convergence | Byte-identity test suite (P1.8) covers all convergence invariants — this is a required gate, not optional |
+| Loro `VersionVector` encoding | New framing means no cross-library interpretation needed |
 
 ---
 
@@ -165,11 +149,11 @@ P1.1 (API research + decision memo)
               │     └─→ P1.5 (crdt-primitives.ts update)
               │           └─→ P1.11 (subscribeSection / getSectionText)
               ├─→ P1.6 (ws-crdt.ts sync protocol update)     ─────┐
-              ├─→ P1.7 (DB migration script: yrs→loro blobs)  ───┐│
-              └─→ P1.8 (crdt_byte_identity tests — native)       ││
-                                                                  ││
-P1.9 (backend crdt.test.ts — 2-agent convergence) ◄──────────────┘│
-P1.10 (contract tests — CRDT section) ◄───────────────────────────┘
+              ├─→ P1.7 (DB reset: truncate CRDT tables; rename column) ─┐│
+              └─→ P1.8 (crdt_byte_identity tests — native)          ││
+                                                                    ││
+P1.9 (backend crdt.test.ts — 2-agent convergence) ◄────────────────┘│
+P1.10 (contract tests — CRDT section) ◄─────────────────────────────┘
 P1.12 (docs refresh) ◄── all above
 ```
 
@@ -182,9 +166,12 @@ P1.12 (docs refresh) ◄── all above
 2. All six WASM export function names are unchanged.
 3. A 2-agent convergence test (Rust native) confirms final state is identical
    regardless of update application order.
-4. Migration script converts all existing `section_crdt_states` rows; zero rows
-   remain with the Yrs magic header; the script is idempotent.
+4. `section_crdt_states` and `section_crdt_updates` tables are empty after
+   deploy; the column is renamed from `yrs_state` to `crdt_state`; no Yrs
+   magic header bytes exist in any row.
 5. `crdt.test.ts` 9 tests pass against the new Loro backend.
 6. `ws-crdt.ts` sends and receives Loro-framed messages; no y-sync protocol
    bytes in the wire capture.
 7. WASM binary size delta is within +50 KB of the pre-migration baseline.
+8. All features ship production-ready. No known-broken functionality in the
+   release.

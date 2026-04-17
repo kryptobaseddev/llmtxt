@@ -1,6 +1,6 @@
 # Spec P3: P2P Agent Mesh (Serverless Collaboration)
 
-**Version**: 1.0.0
+**Version**: 1.1.0
 **Status**: DRAFT — planning only, no implementation
 **RFC 2119 Key words**: MUST, MUST NOT, SHOULD, MAY
 
@@ -23,6 +23,12 @@ on stale information.* The P2P mesh MUST satisfy all three properties:
 **Why no SaaS**: The owner rejects paid coordination services (Ditto, etc.).
 The mesh MUST be self-contained and runnable offline with no external
 dependencies beyond what is already in the llmtxt npm package.
+
+**Security requirement**: Security is not a separate phase or an optional
+add-on. Ed25519 mutual peer authentication, changeset integrity verification,
+and malicious peer rejection are built into the transport, sync engine, and
+discovery layers respectively. An unauthenticated peer MUST be rejected before
+any data exchange begins.
 
 ---
 
@@ -90,6 +96,16 @@ The file MUST be named `<agentId>.peer`. On clean shutdown, the agent MUST
 delete its peer file. On crash, stale peer files MUST be tolerated: connection
 attempts that fail after 3 retries MUST cause the peer to be marked inactive.
 
+**Security constraint for discovery**: Peer advertisement files that do not
+include a valid `pubkey` field MUST be rejected. Unsigned peer advertisements
+MUST be treated as malicious and MUST NOT be connected to. The discovery layer
+MUST verify that any peer's `pubkey` is consistent with its advertised
+`agentId` before initiating a connection.
+
+Acceptance criterion: unauthenticated peer advertisements (missing or
+inconsistent `pubkey`) MUST be rejected by the discovery layer before any
+connection attempt.
+
 ---
 
 ## 4. Transport Abstraction
@@ -103,12 +119,15 @@ interface PeerTransport {
 
   /**
    * Listen for incoming connections.
-   * MUST call onChangeset() for each received changeset.
+   * MUST complete Ed25519 mutual handshake before calling onChangeset().
+   * MUST reject connections that fail the handshake.
+   * MUST call onChangeset() for each received, authenticated changeset.
    */
   listen(onChangeset: (peerId: string, changeset: Uint8Array) => void): Promise<void>;
 
   /**
    * Send a changeset to a specific peer.
+   * MUST complete Ed25519 mutual handshake before sending any data.
    * MUST return after the peer acknowledges receipt.
    * MUST throw if the peer is unreachable after maxRetries.
    */
@@ -125,6 +144,9 @@ interface PeerTransport {
 - Each agent listens on a Unix domain socket.
 - Address format: `unix:<absolute-path>` (e.g., `unix:/tmp/llmtxt-abc.sock`).
 - Binary framing: `[4-byte msg-length LE][msg-bytes]`.
+- Ed25519 mutual handshake MUST complete before any changeset is sent or
+  received (see section 4.3).
+- Connections that fail the handshake MUST be closed immediately.
 - Requires: Node.js `net` module. Zero external dependencies.
 
 **HttpTransport** (secondary, for cross-machine)
@@ -132,11 +154,43 @@ interface PeerTransport {
 - Changeset exchange: `POST /mesh/changeset` with `Content-Type: application/octet-stream`.
 - Response: `200 OK` with the peer's delta since last sync (bidirectional in one round-trip).
 - Address format: `http://host:port`.
+- Ed25519 handshake is performed via a preceding `POST /mesh/handshake` before
+  any changeset exchange.
 
 **Decision record DR-P3-03**: Unix socket transport is the primary implementation
 because it requires no firewall configuration and has the lowest overhead on
 same-machine collaboration (the primary LLMtxt use case). HTTP transport is
 added for cross-machine and CI environments.
+
+### 4.3 Ed25519 Mutual Handshake (Transport Requirement)
+
+Peer authentication is a transport-layer requirement, not an optional add-on.
+Every connection MUST complete the following 3-message challenge-response
+handshake before any changeset data is exchanged:
+
+1. **Initiator** sends: `{ agentId, pubkey, challenge: random_32_bytes }`
+2. **Responder** signs the challenge with its private key, sends:
+   `{ agentId, pubkey, sig: sign(challenge), challenge: random_32_bytes }`
+3. **Initiator** verifies the responder's signature, then signs the responder's
+   challenge, sends: `{ sig: sign(responder_challenge) }`
+4. Both parties now hold verified peer identities.
+
+**MUST** reject connections where signature verification fails.
+**MUST NOT** establish a sync session without a successful handshake.
+**MUST NOT** send or receive any changeset data before the handshake completes.
+
+**Decision record DR-P3-04**: Ed25519 is chosen because it is already
+implemented in `crates/llmtxt-core/src/identity.rs` and `crypto.rs`. No new
+crypto primitive is introduced.
+
+Acceptance criterion: unauthenticated peers (invalid or missing signature)
+MUST be rejected before any data exchange begins.
+
+### 4.4 Allowlist (Optional)
+
+Agents MAY configure a peer allowlist (`~/.llmtxt/trusted-peers.json`). If
+configured, the agent MUST reject connections from peers not in the allowlist
+even if their signature is valid.
 
 ---
 
@@ -164,7 +218,32 @@ for each peer in discoveredPeers:
 `lastSyncVersion` MUST be persisted to a local `llmtxt_mesh_state` table so
 it survives agent restarts.
 
-### 5.2 Convergence Guarantee
+**Changeset integrity requirement**: Before calling `backend.applyChanges()`,
+the sync engine MUST verify changeset integrity (see section 5.2). Unsigned or
+corrupted changesets MUST be rejected and the peer failure MUST be recorded.
+
+Acceptance criterion: unsigned changesets MUST be rejected before being applied
+to the local database.
+
+### 5.2 Changeset Integrity Verification (Sync Engine Requirement)
+
+Changeset integrity verification is a sync engine requirement, not a separate
+phase. Every changeset received from a peer MUST be verified before application:
+
+1. Compute `SHA-256(changeset_bytes)`.
+2. Compare against the `crdt_state_hash` declared by the peer in the changeset
+   metadata.
+3. For `crdt_state` column updates: after Loro merge, compute `SHA-256` of the
+   merged blob and store it in the `crdt_state_hash` column.
+4. If the hash does not match: reject the changeset, log a security warning, do
+   NOT apply any changes to the local database.
+
+Corrupted Loro blobs MUST be detected and rejected before the local CRDT state
+is modified.
+
+Acceptance criterion: corrupted Loro blobs MUST be detected and rejected.
+
+### 5.3 Convergence Guarantee
 
 Given finite network partitions (partition heals within TTL), all peers MUST
 converge to the same state within 2× the sync interval. This is guaranteed by:
@@ -174,37 +253,9 @@ converge to the same state within 2× the sync interval. This is guaranteed by:
 
 ---
 
-## 6. Peer Authentication
+## 6. Conflict-Free Presence
 
-### 6.1 Mutual Ed25519 Handshake
-
-When two peers connect, they MUST complete a challenge-response handshake:
-
-1. **Initiator** sends: `{ agentId, pubkey, challenge: random_32_bytes }`
-2. **Responder** signs the challenge with its private key, sends:
-   `{ agentId, pubkey, sig: sign(challenge), challenge: random_32_bytes }`
-3. **Initiator** verifies the responder's signature, then signs the responder's
-   challenge, sends: `{ sig: sign(responder_challenge) }`
-4. Both parties now hold verified peer identities.
-
-**MUST** reject connections where signature verification fails.
-**MUST NOT** establish a sync session without a successful handshake.
-
-**Decision record DR-P3-04**: Ed25519 is chosen because it is already
-implemented in `crates/llmtxt-core/src/identity.rs` and `crypto.rs`. No new
-crypto primitive is introduced.
-
-### 6.2 Allowlist (Optional)
-
-Agents MAY configure a peer allowlist (`~/.llmtxt/trusted-peers.json`). If
-configured, the agent MUST reject connections from peers not in the allowlist
-even if their signature is valid.
-
----
-
-## 7. Conflict-Free Presence
-
-### 7.1 Protocol
+### 6.1 Protocol
 
 Presence state (which agent is editing which section, cursor position) is
 ephemeral and does NOT use cr-sqlite (presence is not durably stored).
@@ -227,9 +278,9 @@ seconds if no refresh is received. No central store is required.
 
 ---
 
-## 8. Agent-to-Agent (A2A) Messages
+## 7. Agent-to-Agent (A2A) Messages
 
-### 8.1 Routing
+### 7.1 Routing
 
 A2A messages (task assignments, approvals, notifications) MUST be delivered via
 the mesh transport, not via api.llmtxt.my's HTTP inbox.
@@ -257,7 +308,7 @@ delivery (at-least-once with receipt ACK) is deferred to a future epic.
 
 ---
 
-## 9. CLI Interface
+## 8. CLI Interface
 
 ```
 llmtxt mesh start  [--db <path>] [--transport <unix|http>] [--port <n>]
@@ -275,7 +326,7 @@ llmtxt mesh sync   [--peer <agentId>]      # manual sync (one-shot)
 
 ---
 
-## 10. Server-as-Peer (Hybrid Mode)
+## 9. Server-as-Peer (Hybrid Mode)
 
 `api.llmtxt.my` MAY be configured as a mesh peer. When configured:
 - The server joins the mesh as any other peer, using HTTP transport.
@@ -291,20 +342,25 @@ priority than the local-first sync engine.
 
 ---
 
-## 11. Security Threat Model
+## 10. Security Threat Model
 
-| Threat | Impact | Mitigation |
+Security is enforced at the layer where each threat originates — discovery,
+transport, and sync engine. There are no standalone security tasks; each
+security mechanism is a requirement of its parent component.
+
+| Threat | Enforcement Layer | Mitigation |
 |---|---|---|
-| Malicious peer sends corrupt cr-sqlite changeset | Data corruption | cr-sqlite validates changeset structure internally; reject on parse error |
-| Malicious peer sends corrupt Loro blob | CRDT state corruption | Hash the blob before storing; reject blobs that do not match the declared SHA-256 hash |
-| Replay attack (old changeset re-sent) | Harmless (cr-sqlite idempotent) but wastes CPU | Track `db_version` per peer; discard changesets older than `lastSyncVersion[peer]` |
-| Rogue peer impersonates another agent | State poisoning | Ed25519 handshake (section 6); allowlist optional |
-| Peer file injection (attacker writes `.peer` file) | Connection to attacker | Allowlist enforcement; verify peer identity via handshake before accepting any data |
-| Presence flood (peer sends thousands of presence msgs) | CPU / memory DoS | Rate-limit presence messages: max 1 per peer per 5 seconds; drop excess |
-| A2A message spoofing | Unauthorized task execution | Verify `sig` field against sender's known pubkey before processing payload |
-| Changeset size bomb | OOM | Enforce max changeset size: 10 MB. Reject and log oversized changesets. |
+| Malicious peer sends corrupt cr-sqlite changeset | Sync engine | cr-sqlite validates changeset structure internally; reject on parse error |
+| Malicious peer sends corrupt Loro blob | Sync engine | SHA-256 hash verification before apply; reject blobs that do not match the declared hash (section 5.2) |
+| Replay attack (old changeset re-sent) | Sync engine | Track `db_version` per peer; discard changesets older than `lastSyncVersion[peer]` — harmless due to cr-sqlite idempotency |
+| Rogue peer impersonates another agent | Transport | Ed25519 handshake is mandatory at transport layer (section 4.3); no data exchange before handshake |
+| Peer file injection (attacker writes `.peer` file) | Discovery | Discovery layer rejects unsigned or pubkey-inconsistent advertisements (section 3.2); handshake confirms identity before data exchange |
+| Presence flood (peer sends thousands of presence msgs) | Sync engine | Rate-limit presence messages: max 1 per peer per 5 seconds; drop excess |
+| A2A message spoofing | Sync engine | Verify `sig` field against sender's known pubkey before processing payload |
+| Changeset size bomb | Transport | Enforce max changeset size: 10 MB. Reject and log oversized changesets. |
 
-**Decision record DR-P3-07**: Integrity verification for Loro blobs:
+**Decision record DR-P3-07**: Integrity verification for Loro blobs is part of
+the sync engine's `applyChanges` path (section 5.2), not a separate task.
 
 Every `applyChanges` call that touches a `crdt_state` column MUST:
 1. Compute `SHA-256(blob)`.
@@ -315,35 +371,44 @@ Every `applyChanges` call that touches a `crdt_state` column MUST:
 
 ---
 
-## 12. Dependency DAG (Phase 3)
+## 11. Dependency DAG (Phase 3)
+
+Security requirements are embedded within their parent tasks, not separate tasks.
+P3.5 (peer auth) is a requirement of P3.3 (transport). Changeset integrity
+is a requirement of P3.4 (sync engine). Discovery security is a requirement
+of P3.2 (discovery).
 
 ```
 P3.1 (Architecture spec — this document, finalized)
-  ├─→ P3.2 (Peer discovery: file-based + static config)
-  ├─→ P3.3 (Transport abstraction: UnixSocket + HTTP impls)
-  └─→ P3.5 (Peer auth: Ed25519 mutual handshake)
-        (P3.2 + P3.3 + P3.5 merge here)
-        └─→ P3.4 (Mesh sync engine: discovery + transport + sync loop)
+  ├─→ P3.2 (Peer discovery: file-based + static config + unsigned-ad rejection)
+  ├─→ P3.3 (Transport: UnixSocket + HTTP + Ed25519 mutual handshake built-in)
+  └─→ (P3.2 + P3.3 merge here)
+        └─→ P3.4 (Mesh sync engine: discovery + transport + sync loop +
+                  changeset integrity verification + Loro blob hash check)
               ├─→ P3.6 (Presence: in-memory broadcast, TTL expiry)
               └─→ P3.7 (A2A over mesh: signed, routed, relay)
                     └─→ P3.8 (CLI: mesh start/stop/status/peers/sync)
                           └─→ P3.9 (Multi-peer integration test: 5 peers, 60s writes, hash compare)
                                 ├─→ P3.10 (CLEO mesh example: 3 agents, no server)
                                 └─→ P3.11 (Server-as-peer: PostgresChangesetAdapter)
-                                      └─→ P3.12 (Security: hash integrity for Loro blobs)
-                                            └─→ P3.13 (Docs: mesh section in apps/docs)
+                                      └─→ P3.13 (Docs: mesh section in apps/docs)
 ```
+
+Note: P3.5 (standalone peer auth task) and P3.12 (standalone security task)
+are merged into their parent components (P3.3 and P3.4 respectively) per
+owner mandate. Those CLEO tasks are updated to reflect these requirements
+within the parent task scope.
 
 ---
 
-## 13. Acceptance Criteria (Epic)
+## 12. Acceptance Criteria (Epic)
 
 1. Five `LocalBackend` instances with cr-sqlite run on separate Unix sockets;
    each writes independently for 60 seconds; after stopping writes and allowing
    one sync cycle, all five databases produce an identical SHA-256 hash of the
    `documents` + `versions` table contents.
 2. A peer with an invalid Ed25519 signature MUST be rejected before any
-   changeset exchange begins.
+   changeset exchange begins. Unauthenticated peers MUST be rejected.
 3. A2A message sent by Agent A to Agent B is received and verified by Agent B
    within one sync interval (5 seconds under normal load).
 4. Killing one of five peers mid-sync does not corrupt any surviving peer's
@@ -351,5 +416,11 @@ P3.1 (Architecture spec — this document, finalized)
 5. `llmtxt mesh status` prints peer count, last-sync timestamp, and
    bytes-exchanged per peer.
 6. A Loro blob with a mismatched `crdt_state_hash` is rejected with a logged
-   security warning; the local state is not modified.
+   security warning; the local state is not modified. Corrupted Loro blobs
+   MUST be detected and rejected.
 7. All 5 tests in the multi-peer suite (P3.9) pass in CI on Linux (amd64).
+8. Unsigned changesets MUST be rejected before being applied to the local
+   database.
+9. Unsigned peer advertisements MUST be rejected at the discovery layer.
+10. All features ship production-ready. No known-broken functionality in the
+    release.

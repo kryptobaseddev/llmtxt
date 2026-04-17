@@ -1,6 +1,6 @@
 # Spec P2: cr-sqlite LocalBackend (Database-Level CRDT)
 
-**Version**: 1.0.0
+**Version**: 1.1.0
 **Status**: DRAFT — planning only, no implementation
 **RFC 2119 Key words**: MUST, MUST NOT, SHOULD, MAY
 
@@ -22,6 +22,11 @@ delta rows since their last sync, achieving guaranteed convergence.
 This enables each LLMtxt agent to own a local `.db` file and sync with other
 agents or the cloud by exchanging lightweight changesets — no central coordinator
 needed for writes.
+
+**Architecture constraint**: LLMtxt uses single-tenant mode — one agent per
+`.db` file. This mode is production-validated by the cr-sqlite maintainers.
+Multi-tenancy (multiple agents sharing one file) is not part of this
+architecture and not relevant to these specs.
 
 ---
 
@@ -168,8 +173,8 @@ cr-sqlite supports three merge semantics per column:
 
 **sections**
 - `title`, `content`, `order`, `metadata` — LWW
-- `crdt_state` (formerly `yrs_state`) — **SPECIAL**: this column stores a Loro binary blob. LWW would corrupt it if two peers write simultaneously. MUST NOT use LWW for this column.
-- **Decision record DR-P2-04**: `crdt_state` MUST be excluded from CRR merge via `crsql_as_crr` column exclusion (if supported) OR the column MUST be managed solely by Loro's merge protocol. On changeset receipt, the backend MUST detect a conflict on `crdt_state` and call `loro_merge(local_blob, remote_blob)` instead of applying the changeset value directly.
+- `crdt_state` (formerly `yrs_state`) — **EXCLUDED FROM CRR MERGE**: this column stores a Loro binary blob. LWW would silently corrupt it if two peers write simultaneously.
+- **Design constraint DC-P2-04**: `crdt_state` MUST be excluded from cr-sqlite CRR merge. Application-level `doc.import()` (Loro merge) handles all convergence for this column. This is a correctness requirement, not optional. On changeset receipt, the backend MUST detect a `crdt_state` update and call `loro_merge(local_blob, remote_blob)` instead of applying the changeset value directly via LWW.
 
 **section_crdt_states** / **section_crdt_updates**
 - `crdt_state` (blob) — Loro-managed; same treatment as sections.crdt_state above.
@@ -189,11 +194,13 @@ cr-sqlite supports three merge semantics per column:
 **agents** / **rate_limit_buckets**
 - All columns — LWW.
 
-### 4.2 Known Limitation: Loro Blob in CRR Table
+### 4.2 Loro Blob Merge: Application-Level Correctness Requirement
 
-cr-sqlite does not natively understand CRDT semantics inside a blob column. The
-implementation MUST handle Loro blob merging in application code. The merge
-path:
+cr-sqlite LWW MUST NOT be used on `crdt_state` columns. Loro blob columns MUST
+be excluded from cr-sqlite CRR merge. Application-level `doc.import()` handles
+Loro merge. This is a correctness requirement, not optional.
+
+The merge path in `applyChanges`:
 
 1. On `applyChanges(changeset)`, after cr-sqlite applies the changeset,
    iterate rows where `crdt_state` was updated.
@@ -203,9 +210,16 @@ path:
 
 This MUST happen inside a SQLite transaction to be atomic.
 
+**Blocker**: P2.11 (Loro blob + cr-sqlite integration test) MUST pass before
+the cr-sqlite epic is considered shippable. It is a hard blocker, not a
+follow-up task.
+
 ---
 
-## 5. Backward Compatibility
+## 5. Production Constraints
+
+cr-sqlite single-tenant mode (one agent per `.db` file) is production-validated
+by the cr-sqlite maintainers. This is the only mode used by LLMtxt.
 
 ### 5.1 Existing `llmtxt.db` Files
 
@@ -257,17 +271,15 @@ llmtxt sync --from <peer-url-or-path> [--db <path>] [--since <db-version>]
 
 ---
 
-## 7. Risk Assessment
+## 7. Implementation Constraints
 
-| Risk | Severity | Likelihood | Mitigation |
-|---|---|---|---|
-| cr-sqlite native addon fails to build on target platform | High | Medium | Prebuild binaries for linux/amd64, darwin/arm64, darwin/amd64, win32/x64; optional dep (DR-P2-01) |
-| `better-sqlite3` + cr-sqlite extension version mismatch (SQLite ABI) | High | Medium | Pin both to same SQLite version; integration test on all platforms in CI |
-| Loro blob corruption via LWW merge | Critical | Certain without DR-P2-04 | Application-level Loro merge on blob columns (DR-P2-04) |
-| `event_seq` semantics break after sync | Medium | High | Consumers already sort by `created_at`; document the change; add a lint |
-| CR-sqlite not production-ready for multi-tenancy | High | Low (we use single-tenant) | Single-tenant (one agent per file) is the only supported mode in Phase 2 |
-| Changeset size grows unbounded | Medium | Medium | `getChangesSince` prunes by db_version; document changeset compaction via `VACUUM` |
-| Migration fails on large existing databases | Medium | Low | Test migration on a 10,000-row synthetic dataset before deploying |
+| Constraint | Detail |
+|---|---|
+| cr-sqlite native addon platform support | Prebuild binaries required for linux/amd64, darwin/arm64, darwin/amd64, win32/x64; optional dep (DR-P2-01) — this is a ship requirement |
+| `better-sqlite3` + cr-sqlite extension SQLite ABI match | Pin both to same SQLite version; integration test on all platforms in CI — required before release |
+| Loro blob correctness (DC-P2-04) | Application-level Loro merge on blob columns is MANDATORY; LWW on blob columns is prohibited and tested (P2.11 MUST prove LWW is disabled) |
+| `event_seq` after sync | Consumers sort by `created_at`; document the constraint; add a lint |
+| Changeset size growth | `getChangesSince` prunes by db_version; document changeset compaction via `VACUUM` |
 
 ---
 
@@ -277,7 +289,7 @@ llmtxt sync --from <peer-url-or-path> [--db <path>] [--since <db-version>]
 P2.1 (cr-sqlite Node.js integration research)
   └─→ P2.2 (@vlcn.io/crsqlite as optional peer dep)
         ├─→ P2.3 (schema-local.ts + migration: crsql_as_crr per table)
-        └─→ P2.4 (CRR column strategy spec — DR-P2-04 detail)
+        └─→ P2.4 (CRR column strategy spec — DC-P2-04 detail)
               (P2.3 + P2.4 merge here)
               └─→ P2.5 (LocalBackend.open() loads extension + activates CRRs)
                     ├─→ P2.6 (getChangesSince implementation)
@@ -285,7 +297,7 @@ P2.1 (cr-sqlite Node.js integration research)
                           ├─→ P2.8 (CLI llmtxt sync — changeset exchange)
                           └─→ P2.9 (Backend interface: getChangesSince + applyChanges)
                                 ├─→ P2.10 (multi-agent local test: 3 DBs converge)
-                                └─→ P2.11 (Loro blob + cr-sqlite integration test)
+                                └─→ P2.11 (Loro blob + cr-sqlite integration test) ← BLOCKER
                                       └─→ P2.12 (contract tests extended)
                                             ├─→ P2.13 (docs: cr-sqlite sync model)
                                             └─→ P2.14 (CLEO integration example)
@@ -302,8 +314,13 @@ P2.1 (cr-sqlite Node.js integration research)
 4. Three `LocalBackend` instances with independent writes converge to identical
    state after pairwise changeset exchange (multi-agent test P2.10).
 5. Loro blob columns are merged via Loro's merge protocol, never via LWW; the
-   integration test P2.11 verifies this by detecting text loss.
+   integration test P2.11 verifies this by proving that if cr-sqlite LWW were
+   used on the blob column the test MUST fail (confirming LWW is disabled for
+   blob columns). Two agents editing the same section via separate `.db` files
+   sync changesets and Loro state converges to identical bytes.
 6. `llmtxt sync` command exits 0 on successful bidirectional sync; changeset
    size is logged.
 7. Write overhead of cr-sqlite is measured and does not exceed 25% above
    baseline on the P2.10 test dataset.
+8. All features ship production-ready. No known-broken functionality in the
+   release.
