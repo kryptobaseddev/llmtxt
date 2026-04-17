@@ -161,7 +161,7 @@ type PersistCrdtUpdateFn = (
 type LoadSectionStateFn = (
   documentId: string,
   sectionId: string
-) => Promise<{ yrsState: Buffer; clock: number; updatedAt: Date | null } | null>;
+) => Promise<{ crdtState: Buffer; clock: number; updatedAt: Date | null } | null>;
 
 /** Signature of apps/backend/src/realtime/redis-pubsub.ts subscribeCrdtUpdates. */
 type SubscribeCrdtUpdatesFn = (
@@ -1490,12 +1490,12 @@ export class PostgresBackend implements Backend {
     const row = await this._loadSectionState(documentId, sectionKey);
     if (!row) return null;
 
-    const sv = this._crdtStateVector(row.yrsState);
+    const sv = this._crdtStateVector(row.crdtState);
     return {
       documentId,
       sectionKey,
       stateVectorBase64: sv.toString('base64'),
-      snapshotBase64: row.yrsState.toString('base64'),
+      snapshotBase64: row.crdtState.toString('base64'),
       updatedAt: row.updatedAt ? row.updatedAt.getTime() : Date.now(),
     };
   }

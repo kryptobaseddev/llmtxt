@@ -189,7 +189,7 @@ export const sectionCrdtStates = sqliteTable(
     /** unix ms */
     updatedAt: integer('updated_at', { mode: 'number' }).notNull(),
     /** Serialized Yjs state (binary). */
-    yrsState: blob('yrs_state').notNull(),
+    crdtState: blob('crdt_state').notNull(),
   },
   (table) => ({
     pk: primaryKey({

@@ -5,7 +5,7 @@
  * more than 100 rows in section_crdt_updates, or has rows older than 7 days,
  * deletes the older updates keeping only the most recent `KEEP_WINDOW` rows.
  *
- * The consolidated state is always in `section_crdt_states.yrs_state`, so
+ * The consolidated state is always in `section_crdt_states.crdt_state`, so
  * deleting update rows never loses data — updates are ephemeral WAL entries
  * used for debugging and incremental diff. The consolidated state survives.
  *

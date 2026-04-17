@@ -912,7 +912,7 @@ export const sectionCrdtStates = sqliteTable(
     clock: integer('clock').notNull().default(0),
     updatedAt: integer('updated_at').notNull().$defaultFn(() => Date.now()),
     /** Full consolidated Yjs state vector (binary). */
-    yrsState: blob('yrs_state', { mode: 'buffer' }).notNull(),
+    crdtState: blob('crdt_state', { mode: 'buffer' }).notNull(),
   },
   (table) => ({
     pk: primaryKey({ columns: [table.documentId, table.sectionId] }),

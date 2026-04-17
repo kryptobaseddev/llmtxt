@@ -187,7 +187,7 @@ function persistCrdtUpdateStub(
 function loadSectionStateStub(
   _documentId: string,
   _sectionId: string
-): Promise<{ yrsState: Buffer; clock: number; updatedAt: Date | null } | null> {
+): Promise<{ crdtState: Buffer; clock: number; updatedAt: Date | null } | null> {
   return Promise.resolve(null);
 }
 

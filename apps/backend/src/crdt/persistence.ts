@@ -9,7 +9,7 @@
  * Invariants:
  * - Broadcast NEVER happens before the DB write confirms.
  * - seq is monotonically increasing per (document_id, section_id).
- * - Applying the same update twice is idempotent (Yrs guarantee).
+ * - Applying the same update twice is idempotent (Loro guarantee).
  * - If the DB write fails, the caller must close the WS with code 4500.
  *
  * Only active in Postgres mode. SQLite falls back to a simpler path
@@ -62,7 +62,7 @@ export interface PersistResult {
  *
  * @param documentId - document slug (FK references documents.slug)
  * @param sectionId  - section identifier
- * @param updateBlob - raw lib0 v1 Yrs update bytes from the client
+ * @param updateBlob - raw Loro update bytes from the client
  * @param clientId   - agent/user ID that produced this update
  * @returns { seq, newState } on success; throws on failure
  */
@@ -105,7 +105,7 @@ async function persistCrdtUpdatePg(
 
     // 3. Load current state
     const stateRows = await tx
-      .select({ yrsState: pgSchema.sectionCrdtStates.yrsState, clock: pgSchema.sectionCrdtStates.clock })
+      .select({ crdtState: pgSchema.sectionCrdtStates.crdtState, clock: pgSchema.sectionCrdtStates.clock })
       .from(pgSchema.sectionCrdtStates)
       .where(
         and(
@@ -115,7 +115,7 @@ async function persistCrdtUpdatePg(
       )
       .limit(1);
 
-    const currentState: Buffer = stateRows.length > 0 ? stateRows[0].yrsState : Buffer.alloc(0);
+    const currentState: Buffer = stateRows.length > 0 ? stateRows[0].crdtState : Buffer.alloc(0);
     const currentClock: number = stateRows.length > 0 ? stateRows[0].clock : 0;
 
     // 4. Derive new state
@@ -137,13 +137,13 @@ async function persistCrdtUpdatePg(
         documentId,
         sectionId,
         clock: currentClock + 1,
-        yrsState: newState,
+        crdtState: newState,
         updatedAt: new Date(),
       })
       .onConflictDoUpdate({
         target: [pgSchema.sectionCrdtStates.documentId, pgSchema.sectionCrdtStates.sectionId],
         set: {
-          yrsState: newState,
+          crdtState: newState,
           clock: currentClock + 1,
           updatedAt: new Date(),
         },
@@ -165,7 +165,7 @@ async function persistCrdtUpdateSqlite(
 ): Promise<PersistResult> {
   // Load current state
   const stateRows = await db
-    .select({ yrsState: pgSchema.sectionCrdtStates.yrsState, clock: pgSchema.sectionCrdtStates.clock })
+    .select({ crdtState: pgSchema.sectionCrdtStates.crdtState, clock: pgSchema.sectionCrdtStates.clock })
     .from(pgSchema.sectionCrdtStates)
     .where(
       and(
@@ -175,7 +175,7 @@ async function persistCrdtUpdateSqlite(
     )
     .limit(1);
 
-  const currentState: Buffer = stateRows.length > 0 ? stateRows[0].yrsState : Buffer.alloc(0);
+  const currentState: Buffer = stateRows.length > 0 ? stateRows[0].crdtState : Buffer.alloc(0);
   const currentClock: number = stateRows.length > 0 ? stateRows[0].clock : 0;
 
   // Compute seq
@@ -203,13 +203,13 @@ async function persistCrdtUpdateSqlite(
       documentId,
       sectionId,
       clock: currentClock + 1,
-      yrsState: newState,
+      crdtState: newState,
       updatedAt: new Date(),
     })
     .onConflictDoUpdate({
       target: [pgSchema.sectionCrdtStates.documentId, pgSchema.sectionCrdtStates.sectionId],
       set: {
-        yrsState: newState,
+        crdtState: newState,
         clock: currentClock + 1,
         updatedAt: new Date(),
       },
@@ -227,10 +227,10 @@ async function persistCrdtUpdateSqlite(
 export async function loadSectionState(
   documentId: string,
   sectionId: string,
-): Promise<{ yrsState: Buffer; clock: number; updatedAt: Date | null } | null> {
+): Promise<{ crdtState: Buffer; clock: number; updatedAt: Date | null } | null> {
   const rows = await db
     .select({
-      yrsState: pgSchema.sectionCrdtStates.yrsState,
+      crdtState: pgSchema.sectionCrdtStates.crdtState,
       clock: pgSchema.sectionCrdtStates.clock,
       updatedAt: pgSchema.sectionCrdtStates.updatedAt,
     })
@@ -244,7 +244,7 @@ export async function loadSectionState(
     .limit(1);
 
   if (rows.length === 0) return null;
-  return { yrsState: rows[0].yrsState, clock: rows[0].clock, updatedAt: rows[0].updatedAt };
+  return { crdtState: rows[0].crdtState, clock: rows[0].clock, updatedAt: rows[0].updatedAt };
 }
 
 /**

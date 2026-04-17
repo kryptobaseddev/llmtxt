@@ -825,7 +825,7 @@ export class LocalBackend implements Backend {
 
     // Update state snapshot (simple: store the latest update as snapshot)
     // A production implementation would merge via WASM merge_updates
-    const existingState = currentState?.yrsState as Buffer | null;
+    const existingState = currentState?.crdtState as Buffer | null;
     let newState: Buffer;
     if (!existingState) {
       newState = updateBlob;
@@ -842,11 +842,11 @@ export class LocalBackend implements Backend {
         sectionId: params.sectionKey,
         clock: seq,
         updatedAt: now,
-        yrsState: newState,
+        crdtState: newState,
       })
       .onConflictDoUpdate({
         target: [sectionCrdtStates.documentId, sectionCrdtStates.sectionId],
-        set: { clock: seq, updatedAt: now, yrsState: newState },
+        set: { clock: seq, updatedAt: now, crdtState: newState },
       })
       .run();
 
@@ -883,7 +883,7 @@ export class LocalBackend implements Backend {
       )
       .get();
     if (!row) return null;
-    const stateBlob = row.yrsState as Buffer;
+    const stateBlob = row.crdtState as Buffer;
     return {
       documentId,
       sectionKey,

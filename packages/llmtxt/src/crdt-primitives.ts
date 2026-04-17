@@ -8,7 +8,7 @@
  *
  * Every section is modelled as a single Yrs Doc with a root Y.Text named
  * "content". State is stored as lib0 v1 binary (Buffer), exactly matching
- * the `yrs_state` column in section_crdt_states.
+ * the `crdt_state` column in section_crdt_states.
  *
  * When crates/llmtxt-core is built with `--features crdt` (wasm-pack
  * build:wasm), these functions can be migrated to delegate to WASM; the
@@ -37,7 +37,7 @@ export function crdt_new_doc(): Buffer {
  * Encode the full doc state as a lib0 v1 update message.
  * Used to send a snapshot to new clients (sync step 2 bootstrap).
  *
- * @param state - bytes from section_crdt_states.yrs_state (may be empty for new section)
+ * @param state - bytes from section_crdt_states.crdt_state (may be empty for new section)
  */
 export function crdt_encode_state_as_update(state: Buffer): Buffer {
   const doc = new Y.Doc();
@@ -56,7 +56,7 @@ export function crdt_encode_state_as_update(state: Buffer): Buffer {
  *
  * @param state  - current state bytes (may be empty for new section)
  * @param update - incoming lib0 v1 update bytes from a client
- * @returns New state bytes ready for section_crdt_states.yrs_state
+ * @returns New state bytes ready for section_crdt_states.crdt_state
  */
 export function crdt_apply_update(state: Buffer, update: Buffer): Buffer {
   const doc = new Y.Doc();
@@ -94,7 +94,7 @@ export function crdt_merge_updates(updates: Buffer[]): Buffer {
  * Extract the state vector from a state snapshot.
  * Sent as sync step 1 so the remote can compute the diff update.
  *
- * @param state - bytes from section_crdt_states.yrs_state (may be empty)
+ * @param state - bytes from section_crdt_states.crdt_state (may be empty)
  */
 export function crdt_state_vector(state: Buffer): Buffer {
   const doc = new Y.Doc();
@@ -111,7 +111,7 @@ export function crdt_state_vector(state: Buffer): Buffer {
  * Compute the diff update between server state and a remote state vector.
  * Sync step 2: returns only the operations the remote is missing.
  *
- * @param state    - server state bytes from section_crdt_states.yrs_state
+ * @param state    - server state bytes from section_crdt_states.crdt_state
  * @param remoteSv - the client's state vector bytes (empty = "give me everything")
  */
 export function crdt_diff_update(state: Buffer, remoteSv: Buffer): Buffer {
@@ -130,7 +130,7 @@ export function crdt_diff_update(state: Buffer, remoteSv: Buffer): Buffer {
  * Extract the plain text string from a state snapshot.
  * Used by HTTP fallback endpoints and tests.
  *
- * @param state - bytes from section_crdt_states.yrs_state (may be empty)
+ * @param state - bytes from section_crdt_states.crdt_state (may be empty)
  */
 export function crdt_get_text(state: Buffer): string {
   const doc = new Y.Doc();

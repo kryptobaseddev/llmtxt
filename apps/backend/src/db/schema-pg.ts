@@ -968,7 +968,7 @@ export const sectionCrdtStates = pgTable(
       .notNull()
       .defaultNow(),
     /** Full consolidated Yjs state vector (binary). */
-    yrsState: bytea('yrs_state').notNull(),
+    crdtState: bytea('crdt_state').notNull(),
   },
   (table) => ({
     pk: primaryKey({ columns: [table.documentId, table.sectionId], name: 'section_crdt_states_pk' }),

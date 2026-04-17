@@ -64,7 +64,7 @@ export async function compactSection(documentId: string, sectionId: string): Pro
     // Load current state
     const stateRows = await tx
       .select({
-        yrsState: pgSchema.sectionCrdtStates.yrsState,
+        crdtState: pgSchema.sectionCrdtStates.crdtState,
       })
       .from(pgSchema.sectionCrdtStates)
       .where(
@@ -80,7 +80,7 @@ export async function compactSection(documentId: string, sectionId: string): Pro
       return 0;
     }
 
-    let baseState = stateRows[0].yrsState;
+    let baseState = stateRows[0].crdtState;
 
     // Load pending updates
     const updateRows = await tx
@@ -123,12 +123,12 @@ export async function compactSection(documentId: string, sectionId: string): Pro
         documentId,
         sectionId,
         clock: 0,
-        yrsState: finalState,
+        crdtState: finalState,
         updatedAt: new Date(),
       })
       .onConflictDoUpdate({
         target: [pgSchema.sectionCrdtStates.documentId, pgSchema.sectionCrdtStates.sectionId],
-        set: { yrsState: finalState, clock: 0, updatedAt: new Date() },
+        set: { crdtState: finalState, clock: 0, updatedAt: new Date() },
       });
 
     // Delete compacted rows
@@ -146,7 +146,7 @@ export async function compactSection(documentId: string, sectionId: string): Pro
 
 async function compactSectionSqlite(documentId: string, sectionId: string): Promise<number> {
   const stateRows = await db
-    .select({ yrsState: pgSchema.sectionCrdtStates.yrsState })
+    .select({ crdtState: pgSchema.sectionCrdtStates.crdtState })
     .from(pgSchema.sectionCrdtStates)
     .where(
       and(
@@ -172,14 +172,14 @@ async function compactSectionSqlite(documentId: string, sectionId: string): Prom
   if (updateRows.length === 0) return 0;
 
   const merged = crdt_merge_updates((updateRows as Array<{ id: string; updateBlob: Buffer }>).map((r) => r.updateBlob));
-  const finalState = crdt_apply_update(stateRows[0].yrsState, merged);
+  const finalState = crdt_apply_update(stateRows[0].crdtState, merged);
 
   await db
     .insert(pgSchema.sectionCrdtStates)
-    .values({ documentId, sectionId, clock: 0, yrsState: finalState, updatedAt: new Date() })
+    .values({ documentId, sectionId, clock: 0, crdtState: finalState, updatedAt: new Date() })
     .onConflictDoUpdate({
       target: [pgSchema.sectionCrdtStates.documentId, pgSchema.sectionCrdtStates.sectionId],
-      set: { yrsState: finalState, clock: 0, updatedAt: new Date() },
+      set: { crdtState: finalState, clock: 0, updatedAt: new Date() },
     });
 
   for (const row of updateRows) {
