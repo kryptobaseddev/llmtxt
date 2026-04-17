@@ -1,18 +1,18 @@
-//! CRDT primitives for section-level concurrent editing via Yrs.
+//! CRDT primitives for section-level concurrent editing via Loro.
 //!
-//! This module exposes six functions that implement the core Yjs/Yrs sync
-//! protocol at the binary level. Each section in a document is its own
-//! Yrs `Doc` containing a single `Y.Text` root named `"content"`.
+//! This module exposes six functions that implement the core sync protocol
+//! at the binary level. Each section in a document is its own [`LoroDoc`]
+//! containing a single [`LoroText`] root named `"content"`.
 //!
 //! The (document_id, section_id) tuple identifies the Doc instance on the
-//! server. Clients hold a local `Doc` and exchange binary update messages
-//! via the standard Yjs sync protocol (sync step 1 — state vector; sync
-//! step 2 — diff update).
+//! server. Clients hold a local Doc and exchange binary blobs using the
+//! Loro snapshot / update binary format (incompatible with the old Yrs
+//! lib0 v1 encoding — see spec §3.3 for details).
 //!
 //! # Wire format
-//! All byte slices are raw Yrs/Yjs binary encoding (lib0 v1). They are NOT
-//! base64 or hex on this layer — callers (WASM shims, HTTP handlers) are
-//! responsible for any encoding needed for transport.
+//! All byte slices are raw Loro binary (magic header `loro` + checksum +
+//! mode bytes). They are NOT base64 or hex on this layer — callers (WASM
+//! shims, HTTP handlers) are responsible for any encoding needed for transport.
 //!
 //! # WASM exports
 //! Functions carry `#[cfg_attr(feature = "wasm", wasm_bindgen)]` so they are
@@ -23,97 +23,94 @@
 //! All items are `#[cfg(feature = "crdt")]` — zero cost when disabled.
 
 #[cfg(feature = "crdt")]
-use yrs::updates::decoder::Decode;
-#[cfg(feature = "crdt")]
-use yrs::updates::encoder::Encode;
-#[cfg(feature = "crdt")]
-use yrs::{Doc, GetString, ReadTxn, StateVector, Transact, Update};
+use loro::{ExportMode, LoroDoc, VersionVector};
 
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
-// ── Helper: load a Doc from persisted state bytes ────────────────────────────
+// ── Helper: create and optionally import a LoroDoc ──────────────────────────
 
-/// Load a Yrs Doc (with a "content" Text root) from persisted state bytes.
+/// Create a new [`LoroDoc`] with a `"content"` LoroText root.
 ///
-/// `state` may be empty for a brand-new section. Returns `None` only if
-/// `state` is non-empty and cannot be decoded.
+/// If `state` is non-empty it is imported into the doc. Returns `None` when
+/// `state` is non-empty but cannot be decoded (corrupt bytes).
 #[cfg(feature = "crdt")]
-fn load_doc(state: &[u8]) -> Option<Doc> {
-    let doc = Doc::new();
-    let _text = doc.get_or_insert_text("content");
+fn load_doc(state: &[u8]) -> Option<LoroDoc> {
+    let doc = LoroDoc::new();
+    // Eagerly create the "content" text container so it is always present.
+    let _ = doc.get_text("content");
     if !state.is_empty() {
-        let update = Update::decode_v1(state).ok()?;
-        let mut txn = doc.transact_mut();
-        txn.apply_update(update).ok()?;
+        doc.import(state).ok()?;
     }
     Some(doc)
 }
 
-/// Encode the full state of a Doc as a lib0 v1 update blob.
+/// Export the full snapshot of a [`LoroDoc`] as bytes.
+///
+/// Uses [`ExportMode::Snapshot`] which encodes the complete state and history.
+/// On an empty doc this is the canonical "new doc" blob.
 #[cfg(feature = "crdt")]
-fn encode_doc_state(doc: &Doc) -> Vec<u8> {
-    let txn = doc.transact();
-    txn.encode_state_as_update_v1(&StateVector::default())
+fn export_snapshot(doc: &LoroDoc) -> Vec<u8> {
+    doc.export(ExportMode::Snapshot).unwrap_or_default()
 }
 
 // ── 1. crdt_new_doc ─────────────────────────────────────────────────────────
 
-/// Create an empty Yrs Doc for a section and return its state vector bytes.
+/// Create an empty Loro doc for a section and return its snapshot bytes.
 ///
-/// The Doc contains a single `Y.Text` root named `"content"`. The returned
-/// bytes are the Yrs state vector — use them as the `remote_sv` argument in
-/// `crdt_diff_update` on the peer side (sync step 1).
+/// The doc contains a single `LoroText` root named `"content"`. The returned
+/// bytes are an opaque Loro snapshot blob. Callers MUST treat this as a state
+/// blob — it is NOT a Y.js state vector (incompatible format).
+///
+/// Use the returned bytes as the initial `state` argument to
+/// [`crdt_encode_state_as_update`] or [`crdt_apply_update`].
 #[cfg(feature = "crdt")]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn crdt_new_doc() -> Vec<u8> {
-    let doc = Doc::new();
-    let _text = doc.get_or_insert_text("content");
-    let txn = doc.transact();
-    txn.state_vector().encode_v1()
+    let doc = LoroDoc::new();
+    let _ = doc.get_text("content");
+    export_snapshot(&doc)
 }
 
 // ── 2. crdt_encode_state_as_update ──────────────────────────────────────────
 
-/// Encode the full document state as a Yrs update message.
+/// Encode the full document state as a Loro snapshot blob.
 ///
-/// Used to bootstrap a new client: send them the full state so they can apply
+/// Used to bootstrap a new client: send them the full state so they can import
 /// it locally and arrive at the current document content.
 ///
 /// # Arguments
-/// * `state` — bytes from `section_crdt_states.yrs_state` (consolidated state)
+/// * `state` — bytes from `section_crdt_states.crdt_state` (consolidated state).
+///   May be empty to obtain the canonical empty-doc snapshot.
 ///
 /// # Returns
-/// A lib0 v1 update message encoding the full document state, or empty vec
-/// if the input cannot be decoded.
+/// A Loro snapshot blob, or empty vec if `state` is non-empty and corrupt.
 #[cfg(feature = "crdt")]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn crdt_encode_state_as_update(state: &[u8]) -> Vec<u8> {
-    if state.is_empty() {
-        let doc = Doc::new();
-        let _text = doc.get_or_insert_text("content");
-        return encode_doc_state(&doc);
-    }
     match load_doc(state) {
-        Some(doc) => encode_doc_state(&doc),
+        Some(doc) => export_snapshot(&doc),
         None => Vec::new(),
     }
 }
 
 // ── 3. crdt_apply_update ────────────────────────────────────────────────────
 
-/// Apply a Yrs update to a document state and return the new state.
+/// Apply a Loro update (or snapshot) to a document state and return the new state.
 ///
 /// This is the core persistence operation: given the persisted state and an
-/// incoming update (from a client), produce the new state to be stored in
-/// `section_crdt_states.yrs_state`.
+/// incoming update from a client, produce the new state to store in
+/// `section_crdt_states.crdt_state`.
+///
+/// Loro `import` is idempotent — applying the same update twice yields the
+/// same result (CRDT property).
 ///
 /// # Arguments
-/// * `state` — current state bytes (may be empty for a new section)
-/// * `update` — incoming lib0 v1 update bytes from a client
+/// * `state`  — current state bytes (may be empty for a new section).
+/// * `update` — incoming Loro update or snapshot bytes from a client.
 ///
 /// # Returns
-/// New state bytes suitable for persisting, or empty vec on decode error.
+/// New snapshot bytes suitable for persisting, or empty vec on decode error.
 #[cfg(feature = "crdt")]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn crdt_apply_update(state: &[u8], update: &[u8]) -> Vec<u8> {
@@ -121,42 +118,43 @@ pub fn crdt_apply_update(state: &[u8], update: &[u8]) -> Vec<u8> {
         Some(d) => d,
         None => return Vec::new(),
     };
-    if !update.is_empty() {
-        match Update::decode_v1(update) {
-            Ok(incoming) => {
-                let mut txn = doc.transact_mut();
-                if txn.apply_update(incoming).is_err() {
-                    return Vec::new();
-                }
-            }
-            Err(_) => return Vec::new(),
-        }
+    if !update.is_empty() && doc.import(update).is_err() {
+        return Vec::new();
     }
-    encode_doc_state(&doc)
+    export_snapshot(&doc)
 }
 
 // ── 4. crdt_merge_updates ────────────────────────────────────────────────────
 
-/// Merge multiple Yrs update messages into a single consolidated update.
+/// Merge multiple Loro update/snapshot blobs into a single consolidated snapshot.
 ///
 /// Used by the compaction job: given many raw update blobs from
 /// `section_crdt_updates`, fold them into one blob for `section_crdt_states`.
 ///
-/// The operation is commutative (CRDT guarantee).
+/// Convergence is guaranteed by Loro CRDT invariants — the result is the same
+/// regardless of input order (commutativity property).
 ///
 /// # Returns
-/// A single lib0 v1 update encoding the merged state, or empty vec on error.
+/// A single Loro snapshot encoding the merged state, or empty vec on error.
 #[cfg(feature = "crdt")]
 pub fn crdt_merge_updates(updates: &[&[u8]]) -> Vec<u8> {
-    yrs::merge_updates_v1(updates).unwrap_or_default()
+    let doc = LoroDoc::new();
+    let _ = doc.get_text("content");
+    for &update in updates {
+        if !update.is_empty() && doc.import(update).is_err() {
+            return Vec::new();
+        }
+    }
+    export_snapshot(&doc)
 }
 
-/// WASM-exported variant of `crdt_merge_updates`.
+/// WASM-exported variant of [`crdt_merge_updates`].
 ///
 /// Accepts a flat byte buffer with 4-byte LE length prefixes:
 /// `[len1:u32le][bytes1][len2:u32le][bytes2]...`
 ///
-/// This avoids the `Vec<Vec<u8>>` type which is not directly WASM-bindgen-compatible.
+/// This avoids the `Vec<Vec<u8>>` type which is not directly
+/// wasm-bindgen-compatible.
 #[cfg(feature = "crdt")]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn crdt_merge_updates_wasm(packed: &[u8]) -> Vec<u8> {
@@ -182,41 +180,43 @@ pub fn crdt_merge_updates_wasm(packed: &[u8]) -> Vec<u8> {
 
 // ── 5. crdt_state_vector ─────────────────────────────────────────────────────
 
-/// Extract the Yrs state vector from a state snapshot.
+/// Extract the Loro [`VersionVector`] from a state snapshot.
 ///
-/// Sent as sync step 1 so the remote can compute the diff update.
+/// The returned bytes are encoded via [`VersionVector::encode`] — they are
+/// **not** Y.js state vector bytes and MUST be decoded with
+/// [`VersionVector::decode`] on the receiving end. Peers using this in the
+/// sync protocol MUST NOT pass these bytes to any Yrs / lib0 decoder.
 ///
 /// # Arguments
-/// * `state` — state bytes from `section_crdt_states.yrs_state`
+/// * `state` — state bytes from `section_crdt_states.crdt_state`.
 ///
 /// # Returns
-/// Lib0 v1-encoded state vector bytes, or empty vec on error.
+/// Loro VersionVector bytes, or empty vec on error.
 #[cfg(feature = "crdt")]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn crdt_state_vector(state: &[u8]) -> Vec<u8> {
-    if state.is_empty() {
-        let doc = Doc::new();
-        let _text = doc.get_or_insert_text("content");
-        let txn = doc.transact();
-        return txn.state_vector().encode_v1();
+    match load_doc(state) {
+        Some(doc) => doc.oplog_vv().encode(),
+        None => Vec::new(),
     }
-    yrs::encode_state_vector_from_update_v1(state).unwrap_or_default()
 }
 
 // ── 6. crdt_diff_update ──────────────────────────────────────────────────────
 
-/// Compute the diff update between server state and a remote state vector.
+/// Compute the diff update between server state and a remote VersionVector.
 ///
-/// Sync step 2: given the server's full state and the client's state vector
-/// (from sync step 1), return only the operations the client is missing.
+/// Sync step 2: given the server's full state and the client's VersionVector
+/// (from sync step 1 — encoded via [`crdt_state_vector`]), return only the
+/// operations the client is missing.
 ///
 /// # Arguments
-/// * `state` — server state bytes from `section_crdt_states.yrs_state`
-/// * `remote_sv` — the client's state vector bytes
+/// * `state`     — server state bytes from `section_crdt_states.crdt_state`.
+/// * `remote_sv` — the client's Loro VersionVector bytes (from [`crdt_state_vector`]).
+///   Empty `remote_sv` means "give me everything" (full snapshot).
 ///
 /// # Returns
-/// Lib0 v1 update bytes containing only the missing operations, or empty
-/// vec on error. Empty `remote_sv` means "give me everything".
+/// Loro update bytes containing only the missing operations, or empty vec on
+/// error. Empty `remote_sv` returns the full snapshot.
 #[cfg(feature = "crdt")]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn crdt_diff_update(state: &[u8], remote_sv: &[u8]) -> Vec<u8> {
@@ -226,21 +226,28 @@ pub fn crdt_diff_update(state: &[u8], remote_sv: &[u8]) -> Vec<u8> {
     if remote_sv.is_empty() {
         return crdt_encode_state_as_update(state);
     }
-    yrs::diff_updates_v1(state, remote_sv).unwrap_or_default()
+    let doc = match load_doc(state) {
+        Some(d) => d,
+        None => return Vec::new(),
+    };
+    let vv = match VersionVector::decode(remote_sv) {
+        Ok(v) => v,
+        Err(_) => return Vec::new(),
+    };
+    doc.export(ExportMode::updates_owned(vv))
+        .unwrap_or_default()
 }
 
 // ── Helpers (native only) ─────────────────────────────────────────────────────
 
-/// Extract the text content from a state snapshot (native use only).
+/// Extract the plain-text content from a Loro state snapshot (native use only).
 ///
-/// Used by tests and the HTTP fallback to return the actual string content
-/// of a section. Not available in WASM builds.
+/// Reads the `"content"` LoroText root and returns its string value.
+/// Used by tests and the HTTP fallback. Not available in WASM builds.
 #[cfg(all(feature = "crdt", not(target_arch = "wasm32")))]
 pub fn crdt_get_text(state: &[u8]) -> Option<String> {
     let doc = load_doc(state)?;
-    let txn = doc.transact();
-    let text_ref = txn.get_text("content")?;
-    Some(text_ref.get_string(&txn))
+    Some(doc.get_text("content").to_string())
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -248,28 +255,19 @@ pub fn crdt_get_text(state: &[u8]) -> Option<String> {
 #[cfg(all(feature = "crdt", test))]
 mod tests {
     use super::*;
-    use yrs::Text;
 
-    /// Create a doc state with known text content.
-    ///
-    /// Combines insert-root and text.insert in a single write transaction to avoid
-    /// a double-transact_mut deadlock in async-lock 3.x (yrs 0.25 known limitation).
+    /// Create a Loro doc state with known text content.
     fn make_state_with_text(content: &str) -> Vec<u8> {
-        use yrs::types::RootRef;
-        use yrs::types::text::TextRef;
-        let doc = Doc::new();
-        {
-            let mut txn = doc.transact_mut();
-            let text = TextRef::root("content").get_or_create(&mut txn);
-            text.insert(&mut txn, 0, content);
-        } // write lock released here
-        encode_doc_state(&doc)
+        let doc = LoroDoc::new();
+        doc.get_text("content").insert(0, content).unwrap();
+        doc.commit();
+        export_snapshot(&doc)
     }
 
     #[test]
     fn test_crdt_new_doc_returns_bytes() {
-        let sv = crdt_new_doc();
-        assert!(!sv.is_empty(), "new doc state vector should not be empty");
+        let snapshot = crdt_new_doc();
+        assert!(!snapshot.is_empty(), "new doc snapshot should not be empty");
     }
 
     #[test]
@@ -296,8 +294,16 @@ mod tests {
 
     #[test]
     fn test_crdt_merge_updates_commutativity() {
-        let state_a = make_state_with_text("Alpha");
-        let state_b = make_state_with_text("Beta");
+        // Each doc has a distinct peer ID so merging is non-trivial.
+        let doc_a = LoroDoc::new();
+        doc_a.get_text("content").insert(0, "Alpha").unwrap();
+        doc_a.commit();
+        let state_a = export_snapshot(&doc_a);
+
+        let doc_b = LoroDoc::new();
+        doc_b.get_text("content").insert(0, "Beta").unwrap();
+        doc_b.commit();
+        let state_b = export_snapshot(&doc_b);
 
         let merged_ab = crdt_merge_updates(&[&state_a, &state_b]);
         let merged_ba = crdt_merge_updates(&[&state_b, &state_a]);
@@ -324,9 +330,11 @@ mod tests {
     #[test]
     fn test_crdt_state_vector_empty_state() {
         let sv = crdt_state_vector(&[]);
+        // An empty LoroDoc has an empty VersionVector; encode() of an empty VV
+        // is still valid (non-zero) bytes (postcard encoding of an empty map).
         assert!(
             !sv.is_empty(),
-            "empty doc state vector should still be non-empty bytes"
+            "empty doc VV encode should be non-empty bytes"
         );
     }
 
@@ -346,15 +354,16 @@ mod tests {
 
     #[test]
     fn test_crdt_sync_protocol_simulation() {
-        // Full y-websocket sync step 1 + step 2:
+        // Full sync step 1 + step 2:
         //   Server has state S. Client has empty state.
-        //   1. Client sends sv (sync step 1)
-        //   2. Server replies with diff (sync step 2)
+        //   1. Client sends its VV (crdt_state_vector on empty doc from crdt_new_doc)
+        //   2. Server replies with diff (crdt_diff_update)
         //   3. Client applies diff and converges
         let server_state = make_state_with_text("server content");
 
-        let sv_client = crdt_new_doc();
-        let diff = crdt_diff_update(&server_state, &sv_client);
+        let client_snapshot = crdt_new_doc();
+        let client_vv = crdt_state_vector(&client_snapshot);
+        let diff = crdt_diff_update(&server_state, &client_vv);
         assert!(
             !diff.is_empty(),
             "diff should be non-empty for fresh client"
@@ -398,33 +407,22 @@ mod tests {
         assert!(!sv.is_empty());
     }
 
-    // ── T207: Byte-identity tests ─────────────────────────────────────────────
+    // ── Byte-identity / convergence tests ────────────────────────────────────
 
-    /// Associativity: apply_update(init, merge(U1, U2)) == apply_update(apply_update(init, U1), U2)
+    /// Associativity: merging then applying equals sequential applies.
     #[test]
     fn test_crdt_byte_identity_associativity() {
-        use yrs::types::RootRef;
-        use yrs::types::text::TextRef;
-
         let init = crdt_encode_state_as_update(&[]);
 
-        let doc1 = Doc::new();
-        let u1 = {
-            let mut txn = doc1.transact_mut();
-            let t = TextRef::root("content").get_or_create(&mut txn);
-            t.insert(&mut txn, 0, "Hello");
-            drop(txn);
-            encode_doc_state(&doc1)
-        };
+        let doc1 = LoroDoc::new();
+        doc1.get_text("content").insert(0, "Hello").unwrap();
+        doc1.commit();
+        let u1 = export_snapshot(&doc1);
 
-        let doc2 = Doc::new();
-        let u2 = {
-            let mut txn = doc2.transact_mut();
-            let t = TextRef::root("content").get_or_create(&mut txn);
-            t.insert(&mut txn, 0, " World");
-            drop(txn);
-            encode_doc_state(&doc2)
-        };
+        let doc2 = LoroDoc::new();
+        doc2.get_text("content").insert(0, " World").unwrap();
+        doc2.commit();
+        let u2 = export_snapshot(&doc2);
 
         // Path A: apply merged
         let merged = crdt_merge_updates(&[&u1, &u2]);
@@ -442,20 +440,15 @@ mod tests {
         );
     }
 
-    /// Idempotency: apply_update(init, U) applied twice yields same state as applied once.
+    /// Idempotency: applying the same update twice yields the same content.
     #[test]
     fn test_crdt_byte_identity_idempotency() {
-        use yrs::types::RootRef;
-        use yrs::types::text::TextRef;
-
-        let doc = Doc::new();
-        let update = {
-            let mut txn = doc.transact_mut();
-            let t = TextRef::root("content").get_or_create(&mut txn);
-            t.insert(&mut txn, 0, "idempotent content");
-            drop(txn);
-            encode_doc_state(&doc)
-        };
+        let doc = LoroDoc::new();
+        doc.get_text("content")
+            .insert(0, "idempotent content")
+            .unwrap();
+        doc.commit();
+        let update = export_snapshot(&doc);
 
         let state_once = crdt_apply_update(&[], &update);
         let state_twice = crdt_apply_update(&state_once, &update);
@@ -469,30 +462,18 @@ mod tests {
         );
     }
 
+    /// Two concurrent edits from independent peers must converge.
     #[test]
     fn test_crdt_two_concurrent_edits_converge() {
-        use yrs::types::RootRef;
-        use yrs::types::text::TextRef;
+        let doc_a = LoroDoc::new();
+        doc_a.get_text("content").insert(0, "Hello").unwrap();
+        doc_a.commit();
+        let update_a = export_snapshot(&doc_a);
 
-        // Use single write transaction per doc to avoid double-transact_mut deadlock
-        // with async-lock 3.x (yrs 0.25 known limitation).
-        let doc_a = Doc::new();
-        let update_a = {
-            let mut txn = doc_a.transact_mut();
-            let text_a = TextRef::root("content").get_or_create(&mut txn);
-            text_a.insert(&mut txn, 0, "Hello");
-            drop(txn);
-            encode_doc_state(&doc_a)
-        };
-
-        let doc_b = Doc::new();
-        let update_b = {
-            let mut txn = doc_b.transact_mut();
-            let text_b = TextRef::root("content").get_or_create(&mut txn);
-            text_b.insert(&mut txn, 0, "World");
-            drop(txn);
-            encode_doc_state(&doc_b)
-        };
+        let doc_b = LoroDoc::new();
+        doc_b.get_text("content").insert(0, "World").unwrap();
+        doc_b.commit();
+        let update_b = export_snapshot(&doc_b);
 
         let merged = crdt_merge_updates(&[&update_a, &update_b]);
         let text = crdt_get_text(&merged).expect("should decode merged text");
@@ -500,6 +481,22 @@ mod tests {
         assert!(
             text.contains("Hello") && text.contains("World"),
             "merged state should contain both edits: got '{text}'"
+        );
+    }
+
+    /// Verify crdt_new_doc snapshot contains Loro magic header bytes ("loro").
+    #[test]
+    fn test_crdt_new_doc_loro_magic_header() {
+        let snapshot = crdt_new_doc();
+        // Loro binary format starts with magic bytes 0x6c 0x6f 0x72 0x6f ("loro")
+        assert!(
+            snapshot.len() >= 4,
+            "snapshot must be at least 4 bytes for magic header"
+        );
+        assert_eq!(
+            &snapshot[..4],
+            b"loro",
+            "Loro snapshot must start with 'loro' magic header"
         );
     }
 }

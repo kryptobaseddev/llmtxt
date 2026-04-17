@@ -17,10 +17,10 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = ["wasm"]
 wasm = ["dep:wasm-bindgen", "dep:js-sys"]
-# CRDT feature: enables Yrs document-level CRDT primitives.
+# CRDT feature: enables Loro document-level CRDT primitives.
 # Off by default — wasm-pack consumers activate via --features crdt.
-# y-sync is NOT included here because it pulls tokio and breaks WASM builds.
-crdt = ["dep:yrs"]
+# Loro replaces Yrs (T388): their binary encodings are incompatible — clean break only.
+crdt = ["dep:loro"]
 
 [dependencies]
 flate2 = "1"
@@ -42,7 +42,8 @@ js-sys = { version = "0.3", optional = true }
 # Native-only deps — only used behind cfg(not(wasm32))
 url = "2"
 diffy = "0.4.2"
-yrs = { version = "0.25", optional = true, features = [] }
+# Loro CRDT — replaces yrs (T388). Pin to 1.x; incompatible with Yrs binary format.
+loro = { version = "1.0", optional = true }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
