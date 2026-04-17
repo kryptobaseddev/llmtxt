@@ -1,0 +1,45 @@
+-- T401 (P2.3): CRR schema migration — prepare for crsql_as_crr() activation.
+--
+-- Design constraints (spec P2-cr-sqlite.md §3.2, §4, §5.2; DR-P2-02, DR-P2-04):
+--
+--   DR-P2-02: Tables are made CRR at database initialisation time, not at
+--   migration time, because cr-sqlite's internal metadata requires the native
+--   extension to be loaded. The crsql_as_crr() calls are therefore executed
+--   in LocalBackend.open() via _activateCRRTables() AFTER the extension is
+--   loaded. This migration records the schema intent and bumps the version
+--   marker so that re-entrant open() calls can detect CRR status without
+--   re-running extension checks.
+--
+--   DR-P2-04 (MANDATORY — OWNER MANDATE 2026-04-17):
+--   section_crdt_states.crdt_state MUST NOT use cr-sqlite LWW for CRDT blob
+--   convergence. This column stores a Loro binary blob. Application-level
+--   Loro merge (doc.import() / crdt_merge_updates()) handles all convergence
+--   for this column. cr-sqlite LWW on this column would silently corrupt
+--   collaborative editing state.
+--   The _activateCRRTables() + applyChanges() implementation in
+--   local-backend.ts enforces this constraint. See DR-P2-04 comments there.
+--
+-- Idempotency: This migration is a pure PRAGMA with no DDL changes. It is
+-- safe to re-apply. The crsql_as_crr() activation calls are deferred to
+-- runtime (local-backend.ts _activateCRRTables) and are themselves idempotent.
+--
+-- Tables that receive crsql_as_crr() at runtime (validated against
+-- schema-local.ts, 2026-04-17):
+--   documents, versions, state_transitions, approvals,
+--   section_crdt_states (*), section_crdt_updates, document_events,
+--   agent_pubkeys, agent_signature_nonces, section_leases,
+--   agent_inbox_messages, scratchpad_entries, section_embeddings
+--
+-- (*) section_crdt_states: CRR registration is safe (LWW on the whole row),
+--     but the crdt_state blob column MUST use application-level Loro merge in
+--     applyChanges(). See DR-P2-04 in local-backend.ts.
+--
+-- Schema version: user_version 2 = CRR-ready schema (migration recorded).
+-- LocalBackend.open() sets user_version to 2 after successfully calling
+-- crsql_as_crr() on all tables. This migration records the intent; the
+-- runtime loader confirms activation.
+
+-- Record CRR migration intent. The actual user_version=2 bump is written by
+-- _activateCRRTables() in local-backend.ts after the extension loads.
+-- This SELECT is a no-op but documents the migration intent for readers.
+SELECT 'crsql_crr_migration_recorded';

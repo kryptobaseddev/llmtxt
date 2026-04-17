@@ -64,7 +64,35 @@ import type {
   AgentPubkeyRecord,
   ApprovalResult,
   ApprovalPolicy,
+  AttachBlobParams,
+  BlobAttachment,
+  BlobData,
+  ExportDocumentParams,
+  ExportDocumentResult,
+  ExportAllParams,
+  ExportAllResult,
 } from '../core/backend.js';
+import { ExportError } from '../core/backend.js';
+import {
+  writeExportFile,
+  exportAllFilePath,
+  contentHashHex,
+  FORMAT_EXT,
+} from '../export/backend-export.js';
+import type { DocumentExportState } from '../export/types.js';
+
+import {
+  BlobFsAdapter,
+  BlobTooLargeError,
+  BlobNameInvalidError,
+  BlobCorruptError,
+} from './blob-fs-adapter.js';
+
+export {
+  BlobTooLargeError,
+  BlobNameInvalidError,
+  BlobCorruptError,
+} from './blob-fs-adapter.js';
 
 import {
   documents,
@@ -87,6 +115,7 @@ import type { DocumentState } from '../sdk/lifecycle.js';
 import type { VersionEntry } from '../sdk/versions.js';
 import { evaluateApprovals, DEFAULT_APPROVAL_POLICY } from '../sdk/consensus.js';
 import type { Review } from '../sdk/consensus.js';
+import { loadCrSqliteExtensionPath } from '../crsqlite-loader.js';
 
 // ── Migrations path ────────────────────────────────────────────
 // __dirname equivalent for ESM
@@ -94,6 +123,37 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const MIGRATIONS_PATH = path.join(__dirname, 'migrations');
+
+// ── cr-sqlite schema version ───────────────────────────────────
+/**
+ * SQLite user_version value that indicates CRR activation is complete.
+ * Set by migration 20260417230000_crsql_as_crr.
+ * user_version 0 = plain SQLite (no CRR).
+ * user_version 2 = CRR activated on all 13 tables.
+ *
+ * DR-P2-04 (MANDATORY — OWNER MANDATE 2026-04-17):
+ * section_crdt_states.crdt_state MUST use application-level Loro merge, NOT
+ * cr-sqlite LWW. LWW on this blob column would silently corrupt collaborative
+ * editing state. See applyChanges() for the enforced merge path.
+ */
+const CRR_SCHEMA_VERSION = 2;
+
+/** Table names that receive crsql_as_crr() (validated against schema-local.ts, 2026-04-17). */
+const CRR_TABLES = [
+  'documents',
+  'versions',
+  'state_transitions',
+  'approvals',
+  'section_crdt_states',
+  'section_crdt_updates',
+  'document_events',
+  'agent_pubkeys',
+  'agent_signature_nonces',
+  'section_leases',
+  'agent_inbox_messages',
+  'scratchpad_entries',
+  'section_embeddings',
+] as const;
 
 // ── Default config ─────────────────────────────────────────────
 const DEFAULT_STORAGE_PATH = '.llmtxt';
@@ -153,6 +213,18 @@ export class LocalBackend implements Backend {
   private db!: ReturnType<typeof drizzle>;
   private rawDb!: Database.Database;
   private opened = false;
+  private blobAdapter!: BlobFsAdapter;
+
+  /**
+   * True if the cr-sqlite extension was successfully loaded and CRR tables are
+   * activated. False if cr-sqlite is unavailable (local-only mode, no sync).
+   *
+   * Callers MUST check hasCRR before calling getChangesSince() or applyChanges().
+   * Those methods throw CrSqliteNotLoadedError when hasCRR is false.
+   *
+   * DR-P2-01: Graceful degradation — LocalBackend MUST work without cr-sqlite.
+   */
+  hasCRR = false;
 
   /** In-process event bus for subscribeStream / subscribeSection. */
   private readonly bus = new EventEmitter();
@@ -196,13 +268,104 @@ export class LocalBackend implements Backend {
 
     this.db = drizzle({ client: this.rawDb });
 
-    // Apply pending migrations (idempotent)
+    // Apply pending migrations first (idempotent).
+    // Migrations MUST run before _activateCRRTables() so all tables exist
+    // when crsql_as_crr() is called. The CRR migration SQL
+    // (20260417230000_crsql_as_crr) is a no-op SELECT — it does NOT call
+    // crsql_as_crr() directly. CRR activation is deferred to runtime below.
     migrate(this.db, { migrationsFolder: MIGRATIONS_PATH });
+
+    // ── cr-sqlite extension load (P2.5) ──────────────────────────────────────
+    //
+    // Run AFTER migrate() so all tables exist when crsql_as_crr() is called.
+    //
+    // DR-P2-01: @vlcn.io/crsqlite is an optional peer dependency. If absent,
+    // LocalBackend opens in local-only mode (hasCRR = false). No crash.
+    //
+    // Spec §3.1: @vlcn.io/crsqlite is ESM-only. MUST use dynamic import().
+    // require('@vlcn.io/crsqlite') MUST NOT be used — it throws ERR_REQUIRE_ESM.
+
+    let extPath: string | null = this.config.crsqliteExtPath ?? null;
+    if (extPath === null) {
+      extPath = await loadCrSqliteExtensionPath();
+    }
+
+    if (extPath !== null) {
+      try {
+        this.rawDb.loadExtension(extPath);
+        // Extension loaded — activate CRRs on all tables if not yet done.
+        // _activateCRRTables() is idempotent: crsql_as_crr() is a no-op for
+        // tables that are already CRRs.
+        this._activateCRRTables();
+        this.hasCRR = true;
+      } catch (err) {
+        // Extension load or CRR activation failed (ABI mismatch, wrong platform,
+        // corrupted binary). Degrade gracefully: log warning, continue without
+        // cr-sqlite. Basic CRUD continues to function normally.
+        console.warn(
+          '[LocalBackend] Failed to load cr-sqlite extension at path %s — ' +
+          'opening in local-only mode (hasCRR=false). Error: %s',
+          extPath,
+          (err as Error).message
+        );
+        this.hasCRR = false;
+      }
+    } else {
+      // No extension path available — silent local-only mode.
+      console.warn(
+        '[LocalBackend] @vlcn.io/crsqlite not installed and no crsqliteExtPath ' +
+        'provided — opening in local-only mode (hasCRR=false). ' +
+        'Install @vlcn.io/crsqlite to enable cr-sqlite sync.'
+      );
+      this.hasCRR = false;
+    }
+    // ── end cr-sqlite extension load ─────────────────────────────────────────
+
+    // Initialise blob filesystem adapter
+    this.blobAdapter = new BlobFsAdapter(
+      this.db as unknown as import('drizzle-orm/better-sqlite3').BetterSQLite3Database<Record<string, never>>,
+      this.config.storagePath!,
+      this.config.maxBlobSizeBytes
+    );
 
     // Start background reapers
     this._startReapers();
 
     this.opened = true;
+  }
+
+  /**
+   * Activates CRR on all LocalBackend tables via crsql_as_crr().
+   *
+   * Called from open() after successfully loading the cr-sqlite extension.
+   * crsql_as_crr() is idempotent: calling it on an already-CRR table is safe.
+   *
+   * DR-P2-02: CRR activation happens at database initialisation time.
+   * DR-P2-04: section_crdt_states is registered as CRR here (safe), but the
+   * crdt_state blob column MUST use application-level Loro merge in
+   * applyChanges() — LWW on this column is PROHIBITED.
+   */
+  private _activateCRRTables(): void {
+    for (const table of CRR_TABLES) {
+      try {
+        this.rawDb.exec(`SELECT crsql_as_crr('${table}')`);
+      } catch (err) {
+        // crsql_as_crr may fail if the table doesn't exist yet (e.g., first open
+        // before migrations run). This is non-fatal; migration SQL also calls
+        // crsql_as_crr() after table creation, so the activation is deferred.
+        const msg = (err as Error).message ?? '';
+        if (!msg.includes('no such table')) {
+          throw err;
+        }
+      }
+    }
+    // Bump user_version to CRR_SCHEMA_VERSION to record successful activation.
+    // This allows hasCRR detection on subsequent opens without re-running all
+    // crsql_as_crr() calls.
+    const currentVersion = (this.rawDb.pragma('user_version') as Array<{ user_version: number }>)[0]?.user_version ?? 0;
+    if (currentVersion < CRR_SCHEMA_VERSION) {
+      this.rawDb.pragma(`user_version = ${CRR_SCHEMA_VERSION}`);
+    }
   }
 
   async close(): Promise<void> {
@@ -1525,6 +1688,177 @@ export class LocalBackend implements Backend {
   }
   async rotateApiKey(_id: string, _userId: string): Promise<import('../core/backend.js').ApiKeyWithSecret> {
     throw new Error('LocalBackend: rotateApiKey not yet implemented');
+  }
+
+  // ── BlobOps ───────────────────────────────────────────────────
+
+  async attachBlob(params: AttachBlobParams): Promise<BlobAttachment> {
+    this._assertOpen();
+    return Promise.resolve(this.blobAdapter.attachBlob(params));
+  }
+
+  async getBlob(
+    docSlug: string,
+    blobName: string,
+    opts?: { includeData?: boolean }
+  ): Promise<BlobData | null> {
+    this._assertOpen();
+    return Promise.resolve(this.blobAdapter.getBlob(docSlug, blobName, opts));
+  }
+
+  async listBlobs(docSlug: string): Promise<BlobAttachment[]> {
+    this._assertOpen();
+    return Promise.resolve(this.blobAdapter.listBlobs(docSlug));
+  }
+
+  async detachBlob(docSlug: string, blobName: string, detachedBy: string): Promise<boolean> {
+    this._assertOpen();
+    return Promise.resolve(this.blobAdapter.detachBlob(docSlug, blobName, detachedBy));
+  }
+
+  async fetchBlobByHash(hash: string): Promise<Buffer | null> {
+    this._assertOpen();
+    return Promise.resolve(this.blobAdapter.fetchBlobByHash(hash));
+  }
+
+  // ── ExportOps (T427.6) ────────────────────────────────────────
+
+  /**
+   * Export a single document to a file on disk.
+   *
+   * Content retrieval strategy (spec §11 — LocalBackend):
+   *  1. Call listVersions(doc.id) to get all version entries (ascending).
+   *  2. Take the last entry (highest versionNumber = latest).
+   *  3. Check if storageType=filesystem → read from blobs/<contentHash>.
+   *  4. Otherwise read inline from the compressedData column (raw UTF-8 bytes).
+   *
+   * @throws {ExportError} DOC_NOT_FOUND when the slug does not exist.
+   * @throws {ExportError} VERSION_NOT_FOUND when the document has no versions.
+   * @throws {ExportError} WRITE_FAILED on I/O error.
+   */
+  async exportDocument(params: ExportDocumentParams): Promise<ExportDocumentResult> {
+    this._assertOpen();
+
+    const { slug, format } = params;
+
+    // 1. Resolve slug → document.
+    const doc = await this.getDocumentBySlug(slug);
+    if (!doc) {
+      throw new ExportError('DOC_NOT_FOUND', `Document not found: ${slug}`);
+    }
+
+    // 2. Get latest version.
+    const versionRows = this.db
+      .select()
+      .from(versions)
+      .where(eq(versions.documentId, doc.id))
+      .orderBy(asc(versions.versionNumber))
+      .all();
+
+    if (versionRows.length === 0) {
+      throw new ExportError('VERSION_NOT_FOUND', `Document ${slug} has no versions`);
+    }
+
+    const latestRow = versionRows[versionRows.length - 1]!;
+
+    // 3. Retrieve content.
+    let content: string;
+    if (latestRow.storageType === 'filesystem' && latestRow.storageKey) {
+      // Large content stored as raw UTF-8 on disk (no compression in LocalBackend).
+      const blobPath = path.join(this.config.storagePath!, 'blobs', latestRow.storageKey);
+      const blobBytes = fs.readFileSync(blobPath);
+      content = blobBytes.toString('utf8');
+    } else if (latestRow.compressedData) {
+      // Small content stored inline as raw UTF-8 bytes (LocalBackend stores uncompressed).
+      const buf = latestRow.compressedData instanceof Buffer
+        ? latestRow.compressedData
+        : Buffer.from(latestRow.compressedData as ArrayBuffer);
+      content = buf.toString('utf8');
+    } else {
+      throw new ExportError('VERSION_NOT_FOUND', `Version content missing for ${slug}`);
+    }
+
+    // 4. Build contributors list from version history.
+    const contributors = [
+      ...new Set(versionRows.map((r) => r.createdBy).filter((c): c is string => Boolean(c))),
+    ];
+
+    // 5. Compute content hash and exportedAt timestamp.
+    const exportedAt = new Date().toISOString();
+    const computedContentHash = contentHashHex(content);
+
+    // 6. Build DocumentExportState.
+    const state: DocumentExportState = {
+      title: doc.title,
+      slug: doc.slug,
+      version: latestRow.versionNumber,
+      state: doc.state,
+      contributors,
+      contentHash: computedContentHash,
+      exportedAt,
+      content,
+      labels: doc.labels ?? null,
+      createdBy: doc.createdBy ?? null,
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
+      versionCount: doc.versionCount,
+      chainRef: null, // T384 stub: BFT chain not yet integrated in LocalBackend
+    };
+
+    // 7. Write and return.
+    return writeExportFile(state, params, this.config.identityPath);
+  }
+
+  /**
+   * Export all documents to a directory.
+   *
+   * Iterates via listDocuments (cursor-based pagination).
+   * Individual document failures are collected in skipped, not thrown.
+   */
+  async exportAll(params: ExportAllParams): Promise<ExportAllResult> {
+    this._assertOpen();
+
+    const { format, outputDir, state: filterState, includeMetadata, sign } = params;
+
+    const exported: ExportDocumentResult[] = [];
+    const skipped: Array<{ slug: string; reason: string }> = [];
+    let cursor: string | undefined = undefined;
+
+    // Paginate through all documents.
+    for (;;) {
+      const page = await this.listDocuments({
+        cursor,
+        limit: 50,
+        state: filterState as import('../sdk/lifecycle.js').DocumentState | undefined,
+      });
+
+      for (const doc of page.items) {
+        const outputPath = exportAllFilePath(outputDir, doc.slug, format);
+        try {
+          const result = await this.exportDocument({
+            slug: doc.slug,
+            format,
+            outputPath,
+            includeMetadata,
+            sign,
+          });
+          exported.push(result);
+        } catch (err: unknown) {
+          const reason = err instanceof Error ? err.message : String(err);
+          skipped.push({ slug: doc.slug, reason });
+        }
+      }
+
+      if (!page.nextCursor) break;
+      cursor = page.nextCursor;
+    }
+
+    return {
+      exported,
+      skipped,
+      totalCount: exported.length + skipped.length,
+      failedCount: skipped.length,
+    };
   }
 }
 

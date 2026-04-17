@@ -73,6 +73,47 @@ export interface BackendConfig {
    * Only relevant for LocalBackend.
    */
   presenceTtlMs?: number;
+
+  /**
+   * Absolute path to a pre-downloaded crsqlite native extension (.so / .dylib /
+   * .dll). When supplied, LocalBackend uses this path instead of resolving the
+   * extension via @vlcn.io/crsqlite. Useful in air-gapped or bundled
+   * environments where the install-time binary download is not possible.
+   *
+   * DR-P2-01: If absent, LocalBackend attempts to resolve the path from the
+   * @vlcn.io/crsqlite optional peer dependency. If neither is available,
+   * LocalBackend opens without cr-sqlite (hasCRR = false, no crash).
+   */
+  crsqliteExtPath?: string;
+
+  // ── Blob storage config ──────────────────────────────────────
+
+  /**
+   * Maximum blob size in bytes. Defaults to 100 * 1024 * 1024 (100 MB).
+   */
+  maxBlobSizeBytes?: number;
+
+  /**
+   * Blob storage mode for PostgresBackend.
+   * 's3' uses S3/R2 object storage (default).
+   * 'pg-lo' uses PostgreSQL large objects.
+   */
+  blobStorageMode?: 's3' | 'pg-lo';
+
+  /** S3/R2 endpoint URL (e.g. "https://s3.us-east-1.amazonaws.com"). */
+  s3Endpoint?: string;
+
+  /** S3/R2 bucket name. Required when blobStorageMode = 's3'. */
+  s3Bucket?: string;
+
+  /** S3/R2 region (e.g. "us-east-1"). */
+  s3Region?: string;
+
+  /** S3/R2 access key ID. */
+  s3AccessKeyId?: string;
+
+  /** S3/R2 secret access key. */
+  s3SecretAccessKey?: string;
 }
 
 // ── Document types ─────────────────────────────────────────────
@@ -313,6 +354,107 @@ export interface AgentPubkeyRecord {
 }
 
 // ── Sub-interfaces ──────────────────────────────────────────────
+
+// ── Blob types ─────────────────────────────────────────────────
+
+/** Parameters for attaching a blob to a document. */
+export interface AttachBlobParams {
+  /** Document slug the blob is attached to. */
+  docSlug: string;
+  /** User-visible attachment name (e.g. "diagram.png"). */
+  name: string;
+  /** MIME content type. */
+  contentType: string;
+  /** Raw binary data. */
+  data: Buffer | Uint8Array;
+  /** Agent performing the upload. */
+  uploadedBy: string;
+}
+
+/** A stored blob attachment record. */
+export interface BlobAttachment {
+  id: string;
+  docSlug: string;
+  blobName: string;
+  hash: string;           // SHA-256 hex
+  size: number;
+  contentType: string;
+  uploadedBy: string;
+  uploadedAt: number;     // unix ms
+}
+
+/** Result of fetching a blob. */
+export interface BlobData extends BlobAttachment {
+  /** Raw blob bytes. Only present when fetched with includeData=true. */
+  data?: Buffer;
+}
+
+/** Changeset blob reference (bytes omitted — lazy pull). */
+export interface BlobRef {
+  blobName: string;
+  hash: string;
+  size: number;
+  contentType: string;
+  uploadedBy: string;
+  uploadedAt: number;
+}
+
+/** Blob storage and retrieval operations. */
+export interface BlobOps {
+  /**
+   * Attach a binary blob to a document.
+   *
+   * MUST compute SHA-256 hash of data and use it as the storage key.
+   * MUST validate the attachment name via llmtxt-core blob_name_validate.
+   * MUST enforce maxBlobSizeBytes (default 100MB).
+   * MUST apply LWW: if a blob with the same name already exists on the document,
+   *   it is soft-deleted and the new record becomes active.
+   * MUST NOT store duplicate bytes when hash already exists in the store
+   *   (content-addressed dedup within the same backend instance).
+   * MUST return the new BlobAttachment record.
+   */
+  attachBlob(params: AttachBlobParams): Promise<BlobAttachment>;
+
+  /**
+   * Retrieve a blob attachment, optionally including bytes.
+   *
+   * MUST return null (not throw) if blobName is not attached to the document.
+   * MUST verify hash on read when includeData=true. Return BlobCorruptError if mismatch.
+   * Default: includeData = false (manifest metadata only).
+   */
+  getBlob(
+    docSlug: string,
+    blobName: string,
+    opts?: { includeData?: boolean }
+  ): Promise<BlobData | null>;
+
+  /**
+   * List all active (non-deleted) blob attachments for a document.
+   *
+   * MUST return an empty array (not throw) when no blobs are attached.
+   * MUST NOT include bytes (manifest metadata only).
+   */
+  listBlobs(docSlug: string): Promise<BlobAttachment[]>;
+
+  /**
+   * Detach (soft-delete) a named blob from a document.
+   *
+   * MUST return false (not throw) if no active attachment with blobName exists.
+   * MUST set deleted_at = now(). Actual byte storage is NOT cleaned up
+   *   (orphan collection is a deferred concern).
+   * MUST NOT affect other documents sharing the same blob hash.
+   */
+  detachBlob(docSlug: string, blobName: string, detachedBy: string): Promise<boolean>;
+
+  /**
+   * Fetch blob bytes by hash directly (used during lazy sync pull).
+   *
+   * MUST return null if no blob with this hash exists in the store.
+   * MUST verify hash on return.
+   * This method bypasses the manifest and is used by the sync layer.
+   */
+  fetchBlobByHash(hash: string): Promise<Buffer | null>;
+}
 
 /** Document CRUD operations. */
 export interface DocumentOps {
@@ -1106,7 +1248,9 @@ export interface Backend
     SignedUrlOps,
     AccessControlOps,
     OrganizationOps,
-    ApiKeyOps {
+    ApiKeyOps,
+    BlobOps,
+    ExportOps {
 
   /**
    * Open the backend connection / apply migrations.
@@ -1124,4 +1268,130 @@ export interface Backend
 
   /** The BackendConfig this instance was constructed with. */
   readonly config: BackendConfig;
+}
+
+// ── Export types (T427) ─────────────────────────────────────────
+
+/**
+ * Error codes for the document export subsystem.
+ * @see docs/specs/ARCH-T427-document-export-ssot.md §12
+ */
+export type ExportErrorCode =
+  | 'DOC_NOT_FOUND'
+  | 'VERSION_NOT_FOUND'
+  | 'WRITE_FAILED'
+  | 'UNSUPPORTED_FORMAT'
+  | 'SIGN_FAILED'
+  | 'SLUG_EXISTS'
+  | 'PARSE_FAILED'
+  | 'HASH_MISMATCH';
+
+/**
+ * Typed error for the document export subsystem.
+ * Thrown by exportDocument() and exportAll() on failure.
+ */
+export class ExportError extends Error {
+  constructor(
+    public readonly code: ExportErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'ExportError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+/** Supported document export formats. */
+export type ExportFormat = 'markdown' | 'json' | 'txt' | 'llmtxt';
+
+/**
+ * Parameters for exporting a single document.
+ * @see docs/specs/ARCH-T427-document-export-ssot.md §5.1
+ */
+export interface ExportDocumentParams {
+  /** URL-safe document slug. */
+  slug: string;
+  /** Export format. */
+  format: ExportFormat;
+  /** Absolute or relative path to write the output file. */
+  outputPath: string;
+  /** Whether to include metadata (frontmatter/structured fields). Default true. */
+  includeMetadata?: boolean;
+  /** If true, sign the export manifest with the local Ed25519 identity. Default false. */
+  sign?: boolean;
+}
+
+/**
+ * Result returned by exportDocument().
+ * @see docs/specs/ARCH-T427-document-export-ssot.md §5.2
+ */
+export interface ExportDocumentResult {
+  /** Absolute path of the written file. */
+  filePath: string;
+  /** Slug of the exported document. */
+  slug: string;
+  /** Version number exported. */
+  version: number;
+  /** SHA-256 hex of the written file bytes. */
+  fileHash: string;
+  /** Number of bytes written. */
+  byteCount: number;
+  /** ISO 8601 UTC timestamp of export. */
+  exportedAt: string;
+  /** Ed25519 signature hex over fileHash, if sign=true. Null otherwise. */
+  signatureHex: string | null;
+}
+
+/**
+ * Parameters for exporting all documents to a directory.
+ * @see docs/specs/ARCH-T427-document-export-ssot.md §5.4
+ */
+export interface ExportAllParams {
+  format: ExportFormat;
+  /** Directory to write files into. One file per document, named `<slug>.<ext>`. */
+  outputDir: string;
+  /** Filter by lifecycle state. If absent, exports all documents. */
+  state?: string;
+  includeMetadata?: boolean;
+  sign?: boolean;
+}
+
+/**
+ * Result returned by exportAll().
+ * @see docs/specs/ARCH-T427-document-export-ssot.md §5.4
+ */
+export interface ExportAllResult {
+  exported: ExportDocumentResult[];
+  skipped: Array<{ slug: string; reason: string }>;
+  totalCount: number;
+  failedCount: number;
+}
+
+/** Document export operations. */
+export interface ExportOps {
+  /**
+   * Export a single document to a file on disk.
+   *
+   * MUST resolve slug to a document; MUST throw ExportError('DOC_NOT_FOUND') if absent.
+   * MUST fetch the latest version content from the backend.
+   * MUST write the file atomically (write to .tmp then rename).
+   * MUST return the SHA-256 hash of the written bytes.
+   * MUST create intermediate directories via mkdirSync recursive.
+   * MUST NOT mutate any document, version, or event row in the database.
+   *
+   * @see docs/specs/ARCH-T427-document-export-ssot.md §5.3
+   */
+  exportDocument(params: ExportDocumentParams): Promise<ExportDocumentResult>;
+
+  /**
+   * Export all documents to a directory.
+   *
+   * MUST iterate all documents (paginating via listDocuments).
+   * MUST call exportDocument for each; individual failures MUST be collected in
+   * skipped, not thrown.
+   * MUST write each file as <slug>.<ext> inside outputDir.
+   *
+   * @see docs/specs/ARCH-T427-document-export-ssot.md §5.5
+   */
+  exportAll(params: ExportAllParams): Promise<ExportAllResult>;
 }
