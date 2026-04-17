@@ -99,3 +99,7 @@ export {
   pollInbox,
   onDirectMessage,
 } from './a2a.js';
+
+// ── T426: Ephemeral Agent Session Lifecycle ────────────────────
+export type { ContributionReceipt, AgentSessionOptions } from './session.js';
+export { AgentSession, AgentSessionError, AgentSessionState } from './session.js';
