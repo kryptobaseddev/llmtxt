@@ -72,6 +72,72 @@ const DocumentState = Object.freeze({
 exports.DocumentState = DocumentState;
 
 /**
+ * WASM: build and sign an A2A message.
+ *
+ * Parameters:
+ * * `from_id`      — sender agent identifier
+ * * `to_id`        — recipient agent identifier
+ * * `nonce_hex`    — 32-char hex nonce (16 random bytes)
+ * * `timestamp_ms` — milliseconds since epoch
+ * * `content_type` — e.g. `"application/json"`
+ * * `payload_b64`  — base64-encoded payload bytes
+ * * `sk_hex`       — 64-char hex of the 32-byte secret key
+ *
+ * Returns JSON-serialized [`A2AMessage`], or `{"error":"..."}`.
+ * @param {string} from_id
+ * @param {string} to_id
+ * @param {string} nonce_hex
+ * @param {number} timestamp_ms
+ * @param {string} content_type
+ * @param {string} payload_b64
+ * @param {string} sk_hex
+ * @returns {string}
+ */
+function a2a_build_and_sign(from_id, to_id, nonce_hex, timestamp_ms, content_type, payload_b64, sk_hex) {
+    let deferred7_0;
+    let deferred7_1;
+    try {
+        const ptr0 = passStringToWasm0(from_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(to_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(nonce_hex, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(content_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len3 = WASM_VECTOR_LEN;
+        const ptr4 = passStringToWasm0(payload_b64, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len4 = WASM_VECTOR_LEN;
+        const ptr5 = passStringToWasm0(sk_hex, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len5 = WASM_VECTOR_LEN;
+        const ret = wasm.a2a_build_and_sign(ptr0, len0, ptr1, len1, ptr2, len2, timestamp_ms, ptr3, len3, ptr4, len4, ptr5, len5);
+        deferred7_0 = ret[0];
+        deferred7_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred7_0, deferred7_1, 1);
+    }
+}
+exports.a2a_build_and_sign = a2a_build_and_sign;
+
+/**
+ * WASM: verify an A2A message JSON against a public key.
+ *
+ * Returns `"true"` or `"false"`.
+ * @param {string} msg_json
+ * @param {string} pk_hex
+ * @returns {boolean}
+ */
+function a2a_verify(msg_json, pk_hex) {
+    const ptr0 = passStringToWasm0(msg_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(pk_hex, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.a2a_verify(ptr0, len0, ptr1, len1);
+    return ret !== 0;
+}
+exports.a2a_verify = a2a_verify;
+
+/**
  * Apply a unified diff patch to an original string.
  * Returns the updated string on success, or an error if the patch is invalid
  * or fails to apply cleanly.
@@ -144,6 +210,37 @@ function batch_diff_versions(base, patches_json, base_version, version_numbers_j
 exports.batch_diff_versions = batch_diff_versions;
 
 /**
+ * WASM: compute BFT quorum for fault count `f`.
+ *
+ * Returns `2f + 1` as a u32.
+ * @param {number} n
+ * @param {number} f
+ * @returns {number}
+ */
+function bft_quorum_wasm(n, f) {
+    const ret = wasm.bft_quorum_wasm(n, f);
+    return ret >>> 0;
+}
+exports.bft_quorum_wasm = bft_quorum_wasm;
+
+/**
+ * WASM binding for [`blob_name_validate`].
+ *
+ * Returns `Ok(())` when the name is valid, or throws a `JsValue` string
+ * describing the validation failure.
+ * @param {string} name
+ */
+function blobNameValidate(name) {
+    const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.blobNameValidate(ptr0, len0);
+    if (ret[1]) {
+        throw takeFromExternrefTable0(ret[0]);
+    }
+}
+exports.blobNameValidate = blobNameValidate;
+
+/**
  * Build a knowledge graph from a JSON array of MessageInput objects.
  *
  * Returns a JSON-serialised KnowledgeGraph, or `{"error":"..."}` on failure.
@@ -191,6 +288,46 @@ function calculate_tokens(text) {
     return ret >>> 0;
 }
 exports.calculate_tokens = calculate_tokens;
+
+/**
+ * WASM binding for [`canonical_frontmatter`].
+ *
+ * Accepts a JSON-serialised [`FrontmatterMeta`] object.
+ * Returns the canonical YAML frontmatter string, or an error message prefixed
+ * with `"ERROR: "` if the JSON cannot be parsed.
+ *
+ * # Example (TypeScript)
+ * ```typescript
+ * import init, { canonicalFrontmatter } from 'llmtxt-core';
+ * await init();
+ * const yaml = canonicalFrontmatter(JSON.stringify({
+ *   title: "My Doc",
+ *   slug: "my-doc",
+ *   version: 1,
+ *   state: "DRAFT",
+ *   contributors: ["bob", "alice"],
+ *   content_hash: "abc123...",
+ *   exported_at: "2026-04-17T19:00:00.000Z",
+ * }));
+ * ```
+ * @param {string} meta_json
+ * @returns {string}
+ */
+function canonicalFrontmatter(meta_json) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(meta_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.canonicalFrontmatter(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.canonicalFrontmatter = canonicalFrontmatter;
 
 /**
  * WASM binding for [`cherry_pick_merge`].
@@ -493,6 +630,160 @@ function cosine_similarity_wasm(a_json, b_json) {
     return ret;
 }
 exports.cosine_similarity_wasm = cosine_similarity_wasm;
+
+/**
+ * Apply a Loro update (or snapshot) to a document state and return the new state.
+ *
+ * This is the core persistence operation: given the persisted state and an
+ * incoming update from a client, produce the new state to store in
+ * `section_crdt_states.crdt_state`.
+ *
+ * Loro `import` is idempotent — applying the same update twice yields the
+ * same result (CRDT property).
+ *
+ * # Arguments
+ * * `state`  — current state bytes (may be empty for a new section).
+ * * `update` — incoming Loro update or snapshot bytes from a client.
+ *
+ * # Returns
+ * New snapshot bytes suitable for persisting, or empty vec on decode error.
+ * @param {Uint8Array} state
+ * @param {Uint8Array} update
+ * @returns {Uint8Array}
+ */
+function crdt_apply_update(state, update) {
+    const ptr0 = passArray8ToWasm0(state, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArray8ToWasm0(update, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.crdt_apply_update(ptr0, len0, ptr1, len1);
+    var v3 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v3;
+}
+exports.crdt_apply_update = crdt_apply_update;
+
+/**
+ * Compute the diff update between server state and a remote VersionVector.
+ *
+ * Sync step 2: given the server's full state and the client's VersionVector
+ * (from sync step 1 — encoded via [`crdt_state_vector`]), return only the
+ * operations the client is missing.
+ *
+ * # Arguments
+ * * `state`     — server state bytes from `section_crdt_states.crdt_state`.
+ * * `remote_sv` — the client's Loro VersionVector bytes (from [`crdt_state_vector`]).
+ *   Empty `remote_sv` means "give me everything" (full snapshot).
+ *
+ * # Returns
+ * Loro update bytes containing only the missing operations, or empty vec on
+ * error. Empty `remote_sv` returns the full snapshot.
+ * @param {Uint8Array} state
+ * @param {Uint8Array} remote_sv
+ * @returns {Uint8Array}
+ */
+function crdt_diff_update(state, remote_sv) {
+    const ptr0 = passArray8ToWasm0(state, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArray8ToWasm0(remote_sv, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.crdt_diff_update(ptr0, len0, ptr1, len1);
+    var v3 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v3;
+}
+exports.crdt_diff_update = crdt_diff_update;
+
+/**
+ * Encode the full document state as a Loro snapshot blob.
+ *
+ * Used to bootstrap a new client: send them the full state so they can import
+ * it locally and arrive at the current document content.
+ *
+ * # Arguments
+ * * `state` — bytes from `section_crdt_states.crdt_state` (consolidated state).
+ *   May be empty to obtain the canonical empty-doc snapshot.
+ *
+ * # Returns
+ * A Loro snapshot blob, or empty vec if `state` is non-empty and corrupt.
+ * @param {Uint8Array} state
+ * @returns {Uint8Array}
+ */
+function crdt_encode_state_as_update(state) {
+    const ptr0 = passArray8ToWasm0(state, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.crdt_encode_state_as_update(ptr0, len0);
+    var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v2;
+}
+exports.crdt_encode_state_as_update = crdt_encode_state_as_update;
+
+/**
+ * WASM-exported variant of [`crdt_merge_updates`].
+ *
+ * Accepts a flat byte buffer with 4-byte LE length prefixes:
+ * `[len1:u32le][bytes1][len2:u32le][bytes2]...`
+ *
+ * This avoids the `Vec<Vec<u8>>` type which is not directly
+ * wasm-bindgen-compatible.
+ * @param {Uint8Array} packed
+ * @returns {Uint8Array}
+ */
+function crdt_merge_updates_wasm(packed) {
+    const ptr0 = passArray8ToWasm0(packed, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.crdt_merge_updates_wasm(ptr0, len0);
+    var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v2;
+}
+exports.crdt_merge_updates_wasm = crdt_merge_updates_wasm;
+
+/**
+ * Create an empty Loro doc for a section and return its snapshot bytes.
+ *
+ * The doc contains a single `LoroText` root named `"content"`. The returned
+ * bytes are an opaque Loro snapshot blob. Callers MUST treat this as a state
+ * blob — it is NOT a Y.js state vector (incompatible format).
+ *
+ * Use the returned bytes as the initial `state` argument to
+ * [`crdt_encode_state_as_update`] or [`crdt_apply_update`].
+ * @returns {Uint8Array}
+ */
+function crdt_new_doc() {
+    const ret = wasm.crdt_new_doc();
+    var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v1;
+}
+exports.crdt_new_doc = crdt_new_doc;
+
+/**
+ * Extract the Loro [`VersionVector`] from a state snapshot.
+ *
+ * The returned bytes are encoded via [`VersionVector::encode`] — they are
+ * **not** Y.js state vector bytes and MUST be decoded with
+ * [`VersionVector::decode`] on the receiving end. Peers using this in the
+ * sync protocol MUST NOT pass these bytes to any Yrs / lib0 decoder.
+ *
+ * # Arguments
+ * * `state` — state bytes from `section_crdt_states.crdt_state`.
+ *
+ * # Returns
+ * Loro VersionVector bytes, or empty vec on error.
+ * @param {Uint8Array} state
+ * @returns {Uint8Array}
+ */
+function crdt_state_vector(state) {
+    const ptr0 = passArray8ToWasm0(state, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.crdt_state_vector(ptr0, len0);
+    var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v2;
+}
+exports.crdt_state_vector = crdt_state_vector;
 
 /**
  * Create a unified diff patch representing the difference between `original`
@@ -1000,6 +1291,58 @@ function get_section_wasm(content, section_name, depth_all) {
 exports.get_section_wasm = get_section_wasm;
 
 /**
+ * WASM binding for [`hash_blob`].
+ *
+ * Accepts raw bytes and returns the lowercase hex SHA-256 digest (64 chars).
+ * @param {Uint8Array} bytes
+ * @returns {string}
+ */
+function hashBlob(bytes) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.hashBlob(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.hashBlob = hashBlob;
+
+/**
+ * WASM: compute hash chain extension.
+ *
+ * `prev_hash_hex` — 64-char lowercase hex of the 32-byte previous hash.
+ * `event_json`    — UTF-8 event payload string.
+ *
+ * Returns 64-char lowercase hex of the new chain hash, or `{"error":"..."}`.
+ * @param {string} prev_hash_hex
+ * @param {string} event_json
+ * @returns {string}
+ */
+function hash_chain_extend_wasm(prev_hash_hex, event_json) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(prev_hash_hex, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(event_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.hash_chain_extend_wasm(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+exports.hash_chain_extend_wasm = hash_chain_extend_wasm;
+
+/**
  * Compute the SHA-256 hash of a UTF-8 string, returned as lowercase hex.
  * @param {string} data
  * @returns {string}
@@ -1019,6 +1362,131 @@ function hash_content(data) {
     }
 }
 exports.hash_content = hash_content;
+
+/**
+ * WASM: compute SHA-256 body hash as lowercase hex.
+ * @param {Uint8Array} body
+ * @returns {string}
+ */
+function identity_body_hash_hex(body) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passArray8ToWasm0(body, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.identity_body_hash_hex(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.identity_body_hash_hex = identity_body_hash_hex;
+
+/**
+ * WASM: build canonical payload bytes.
+ *
+ * Returns the raw UTF-8 bytes of the canonical payload string.
+ * @param {string} method
+ * @param {string} path_and_query
+ * @param {number} timestamp_ms
+ * @param {string} agent_id
+ * @param {string} nonce_hex
+ * @param {string} body_hash_hex
+ * @returns {Uint8Array}
+ */
+function identity_canonical_payload(method, path_and_query, timestamp_ms, agent_id, nonce_hex, body_hash_hex) {
+    const ptr0 = passStringToWasm0(method, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(path_and_query, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ptr2 = passStringToWasm0(agent_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len2 = WASM_VECTOR_LEN;
+    const ptr3 = passStringToWasm0(nonce_hex, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len3 = WASM_VECTOR_LEN;
+    const ptr4 = passStringToWasm0(body_hash_hex, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len4 = WASM_VECTOR_LEN;
+    const ret = wasm.identity_canonical_payload(ptr0, len0, ptr1, len1, timestamp_ms, ptr2, len2, ptr3, len3, ptr4, len4);
+    var v6 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v6;
+}
+exports.identity_canonical_payload = identity_canonical_payload;
+
+/**
+ * WASM: generate an Ed25519 keypair.
+ *
+ * Returns JSON `{"sk":"<hex64>","pk":"<hex64>"}`.
+ * @returns {string}
+ */
+function identity_keygen() {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.identity_keygen();
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+exports.identity_keygen = identity_keygen;
+
+/**
+ * WASM: sign a submission.
+ *
+ * * `sk_hex`  — 64-char hex of the 32-byte secret key
+ * * `payload` — raw payload bytes
+ *
+ * Returns 128-char hex of the 64-byte signature, or `{"error":"..."}`.
+ * @param {string} sk_hex
+ * @param {Uint8Array} payload
+ * @returns {string}
+ */
+function identity_sign(sk_hex, payload) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(sk_hex, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArray8ToWasm0(payload, wasm.__wbindgen_malloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.identity_sign(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+exports.identity_sign = identity_sign;
+
+/**
+ * WASM: verify a submission signature.
+ *
+ * * `pk_hex`  — 64-char hex of the 32-byte public key
+ * * `payload` — raw payload bytes
+ * * `sig_hex` — 128-char hex of the 64-byte signature
+ *
+ * Returns `"true"` or `"false"`.
+ * @param {string} pk_hex
+ * @param {Uint8Array} payload
+ * @param {string} sig_hex
+ * @returns {boolean}
+ */
+function identity_verify(pk_hex, payload, sig_hex) {
+    const ptr0 = passStringToWasm0(pk_hex, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArray8ToWasm0(payload, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ptr2 = passStringToWasm0(sig_hex, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len2 = WASM_VECTOR_LEN;
+    const ret = wasm.identity_verify(ptr0, len0, ptr1, len1, ptr2, len2);
+    return ret !== 0;
+}
+exports.identity_verify = identity_verify;
 
 /**
  * Check whether a document state allows content modifications.
@@ -1868,17 +2336,108 @@ exports.validate_transition = validate_transition;
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,
+        __wbg___wbindgen_is_function_3c846841762788c1: function(arg0) {
+            const ret = typeof(arg0) === 'function';
+            return ret;
+        },
+        __wbg___wbindgen_is_object_781bc9f159099513: function(arg0) {
+            const val = arg0;
+            const ret = typeof(val) === 'object' && val !== null;
+            return ret;
+        },
+        __wbg___wbindgen_is_string_7ef6b97b02428fae: function(arg0) {
+            const ret = typeof(arg0) === 'string';
+            return ret;
+        },
+        __wbg___wbindgen_is_undefined_52709e72fb9f179c: function(arg0) {
+            const ret = arg0 === undefined;
+            return ret;
+        },
         __wbg___wbindgen_throw_6ddd609b62940d55: function(arg0, arg1) {
             throw new Error(getStringFromWasm0(arg0, arg1));
+        },
+        __wbg_call_2d781c1f4d5c0ef8: function() { return handleError(function (arg0, arg1, arg2) {
+            const ret = arg0.call(arg1, arg2);
+            return ret;
+        }, arguments); },
+        __wbg_crypto_38df2bab126b63dc: function(arg0) {
+            const ret = arg0.crypto;
+            return ret;
         },
         __wbg_getRandomValues_a1cf2e70b003a59d: function() { return handleError(function (arg0, arg1) {
             globalThis.crypto.getRandomValues(getArrayU8FromWasm0(arg0, arg1));
         }, arguments); },
+        __wbg_getRandomValues_c44a50d8cfdaebeb: function() { return handleError(function (arg0, arg1) {
+            arg0.getRandomValues(arg1);
+        }, arguments); },
+        __wbg_length_ea16607d7b61445b: function(arg0) {
+            const ret = arg0.length;
+            return ret;
+        },
+        __wbg_msCrypto_bd5a034af96bcba6: function(arg0) {
+            const ret = arg0.msCrypto;
+            return ret;
+        },
+        __wbg_new_with_length_825018a1616e9e55: function(arg0) {
+            const ret = new Uint8Array(arg0 >>> 0);
+            return ret;
+        },
+        __wbg_node_84ea875411254db1: function(arg0) {
+            const ret = arg0.node;
+            return ret;
+        },
         __wbg_now_16f0c993d5dd6c27: function() {
             const ret = Date.now();
             return ret;
         },
+        __wbg_now_7487a8384907a228: function() {
+            const ret = Date.now();
+            return ret;
+        },
+        __wbg_process_44c7a14e11e9f69e: function(arg0) {
+            const ret = arg0.process;
+            return ret;
+        },
+        __wbg_prototypesetcall_d62e5099504357e6: function(arg0, arg1, arg2) {
+            Uint8Array.prototype.set.call(getArrayU8FromWasm0(arg0, arg1), arg2);
+        },
+        __wbg_randomFillSync_6c25eac9869eb53c: function() { return handleError(function (arg0, arg1) {
+            arg0.randomFillSync(arg1);
+        }, arguments); },
+        __wbg_require_b4edbdcf3e2a1ef0: function() { return handleError(function () {
+            const ret = module.require;
+            return ret;
+        }, arguments); },
+        __wbg_static_accessor_GLOBAL_8adb955bd33fac2f: function() {
+            const ret = typeof global === 'undefined' ? null : global;
+            return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
+        },
+        __wbg_static_accessor_GLOBAL_THIS_ad356e0db91c7913: function() {
+            const ret = typeof globalThis === 'undefined' ? null : globalThis;
+            return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
+        },
+        __wbg_static_accessor_SELF_f207c857566db248: function() {
+            const ret = typeof self === 'undefined' ? null : self;
+            return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
+        },
+        __wbg_static_accessor_WINDOW_bb9f1ba69d61b386: function() {
+            const ret = typeof window === 'undefined' ? null : window;
+            return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
+        },
+        __wbg_subarray_a068d24e39478a8a: function(arg0, arg1, arg2) {
+            const ret = arg0.subarray(arg1 >>> 0, arg2 >>> 0);
+            return ret;
+        },
+        __wbg_versions_276b2795b1c6a219: function(arg0) {
+            const ret = arg0.versions;
+            return ret;
+        },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
+            // Cast intrinsic for `Ref(Slice(U8)) -> NamedExternref("Uint8Array")`.
+            const ret = getArrayU8FromWasm0(arg0, arg1);
+            return ret;
+        },
+        __wbindgen_cast_0000000000000002: function(arg0, arg1) {
             // Cast intrinsic for `Ref(String) -> Externref`.
             const ret = getStringFromWasm0(arg0, arg1);
             return ret;
@@ -1934,6 +2493,10 @@ function handleError(f, args) {
         const idx = addToExternrefTable0(e);
         wasm.__wbindgen_exn_store(idx);
     }
+}
+
+function isLikeNone(x) {
+    return x === undefined || x === null;
 }
 
 function passArray8ToWasm0(arg, malloc) {

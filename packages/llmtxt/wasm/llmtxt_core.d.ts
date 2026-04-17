@@ -39,6 +39,29 @@ export enum DocumentState {
 }
 
 /**
+ * WASM: build and sign an A2A message.
+ *
+ * Parameters:
+ * * `from_id`      — sender agent identifier
+ * * `to_id`        — recipient agent identifier
+ * * `nonce_hex`    — 32-char hex nonce (16 random bytes)
+ * * `timestamp_ms` — milliseconds since epoch
+ * * `content_type` — e.g. `"application/json"`
+ * * `payload_b64`  — base64-encoded payload bytes
+ * * `sk_hex`       — 64-char hex of the 32-byte secret key
+ *
+ * Returns JSON-serialized [`A2AMessage`], or `{"error":"..."}`.
+ */
+export function a2a_build_and_sign(from_id: string, to_id: string, nonce_hex: string, timestamp_ms: number, content_type: string, payload_b64: string, sk_hex: string): string;
+
+/**
+ * WASM: verify an A2A message JSON against a public key.
+ *
+ * Returns `"true"` or `"false"`.
+ */
+export function a2a_verify(msg_json: string, pk_hex: string): boolean;
+
+/**
  * Apply a unified diff patch to an original string.
  * Returns the updated string on success, or an error if the patch is invalid
  * or fails to apply cleanly.
@@ -57,6 +80,21 @@ export function apply_patch(original: string, patch_text: string): string;
 export function batch_diff_versions(base: string, patches_json: string, base_version: number, version_numbers_json: string): string;
 
 /**
+ * WASM: compute BFT quorum for fault count `f`.
+ *
+ * Returns `2f + 1` as a u32.
+ */
+export function bft_quorum_wasm(n: number, f: number): number;
+
+/**
+ * WASM binding for [`blob_name_validate`].
+ *
+ * Returns `Ok(())` when the name is valid, or throws a `JsValue` string
+ * describing the validation failure.
+ */
+export function blobNameValidate(name: string): void;
+
+/**
  * Build a knowledge graph from a JSON array of MessageInput objects.
  *
  * Returns a JSON-serialised KnowledgeGraph, or `{"error":"..."}` on failure.
@@ -73,6 +111,30 @@ export function calculate_compression_ratio(original_size: number, compressed_si
  * Estimate token count using the ~4 chars/token heuristic.
  */
 export function calculate_tokens(text: string): number;
+
+/**
+ * WASM binding for [`canonical_frontmatter`].
+ *
+ * Accepts a JSON-serialised [`FrontmatterMeta`] object.
+ * Returns the canonical YAML frontmatter string, or an error message prefixed
+ * with `"ERROR: "` if the JSON cannot be parsed.
+ *
+ * # Example (TypeScript)
+ * ```typescript
+ * import init, { canonicalFrontmatter } from 'llmtxt-core';
+ * await init();
+ * const yaml = canonicalFrontmatter(JSON.stringify({
+ *   title: "My Doc",
+ *   slug: "my-doc",
+ *   version: 1,
+ *   state: "DRAFT",
+ *   contributors: ["bob", "alice"],
+ *   content_hash: "abc123...",
+ *   exported_at: "2026-04-17T19:00:00.000Z",
+ * }));
+ * ```
+ */
+export function canonicalFrontmatter(meta_json: string): string;
 
 /**
  * WASM binding for [`cherry_pick_merge`].
@@ -168,6 +230,97 @@ export function content_similarity_wasm(a: string, b: string): number;
  * ```
  */
 export function cosine_similarity_wasm(a_json: string, b_json: string): number;
+
+/**
+ * Apply a Loro update (or snapshot) to a document state and return the new state.
+ *
+ * This is the core persistence operation: given the persisted state and an
+ * incoming update from a client, produce the new state to store in
+ * `section_crdt_states.crdt_state`.
+ *
+ * Loro `import` is idempotent — applying the same update twice yields the
+ * same result (CRDT property).
+ *
+ * # Arguments
+ * * `state`  — current state bytes (may be empty for a new section).
+ * * `update` — incoming Loro update or snapshot bytes from a client.
+ *
+ * # Returns
+ * New snapshot bytes suitable for persisting, or empty vec on decode error.
+ */
+export function crdt_apply_update(state: Uint8Array, update: Uint8Array): Uint8Array;
+
+/**
+ * Compute the diff update between server state and a remote VersionVector.
+ *
+ * Sync step 2: given the server's full state and the client's VersionVector
+ * (from sync step 1 — encoded via [`crdt_state_vector`]), return only the
+ * operations the client is missing.
+ *
+ * # Arguments
+ * * `state`     — server state bytes from `section_crdt_states.crdt_state`.
+ * * `remote_sv` — the client's Loro VersionVector bytes (from [`crdt_state_vector`]).
+ *   Empty `remote_sv` means "give me everything" (full snapshot).
+ *
+ * # Returns
+ * Loro update bytes containing only the missing operations, or empty vec on
+ * error. Empty `remote_sv` returns the full snapshot.
+ */
+export function crdt_diff_update(state: Uint8Array, remote_sv: Uint8Array): Uint8Array;
+
+/**
+ * Encode the full document state as a Loro snapshot blob.
+ *
+ * Used to bootstrap a new client: send them the full state so they can import
+ * it locally and arrive at the current document content.
+ *
+ * # Arguments
+ * * `state` — bytes from `section_crdt_states.crdt_state` (consolidated state).
+ *   May be empty to obtain the canonical empty-doc snapshot.
+ *
+ * # Returns
+ * A Loro snapshot blob, or empty vec if `state` is non-empty and corrupt.
+ */
+export function crdt_encode_state_as_update(state: Uint8Array): Uint8Array;
+
+/**
+ * WASM-exported variant of [`crdt_merge_updates`].
+ *
+ * Accepts a flat byte buffer with 4-byte LE length prefixes:
+ * `[len1:u32le][bytes1][len2:u32le][bytes2]...`
+ *
+ * This avoids the `Vec<Vec<u8>>` type which is not directly
+ * wasm-bindgen-compatible.
+ */
+export function crdt_merge_updates_wasm(packed: Uint8Array): Uint8Array;
+
+/**
+ * Create an empty Loro doc for a section and return its snapshot bytes.
+ *
+ * The doc contains a single `LoroText` root named `"content"`. The returned
+ * bytes are an opaque Loro snapshot blob. Callers MUST treat this as a state
+ * blob — it is NOT a Y.js state vector (incompatible format).
+ *
+ * Use the returned bytes as the initial `state` argument to
+ * [`crdt_encode_state_as_update`] or [`crdt_apply_update`].
+ */
+export function crdt_new_doc(): Uint8Array;
+
+/**
+ * Extract the Loro [`VersionVector`] from a state snapshot.
+ *
+ * The returned bytes are encoded via [`VersionVector::encode`] — they are
+ * **not** Y.js state vector bytes and MUST be decoded with
+ * [`VersionVector::decode`] on the receiving end. Peers using this in the
+ * sync protocol MUST NOT pass these bytes to any Yrs / lib0 decoder.
+ *
+ * # Arguments
+ * * `state` — state bytes from `section_crdt_states.crdt_state`.
+ *
+ * # Returns
+ * Loro VersionVector bytes, or empty vec on error.
+ */
+export function crdt_state_vector(state: Uint8Array): Uint8Array;
 
 /**
  * Create a unified diff patch representing the difference between `original`
@@ -334,9 +487,66 @@ export function get_line_range_wasm(content: string, start: number, end: number)
 export function get_section_wasm(content: string, section_name: string, depth_all: boolean): string;
 
 /**
+ * WASM binding for [`hash_blob`].
+ *
+ * Accepts raw bytes and returns the lowercase hex SHA-256 digest (64 chars).
+ */
+export function hashBlob(bytes: Uint8Array): string;
+
+/**
+ * WASM: compute hash chain extension.
+ *
+ * `prev_hash_hex` — 64-char lowercase hex of the 32-byte previous hash.
+ * `event_json`    — UTF-8 event payload string.
+ *
+ * Returns 64-char lowercase hex of the new chain hash, or `{"error":"..."}`.
+ */
+export function hash_chain_extend_wasm(prev_hash_hex: string, event_json: string): string;
+
+/**
  * Compute the SHA-256 hash of a UTF-8 string, returned as lowercase hex.
  */
 export function hash_content(data: string): string;
+
+/**
+ * WASM: compute SHA-256 body hash as lowercase hex.
+ */
+export function identity_body_hash_hex(body: Uint8Array): string;
+
+/**
+ * WASM: build canonical payload bytes.
+ *
+ * Returns the raw UTF-8 bytes of the canonical payload string.
+ */
+export function identity_canonical_payload(method: string, path_and_query: string, timestamp_ms: number, agent_id: string, nonce_hex: string, body_hash_hex: string): Uint8Array;
+
+/**
+ * WASM: generate an Ed25519 keypair.
+ *
+ * Returns JSON `{"sk":"<hex64>","pk":"<hex64>"}`.
+ */
+export function identity_keygen(): string;
+
+/**
+ * WASM: sign a submission.
+ *
+ * * `sk_hex`  — 64-char hex of the 32-byte secret key
+ * * `payload` — raw payload bytes
+ *
+ * Returns 128-char hex of the 64-byte signature, or `{"error":"..."}`.
+ */
+export function identity_sign(sk_hex: string, payload: Uint8Array): string;
+
+/**
+ * WASM: verify a submission signature.
+ *
+ * * `pk_hex`  — 64-char hex of the 32-byte public key
+ * * `payload` — raw payload bytes
+ * * `sig_hex` — 128-char hex of the 64-byte signature
+ *
+ * Returns `"true"` or `"false"`.
+ */
+export function identity_verify(pk_hex: string, payload: Uint8Array, sig_hex: string): boolean;
 
 /**
  * Check whether a document state allows content modifications.
