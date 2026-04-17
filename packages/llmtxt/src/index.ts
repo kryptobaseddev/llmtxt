@@ -357,6 +357,19 @@ export type {
   MeshConfig,
 } from './topology.js';
 
+// ── Backend Factory + Topology Backends (T439 / T443 / T446 / T449 / T452) ────
+export {
+  createBackend,
+  HubSpokeBackend,
+  MeshBackend,
+  MeshNotImplementedError,
+  HubUnreachableError,
+  HubWriteQueueFullError,
+} from './backend/factory.js';
+
+// ── Mesh Backend Stub (T449) ───────────────────────────────────────────────────
+export { MeshBackend as MeshBackendStub } from './mesh/index.js';
+
 // ── Document Export Formatters (T427 / T438, T440, T442, T444) ────────────────
 export {
   formatMarkdown,

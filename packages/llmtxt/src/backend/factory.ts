@@ -94,6 +94,55 @@ export class MeshNotImplementedError extends Error {
   }
 }
 
+// ── HubUnreachableError ────────────────────────────────────────────────────
+
+/**
+ * Thrown when a hub-and-spoke spoke cannot reach the hub for a write operation.
+ *
+ * Ephemeral spokes MUST fail fast with this error — writes are never silently
+ * dropped (ARCH-T429 §7.1). The `cause` property holds the underlying network
+ * error for diagnostics.
+ */
+export class HubUnreachableError extends Error {
+  readonly code = 'HUB_UNREACHABLE';
+  readonly cause: unknown;
+
+  constructor(operation: string, cause: unknown) {
+    const causeMsg = cause instanceof Error ? cause.message : String(cause);
+    super(
+      `HubUnreachableError: hub is unreachable during "${operation}". ` +
+        `Writes must not be silently dropped. Cause: ${causeMsg}. ` +
+        'Check network connectivity and hub URL. (ARCH-T429 §7.1)',
+    );
+    this.name = 'HubUnreachableError';
+    this.cause = cause;
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+// ── HubWriteQueueFullError ─────────────────────────────────────────────────
+
+/**
+ * Thrown when a persistent spoke's write queue exceeds the 1000-entry limit
+ * (ARCH-T429 §7.1). The 1001st write while the hub is unreachable must be
+ * rejected with this error rather than silently dropped or discarded.
+ */
+export class HubWriteQueueFullError extends Error {
+  readonly code = 'HUB_WRITE_QUEUE_FULL';
+  readonly queueSize: number;
+
+  constructor(queueSize: number) {
+    super(
+      `HubWriteQueueFullError: persistent spoke write queue is full (${queueSize} entries). ` +
+        'Maximum queue size is 1000 entries (ARCH-T429 §7.1). ' +
+        'Resolve hub connectivity before issuing more writes.',
+    );
+    this.name = 'HubWriteQueueFullError';
+    this.queueSize = queueSize;
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
 // ── HubSpokeBackend ─────────────────────────────────────────────────────────
 
 /**
@@ -126,6 +175,20 @@ export class HubSpokeBackend implements Backend {
     this.config = options.config;
   }
 
+  /**
+   * Wrap a hub write operation so network failures surface as HubUnreachableError
+   * rather than raw fetch errors. This ensures writes are never silently dropped
+   * (ARCH-T429 §7.1).
+   */
+  private async _hubWrite<T>(operation: string, fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn();
+    } catch (err) {
+      // Re-wrap as HubUnreachableError so callers get a typed signal
+      throw new HubUnreachableError(operation, err);
+    }
+  }
+
   // ── Lifecycle ────────────────────────────────────────────────
 
   async open(): Promise<void> {
@@ -142,7 +205,7 @@ export class HubSpokeBackend implements Backend {
   // ── DocumentOps — reads from local replica, writes to hub ────
 
   async createDocument(params: Parameters<Backend['createDocument']>[0]) {
-    return this.remote.createDocument(params);
+    return this._hubWrite('createDocument', () => this.remote.createDocument(params));
   }
 
   async getDocument(id: string) {
@@ -158,13 +221,13 @@ export class HubSpokeBackend implements Backend {
   }
 
   async deleteDocument(id: string) {
-    return this.remote.deleteDocument(id);
+    return this._hubWrite('deleteDocument', () => this.remote.deleteDocument(id));
   }
 
   // ── VersionOps — reads from local, writes to hub ─────────────
 
   async publishVersion(params: Parameters<Backend['publishVersion']>[0]) {
-    return this.remote.publishVersion(params);
+    return this._hubWrite('publishVersion', () => this.remote.publishVersion(params));
   }
 
   async getVersion(documentId: string, versionNumber: number) {
@@ -176,25 +239,25 @@ export class HubSpokeBackend implements Backend {
   }
 
   async transitionVersion(params: Parameters<Backend['transitionVersion']>[0]) {
-    return this.remote.transitionVersion(params);
+    return this._hubWrite('transitionVersion', () => this.remote.transitionVersion(params));
   }
 
   // ── ApprovalOps — hub is authoritative ──────────────────────
 
   async submitSignedApproval(params: Parameters<Backend['submitSignedApproval']>[0]) {
-    return this.remote.submitSignedApproval(params);
+    return this._hubWrite('submitSignedApproval', () => this.remote.submitSignedApproval(params));
   }
 
   async getApprovalProgress(documentId: string, versionNumber: number) {
-    return this.remote.getApprovalProgress(documentId, versionNumber);
+    return this._hubWrite('getApprovalProgress', () => this.remote.getApprovalProgress(documentId, versionNumber));
   }
 
   async getApprovalPolicy(documentId: string) {
-    return this.remote.getApprovalPolicy(documentId);
+    return this._hubWrite('getApprovalPolicy', () => this.remote.getApprovalPolicy(documentId));
   }
 
   async setApprovalPolicy(documentId: string, policy: Parameters<Backend['setApprovalPolicy']>[1]) {
-    return this.remote.setApprovalPolicy(documentId, policy);
+    return this._hubWrite('setApprovalPolicy', () => this.remote.setApprovalPolicy(documentId, policy));
   }
 
   // ── ContributorOps ────────────────────────────────────────────
@@ -212,7 +275,7 @@ export class HubSpokeBackend implements Backend {
   // ── EventOps — reads from local, writes to hub ───────────────
 
   async appendEvent(params: Parameters<Backend['appendEvent']>[0]) {
-    return this.remote.appendEvent(params);
+    return this._hubWrite('appendEvent', () => this.remote.appendEvent(params));
   }
 
   async queryEvents(params: Parameters<Backend['queryEvents']>[0]) {
@@ -228,7 +291,7 @@ export class HubSpokeBackend implements Backend {
 
   async applyCrdtUpdate(params: Parameters<Backend['applyCrdtUpdate']>[0]) {
     // Hub applies the update; local replica will catch up on next sync
-    return this.remote.applyCrdtUpdate(params);
+    return this._hubWrite('applyCrdtUpdate', () => this.remote.applyCrdtUpdate(params));
   }
 
   async getCrdtState(documentId: string, sectionKey: string) {
@@ -242,15 +305,15 @@ export class HubSpokeBackend implements Backend {
   // ── LeaseOps — hub is authoritative (distributed lock) ───────
 
   async acquireLease(params: Parameters<Backend['acquireLease']>[0]) {
-    return this.remote.acquireLease(params);
+    return this._hubWrite('acquireLease', () => this.remote.acquireLease(params));
   }
 
   async renewLease(resource: string, holder: string, ttlMs: number) {
-    return this.remote.renewLease(resource, holder, ttlMs);
+    return this._hubWrite('renewLease', () => this.remote.renewLease(resource, holder, ttlMs));
   }
 
   async releaseLease(resource: string, holder: string) {
-    return this.remote.releaseLease(resource, holder);
+    return this._hubWrite('releaseLease', () => this.remote.releaseLease(resource, holder));
   }
 
   async getLease(resource: string) {
@@ -278,29 +341,29 @@ export class HubSpokeBackend implements Backend {
   // ── ScratchpadOps — hub ───────────────────────────────────────
 
   async sendScratchpad(params: Parameters<Backend['sendScratchpad']>[0]) {
-    return this.remote.sendScratchpad(params);
+    return this._hubWrite('sendScratchpad', () => this.remote.sendScratchpad(params));
   }
 
   async pollScratchpad(agentId: string, limit?: number) {
-    return this.remote.pollScratchpad(agentId, limit);
+    return this._hubWrite('pollScratchpad', () => this.remote.pollScratchpad(agentId, limit));
   }
 
   async deleteScratchpadMessage(id: string, agentId: string) {
-    return this.remote.deleteScratchpadMessage(id, agentId);
+    return this._hubWrite('deleteScratchpadMessage', () => this.remote.deleteScratchpadMessage(id, agentId));
   }
 
   // ── A2AOps — hub ──────────────────────────────────────────────
 
   async sendA2AMessage(params: Parameters<Backend['sendA2AMessage']>[0]) {
-    return this.remote.sendA2AMessage(params);
+    return this._hubWrite('sendA2AMessage', () => this.remote.sendA2AMessage(params));
   }
 
   async pollA2AInbox(agentId: string, limit?: number, since?: number, order?: 'asc' | 'desc') {
-    return this.remote.pollA2AInbox(agentId, limit, since, order);
+    return this._hubWrite('pollA2AInbox', () => this.remote.pollA2AInbox(agentId, limit, since, order));
   }
 
   async deleteA2AMessage(id: string, agentId: string) {
-    return this.remote.deleteA2AMessage(id, agentId);
+    return this._hubWrite('deleteA2AMessage', () => this.remote.deleteA2AMessage(id, agentId));
   }
 
   // ── SearchOps — local replica ─────────────────────────────────
