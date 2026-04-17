@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026.4.6] - 2026-04-17
+
+### Added
+
+- **Loro CRDT swap** (T384/T388/T389): `crdt` feature now backed by `loro 1.0` instead of `yrs`. Six CRDT primitives rewritten — `crdt_new_doc`, `crdt_apply_update`, `crdt_encode_state_vector`, `crdt_merge`, `crdt_encode_update_v1`, `crdt_as_bytes`. Wire framing opcodes `0x01`–`0x04` replace the `y-sync` protocol. `yrs` removed from all dependency trees.
+- **`canonical_frontmatter`** (T435): deterministic YAML-ish frontmatter serialiser, WASM-exported.
+- **`hash_blob`** (T453): SHA-256 content-addressable blob hash helper, WASM-exported.
+- **`blob_name_validate`** (T453): blob name validation (max length, allowed chars), WASM-exported.
+
+### Changed
+
+- `Cargo.toml` `version` bumped to `2026.4.6`.
+- `loro` replaces `yrs` as the optional CRDT dependency under the `crdt` feature flag. Binary encoding is **not** backward-compatible with Yrs — clean break only (see T393 DB migration).
+
+### Fixed
+
+- `crdt` feature compile guard corrected so `wasm32` target builds with `--features wasm` remain clean (no `loro` pull unless `crdt` explicitly enabled).
+
 ## [2026.4.5] - 2026-04-16
 
 ### Added — W1+W2+W3 Multi-Agent Primitives

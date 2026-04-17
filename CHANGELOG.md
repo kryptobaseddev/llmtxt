@@ -2,6 +2,37 @@
 
 All notable changes to the LLMtxt ecosystem (npm `llmtxt`, Rust crate `llmtxt-core`, apps/backend, apps/frontend, apps/docs).
 
+## [2026.4.6] — 2026-04-17
+
+### Added — Storage Evolution (T384/T385/T386/T426/T427/T428/T429)
+
+- **T384 — Yrs → Loro CRDT swap**: `crates/llmtxt-core` `crdt` feature migrated from `yrs` to `loro` (`1.0`). Six CRDT functions rewritten: `crdt_new_doc`, `crdt_apply_update`, `crdt_encode_state_vector`, `crdt_merge`, `crdt_encode_update_v1`, `crdt_as_bytes`. Framing opcodes `0x01`–`0x04` replace `y-sync` wire protocol. WASM rebuild verified (6 Loro exports present). Yrs is no longer a dependency in any build target.
+- **T385 — cr-sqlite CRR integration**: `@vlcn.io/crsqlite` optional peer dep added to `packages/llmtxt`. `LocalBackend` gains CRR-aware column strategy; `getChangesSince` / `applyChanges` implemented with Loro blob merge semantics. Schema migration adds CRR column tracking with graceful skip when native `.so` absent.
+- **T386 — P2P mesh + Ed25519 mutual handshake**: `packages/llmtxt` `mesh` module — `MeshNode`, `MeshTransport` (HTTP + WebSocket), `MeshDiscovery` (mDNS/static peer list), `MeshSyncEngine`. Full Ed25519 mutual handshake on connect (`POST /mesh/handshake` phase 1 + 2). 5-peer convergence integration test passes. `llmtxt mesh start/stop/status/peers/sync` CLI commands added.
+- **T426 — AgentSession**: `AgentSession` state machine with `open`, `contribute`, `close` lifecycle. `ContributionReceipt` with signed acknowledgement. Crash-recovery contract (50-worker swarm integration test). `llmtxt session start/stop` CLI commands.
+- **T427 — Export / SSoT**: `exportDocument` and `exportAll` on `Backend` interface. Export formatters: Markdown, JSON, plain text, llmtxt envelope. `importDocument` with determinism test. `llmtxt export/import` CLI commands. HTTP `GET /documents/:id/export` route.
+- **T428 — Blob attachments**: `blob_attachments` table (Drizzle migration). `Backend` gains `attachBlob`, `getBlob`, `listBlobs`, `detachBlob`, `fetchBlobByHash`. `PostgresBackend` S3/R2 + PG large-object adapter. HTTP blob routes (`POST /documents/:id/blobs`, `GET /blobs/:hash`) with hash-verify-on-read security. 5-agent hub-spoke blob integration test.
+- **T429 — Hub-spoke topology**: `TopologyConfig` schema + validation + `TopologyError`. Hub-spoke wiring in mesh sync engine. Topology failure-mode tests (partition tolerance, reconnect, spoke isolation).
+- **canonical_frontmatter**, **hash_blob**, **blob_name_validate** primitives added to `crates/llmtxt-core` with WASM bindings (T435, T453).
+- Docs pages for all Storage Evolution epics added to `apps/docs` (T411, T425, T448, T455, T456, T466).
+- CRDT docs refreshed for Loro migration; Y.js references removed (T398).
+
+### Changed
+
+- **Column rename**: `yrs_state` → `crdt_state` in Postgres schema (migration `T393`). Byte-identity verified — Loro encoding round-trips correctly.
+- **Loro wire framing**: WS `subscribeSection()` and `getSectionText()` updated for Loro framing opcodes (`0x01`–`0x04`); replaces `y-sync` protocol in SDK.
+- `packages/llmtxt/crdt-primitives` subpath export updated to expose Loro-backed helpers.
+
+### Fixed
+
+- **AgentIdentity CLI factory usage**: `AgentIdentity.generate()` call corrected to static factory in all test mocks.
+- **CRR test graceful skip**: `LocalBackend` cr-sqlite extension load now emits a warning and continues when the native `.so` is absent rather than throwing.
+
+### Security
+
+- Ed25519 mutual handshake is **mandatory** for all P2P mesh peers — unauthenticated connections rejected at `POST /mesh/handshake`.
+- Blob hash-verify-on-read enforced on `GET /blobs/:hash` — mismatched content returns `409 Conflict`.
+
 ## [2026.4.5] — 2026-04-16
 
 This release ships the full Round 1+2+3 multi-agent foundation: CRDT/Yrs, signed Ed25519 identity, append-only event log, real-time presence/leases/diff-subscriptions (W1+W2), BFT consensus, agent scratchpad, A2A envelope routing (W3), a self-hosted observability stack (Grafana / Loki / Tempo / Prometheus / OTel collector / GlitchTip on Railway), OpenAPI schema generation with forge-ts integration, local semantic embeddings via pgvector + ONNX, four reference agents plus a `/demo` page, and a fully portable SDK offering `LocalBackend`, `RemoteBackend`, and `llmtxt` CLI — including a complete CLEO integration example. Also upgrades drizzle-orm/kit to `1.0.0-beta.21` and zod to `^4`.
