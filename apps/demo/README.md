@@ -189,6 +189,56 @@ bot.run().catch((err) => {
 | `scripts/t308-e2e-orchestrator.js` | T308 production verifier; spawns all 5 agents, captures metrics, exits with PASS/FAIL |
 | `scripts/create-api-key.mjs` | Generate a new API key via the admin endpoint |
 | `scripts/reset.js` | Tear down demo documents and agent state (dry-run by default) |
+| `scripts/mesh-example.js` | P3.10 mesh demo: 3 CLEO agents on Unix sockets, no server required |
+
+---
+
+## P2P Mesh Demo (T422 — P3.10)
+
+Demonstrates three CLEO-style agents collaborating via the LLMtxt P2P mesh
+without any server connection. All sync happens over Unix sockets on the local
+machine.
+
+### Smoke Test
+
+```bash
+# From the monorepo root:
+node apps/demo/scripts/mesh-example.js
+# Expected output: RESULT: PASS (exit 0)
+```
+
+### What the demo does
+
+1. Creates 3 `LocalBackend` instances, each with a separate SQLite database.
+2. Generates a fresh Ed25519 keypair per agent (ephemeral, not persisted).
+3. Starts a `SyncEngine` + `UnixSocketTransport` + `PeerRegistry` per agent.
+4. Agents register their `.peer` files in a shared temp directory for discovery.
+5. Each agent writes a "CLEO Task Spec" document with 3 sections (versions).
+6. After a convergence window (12s), verifies each agent has its 3-version document.
+7. Gracefully shuts down all engines, deregisters peer files, and cleans up temp dirs.
+
+### Architecture
+
+```
+cleo-agent-1 ──[unix:/tmp/llmtxt-mesh-*.sock]──▶ cleo-agent-2
+       │                                                │
+       └────────────────────────────────────────────────┘
+                       cleo-agent-3
+```
+
+- **Transport**: `UnixSocketTransport` with Ed25519 mutual handshake.
+- **Discovery**: File-based (`PeerRegistry` reads `*.peer` files from shared temp dir).
+- **Identity**: Per-agent Ed25519 keypair; `agentId = SHA-256(pubkey)`.
+- **No server**: Zero requests to `api.llmtxt.my`.
+
+### Note on cr-sqlite
+
+Full CRDT changeset sync between agents requires `@vlcn.io/crsqlite` (Phase 2).
+Without it, `LocalBackend` runs in local-only mode (`hasCRR=false`). The demo
+still exercises the transport, discovery, and sync engine layers; only the
+cr-sqlite changeset exchange is skipped (graceful degradation). When
+`@vlcn.io/crsqlite` is available, agents will exchange full cr-sqlite changesets
+and converge on shared database state.
 
 ---
 
