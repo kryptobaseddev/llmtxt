@@ -418,6 +418,55 @@ export const sectionEmbeddings = sqliteTable(
 );
 
 // ────────────────────────────────────────────────────────────────
+// Blob attachments — content-addressed binary blob registry (T458)
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Blob attachments table for LocalBackend.
+ *
+ * Each row represents one attachment of a binary blob to a document.
+ * Bytes are stored on disk at <storagePath>/blobs/<hash>.
+ * LWW semantics: only one active record per (doc_slug, blob_name).
+ * Soft-delete: deleted_at non-null = detached.
+ */
+export const blobAttachments = sqliteTable(
+  'blob_attachments',
+  {
+    id: text('id').primaryKey(),
+    /** FK to documents.slug (logical FK, no constraint for perf). */
+    docSlug: text('doc_slug').notNull(),
+    /** User-visible attachment name (e.g. "diagram.png"), max 255 bytes. */
+    blobName: text('blob_name').notNull(),
+    /** SHA-256 hex digest (64 chars) — content address and storage key. */
+    hash: text('hash').notNull(),
+    /** Original byte count (uncompressed). */
+    size: integer('size').notNull(),
+    /** MIME type (e.g. "image/png"). */
+    contentType: text('content_type').notNull(),
+    /** Agent ID that uploaded this blob. */
+    uploadedBy: text('uploaded_by').notNull(),
+    /** Unix timestamp (milliseconds) when this version was uploaded. */
+    uploadedAt: integer('uploaded_at').notNull(),
+    /** Soft-delete timestamp (ms). Null = active, non-null = deleted. */
+    deletedAt: integer('deleted_at'),
+  },
+  (table) => ({
+    /** Fast per-document lookup. */
+    docSlugIdx: index('blob_attachments_doc_slug_idx').on(table.docSlug),
+    /** Fast hash-based lookup (for dedup and verification). */
+    hashIdx: index('blob_attachments_hash_idx').on(table.hash),
+    /**
+     * Index for (doc_slug, blob_name) lookups.
+     * Uniqueness of ACTIVE records is enforced at the application layer in
+     * BlobFsAdapter.attachBlob (soft-delete before insert). The raw migration
+     * adds a partial unique index via raw SQL. Drizzle does not support partial
+     * unique indexes, so this is declared as a plain index.
+     */
+    activeNameIdx: index('blob_attachments_active_name_idx').on(table.docSlug, table.blobName),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
 // TypeScript type exports (Drizzle inferred)
 // ────────────────────────────────────────────────────────────────
 
@@ -447,6 +496,8 @@ export type ScratchpadEntry = typeof scratchpadEntries.$inferSelect;
 export type NewScratchpadEntry = typeof scratchpadEntries.$inferInsert;
 export type SectionEmbedding = typeof sectionEmbeddings.$inferSelect;
 export type NewSectionEmbedding = typeof sectionEmbeddings.$inferInsert;
+export type BlobAttachment = typeof blobAttachments.$inferSelect;
+export type NewBlobAttachment = typeof blobAttachments.$inferInsert;
 
 // ────────────────────────────────────────────────────────────────
 // Zod schemas (for runtime validation)
