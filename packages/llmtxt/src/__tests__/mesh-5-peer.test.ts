@@ -459,8 +459,10 @@ describe('T421: 5-peer mesh integration — convergence verified', () => {
     // ── Chaos step 4: restart peer 3 and re-add to mesh ──────────────────
 
     // Create a fresh transport for peer 3 (old socket may be stale).
+    // We already have the fields needed for TransportIdentity — pass directly
+    // without wrapping in toTransportIdentity() which expects AgentIdentity.
     const newTransport = new UnixSocketTransport({
-      identity: toTransportIdentity(
+      identity: {
         // Reconstruct identity from stored pk/sk on the existing node.
         // We only have AgentIdentity — rebuild from the backend's peer node.
         // The seed is stored in `victim.engine` indirectly via closure;
@@ -468,12 +470,10 @@ describe('T421: 5-peer mesh integration — convergence verified', () => {
         // which simulates crash-recovery with a new transport instance.
         // NOTE: In production the identity key is persisted to disk; here
         // we reuse the identity from the node's engine by creating a proxy.
-        {
-          agentId: victim.agentId,
-          publicKey: new Uint8Array(Buffer.from(victim.agentId, 'hex').slice(0, 32)), // not used for auth in this restart
-          privateKey: new Uint8Array(32), // placeholder
-        } as TransportIdentity
-      ),
+        agentId: victim.agentId,
+        publicKey: new Uint8Array(Buffer.from(victim.agentId, 'hex').slice(0, 32)), // not used for auth in this restart
+        privateKey: new Uint8Array(32), // placeholder
+      } as TransportIdentity,
       socketPath: victim.socketPath,
     });
 
