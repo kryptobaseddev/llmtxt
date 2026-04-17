@@ -355,3 +355,12 @@ export type {
   HubSpokeConfig,
   MeshConfig,
 } from './topology.js';
+
+// ── Document Export Formatters (T427 / T438, T440, T442, T444) ────────────────
+export {
+  formatMarkdown,
+  formatJson,
+  formatTxt,
+  formatLlmtxt,
+} from './export/index.js';
+export type { DocumentExportState, ExportOpts } from './export/index.js';
