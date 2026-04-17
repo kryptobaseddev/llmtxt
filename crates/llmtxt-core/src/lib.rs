@@ -173,6 +173,12 @@ pub use a2a::A2AMessage;
 #[cfg(feature = "crdt")]
 pub mod crdt;
 
+pub mod canonical;
+pub use canonical::{FrontmatterMeta, canonical_frontmatter, canonical_frontmatter_wasm};
+
+pub mod blob;
+pub use blob::{BlobNameError, blob_name_validate, hash_blob};
+
 // ── Semantic Diff (WASM) ─────────────────────────────────────────
 
 /// WASM binding for [`semantic_diff`].
