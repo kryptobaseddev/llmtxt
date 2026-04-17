@@ -1,0 +1,210 @@
+---
+title: CRDT Section Collaboration
+description: Real-time collaborative editing of document sections using Loro CRDT and the loro-sync-v1 WebSocket protocol.
+---
+
+# CRDT Section Collaboration
+
+LLMtxt provides real-time collaborative editing of document sections via a CRDT
+(Conflict-free Replicated Data Type) layer built on [Loro](https://loro.dev/).
+Multiple agents can concurrently write to the same section; Loro's CRDT
+invariants guarantee convergence to a consistent final state without manual
+conflict resolution.
+
+## Migration Note: Yrs to Loro (Breaking Change)
+
+> **Binary format incompatibility**: The CRDT layer was migrated from
+> [Yrs](https://github.com/y-crdt/y-crdt) (the Rust port of Y.js) to
+> [Loro](https://loro.dev/) in Phase 1. The two formats are **bitwise
+> incompatible**:
+>
+> - **Old**: `yrs` / `lib0 v1` binary encoding + `yjs-sync-v1` WebSocket
+>   subprotocol with `0x00/0x01/0x02/0x03` message framing.
+> - **New**: Loro binary format (magic header `0x6c 0x6f 0x72 0x6f` = "loro")
+>   + `loro-sync-v1` WebSocket subprotocol with `0x01/0x02/0x03/0x04` message
+>   framing.
+>
+> If you have existing code that imports `yjs`, `y-websocket`, or relies on the
+> old framing bytes, you **MUST** update to the current SDK version. There is no
+> automatic detection or conversion path — all section CRDT state was reset on
+> deploy as a clean break.
+
+## Section Model
+
+Every section is modelled as a single Loro Doc with one root `LoroText` named
+`"content"`. The serialized state is a Loro binary snapshot stored in the
+`section_crdt_states.crdt_state` column (renamed from `yrs_state`).
+
+```
+LoroDoc {
+  getText("content"): LoroText  // main text content
+}
+```
+
+Future Loro types (`LoroMap`, `LoroTree`, `LoroRichText`) will be added in
+later phases without breaking the current model.
+
+## Wire Protocol: loro-sync-v1
+
+All WebSocket messages use a **1-byte message type prefix** followed by a Loro
+binary payload. Byte values are intentionally shifted from the old Yrs framing
+to prevent accidental cross-protocol acceptance:
+
+| Byte | Name | Direction | Payload |
+|------|------|-----------|---------|
+| `0x01` | SyncStep1 | client → server | Loro `VersionVector` bytes (from `VersionVector::encode()`) |
+| `0x02` | SyncStep2 | server → client | Loro `ExportMode::Updates` blob (diff since client VV) |
+| `0x03` | Update | bidirectional | Incremental Loro update blob |
+| `0x04` | AwarenessRelay | relay | Raw awareness bytes (same shape as before) |
+
+> Any stray `0x00` frame (legacy Yjs SyncStep1) is silently dropped by the
+> server. Clients using the old `yjs-sync-v1` subprotocol will be rejected.
+
+### Sync Handshake
+
+```
+Client                              Server
+  |                                   |
+  |-- WS connect (loro-sync-v1) ----> |
+  |                                   |
+  |<- [0x01 | serverVersionVector] -- |  (server sends its VV first)
+  |                                   |
+  |-- [0x01 | clientVersionVector] -> |  (client sends SyncStep1)
+  |                                   |
+  |<- [0x02 | diffUpdate] ----------- |  (server sends SyncStep2: ops client is missing)
+  |                                   |
+  | ... ongoing updates ...           |
+  |-- [0x03 | incrementalUpdate] ---> |  (client sends new edits)
+  |<- [0x03 | incrementalUpdate] ---- |  (server broadcasts to other clients)
+```
+
+**Rationale for not using `0x00`**: Avoids ambiguity with the legacy Yjs
+SyncStep1 byte. A stray Yjs client sending `0x00` is dropped rather than
+misinterpreted as a valid Loro SyncStep1.
+
+### VersionVector vs. State Vector
+
+The Loro `VersionVector` (sent in SyncStep1) is **not** a Y.js state vector:
+
+| Property | Loro VersionVector | Y.js state vector (lib0 v1) |
+|----------|-------------------|----------------------------|
+| Encoding | `VersionVector::encode()` | lib0 v1 variable-length int pairs |
+| Decoding | `VersionVector::decode()` | `Y.decodeStateVector()` |
+| Compatible? | No | No |
+
+Do **not** pass Loro VersionVector bytes to any Y.js / lib0 decoder, and vice
+versa. The formats are bitwise incompatible.
+
+## SDK Usage
+
+Install the `llmtxt` package and import from the `crdt` subpath:
+
+```bash
+pnpm add llmtxt
+```
+
+### subscribeSection()
+
+Subscribe to real-time CRDT delta events for a section. The function opens a
+WebSocket using the `loro-sync-v1` subprotocol, performs the initial
+SyncStep1/2 handshake, and calls `callback` whenever the section content
+changes.
+
+```typescript
+import { subscribeSection } from 'llmtxt/crdt';
+
+const unsub = subscribeSection(
+  'my-doc-slug',    // document slug
+  'intro',          // section identifier
+  (delta) => {
+    console.log('Section text:', delta.text);
+    console.log('Received at:', delta.receivedAt);
+    // delta.updateBytes — raw Loro binary bytes (not Y.js bytes)
+  },
+  {
+    baseUrl: 'https://api.llmtxt.my',
+    token: 'llmtxt_your_api_key',
+    onError: (err) => console.error('WS error', err),
+    onAwareness: (payload) => {
+      // 0x04 AwarenessRelay payload — raw bytes from a peer
+    },
+  },
+);
+
+// Later — close the WebSocket:
+unsub();
+```
+
+**What happens internally:**
+
+1. A `new Loro()` doc is created locally with a `"content"` LoroText root.
+2. On WS open: `doc.oplogVersion().encode()` → sent as `0x01` SyncStep1.
+3. On receive `0x02` (SyncStep2): `doc.import(payload)` → emit `SectionDelta`.
+4. On receive `0x03` (Update): `doc.import(payload)` → emit `SectionDelta`.
+5. On receive `0x04` (AwarenessRelay): forward to `onAwareness` if set.
+6. Stray `0x00` frames (legacy Yjs) are silently dropped.
+
+### getSectionText()
+
+Fetch the current plain text of a section via HTTP (no WebSocket required):
+
+```typescript
+import { getSectionText } from 'llmtxt/crdt';
+
+const text = await getSectionText('my-doc-slug', 'intro', {
+  baseUrl: 'https://api.llmtxt.my',
+  token: 'llmtxt_your_api_key',
+});
+
+if (text === null) {
+  console.log('Section not yet initialized');
+} else {
+  console.log('Section content:', text);
+}
+```
+
+The server returns a base64-encoded Loro snapshot. The SDK decodes it,
+imports it into a local `Loro` doc, and reads the `"content"` LoroText root.
+The bytes are Loro binary — **do not pass them to Y.js**.
+
+### SectionDelta Type
+
+```typescript
+interface SectionDelta {
+  slug: string;            // document slug
+  sectionId: string;       // section identifier
+  text: string;            // current plain text after applying delta
+  updateBytes: Uint8Array; // raw Loro binary bytes (NOT Y.js bytes)
+  receivedAt: number;      // wall clock ms since epoch
+}
+```
+
+## Server-Side CRDT (crates/llmtxt-core)
+
+The backend uses six WASM-exported functions from `crates/llmtxt-core/src/crdt.rs`:
+
+| Function | Loro equivalent | Notes |
+|----------|----------------|-------|
+| `crdt_new_doc()` | `LoroDoc::new(); doc.export(Snapshot)` | Returns Loro snapshot bytes, not a state vector |
+| `crdt_encode_state_as_update(state)` | `doc.export(Snapshot)` | Full snapshot for bootstrap |
+| `crdt_apply_update(state, update)` | `doc.import(&update); doc.export(Snapshot)` | Idempotent (CRDT property) |
+| `crdt_merge_updates(updates)` | `for u in updates { doc.import(u) }; doc.export(Snapshot)` | Convergence guaranteed |
+| `crdt_state_vector(state)` | `doc.oplog_vv().encode()` | Loro VersionVector bytes |
+| `crdt_diff_update(state, remoteSv)` | `doc.export(Updates { from: vv })` | Diff since remote VV |
+
+All function names are **unchanged** from the Yrs implementation (WASM binary
+compatibility preserved). Only the internal format changed.
+
+## Convergence Guarantee
+
+Loro's CRDT invariants guarantee that any two agents applying the same set of
+updates in any order will converge to identical text. This is verified by the
+native Rust byte-identity test in `crates/llmtxt-core` (P1.8) and the
+two-agent convergence test in `packages/llmtxt/src/__tests__/crdt-primitives.test.ts`.
+
+## Awareness (0x04)
+
+The `0x04` AwarenessRelay frame carries ephemeral presence state (cursor
+positions, agent identifiers). The server does not decode the payload — it is
+a pure relay. See [Presence & Awareness](/docs/multi-agent/presence) for
+the full REST API and SDK usage.

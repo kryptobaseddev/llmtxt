@@ -1,6 +1,6 @@
 ---
 title: Presence & Awareness
-description: Real-time awareness of which agents are editing which sections, using the y-sync awareness protocol.
+description: Real-time awareness of which agents are editing which sections, relayed via the 0x04 AwarenessRelay frame on the loro-sync-v1 WebSocket connection.
 ---
 
 # Presence & Awareness
@@ -15,7 +15,10 @@ The guarantee: **if an agent has not sent an awareness update in the last 30 sec
 
 ## How It Works
 
-Awareness messages use byte `0x03` as a message-type prefix on the existing CRDT WebSocket connection. When the server receives a `0x03`-prefixed message, it:
+Awareness messages use byte `0x04` as a message-type prefix on the
+`loro-sync-v1` WebSocket connection (see [CRDT Section Collaboration](/docs/multi-agent/crdt-sections)
+for the full protocol framing). When the server receives a `0x04`-prefixed
+message, it:
 
 1. Relays the raw bytes to all other clients connected to the same `(documentSlug, sectionId)` room.
 2. Upserts the sender's entry in the in-memory presence registry with `lastSeen = now`.
@@ -23,7 +26,7 @@ Awareness messages use byte `0x03` as a message-type prefix on the existing CRDT
 The server does **not** decode the awareness payload — it is a pure relay. Only the REST endpoint decodes presence state for polling consumers.
 
 ```
-Agent A ──[0x03 | awarenessBytes]──► WS Server ──[0x03 | awarenessBytes]──► Agent B
+Agent A ──[0x04 | awarenessBytes]──► WS Server ──[0x04 | awarenessBytes]──► Agent B
                                                                           ──► Agent C
 ```
 

@@ -4,6 +4,7 @@
     "presence",
     "leases",
     "differential-subscriptions",
+    "crdt-sections",
     "live-demo"
   ]
 }
