@@ -71,6 +71,8 @@ interface CliArgs {
   port?: number;
   peer?: string;
   meshDir?: string;
+  // Session flags
+  sessionFile?: string;
 }
 
 function parseArgs(argv: string[]): CliArgs {
@@ -120,6 +122,8 @@ function parseArgs(argv: string[]): CliArgs {
       args.peer = argv[++i];
     } else if (arg === '--mesh-dir' && argv[i + 1]) {
       args.meshDir = argv[++i];
+    } else if (arg === '--session-file' && argv[i + 1]) {
+      args.sessionFile = argv[++i];
     } else {
       rest.push(arg!);
     }
@@ -1665,6 +1669,186 @@ async function cmdMesh(args: CliArgs): Promise<void> {
   }
 }
 
+// ── Session commands ──────────────────────────────────────────────
+
+/**
+ * Shape of the session state file written to disk by `session start`.
+ * Stored at .llmtxt-session.json (or --session-file path) in cwd.
+ */
+interface SessionStateFile {
+  sessionId: string;
+  agentId: string;
+  openedAt: string;
+  backendType: 'remote' | 'local';
+  remote?: string;
+  apiKey?: string;
+  storage?: string;
+}
+
+/**
+ * `llmtxt session start` — open an AgentSession and persist its state.
+ *
+ * Flags:
+ *   --remote <url>        Use RemoteBackend
+ *   --api-key <key>       API key for RemoteBackend
+ *   --storage <path>      LocalBackend storage dir (default: .llmtxt)
+ *   --agent <id>          Override agent identity id
+ *   --session-file <path> Where to write the session state (default: .llmtxt-session.json)
+ *
+ * Exits 1 on any failure.
+ */
+async function cmdSessionStart(args: CliArgs): Promise<void> {
+  const sessionFilePath = path.resolve(args.sessionFile ?? '.llmtxt-session.json');
+
+  if (fs.existsSync(sessionFilePath)) {
+    console.error(
+      `Error: session state file already exists at ${sessionFilePath}. ` +
+      'Run `llmtxt session end` to close the existing session first.'
+    );
+    process.exit(1);
+  }
+
+  const identity = loadIdentity(path.resolve(args.storage));
+  const agentId = args.agentId ?? identity?.agentId;
+
+  if (!agentId) {
+    console.error(
+      'Error: could not determine agent ID. ' +
+      'Run `llmtxt init` first, or supply --agent <id>.'
+    );
+    process.exit(1);
+  }
+
+  const backend = await createBackend(args);
+  await backend.open();
+
+  const { AgentSession } = await import('../sdk/session.js');
+  const session = new AgentSession({ backend, agentId });
+
+  await session.open();
+
+  const stateFile: SessionStateFile = {
+    sessionId: session.getSessionId(),
+    agentId,
+    openedAt: new Date().toISOString(),
+    backendType: args.remote ? 'remote' : 'local',
+    remote: args.remote,
+    apiKey: args.apiKey,
+    storage: args.remote ? undefined : args.storage,
+  };
+
+  fs.writeFileSync(sessionFilePath, JSON.stringify(stateFile, null, 2), { mode: 0o600 });
+
+  // backend stays open — session is live. We do NOT call backend.close() here.
+  // The session state file is the handoff. `session end` will reconstruct + close.
+
+  console.log(session.getSessionId());
+}
+
+/**
+ * `llmtxt session end` — close the active AgentSession and emit the ContributionReceipt.
+ *
+ * Flags:
+ *   --session-file <path>  Path to session state file (default: .llmtxt-session.json)
+ *
+ * Prints ContributionReceipt JSON to stdout. Exits 1 on failure.
+ */
+async function cmdSessionEnd(args: CliArgs): Promise<void> {
+  const sessionFilePath = path.resolve(args.sessionFile ?? '.llmtxt-session.json');
+
+  if (!fs.existsSync(sessionFilePath)) {
+    console.error(
+      `Error: no session state file found at ${sessionFilePath}. ` +
+      'Start a session first with `llmtxt session start`.'
+    );
+    process.exit(1);
+  }
+
+  let stateFile: SessionStateFile;
+  try {
+    stateFile = JSON.parse(fs.readFileSync(sessionFilePath, 'utf8')) as SessionStateFile;
+  } catch (err) {
+    console.error(`Error: could not parse session file at ${sessionFilePath}: ${(err as Error).message}`);
+    process.exit(1);
+  }
+
+  // Reconstruct backend from stored config
+  let backend: Awaited<ReturnType<typeof createBackend>>;
+  if (stateFile.backendType === 'remote' && stateFile.remote) {
+    const { RemoteBackend } = await import('../remote/remote-backend.js');
+    backend = new RemoteBackend({ baseUrl: stateFile.remote, apiKey: stateFile.apiKey });
+  } else {
+    const { LocalBackend } = await import('../local/local-backend.js');
+    backend = new LocalBackend({ storagePath: stateFile.storage ?? '.llmtxt' });
+  }
+  await backend.open();
+
+  const { AgentSession } = await import('../sdk/session.js');
+  // Reconstruct session in Active state by creating with the persisted sessionId.
+  // We call open() to drive the state machine; duplicate presence join is non-fatal.
+  const session = new AgentSession({
+    backend,
+    agentId: stateFile.agentId,
+    sessionId: stateFile.sessionId,
+  });
+  await session.open();
+
+  let receipt: Awaited<ReturnType<typeof session.close>>;
+  try {
+    receipt = await session.close();
+  } catch (err: unknown) {
+    // SESSION_CLOSE_PARTIAL still contains a receipt — surface it
+    if (
+      err instanceof Error &&
+      'receipt' in err &&
+      err.receipt !== undefined
+    ) {
+      const partial = err as { receipt: unknown };
+      console.error(`Warning: session closed with partial errors: ${err.message}`);
+      console.log(JSON.stringify(partial.receipt, null, 2));
+      fs.unlinkSync(sessionFilePath);
+      await backend.close();
+      return;
+    }
+    console.error(`Error: could not close session: ${(err as Error).message}`);
+    await backend.close().catch(() => {});
+    process.exit(1);
+  }
+
+  fs.unlinkSync(sessionFilePath);
+  await backend.close();
+
+  console.log(JSON.stringify(receipt, null, 2));
+}
+
+/**
+ * Dispatch for `llmtxt session <subcommand>` commands.
+ */
+async function cmdSession(args: CliArgs): Promise<void> {
+  const subcommand = args.positional[0];
+  const subArgs: CliArgs = {
+    ...args,
+    positional: args.positional.slice(1),
+  };
+
+  switch (subcommand) {
+    case 'start':
+      await cmdSessionStart(subArgs);
+      break;
+    case 'end':
+      await cmdSessionEnd(subArgs);
+      break;
+    default:
+      if (!subcommand) {
+        console.error('Usage: llmtxt session <start|end>');
+      } else {
+        console.error(`Unknown session subcommand: ${subcommand}`);
+        console.error('Usage: llmtxt session <start|end>');
+      }
+      process.exit(1);
+  }
+}
+
 // ── Help text ─────────────────────────────────────────────────────
 
 function printHelp() {
@@ -1700,6 +1884,8 @@ COMMANDS
   detach <slug> <blobname>   Remove a named blob attachment from a document
   blobs <slug>               List all blob attachments for a document
   mesh <subcommand>          P2P mesh operations (start/stop/status/peers/sync)
+  session start              Open an AgentSession and write .llmtxt-session.json
+  session end                Close the active AgentSession and print ContributionReceipt
 
 MESH SUBCOMMANDS
   mesh start                 Start the P2P sync engine (runs until SIGTERM)
@@ -1724,6 +1910,9 @@ SYNC FLAGS (cr-sqlite changeset exchange — T406/P2.8)
   --db <path>                  Override local storage path for sync
   --since <db-version>         Override last-sync dbVersion (forces full re-sync from N)
 
+SESSION FLAGS
+  --session-file <path>        Session state file (default: .llmtxt-session.json in cwd)
+
 EXPORT / IMPORT FLAGS
   --format md|json|txt|llmtxt  Export format (default: md)
   --output <path>              Output file or directory (default: current dir)
@@ -1745,6 +1934,8 @@ EXAMPLES
   llmtxt import ./specs/my-spec.md
   llmtxt search "authentication design"
   llmtxt sync --remote https://api.llmtxt.my --api-key $API_KEY
+  llmtxt session start --remote https://api.llmtxt.my --api-key $API_KEY
+  llmtxt session end
 `.trim());
 }
 
@@ -1811,6 +2002,9 @@ async function main() {
         break;
       case 'mesh':
         await cmdMesh(args);
+        break;
+      case 'session':
+        await cmdSession(args);
         break;
       default:
         console.error(`Unknown command: ${args.command}`);
