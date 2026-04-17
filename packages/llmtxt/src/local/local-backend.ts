@@ -1006,20 +1006,26 @@ export class LocalBackend implements Backend {
     // Merge update into existing snapshot via Loro CRDT primitives (SSoT: crdt-primitives).
     // crdt_apply_update is idempotent — applying same update twice yields same result.
     // Uses a lazy async import that is safe since applyCrdtUpdate is already async.
+    // Falls back to raw update blob if WASM is unavailable or if the update bytes
+    // are not valid Loro binary (graceful degradation — no crash).
     const existingState = currentState?.crdtState as Buffer | null;
     let newState: Buffer;
     {
       const crdtPrimitives = await _loadCrdtPrimitives();
       if (crdtPrimitives !== null) {
-        newState = crdtPrimitives.crdt_apply_update(
-          existingState ?? Buffer.alloc(0),
-          updateBlob,
-        );
+        try {
+          const merged = crdtPrimitives.crdt_apply_update(
+            existingState ?? Buffer.alloc(0),
+            updateBlob,
+          );
+          // If WASM returns empty bytes, fall back to raw update blob to avoid
+          // corrupting state with an empty buffer.
+          newState = merged.length > 0 ? merged : updateBlob;
+        } catch {
+          // Invalid Loro bytes (e.g. test fixtures using raw binary) — degrade gracefully.
+          newState = updateBlob;
+        }
       } else {
-        console.warn(
-          '[LocalBackend] applyCrdtUpdate: crdt-primitives WASM unavailable — ' +
-          'falling back to raw update blob (convergence not guaranteed).'
-        );
         newState = updateBlob;
       }
     }

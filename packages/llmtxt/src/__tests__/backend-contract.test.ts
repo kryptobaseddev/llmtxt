@@ -30,6 +30,14 @@ import os from 'node:os';
 import type { Backend } from '../core/backend.js';
 import { LocalBackend } from '../local/local-backend.js';
 import { PG_AVAILABLE, createPgBackend } from './helpers/test-pg.js';
+import {
+  crdt_make_state,
+  crdt_make_incremental_update,
+  crdt_apply_update,
+  crdt_get_text,
+  crdt_state_vector,
+  crdt_diff_update,
+} from '../crdt-primitives.js';
 
 // ── Test helpers ──────────────────────────────────────────────────
 
@@ -569,6 +577,285 @@ function runContractSuite(label: string, factory: BackendFactory) {
             `event ${i} createdAt (${timestamps[i]}) must be >= event ${i - 1} createdAt (${timestamps[i - 1]})`
           );
         }
+      });
+    });
+
+    // ── CRDT section ops (T396 / P1.10) ──────────────────────────────────────
+    //
+    // These tests verify that applyCrdtUpdate / getCrdtState use Loro primitives
+    // and that both LocalBackend and PostgresBackend produce identical convergence
+    // results. No yrs or lib0 encoding is used in any assertion.
+
+    describe('CRDT section ops: applyCrdtUpdate / getCrdtState', () => {
+      it('getCrdtState returns null for a section with no updates', async () => {
+        const doc = await backend.createDocument({
+          title: 'CRDT Null State Test',
+          createdBy: 'agent-crdt',
+        });
+
+        const state = await backend.getCrdtState(doc.id, 'intro');
+        assert.equal(state, null, 'getCrdtState must return null when no update has been applied');
+      });
+
+      it('applyCrdtUpdate persists a Loro snapshot and getCrdtState retrieves it', async () => {
+        const doc = await backend.createDocument({
+          title: 'CRDT Persist Test',
+          createdBy: 'agent-crdt',
+        });
+
+        // Build a Loro state and apply it
+        const loroSnapshot = crdt_make_state('section content from agent');
+        const updateBase64 = loroSnapshot.toString('base64');
+
+        const result = await backend.applyCrdtUpdate({
+          documentId: doc.id,
+          sectionKey: 'body',
+          updateBase64,
+          agentId: 'agent-1',
+        });
+
+        assert.equal(result.documentId, doc.id, 'returned CrdtState must reference the document');
+        assert.equal(result.sectionKey, 'body', 'returned CrdtState must reference the section');
+        assert.ok(result.snapshotBase64.length > 0, 'snapshotBase64 must be non-empty');
+        assert.ok(result.stateVectorBase64.length > 0, 'stateVectorBase64 must be non-empty');
+
+        // getCrdtState must return the same snapshot
+        const fetched = await backend.getCrdtState(doc.id, 'body');
+        assert.ok(fetched, 'getCrdtState must return a state after applyCrdtUpdate');
+        assert.equal(fetched.documentId, doc.id);
+        assert.equal(fetched.sectionKey, 'body');
+        assert.ok(fetched.snapshotBase64.length > 0, 'fetched snapshotBase64 must be non-empty');
+
+        // Decode the stored snapshot and verify it contains the original content
+        const storedBlob = Buffer.from(fetched.snapshotBase64, 'base64');
+        const storedText = crdt_get_text(storedBlob);
+        assert.equal(storedText, 'section content from agent', 'stored snapshot must decode to original content');
+      });
+
+      it('applying a second update merges via Loro (idempotent CRDT)', async () => {
+        const doc = await backend.createDocument({
+          title: 'CRDT Merge Test',
+          createdBy: 'agent-crdt',
+        });
+
+        // Agent 1 applies initial content
+        const snap1 = crdt_make_state('Agent1 content');
+        await backend.applyCrdtUpdate({
+          documentId: doc.id,
+          sectionKey: 'merged',
+          updateBase64: snap1.toString('base64'),
+          agentId: 'agent-1',
+        });
+
+        // Agent 2 applies incremental update on top of agent 1's state
+        const update2 = crdt_make_incremental_update(snap1, ' plus Agent2');
+        await backend.applyCrdtUpdate({
+          documentId: doc.id,
+          sectionKey: 'merged',
+          updateBase64: update2.toString('base64'),
+          agentId: 'agent-2',
+        });
+
+        const state = await backend.getCrdtState(doc.id, 'merged');
+        assert.ok(state, 'getCrdtState must return state after two updates');
+        const blob = Buffer.from(state.snapshotBase64, 'base64');
+        const text = crdt_get_text(blob);
+
+        // After merging: must contain agent 1's contribution
+        assert.ok(text.includes('Agent1 content'), `merged text '${text}' must include Agent1 content`);
+      });
+
+      it('applying same update twice is idempotent (CRDT property)', async () => {
+        const doc = await backend.createDocument({
+          title: 'CRDT Idempotency Test',
+          createdBy: 'agent-crdt',
+        });
+
+        const snap = crdt_make_state('idempotent section');
+        const updateBase64 = snap.toString('base64');
+
+        // Apply once
+        await backend.applyCrdtUpdate({
+          documentId: doc.id,
+          sectionKey: 'idem',
+          updateBase64,
+          agentId: 'agent-1',
+        });
+
+        const stateAfterFirst = await backend.getCrdtState(doc.id, 'idem');
+        assert.ok(stateAfterFirst, 'state must exist after first apply');
+
+        // Apply same update again (idempotent)
+        await backend.applyCrdtUpdate({
+          documentId: doc.id,
+          sectionKey: 'idem',
+          updateBase64,
+          agentId: 'agent-1',
+        });
+
+        const stateAfterSecond = await backend.getCrdtState(doc.id, 'idem');
+        assert.ok(stateAfterSecond, 'state must exist after second apply');
+
+        // Content must be identical
+        const textFirst = crdt_get_text(Buffer.from(stateAfterFirst.snapshotBase64, 'base64'));
+        const textSecond = crdt_get_text(Buffer.from(stateAfterSecond.snapshotBase64, 'base64'));
+        assert.equal(textFirst, textSecond, 'idempotent: applying same update twice must yield same content');
+        assert.equal(textFirst, 'idempotent section', 'content must match original');
+      });
+
+      it('stateVectorBase64 encodes a valid Loro VersionVector (non-empty, decodable)', async () => {
+        const doc = await backend.createDocument({
+          title: 'CRDT State Vector Test',
+          createdBy: 'agent-crdt',
+        });
+
+        const snap = crdt_make_state('sv-test content');
+        await backend.applyCrdtUpdate({
+          documentId: doc.id,
+          sectionKey: 'sv-check',
+          updateBase64: snap.toString('base64'),
+          agentId: 'agent-sv',
+        });
+
+        const state = await backend.getCrdtState(doc.id, 'sv-check');
+        assert.ok(state, 'state must exist');
+
+        // stateVectorBase64 must decode to non-empty bytes
+        const svBytes = Buffer.from(state.stateVectorBase64, 'base64');
+        assert.ok(svBytes.length > 0, 'stateVectorBase64 must decode to non-empty bytes');
+
+        // The VersionVector must be usable as a diff_update input
+        const snapshotBlob = Buffer.from(state.snapshotBase64, 'base64');
+        const selfDiff = crdt_diff_update(snapshotBlob, svBytes);
+        // Applying self-diff must not change content
+        const afterSelfDiff = crdt_apply_update(snapshotBlob, selfDiff);
+        assert.equal(
+          crdt_get_text(afterSelfDiff as Buffer),
+          crdt_get_text(snapshotBlob),
+          'self-diff must not change content (state vector up-to-date)'
+        );
+      });
+    });
+
+    describe('CRDT 2-agent convergence via backend ops', () => {
+      it('two agents apply concurrent updates; server converges both agents to identical content', async () => {
+        const doc = await backend.createDocument({
+          title: 'CRDT 2-Agent Convergence Test',
+          createdBy: 'orchestrator',
+        });
+
+        // Agent A: builds a Loro state with 3 incremental edits
+        let agentAState: Buffer = Buffer.alloc(0);
+        const agentAUpdates: string[] = [];
+        for (let i = 0; i < 3; i++) {
+          const upd = crdt_make_incremental_update(agentAState, `A${i} `);
+          agentAUpdates.push(upd.toString('base64'));
+          agentAState = Buffer.from(crdt_apply_update(agentAState, upd));
+        }
+
+        // Agent B: concurrent edits starting from empty
+        let agentBState: Buffer = Buffer.alloc(0);
+        const agentBUpdates: string[] = [];
+        for (let i = 0; i < 3; i++) {
+          const upd = crdt_make_incremental_update(agentBState, `B${i} `);
+          agentBUpdates.push(upd.toString('base64'));
+          agentBState = Buffer.from(crdt_apply_update(agentBState, upd));
+        }
+
+        // Apply all agent A updates to the backend (simulates A's WS stream)
+        for (const upd of agentAUpdates) {
+          await backend.applyCrdtUpdate({
+            documentId: doc.id,
+            sectionKey: 'convergence',
+            updateBase64: upd,
+            agentId: 'agent-a',
+          });
+        }
+
+        // Apply all agent B updates to the backend (simulates B's WS stream)
+        for (const upd of agentBUpdates) {
+          await backend.applyCrdtUpdate({
+            documentId: doc.id,
+            sectionKey: 'convergence',
+            updateBase64: upd,
+            agentId: 'agent-b',
+          });
+        }
+
+        // Retrieve server state
+        const serverState = await backend.getCrdtState(doc.id, 'convergence');
+        assert.ok(serverState, 'server must have a CRDT state after all updates');
+
+        const serverBlob = Buffer.from(serverState.snapshotBase64, 'base64');
+        const serverText = crdt_get_text(serverBlob);
+
+        // Agent A reconnects: SyncStep1 — sends its VersionVector
+        const svA = crdt_state_vector(agentAState);
+        // SyncStep2 — backend provides diff
+        const diffForA = crdt_diff_update(serverBlob, svA);
+        const agentAFinal = crdt_apply_update(agentAState, diffForA);
+        const textA = crdt_get_text(agentAFinal as Buffer);
+
+        // Agent B reconnects: same pattern
+        const svB = crdt_state_vector(agentBState);
+        const diffForB = crdt_diff_update(serverBlob, svB);
+        const agentBFinal = crdt_apply_update(agentBState, diffForB);
+        const textB = crdt_get_text(agentBFinal as Buffer);
+
+        // All three must converge to identical content
+        assert.equal(textA, serverText, 'Agent A must converge to server state');
+        assert.equal(textB, serverText, 'Agent B must converge to server state');
+
+        // Verify all contributions are present
+        for (let i = 0; i < 3; i++) {
+          assert.ok(serverText.includes(`A${i}`), `Agent A update ${i} must be in merged state`);
+          assert.ok(serverText.includes(`B${i}`), `Agent B update ${i} must be in merged state`);
+        }
+      });
+
+      it('convergence is backend-independent: both backends produce same Loro content for same updates', async () => {
+        // This test is LocalBackend-only (contrast is against a known computed state).
+        // The contract guarantee is: given the same sequence of Loro updates applied
+        // via applyCrdtUpdate, getCrdtState().snapshotBase64 must decode to the same
+        // content. Backend-independence is verified by running the same suite on both
+        // LocalBackend and PostgresBackend (when PG is available).
+
+        const doc = await backend.createDocument({
+          title: 'CRDT Backend-Independence Test',
+          createdBy: 'agent-crdt',
+        });
+
+        const u1 = crdt_make_state('independent-update-1');
+        const u2 = crdt_make_incremental_update(u1, ' plus-2');
+
+        // Apply both updates through the backend
+        await backend.applyCrdtUpdate({
+          documentId: doc.id,
+          sectionKey: 'bi-test',
+          updateBase64: u1.toString('base64'),
+          agentId: 'agent-a',
+        });
+        await backend.applyCrdtUpdate({
+          documentId: doc.id,
+          sectionKey: 'bi-test',
+          updateBase64: u2.toString('base64'),
+          agentId: 'agent-b',
+        });
+
+        // Compute expected text locally (without the backend) for comparison
+        const localMerge = crdt_apply_update(crdt_apply_update(Buffer.alloc(0), u1), u2);
+        const expectedText = crdt_get_text(localMerge as Buffer);
+
+        // Retrieve via backend and compare
+        const state = await backend.getCrdtState(doc.id, 'bi-test');
+        assert.ok(state, 'state must exist after applying two updates');
+        const backendText = crdt_get_text(Buffer.from(state.snapshotBase64, 'base64'));
+
+        assert.equal(
+          backendText,
+          expectedText,
+          `backend must produce same content as local CRDT merge: expected '${expectedText}', got '${backendText}'`
+        );
       });
     });
   });
