@@ -1,8 +1,9 @@
 # Spec P1: Yrs → Loro CRDT Migration
 
-**Version**: 1.1.0
+**Version**: 1.2.0
 **Status**: DRAFT — planning only, no implementation
 **RFC 2119 Key words**: MUST, MUST NOT, SHOULD, MAY
+**Validated**: 2026-04-17 against `crdt.rs`, `Cargo.toml`, `ws-crdt.ts`, and Loro 1.10.x docs.rs
 
 ---
 
@@ -57,31 +58,51 @@ cr-sqlite or P2P mesh (Phases 2 and 3).
 
 ### 3.1 Core Six Functions
 
-| Yrs function | Loro equivalent | Notes |
-|---|---|---|
-| `crdt_new_doc()` | `LoroDoc::new()` + `doc.export(ExportMode::Snapshot)` | Returns full snapshot bytes, not state vector. Caller interprets as "initial state". |
-| `crdt_encode_state_as_update(state)` | `LoroDoc::import(state)` then `doc.export(ExportMode::Snapshot)` | Full snapshot export |
-| `crdt_apply_update(state, update)` | `LoroDoc::import(state)` then `doc.import(update)` then `doc.export(ExportMode::Snapshot)` | Loro import is idempotent |
-| `crdt_merge_updates(updates)` | `LoroDoc::new(); for u in updates { doc.import(u) }; doc.export(ExportMode::Snapshot)` | Convergence guaranteed |
-| `crdt_state_vector(state)` | `LoroDoc::import(state)` then `doc.oplog_vv().encode()` | Loro uses `VersionVector`, not Y.js state vector; encoding is different |
-| `crdt_diff_update(state, remote_sv)` | `LoroDoc::import(state)` then `doc.export(ExportMode::Updates { from: vv })` | `from` = decoded remote version vector |
+Validated 2026-04-17: all six functions confirmed present in `crates/llmtxt-core/src/crdt.rs`.
+Loro Rust API confirmed against docs.rs/loro 1.10.x:
+- `ExportMode` enum variants: `Snapshot`, `Updates { from: Cow<'a, VersionVector> }`, `UpdatesInRange`, `ShallowSnapshot`, `StateOnly`, `SnapshotAt`
+- `LoroDoc::import(&self, bytes: &[u8])` is an instance method (NOT a static constructor)
+- `LoroDoc::oplog_vv(&self) -> VersionVector` confirmed
+- `VersionVector::encode(&self) -> Vec<u8>` and `VersionVector::decode(bytes) -> VersionVector` confirmed
+
+The table below uses pseudocode notation. `doc.import(&state)` always means: first call
+`let doc = LoroDoc::new(); doc.import(&state).unwrap()`. Exact error handling is
+left to the implementation task (P1.3).
+
+| Yrs function | Current Yrs behavior | Loro equivalent | Notes |
+|---|---|---|---|
+| `crdt_new_doc()` | Returns `state_vector().encode_v1()` (empty state vector bytes) | `LoroDoc::new(); doc.export(ExportMode::Snapshot)` | **Semantic change**: Loro returns a full snapshot for a new doc, not a state vector. Caller MUST treat the return value as an opaque state blob. |
+| `crdt_encode_state_as_update(state)` | Decodes Yrs state, returns full update blob | `let doc = LoroDoc::new(); doc.import(&state); doc.export(ExportMode::Snapshot)` | Full snapshot export. In Loro, snapshot = update for bootstrap purposes. |
+| `crdt_apply_update(state, update)` | Applies lib0 update to state, returns new state | `let doc = LoroDoc::new(); doc.import(&state); doc.import(&update); doc.export(ExportMode::Snapshot)` | Loro `import` is idempotent — applying same update twice yields same result. |
+| `crdt_merge_updates(updates)` | Merges multiple update blobs via `yrs::merge_updates_v1` | `let doc = LoroDoc::new(); for u in updates { doc.import(u) }; doc.export(ExportMode::Snapshot)` | Convergence guaranteed by CRDT invariants. |
+| `crdt_state_vector(state)` | Returns lib0 v1-encoded Y.js state vector | `let doc = LoroDoc::new(); doc.import(&state); doc.oplog_vv().encode()` | Loro uses `VersionVector` (not Y.js state vector). The `encode()` output is **bitwise incompatible** with lib0 state vector bytes. Remote peers MUST use `VersionVector::decode()` to parse. |
+| `crdt_diff_update(state, remote_sv)` | Returns lib0 diff from server state to client sv | `let doc = LoroDoc::new(); doc.import(&state); let vv = VersionVector::decode(&remote_sv); doc.export(ExportMode::Updates { from: Cow::Owned(vv) })` | `from` MUST be a decoded Loro `VersionVector`, not a raw Y.js state vector. |
 
 ### 3.2 Sync Protocol Impact
 
-The Yjs wire protocol uses:
-- **Sync step 1**: client sends `[0x00, ...state_vector_bytes]`
-- **Sync step 2**: server sends `[0x01, ...diff_update_bytes]`
-- **Awareness**: `[0x01, ...]` with different message type
+Validated 2026-04-17: `apps/backend/src/routes/ws-crdt.ts` confirmed using y-sync framing
+(`SYNC_STEP_1=0x00`, `SYNC_STEP_2=0x01`, `MSG_UPDATE=0x02`, `MSG_AWARENESS_RELAY=0x03`).
+Loro does NOT implement the Yjs wire protocol.
 
-Loro does NOT implement the Yjs wire protocol. The WS handler
-(`ws-crdt.ts`) MUST be updated to use a custom framing:
-- **Loro sync step 1**: client sends Loro `VersionVector` bytes (framed)
-- **Loro sync step 2**: server sends Loro `Updates` export (framed)
+**Current Yrs framing** (in `ws-crdt.ts`, to be replaced):
+- `0x00` = SyncStep1 (client → server: Y.js state vector)
+- `0x01` = SyncStep2 (server → client: Y.js diff update)
+- `0x02` = Update (bidirectional: Y.js incremental update)
+- `0x03` = AwarenessRelay (relay only, unchanged)
 
-The framing SHOULD use a 1-byte message type prefix:
-- `0x01` = SyncStep1 (version vector)
-- `0x02` = SyncStep2 (update blob)
-- `0x03` = Update (incremental, client → server)
+**Proposed Loro framing** (post-migration, to be implemented in P1.6):
+
+The framing MUST use a 1-byte message type prefix. Byte values are
+intentionally shifted from the Yrs values to prevent accidental cross-protocol
+acceptance by legacy clients:
+- `0x01` = SyncStep1 (client → server: Loro `VersionVector` encoded bytes)
+- `0x02` = SyncStep2 (server → client: Loro `ExportMode::Updates` blob)
+- `0x03` = Update (client → server: incremental Loro update blob)
+- `0x04` = AwarenessRelay (raw relay, unchanged from current; byte value updated)
+
+**Rationale for not using `0x00`**: Avoids ambiguity with Yjs SyncStep1 byte.
+Any stray Yjs client connecting after migration would send `0x00` (Yjs SyncStep1)
+which MUST be rejected by the Loro handler rather than misinterpreted.
 
 **Decision record DR-P1-01**: Custom framing chosen over y-protocol wrapper to
 avoid a hard dependency on the y-sync message format after removing yrs. This
@@ -90,9 +111,19 @@ the Loro-based client SDK. Mixed-client environments are NOT supported.
 
 ### 3.3 Encoding Incompatibility
 
-Yrs uses `lib0 v1` binary encoding. Loro uses its own binary format. They are
-**bitwise incompatible**. A Loro `import()` call given raw Yrs bytes WILL
-return an error.
+Yrs uses `lib0 v1` binary encoding. Loro uses its own binary format (Loro binary
+with a 4-byte magic header + 16-byte checksum + 2-byte mode prefix). They are
+**bitwise incompatible**. A Loro `doc.import()` call given raw Yrs bytes WILL
+return an error (`LoroError`). A Yrs `Update::decode_v1()` call given Loro bytes
+WILL fail. There is NO automatic detection or conversion path.
+
+The `VersionVector` encoding is also incompatible:
+- **Yrs**: lib0 v1-encoded state vector (variable-length integer pairs)
+- **Loro**: `VersionVector::encode()` output (Loro's own binary VV format)
+
+The Loro framing protocol (`0x01` SyncStep1) carries Loro `VersionVector` bytes.
+Peers MUST call `VersionVector::decode()` on received SyncStep1 payloads — they
+MUST NOT pass them directly to Yrs or any lib0 decoder.
 
 ---
 
