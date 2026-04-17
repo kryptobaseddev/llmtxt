@@ -1249,6 +1249,58 @@ export const sectionEmbeddings = pgTable(
 );
 
 // ────────────────────────────────────────────────────────────────
+// Blob Attachments (T428 Binary Blobs)
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Blob attachments table - stores metadata and storage info for binary attachments.
+ *
+ * Blobs are content-addressed by SHA-256 hash. Attachment names are scoped per
+ * document and use Last-Write-Wins (LWW) for conflict resolution when multiple
+ * agents upload to the same (doc_slug, blob_name).
+ *
+ * The deleted_at field enables soft-delete; null = active, non-null = soft-deleted.
+ */
+export const blobAttachments = pgTable(
+  'blob_attachments',
+  {
+    id: text('id').primaryKey(),
+    /** FK to documents.slug (logical FK, no constraint for perf). */
+    docSlug: text('doc_slug').notNull(),
+    /** User-visible attachment name (e.g. "diagram.png"), max 255 bytes. */
+    blobName: text('blob_name').notNull(),
+    /** SHA-256 hex digest (64 chars) — content address and storage key. */
+    hash: text('hash').notNull(),
+    /** Original byte count (uncompressed). */
+    size: bigint('size', { mode: 'number' }).notNull(),
+    /** MIME type (e.g. "image/png"). */
+    contentType: text('content_type').notNull(),
+    /** Agent ID that uploaded this blob. */
+    uploadedBy: text('uploaded_by').notNull(),
+    /** Unix timestamp (milliseconds) when this version was uploaded. */
+    uploadedAt: bigint('uploaded_at', { mode: 'number' }).notNull(),
+    /** PG large object OID (non-null when blobStorageMode = 'pg-lo', else null). */
+    pgLoOid: bigint('pg_lo_oid', { mode: 'number' }),
+    /** S3/R2 object key (non-null when blobStorageMode = 's3', else null). */
+    s3Key: text('s3_key'),
+    /** Soft-delete timestamp (ms). Null = active, non-null = deleted. */
+    deletedAt: bigint('deleted_at', { mode: 'number' }),
+  },
+  (table) => ({
+    /** Fast per-document lookup. */
+    docSlugIdx: index('blob_attachments_doc_slug_idx').on(table.docSlug),
+    /** Fast hash-based lookup (for dedup and verification). */
+    hashIdx: index('blob_attachments_hash_idx').on(table.hash),
+    /**
+     * Unique constraint: only one active attachment per (doc_slug, blob_name).
+     * The partial index (WHERE deleted_at IS NULL) is added via raw-SQL migration
+     * to ensure only one active record per name.
+     */
+    activeNameIdx: uniqueIndex('blob_attachments_active_name_idx').on(table.docSlug, table.blobName),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
 // Export TypeScript types
 // ────────────────────────────────────────────────────────────────
 
@@ -1365,6 +1417,8 @@ export const insertAgentSignatureNonceSchema = createInsertSchema(agentSignature
 export const selectAgentSignatureNonceSchema = createSelectSchema(agentSignatureNonces);
 export const insertAgentInboxMessageSchema = createInsertSchema(agentInboxMessages);
 export const selectAgentInboxMessageSchema = createSelectSchema(agentInboxMessages);
+export const insertBlobAttachmentSchema = createInsertSchema(blobAttachments);
+export const selectBlobAttachmentSchema = createSelectSchema(blobAttachments);
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type SelectUser = z.infer<typeof selectUserSchema>;
@@ -1416,3 +1470,5 @@ export type InsertAgentPubkey = z.infer<typeof insertAgentPubkeySchema>;
 export type SelectAgentPubkey = z.infer<typeof selectAgentPubkeySchema>;
 export type InsertAgentSignatureNonce = z.infer<typeof insertAgentSignatureNonceSchema>;
 export type SelectAgentSignatureNonce = z.infer<typeof selectAgentSignatureNonceSchema>;
+export type InsertBlobAttachment = z.infer<typeof insertBlobAttachmentSchema>;
+export type SelectBlobAttachment = z.infer<typeof selectBlobAttachmentSchema>;

@@ -1016,6 +1016,55 @@ export const agentSignatureNonces = sqliteTable(
 );
 
 // ────────────────────────────────────────────────────────────────
+// Blob Attachments (T428 Binary Blobs)
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Blob attachments table - stores metadata for binary attachments.
+ *
+ * Blobs are content-addressed by SHA-256 hash. Attachment names are scoped per
+ * document and use Last-Write-Wins (LWW) for conflict resolution when multiple
+ * agents upload to the same (doc_slug, blob_name).
+ *
+ * The deleted_at field enables soft-delete; null = active, non-null = soft-deleted.
+ * LocalBackend stores bytes at .llmtxt/blobs/<hash>.
+ */
+export const blobAttachments = sqliteTable(
+  'blob_attachments',
+  {
+    id: text('id').primaryKey(),
+    /** FK to documents.slug (logical FK, no constraint for perf). */
+    docSlug: text('doc_slug').notNull(),
+    /** User-visible attachment name (e.g. "diagram.png"), max 255 bytes. */
+    blobName: text('blob_name').notNull(),
+    /** SHA-256 hex digest (64 chars) — content address and storage key. */
+    hash: text('hash').notNull(),
+    /** Original byte count (uncompressed). */
+    size: integer('size').notNull(),
+    /** MIME type (e.g. "image/png"). */
+    contentType: text('content_type').notNull(),
+    /** Agent ID that uploaded this blob. */
+    uploadedBy: text('uploaded_by').notNull(),
+    /** Unix timestamp (milliseconds) when this version was uploaded. */
+    uploadedAt: integer('uploaded_at').notNull(),
+    /** Soft-delete timestamp (ms). Null = active, non-null = deleted. */
+    deletedAt: integer('deleted_at'),
+  },
+  (table) => ({
+    /** Fast per-document lookup. */
+    docSlugIdx: index('blob_attachments_doc_slug_idx').on(table.docSlug),
+    /** Fast hash-based lookup (for dedup and verification). */
+    hashIdx: index('blob_attachments_hash_idx').on(table.hash),
+    /**
+     * Unique constraint: only one active attachment per (doc_slug, blob_name).
+     * The partial index (WHERE deleted_at IS NULL) is added via raw-SQL migration
+     * to ensure only one active record per name.
+     */
+    activeNameIdx: uniqueIndex('blob_attachments_active_name_idx').on(table.docSlug, table.blobName),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
 // Export TypeScript types
 // ────────────────────────────────────────────────────────────────
 
@@ -1069,6 +1118,8 @@ export type AgentPubkey = typeof agentPubkeys.$inferSelect;
 export type NewAgentPubkey = typeof agentPubkeys.$inferInsert;
 export type AgentSignatureNonce = typeof agentSignatureNonces.$inferSelect;
 export type NewAgentSignatureNonce = typeof agentSignatureNonces.$inferInsert;
+export type BlobAttachment = typeof blobAttachments.$inferSelect;
+export type NewBlobAttachment = typeof blobAttachments.$inferInsert;
 
 // ────────────────────────────────────────────────────────────────
 // Export Zod schemas for validation
@@ -1114,6 +1165,8 @@ export const insertCollectionSchema = createInsertSchema(collections);
 export const selectCollectionSchema = createSelectSchema(collections);
 export const insertCollectionDocumentSchema = createInsertSchema(collectionDocuments);
 export const selectCollectionDocumentSchema = createSelectSchema(collectionDocuments);
+export const insertBlobAttachmentSchema = createInsertSchema(blobAttachments);
+export const selectBlobAttachmentSchema = createSelectSchema(blobAttachments);
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type SelectUser = z.infer<typeof selectUserSchema>;
@@ -1155,3 +1208,5 @@ export type InsertCollection = z.infer<typeof insertCollectionSchema>;
 export type SelectCollection = z.infer<typeof selectCollectionSchema>;
 export type InsertCollectionDocument = z.infer<typeof insertCollectionDocumentSchema>;
 export type SelectCollectionDocument = z.infer<typeof selectCollectionDocumentSchema>;
+export type InsertBlobAttachment = z.infer<typeof insertBlobAttachmentSchema>;
+export type SelectBlobAttachment = z.infer<typeof selectBlobAttachmentSchema>;
