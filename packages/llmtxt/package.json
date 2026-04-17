@@ -52,6 +52,10 @@
     "./pg": {
       "types": "./dist/pg/index.d.ts",
       "import": "./dist/pg/index.js"
+    },
+    "./export-backend": {
+      "types": "./dist/export/backend-export.d.ts",
+      "import": "./dist/export/backend-export.js"
     }
   },
   "files": [
@@ -87,6 +91,7 @@
   "dependencies": {
     "@noble/ed25519": "^3.1.0",
     "@noble/hashes": "^2.2.0",
+    "loro-crdt": "^1.11.0",
     "nanoid": "^5.1.9",
     "yjs": "^13.6.30",
     "zod": "^4.3.6"
