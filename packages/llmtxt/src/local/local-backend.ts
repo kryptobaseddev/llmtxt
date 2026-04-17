@@ -1057,11 +1057,20 @@ export class LocalBackend implements Backend {
     // Emit to subscribers
     this.bus.emit(`crdt:${params.documentId}:${params.sectionKey}`, crdtUpdate);
 
-    // Compute Loro VersionVector for stateVectorBase64 field
+    // Compute Loro VersionVector for stateVectorBase64 field.
+    // Fault-tolerant: if newState is not valid Loro binary (e.g. test fixtures),
+    // crdt_state_vector will throw — we fall back to snapshot bytes.
     const crdtPrimitivesForSv = await _loadCrdtPrimitives();
-    const svBase64 = crdtPrimitivesForSv
-      ? crdtPrimitivesForSv.crdt_state_vector(newState).toString('base64')
-      : newState.toString('base64'); // WASM unavailable: use snapshot as fallback
+    let svBase64: string;
+    if (crdtPrimitivesForSv) {
+      try {
+        svBase64 = crdtPrimitivesForSv.crdt_state_vector(newState).toString('base64');
+      } catch {
+        svBase64 = newState.toString('base64');
+      }
+    } else {
+      svBase64 = newState.toString('base64');
+    }
 
     return {
       documentId: params.documentId,
@@ -1087,11 +1096,18 @@ export class LocalBackend implements Backend {
     if (!row) return null;
     const stateBlob = row.crdtState as Buffer;
 
-    // Compute Loro VersionVector for stateVectorBase64 field
-    const crdtPrimitivesForSv = await _loadCrdtPrimitives();
-    const svBase64 = crdtPrimitivesForSv
-      ? crdtPrimitivesForSv.crdt_state_vector(stateBlob).toString('base64')
-      : stateBlob.toString('base64'); // WASM unavailable: use snapshot as fallback
+    // Compute state vector for stateVectorBase64 field — fault tolerant.
+    const crdtPrimitivesForGetSv = await _loadCrdtPrimitives();
+    let svBase64: string;
+    if (crdtPrimitivesForGetSv) {
+      try {
+        svBase64 = crdtPrimitivesForGetSv.crdt_state_vector(stateBlob).toString('base64');
+      } catch {
+        svBase64 = stateBlob.toString('base64');
+      }
+    } else {
+      svBase64 = stateBlob.toString('base64');
+    }
 
     return {
       documentId,

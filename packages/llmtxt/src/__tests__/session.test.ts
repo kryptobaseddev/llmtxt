@@ -515,6 +515,11 @@ function makeMockBackend(
 		// Export ops
 		exportDocument,
 		exportAll,
+		// Import ops
+		importDocument: async (_p) => ({ action: 'created' as const, slug: 'stub', documentId: 'stub', versionNumber: 1, contentHash: 'stub' }),
+		// CrSqlite sync ops (P2.6/P2.7) — mock stubs
+		getChangesSince: async (_dbVersion: bigint): Promise<Uint8Array> => new Uint8Array(0),
+		applyChanges: async (_changeset: Uint8Array): Promise<bigint> => BigInt(0),
 		// Backend lifecycle
 		open,
 		close,
