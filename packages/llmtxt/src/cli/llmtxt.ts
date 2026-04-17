@@ -57,6 +57,13 @@ interface CliArgs {
   sign?: boolean;
   onConflict?: string;
   importedBy?: string;
+  // Sync flags
+  from?: string;
+  db?: string;
+  since?: string;
+  // Blob flags
+  name?: string;
+  contentType?: string;
 }
 
 function parseArgs(argv: string[]): CliArgs {
@@ -88,6 +95,16 @@ function parseArgs(argv: string[]): CliArgs {
       args.onConflict = argv[++i];
     } else if (arg === '--imported-by' && argv[i + 1]) {
       args.importedBy = argv[++i];
+    } else if (arg === '--from' && argv[i + 1]) {
+      args.from = argv[++i];
+    } else if (arg === '--db' && argv[i + 1]) {
+      args.db = argv[++i];
+    } else if (arg === '--since' && argv[i + 1]) {
+      args.since = argv[++i];
+    } else if (arg === '--name' && argv[i + 1]) {
+      args.name = argv[++i];
+    } else if ((arg === '--content-type' || arg === '--mime') && argv[i + 1]) {
+      args.contentType = argv[++i];
     } else {
       rest.push(arg!);
     }
@@ -552,9 +569,291 @@ async function cmdImport(args: CliArgs) {
   }
 }
 
+/**
+ * llmtxt sync — cr-sqlite changeset exchange (T406 / P2.8)
+ *
+ * Exchanges cr-sqlite changesets instead of HTTP REST diff.
+ *
+ * Flow:
+ *  1. Open local LocalBackend (must have hasCRR=true).
+ *  2. Read last-known dbVersion for this peer from llmtxt_sync_state.
+ *  3. Call getChangesSince(lastVersion) → localChangeset.
+ *  4. POST localChangeset to peer /mesh/sync or read peer DB file directly.
+ *  5. Receive remoteChangeset from peer.
+ *  6. Call applyChanges(remoteChangeset) → newVersion.
+ *  7. Update llmtxt_sync_state with newVersion.
+ *  8. Print sync summary stats.
+ *
+ * Usage:
+ *   llmtxt sync --from <peer-url-or-path> [--db <path>] [--since <db-version>]
+ *
+ * --from accepts:
+ *   - HTTP/HTTPS URL  → POST changeset to <url>/mesh/sync
+ *   - File path       → read peer .db directly (in-process P2P via LocalBackend)
+ *
+ * Falls back to legacy REST sync if --from is not provided and --remote is set.
+ */
 async function cmdSync(args: CliArgs) {
+  const peerSource = args.from ?? args.remote;
+
+  // ── Legacy REST sync (no --from / --remote not set) ─────────────────────────
+  if (!peerSource) {
+    console.error(
+      'sync requires --from <peer-url-or-path>  (or legacy: --remote <url>)\n' +
+      'Examples:\n' +
+      '  llmtxt sync --from https://api.llmtxt.my\n' +
+      '  llmtxt sync --from /path/to/peer.db'
+    );
+    process.exit(1);
+  }
+
+  const { LocalBackend } = await import('../local/local-backend.js');
+
+  const storagePath = path.resolve(args.db ?? args.storage);
+  const local = new LocalBackend({ storagePath });
+  await local.open();
+
+  if (!local.hasCRR) {
+    // cr-sqlite not loaded — fall back to legacy REST sync if peer is HTTP.
+    console.warn(
+      '[sync] cr-sqlite not loaded (hasCRR=false). ' +
+      'Falling back to legacy REST sync. ' +
+      'Install @vlcn.io/crsqlite to enable changeset exchange.'
+    );
+    await local.close();
+    await _legacyRestSync({ ...args, remote: peerSource });
+    return;
+  }
+
+  // ── cr-sqlite changeset sync ────────────────────────────────────────────────
+
+  // 1. Determine lastSyncVersion for this peer.
+  let lastSyncVersion = 0n;
+  if (args.since !== undefined) {
+    try {
+      lastSyncVersion = BigInt(args.since);
+    } catch {
+      console.error(`--since must be an integer db_version, got: ${args.since}`);
+      await local.close();
+      process.exit(1);
+    }
+  } else {
+    lastSyncVersion = _readLastSyncVersion(storagePath, peerSource);
+  }
+
+  console.log(`[sync] Peer: ${peerSource}`);
+  console.log(`[sync] Last sync version: ${lastSyncVersion}`);
+
+  // 2. Get local changes since lastSyncVersion.
+  const localChangeset = await local.getChangesSince(lastSyncVersion);
+  console.log(`[sync] Local changeset: ${localChangeset.length} bytes`);
+
+  // 3. Exchange changesets with peer.
+  let remoteChangeset: Uint8Array;
+  let changesetsSent = 0;
+  let changesetsReceived = 0;
+
+  const isHttpPeer = peerSource.startsWith('http://') || peerSource.startsWith('https://');
+
+  if (isHttpPeer) {
+    // HTTP peer — POST our changeset, receive peer's.
+    const { remoteChangeset: rc, sent, received } = await _httpChangesetExchange(
+      peerSource,
+      localChangeset,
+      lastSyncVersion,
+      args.apiKey
+    );
+    remoteChangeset = rc;
+    changesetsSent = sent;
+    changesetsReceived = received;
+  } else {
+    // Local file peer — open peer LocalBackend, exchange in-process.
+    const { remoteChangeset: rc, sent, received } = await _localFileChangesetExchange(
+      peerSource,
+      localChangeset,
+      lastSyncVersion
+    );
+    remoteChangeset = rc;
+    changesetsSent = sent;
+    changesetsReceived = received;
+  }
+
+  // 4. Apply remote changeset.
+  const newLocalVersion = await local.applyChanges(remoteChangeset);
+
+  // 5. Persist last-sync version.
+  _writeLastSyncVersion(storagePath, peerSource, newLocalVersion);
+
+  await local.close();
+
+  // 6. Print summary.
+  console.log(
+    `[sync] Complete.\n` +
+    `  synced ${changesetsReceived} changesets received, ${changesetsSent} changesets sent, 0 conflicts (CRDT merge)\n` +
+    `  new local db_version: ${newLocalVersion}`
+  );
+}
+
+// ── cr-sqlite sync helpers ────────────────────────────────────────────────────
+
+/** Path to the peer sync-state file (stores last-known dbVersion per peer URL). */
+function _syncStatePath(storagePath: string): string {
+  return path.join(storagePath, 'sync-state.json');
+}
+
+/** Read the last-known dbVersion for a peer. Returns 0n if unknown. */
+function _readLastSyncVersion(storagePath: string, peerUrl: string): bigint {
+  try {
+    const p = _syncStatePath(storagePath);
+    if (!fs.existsSync(p)) return 0n;
+    const state = JSON.parse(fs.readFileSync(p, 'utf8')) as Record<string, string>;
+    const stored = state[peerUrl];
+    return stored !== undefined ? BigInt(stored) : 0n;
+  } catch {
+    return 0n;
+  }
+}
+
+/** Persist the last-known dbVersion for a peer. */
+function _writeLastSyncVersion(storagePath: string, peerUrl: string, version: bigint): void {
+  try {
+    const p = _syncStatePath(storagePath);
+    let state: Record<string, string> = {};
+    if (fs.existsSync(p)) {
+      try {
+        state = JSON.parse(fs.readFileSync(p, 'utf8')) as Record<string, string>;
+      } catch {
+        state = {};
+      }
+    }
+    state[peerUrl] = version.toString();
+    fs.writeFileSync(p, JSON.stringify(state, null, 2), { mode: 0o600 });
+  } catch (err) {
+    console.warn('[sync] Failed to persist sync state:', (err as Error).message);
+  }
+}
+
+/** Exchange changeset with an HTTP peer via POST /mesh/sync. */
+async function _httpChangesetExchange(
+  peerUrl: string,
+  localChangeset: Uint8Array,
+  lastSyncVersion: bigint,
+  apiKey?: string
+): Promise<{ remoteChangeset: Uint8Array; sent: number; received: number }> {
+  const http = await import('node:https');
+  const httpPlain = await import('node:http');
+
+  const syncUrl = new URL('/mesh/sync', peerUrl);
+
+  // Encode local changeset as base64 in JSON body.
+  const body = JSON.stringify({
+    changeset: Buffer.from(localChangeset).toString('base64'),
+    sinceVersion: lastSyncVersion.toString(),
+  });
+
+  const isHttps = syncUrl.protocol === 'https:';
+  const mod = isHttps ? http : httpPlain;
+
+  return new Promise((resolve, reject) => {
+    const req = mod.request(
+      {
+        hostname: syncUrl.hostname,
+        port: syncUrl.port || (isHttps ? 443 : 80),
+        path: syncUrl.pathname,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body),
+          ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+        },
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk: Buffer) => chunks.push(chunk));
+        res.on('end', () => {
+          if (res.statusCode !== 200) {
+            reject(new Error(`Peer returned HTTP ${res.statusCode ?? 'unknown'}`));
+            return;
+          }
+          try {
+            const json = JSON.parse(Buffer.concat(chunks).toString()) as {
+              changeset?: string;
+              received?: number;
+            };
+            const remoteB64 = json.changeset ?? '';
+            const remoteChangeset = remoteB64
+              ? new Uint8Array(Buffer.from(remoteB64, 'base64'))
+              : new Uint8Array(0);
+            resolve({
+              remoteChangeset,
+              sent: localChangeset.length,
+              received: json.received ?? remoteChangeset.length,
+            });
+          } catch (e) {
+            reject(new Error(`Failed to parse peer response: ${(e as Error).message}`));
+          }
+        });
+      }
+    );
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+/** Exchange changesets with a local-file peer (in-process P2P). */
+async function _localFileChangesetExchange(
+  peerDbPath: string,
+  localChangeset: Uint8Array,
+  lastSyncVersion: bigint
+): Promise<{ remoteChangeset: Uint8Array; sent: number; received: number }> {
+  const { LocalBackend } = await import('../local/local-backend.js');
+
+  // peerDbPath may point to either a storage directory or a .db file.
+  // LocalBackend expects a storagePath (directory); if the user passed a .db
+  // file path, use its parent directory.
+  let peerStoragePath = peerDbPath;
+  if (peerDbPath.endsWith('.db')) {
+    peerStoragePath = path.dirname(peerDbPath);
+  }
+
+  const peer = new LocalBackend({ storagePath: peerStoragePath });
+  await peer.open();
+
+  try {
+    if (!peer.hasCRR) {
+      throw new Error(
+        `Peer at ${peerDbPath} does not have cr-sqlite loaded (hasCRR=false). ` +
+        'Ensure @vlcn.io/crsqlite is installed on the peer.'
+      );
+    }
+
+    // Get peer's changes since the version the peer last saw from us.
+    // We use lastSyncVersion as a best-effort starting point for the peer.
+    const remoteChangeset = await peer.getChangesSince(lastSyncVersion);
+
+    // Apply our local changeset to the peer (bidirectional in one call).
+    if (localChangeset.length > 0) {
+      await peer.applyChanges(localChangeset);
+    }
+
+    return {
+      remoteChangeset,
+      sent: localChangeset.length,
+      received: remoteChangeset.length,
+    };
+  } finally {
+    await peer.close();
+  }
+}
+
+/**
+ * Legacy REST sync (pre-cr-sqlite, documents-only).
+ * Used as fallback when cr-sqlite is not available.
+ */
+async function _legacyRestSync(args: CliArgs) {
   if (!args.remote) {
-    console.error('sync requires --remote <url>');
+    console.error('Legacy REST sync requires --remote <url>');
     process.exit(1);
   }
 
@@ -567,23 +866,20 @@ async function cmdSync(args: CliArgs) {
   await local.open();
   await remote.open();
 
-  console.log('Syncing local ↔ remote...');
+  console.log('[sync] Legacy REST sync: local ↔ remote...');
 
-  // Phase 1: pull remote documents not in local
   const remoteList = await remote.listDocuments({ limit: 100 });
   let pulled = 0;
 
   for (const remoteDoc of remoteList.items) {
     const localDoc = await local.getDocument(remoteDoc.id);
     if (!localDoc) {
-      // Create document locally with same id (best-effort)
       await local.createDocument({
         title: remoteDoc.title,
         createdBy: remoteDoc.createdBy,
         slug: remoteDoc.slug,
       });
 
-      // Pull versions
       const remoteVersions = await remote.listVersions(remoteDoc.id);
       for (const v of remoteVersions) {
         const localVersion = await local.getVersion(remoteDoc.id, v.versionNumber);
@@ -602,7 +898,6 @@ async function cmdSync(args: CliArgs) {
     }
   }
 
-  // Phase 2: push local documents not in remote
   const localList = await local.listDocuments({ limit: 100 });
   let pushed = 0;
 
@@ -633,7 +928,207 @@ async function cmdSync(args: CliArgs) {
   await local.close();
   await remote.close();
 
-  console.log(`Sync complete. Pulled: ${pulled}, Pushed: ${pushed}`);
+  console.log(`[sync] Legacy complete. Pulled: ${pulled}, Pushed: ${pushed}`);
+}
+
+// ── Blob helpers ──────────────────────────────────────────────────
+
+/** Human-readable byte size (e.g. "42 KB", "1.2 MB"). */
+function humanizeBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+/**
+ * Detect MIME type from file extension.
+ * Covers the most common file types agents typically attach.
+ * Falls back to 'application/octet-stream'.
+ */
+function detectMimeType(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase();
+  const mimeMap: Record<string, string> = {
+    '.txt':   'text/plain',
+    '.md':    'text/markdown',
+    '.html':  'text/html',
+    '.htm':   'text/html',
+    '.css':   'text/css',
+    '.js':    'application/javascript',
+    '.ts':    'text/typescript',
+    '.json':  'application/json',
+    '.xml':   'application/xml',
+    '.yaml':  'application/yaml',
+    '.yml':   'application/yaml',
+    '.csv':   'text/csv',
+    '.pdf':   'application/pdf',
+    '.zip':   'application/zip',
+    '.tar':   'application/x-tar',
+    '.gz':    'application/gzip',
+    '.png':   'image/png',
+    '.jpg':   'image/jpeg',
+    '.jpeg':  'image/jpeg',
+    '.gif':   'image/gif',
+    '.svg':   'image/svg+xml',
+    '.webp':  'image/webp',
+    '.mp4':   'video/mp4',
+    '.webm':  'video/webm',
+    '.mp3':   'audio/mpeg',
+    '.wav':   'audio/wav',
+    '.bin':   'application/octet-stream',
+    '.wasm':  'application/wasm',
+    '.proto': 'application/protobuf',
+    '.npy':   'application/octet-stream',
+    '.pkl':   'application/octet-stream',
+  };
+  return mimeMap[ext] ?? 'application/octet-stream';
+}
+
+// ── llmtxt attach <slug> <filepath> ──────────────────────────────
+
+/**
+ * Attach a file as a binary blob to a document.
+ *
+ * Usage:
+ *   llmtxt attach <slug> <filepath> [--name <name>] [--content-type <mime>]
+ *
+ * Reads the file from disk, uploads via backend.attachBlob, and prints
+ * the hash and humanized size on success.
+ */
+async function cmdAttach(args: CliArgs) {
+  const slug = args.positional[0];
+  const filePath = args.positional[1];
+
+  if (!slug || !filePath) {
+    console.error('Usage: llmtxt attach <slug> <filepath> [--name <name>] [--content-type <mime>]');
+    process.exit(1);
+  }
+
+  const resolvedPath = path.resolve(filePath);
+
+  if (!fs.existsSync(resolvedPath)) {
+    console.error(`File not found: ${resolvedPath}`);
+    process.exit(1);
+  }
+
+  const blobName = args.name ?? path.basename(resolvedPath);
+  const contentType = args.contentType ?? detectMimeType(resolvedPath);
+  const data = fs.readFileSync(resolvedPath);
+
+  const identity = loadIdentity(path.resolve(args.storage));
+  const uploadedBy = args.agentId ?? identity?.agentId ?? 'anonymous';
+
+  const backend = await createBackend(args);
+  await backend.open();
+
+  try {
+    const result = await backend.attachBlob({
+      docSlug: slug,
+      name: blobName,
+      contentType,
+      data,
+      uploadedBy,
+    });
+
+    console.log(`Attached ${blobName} to ${slug}`);
+    console.log(`Hash: ${result.hash}`);
+    console.log(`Size: ${humanizeBytes(result.size)}`);
+  } finally {
+    await backend.close();
+  }
+}
+
+// ── llmtxt detach <slug> <blobname> ──────────────────────────────
+
+/**
+ * Detach (soft-delete) a named blob from a document.
+ *
+ * Usage:
+ *   llmtxt detach <slug> <blobname>
+ */
+async function cmdDetach(args: CliArgs) {
+  const slug = args.positional[0];
+  const blobName = args.positional[1];
+
+  if (!slug || !blobName) {
+    console.error('Usage: llmtxt detach <slug> <blobname>');
+    process.exit(1);
+  }
+
+  const identity = loadIdentity(path.resolve(args.storage));
+  const detachedBy = args.agentId ?? identity?.agentId ?? 'anonymous';
+
+  const backend = await createBackend(args);
+  await backend.open();
+
+  try {
+    const removed = await backend.detachBlob(slug, blobName, detachedBy);
+
+    if (!removed) {
+      console.error(`No active blob named "${blobName}" on document "${slug}"`);
+      process.exit(1);
+    }
+
+    console.log(`Detached ${blobName} from ${slug}`);
+  } finally {
+    await backend.close();
+  }
+}
+
+// ── llmtxt blobs <slug> ───────────────────────────────────────────
+
+/**
+ * List all active blob attachments for a document as a table.
+ *
+ * Usage:
+ *   llmtxt blobs <slug>
+ *
+ * Output columns: NAME, SIZE, TYPE, UPLOADED BY, UPLOADED AT
+ */
+async function cmdBlobs(args: CliArgs) {
+  const slug = args.positional[0];
+
+  if (!slug) {
+    console.error('Usage: llmtxt blobs <slug>');
+    process.exit(1);
+  }
+
+  const backend = await createBackend(args);
+  await backend.open();
+
+  try {
+    const blobs = await backend.listBlobs(slug);
+
+    if (blobs.length === 0) {
+      console.log(`No blobs attached to "${slug}".`);
+      return;
+    }
+
+    // Column widths
+    const nameWidth = Math.max(4, ...blobs.map((b) => b.blobName.length));
+    const sizeWidth = Math.max(4, ...blobs.map((b) => humanizeBytes(b.size).length));
+    const typeWidth = Math.max(4, ...blobs.map((b) => b.contentType.length));
+    const byWidth   = Math.max(11, ...blobs.map((b) => b.uploadedBy.length));
+
+    const pad = (s: string, w: number) => s.padEnd(w);
+
+    // Header
+    console.log(
+      `${pad('NAME', nameWidth)}  ${pad('SIZE', sizeWidth)}  ${pad('TYPE', typeWidth)}  ${pad('UPLOADED BY', byWidth)}  UPLOADED AT`
+    );
+    console.log(
+      `${'-'.repeat(nameWidth)}  ${'-'.repeat(sizeWidth)}  ${'-'.repeat(typeWidth)}  ${'-'.repeat(byWidth)}  ${'-'.repeat(24)}`
+    );
+
+    for (const blob of blobs) {
+      const uploadedAt = new Date(blob.uploadedAt).toISOString();
+      console.log(
+        `${pad(blob.blobName, nameWidth)}  ${pad(humanizeBytes(blob.size), sizeWidth)}  ${pad(blob.contentType, typeWidth)}  ${pad(blob.uploadedBy, byWidth)}  ${uploadedAt}`
+      );
+    }
+  } finally {
+    await backend.close();
+  }
 }
 
 // ── Help text ─────────────────────────────────────────────────────
@@ -666,7 +1161,19 @@ COMMANDS
   export <slug>              Export a document to a file
   export-all                 Export all documents to a directory
   import <file>              Import a document from a file
-  sync                       Sync local ↔ remote (requires --remote)
+  sync                       Sync via cr-sqlite changeset exchange (requires --from)
+  attach <slug> <filepath>   Attach a binary file to a document
+  detach <slug> <blobname>   Remove a named blob attachment from a document
+  blobs <slug>               List all blob attachments for a document
+
+BLOB FLAGS
+  --name <name>              Attachment name (default: basename of filepath)
+  --content-type <mime>      MIME type (default: detected from extension)
+
+SYNC FLAGS (cr-sqlite changeset exchange — T406/P2.8)
+  --from <url-or-path>         Peer to sync with (HTTP URL or local .db file path)
+  --db <path>                  Override local storage path for sync
+  --since <db-version>         Override last-sync dbVersion (forces full re-sync from N)
 
 EXPORT / IMPORT FLAGS
   --format md|json|txt|llmtxt  Export format (default: md)
@@ -680,6 +1187,10 @@ EXAMPLES
   llmtxt create-doc "My Spec"
   echo "# Hello" | llmtxt push-version my-spec
   llmtxt pull my-spec
+  llmtxt attach my-spec ./diagram.png
+  llmtxt attach my-spec ./report.pdf --name final-report.pdf --content-type application/pdf
+  llmtxt blobs my-spec
+  llmtxt detach my-spec diagram.png
   llmtxt export my-spec --format md --output ./specs/
   llmtxt export-all --format json --output ./docs/
   llmtxt import ./specs/my-spec.md
@@ -739,6 +1250,15 @@ async function main() {
         break;
       case 'sync':
         await cmdSync(args);
+        break;
+      case 'attach':
+        await cmdAttach(args);
+        break;
+      case 'detach':
+        await cmdDetach(args);
+        break;
+      case 'blobs':
+        await cmdBlobs(args);
         break;
       default:
         console.error(`Unknown command: ${args.command}`);
