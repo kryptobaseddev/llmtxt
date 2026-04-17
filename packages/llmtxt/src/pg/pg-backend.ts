@@ -92,7 +92,18 @@ import type {
   ApiKey,
   ApiKeyWithSecret,
   CreateApiKeyParams,
+  ExportDocumentParams,
+  ExportDocumentResult,
+  ExportAllParams,
+  ExportAllResult,
 } from '../core/backend.js';
+import { ExportError } from '../core/backend.js';
+import {
+  writeExportFile,
+  exportAllFilePath,
+  contentHashHex,
+} from '../export/backend-export.js';
+import type { DocumentExportState } from '../export/types.js';
 import type { VersionEntry } from '../sdk/versions.js';
 
 // ── SDK helpers (generateId + hashContent from llmtxt WASM/Rust core) ─────────
@@ -3223,6 +3234,174 @@ export class PostgresBackend implements Backend {
       prefix: keyPrefix,
       secret: rawKey,
       createdAt: now,
+    };
+  }
+
+  // ── BlobOps (stubs — T427 does not require PG blob storage) ──────────────────
+
+  async attachBlob(_params: import('../core/backend.js').AttachBlobParams): Promise<import('../core/backend.js').BlobAttachment> {
+    throw new Error('PostgresBackend: attachBlob not yet implemented');
+  }
+
+  async getBlob(_docSlug: string, _blobName: string, _opts?: { includeData?: boolean }): Promise<import('../core/backend.js').BlobData | null> {
+    throw new Error('PostgresBackend: getBlob not yet implemented');
+  }
+
+  async listBlobs(_docSlug: string): Promise<import('../core/backend.js').BlobAttachment[]> {
+    throw new Error('PostgresBackend: listBlobs not yet implemented');
+  }
+
+  async detachBlob(_docSlug: string, _blobName: string, _detachedBy: string): Promise<boolean> {
+    throw new Error('PostgresBackend: detachBlob not yet implemented');
+  }
+
+  async fetchBlobByHash(_hash: string): Promise<Buffer | null> {
+    throw new Error('PostgresBackend: fetchBlobByHash not yet implemented');
+  }
+
+  // ── ExportOps (T427.6) ────────────────────────────────────────────────────────
+
+  /**
+   * Export a single document from Postgres to a file on disk.
+   *
+   * Content retrieval:
+   *  1. Resolve slug → document row.
+   *  2. listVersions() to find the latest version.
+   *  3. getVersion() to get the full row (including compressedData).
+   *  4. Decompress compressedData → string content via the SDK decompress().
+   *
+   * @throws {ExportError} DOC_NOT_FOUND when the slug does not resolve.
+   * @throws {ExportError} VERSION_NOT_FOUND when the document has no versions.
+   * @throws {ExportError} WRITE_FAILED on I/O error.
+   */
+  async exportDocument(params: ExportDocumentParams): Promise<ExportDocumentResult> {
+    this._assertOpen();
+
+    const { slug } = params;
+
+    // 1. Resolve slug → document.
+    const doc = await this.getDocumentBySlug(slug);
+    if (!doc) {
+      throw new ExportError('DOC_NOT_FOUND', `Document not found: ${slug}`);
+    }
+
+    // 2. Get version list (latest is first — listVersions orders by desc).
+    const versionList = await this.listVersions(doc.id as string);
+    if (!versionList || versionList.length === 0) {
+      throw new ExportError('VERSION_NOT_FOUND', `Document ${slug} has no versions`);
+    }
+
+    // listVersions for PG backend orders desc — first entry is latest.
+    const latestVersionEntry = versionList[0] as Record<string, unknown>;
+    const latestVersionNumber = latestVersionEntry.versionNumber as number;
+
+    // 3. Get the full version row with compressedData.
+    const versionRow = await this.getVersion(doc.id as string, latestVersionNumber);
+    if (!versionRow) {
+      throw new ExportError('VERSION_NOT_FOUND', `Version ${latestVersionNumber} missing for ${slug}`);
+    }
+    const vRow = versionRow as Record<string, unknown>;
+
+    // 4. Decompress content.
+    let content: string;
+    const compressedData = vRow.compressedData;
+    if (compressedData) {
+      const buf = compressedData instanceof Buffer
+        ? compressedData
+        : Buffer.from(compressedData as ArrayBuffer);
+      // Use SDK decompress (Brotli/zstd via WASM).
+      const { decompress } = await import('llmtxt' as string) as unknown as {
+        decompress: (buf: Buffer) => Promise<string>;
+      };
+      content = await decompress(buf);
+    } else {
+      throw new ExportError('VERSION_NOT_FOUND', `Version content missing for ${slug}`);
+    }
+
+    // 5. Build contributors list.
+    const contributors = [
+      ...new Set(
+        versionList
+          .map((v) => (v as Record<string, unknown>).createdBy as string | undefined)
+          .filter((c): c is string => Boolean(c)),
+      ),
+    ];
+
+    // 6. Build DocumentExportState.
+    const exportedAt = new Date().toISOString();
+    const docRow = doc as Record<string, unknown>;
+    const state: DocumentExportState = {
+      title: docRow.title as string ?? slug,
+      slug: docRow.slug as string ?? slug,
+      version: latestVersionNumber,
+      state: docRow.state as string ?? 'DRAFT',
+      contributors,
+      contentHash: contentHashHex(content),
+      exportedAt,
+      content,
+      labels: Array.isArray(docRow.labels) ? docRow.labels as string[] : null,
+      createdBy: docRow.createdBy as string | null ?? null,
+      createdAt: docRow.createdAt instanceof Date
+        ? (docRow.createdAt as Date).getTime()
+        : (docRow.createdAt as number | null) ?? null,
+      updatedAt: docRow.updatedAt instanceof Date
+        ? (docRow.updatedAt as Date).getTime()
+        : (docRow.updatedAt as number | null) ?? null,
+      versionCount: versionList.length,
+      chainRef: null, // T384 stub
+    };
+
+    // 7. Write and return.
+    return writeExportFile(state, params, (this.config as Record<string, unknown>).identityPath as string | undefined);
+  }
+
+  /**
+   * Export all documents from the Postgres backend to a directory.
+   */
+  async exportAll(params: ExportAllParams): Promise<ExportAllResult> {
+    this._assertOpen();
+
+    const { format, outputDir, state: filterState, includeMetadata, sign } = params;
+
+    const exported: ExportDocumentResult[] = [];
+    const skipped: Array<{ slug: string; reason: string }> = [];
+    let cursor: string | undefined = undefined;
+
+    for (;;) {
+      const page = await this.listDocuments({
+        cursor,
+        limit: 50,
+        state: filterState as import('../sdk/lifecycle.js').DocumentState | undefined,
+      });
+
+      for (const doc of page.items) {
+        const docRow = doc as Record<string, unknown>;
+        const docSlug = docRow.slug as string ?? docRow.id as string;
+        const outputPath = exportAllFilePath(outputDir, docSlug, format);
+        try {
+          const result = await this.exportDocument({
+            slug: docSlug,
+            format,
+            outputPath,
+            includeMetadata,
+            sign,
+          });
+          exported.push(result);
+        } catch (err: unknown) {
+          const reason = err instanceof Error ? err.message : String(err);
+          skipped.push({ slug: docSlug, reason });
+        }
+      }
+
+      if (!page.nextCursor) break;
+      cursor = page.nextCursor;
+    }
+
+    return {
+      exported,
+      skipped,
+      totalCount: exported.length + skipped.length,
+      failedCount: skipped.length,
     };
   }
 }

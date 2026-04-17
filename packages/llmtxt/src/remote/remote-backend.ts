@@ -49,7 +49,18 @@ import type {
   AgentPubkeyRecord,
   ApprovalResult,
   ApprovalPolicy,
+  ExportDocumentParams,
+  ExportDocumentResult,
+  ExportAllParams,
+  ExportAllResult,
 } from '../core/backend.js';
+import { ExportError } from '../core/backend.js';
+import {
+  writeExportFile,
+  exportAllFilePath,
+  contentHashHex,
+} from '../export/backend-export.js';
+import type { DocumentExportState } from '../export/types.js';
 
 import type { VersionEntry } from '../sdk/versions.js';
 
@@ -769,5 +780,153 @@ export class RemoteBackend implements Backend {
   }
   async rotateApiKey(_id: string, _userId: string): Promise<import('../core/backend.js').ApiKeyWithSecret> {
     throw new Error('RemoteBackend: rotateApiKey not yet implemented');
+  }
+
+  // ── BlobOps (stubs — T427 does not require remote blob storage) ───────────
+
+  async attachBlob(_params: import('../core/backend.js').AttachBlobParams): Promise<import('../core/backend.js').BlobAttachment> {
+    throw new Error('RemoteBackend: attachBlob not yet implemented');
+  }
+
+  async getBlob(_docSlug: string, _blobName: string, _opts?: { includeData?: boolean }): Promise<import('../core/backend.js').BlobData | null> {
+    throw new Error('RemoteBackend: getBlob not yet implemented');
+  }
+
+  async listBlobs(_docSlug: string): Promise<import('../core/backend.js').BlobAttachment[]> {
+    throw new Error('RemoteBackend: listBlobs not yet implemented');
+  }
+
+  async detachBlob(_docSlug: string, _blobName: string, _detachedBy: string): Promise<boolean> {
+    throw new Error('RemoteBackend: detachBlob not yet implemented');
+  }
+
+  async fetchBlobByHash(_hash: string): Promise<Buffer | null> {
+    throw new Error('RemoteBackend: fetchBlobByHash not yet implemented');
+  }
+
+  // ── ExportOps (T427.6) ────────────────────────────────────────────────────
+
+  /**
+   * Export a document from the remote backend to a local file.
+   *
+   * Content retrieval: calls `GET /v1/documents/:slug/versions/:n` and extracts
+   * the `content` field. Then serializes and writes locally using writeExportFile.
+   *
+   * @throws {ExportError} DOC_NOT_FOUND when the slug does not resolve.
+   * @throws {ExportError} VERSION_NOT_FOUND when the document has no versions.
+   * @throws {ExportError} WRITE_FAILED on I/O error.
+   */
+  async exportDocument(params: ExportDocumentParams): Promise<ExportDocumentResult> {
+    this._assertOpen();
+
+    const { slug, format, includeMetadata, sign } = params;
+
+    // 1. Resolve slug → document.
+    const doc = await this.getDocumentBySlug(slug);
+    if (!doc) {
+      throw new ExportError('DOC_NOT_FOUND', `Document not found: ${slug}`);
+    }
+
+    // 2. Determine latest version number.
+    const versionList = await this.listVersions(doc.id);
+    if (versionList.length === 0) {
+      throw new ExportError('VERSION_NOT_FOUND', `Document ${slug} has no versions`);
+    }
+
+    // listVersions returns ascending order; last = latest.
+    const latestVersion = versionList[versionList.length - 1]!;
+
+    // 3. Fetch full version content via GET /v1/documents/:slug/versions/:n
+    const versionData = await this.fetch<{
+      content: string;
+      contentHash: string;
+      versionNumber: number;
+      createdBy?: string;
+    }>('GET', `/v1/documents/${encodeURIComponent(slug)}/versions/${latestVersion.versionNumber}`);
+
+    const content = versionData.content;
+
+    // 4. Build contributors list from version entries.
+    const contributors = [
+      ...new Set(
+        versionList
+          .map((v) => (v as unknown as Record<string, unknown>).createdBy as string | undefined)
+          .filter((c): c is string => Boolean(c)),
+      ),
+    ];
+
+    // 5. Build DocumentExportState.
+    const exportedAt = new Date().toISOString();
+    const state: DocumentExportState = {
+      title: (doc as unknown as Record<string, unknown>).title as string ?? slug,
+      slug: doc.slug ?? slug,
+      version: latestVersion.versionNumber,
+      state: (doc as unknown as Record<string, unknown>).state as string ?? 'DRAFT',
+      contributors,
+      contentHash: contentHashHex(content),
+      exportedAt,
+      content,
+      labels: (doc as unknown as Record<string, unknown>).labels as string[] | null ?? null,
+      createdBy: (doc as unknown as Record<string, unknown>).createdBy as string | null ?? null,
+      createdAt: (doc as unknown as Record<string, unknown>).createdAt as number | null ?? null,
+      updatedAt: (doc as unknown as Record<string, unknown>).updatedAt as number | null ?? null,
+      versionCount: versionList.length,
+      chainRef: null, // T384 stub
+    };
+
+    // 6. Write and return.
+    return writeExportFile(state, params, this.config.identityPath);
+  }
+
+  /**
+   * Export all documents from the remote backend to a directory.
+   *
+   * Iterates via listDocuments (cursor-based pagination).
+   * Individual document failures are collected in skipped, not thrown.
+   */
+  async exportAll(params: ExportAllParams): Promise<ExportAllResult> {
+    this._assertOpen();
+
+    const { format, outputDir, state: filterState, includeMetadata, sign } = params;
+
+    const exported: ExportDocumentResult[] = [];
+    const skipped: Array<{ slug: string; reason: string }> = [];
+    let cursor: string | undefined = undefined;
+
+    for (;;) {
+      const page = await this.listDocuments({
+        cursor,
+        limit: 50,
+        state: filterState as import('../sdk/lifecycle.js').DocumentState | undefined,
+      });
+
+      for (const doc of page.items) {
+        const docSlug = doc.slug ?? (doc as unknown as Record<string, unknown>).id as string;
+        const outputPath = exportAllFilePath(outputDir, docSlug, format);
+        try {
+          const result = await this.exportDocument({
+            slug: docSlug,
+            format,
+            outputPath,
+            includeMetadata,
+            sign,
+          });
+          exported.push(result);
+        } catch (err: unknown) {
+          const reason = err instanceof Error ? err.message : String(err);
+          skipped.push({ slug: docSlug, reason });
+        }
+      }
+
+      if (!page.nextCursor) break;
+      cursor = page.nextCursor;
+    }
+
+    return {
+      exported,
+      skipped,
+      totalCount: exported.length + skipped.length,
+      failedCount: skipped.length,
+    };
   }
 }

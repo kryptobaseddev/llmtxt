@@ -472,6 +472,40 @@ export class HubSpokeBackend implements Backend {
   async rotateApiKey(id: string, userId: string) {
     return this.remote.rotateApiKey(id, userId);
   }
+
+  // ── BlobOps — local (blobs are written locally in hub-spoke) ─────────────────
+
+  async attachBlob(params: Parameters<Backend['attachBlob']>[0]) {
+    return this.local.attachBlob(params);
+  }
+
+  async getBlob(docSlug: string, blobName: string, opts?: Parameters<Backend['getBlob']>[2]) {
+    return this.local.getBlob(docSlug, blobName, opts);
+  }
+
+  async listBlobs(docSlug: string) {
+    return this.local.listBlobs(docSlug);
+  }
+
+  async detachBlob(docSlug: string, blobName: string, detachedBy: string) {
+    return this.local.detachBlob(docSlug, blobName, detachedBy);
+  }
+
+  async fetchBlobByHash(hash: string) {
+    return this.local.fetchBlobByHash(hash);
+  }
+
+  // ── ExportOps (T427.6) — writes to local disk ─────────────────────────────────
+
+  async exportDocument(params: Parameters<Backend['exportDocument']>[0]) {
+    // Export fetches content from hub (remote has the authoritative content),
+    // then writes to local disk. We delegate to local which fetches from its replica.
+    return this.local.exportDocument(params);
+  }
+
+  async exportAll(params: Parameters<Backend['exportAll']>[0]) {
+    return this.local.exportAll(params);
+  }
 }
 
 // ── MeshBackend ─────────────────────────────────────────────────────────────
@@ -818,6 +852,38 @@ export class MeshBackend implements Backend {
 
   async rotateApiKey(id: string, userId: string) {
     return this.local.rotateApiKey(id, userId);
+  }
+
+  // ── BlobOps — local ──────────────────────────────────────────────────────────
+
+  async attachBlob(params: Parameters<Backend['attachBlob']>[0]) {
+    return this.local.attachBlob(params);
+  }
+
+  async getBlob(docSlug: string, blobName: string, opts?: Parameters<Backend['getBlob']>[2]) {
+    return this.local.getBlob(docSlug, blobName, opts);
+  }
+
+  async listBlobs(docSlug: string) {
+    return this.local.listBlobs(docSlug);
+  }
+
+  async detachBlob(docSlug: string, blobName: string, detachedBy: string) {
+    return this.local.detachBlob(docSlug, blobName, detachedBy);
+  }
+
+  async fetchBlobByHash(hash: string) {
+    return this.local.fetchBlobByHash(hash);
+  }
+
+  // ── ExportOps (T427.6) ────────────────────────────────────────────────────────
+
+  async exportDocument(params: Parameters<Backend['exportDocument']>[0]) {
+    return this.local.exportDocument(params);
+  }
+
+  async exportAll(params: Parameters<Backend['exportAll']>[0]) {
+    return this.local.exportAll(params);
   }
 }
 
