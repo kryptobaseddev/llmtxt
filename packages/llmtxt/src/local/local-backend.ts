@@ -84,18 +84,15 @@ import {
 import type { DocumentExportState } from '../export/types.js';
 import { parseImportFile } from '../export/import-parser.js';
 
-import {
-  BlobFsAdapter,
-  BlobTooLargeError,
-  BlobNameInvalidError,
-  BlobCorruptError,
-} from './blob-fs-adapter.js';
+import { BlobFsAdapter } from './blob-fs-adapter.js';
 
 export {
   BlobTooLargeError,
   BlobNameInvalidError,
   BlobCorruptError,
-} from './blob-fs-adapter.js';
+  BlobNotFoundError,
+  BlobAccessDeniedError,
+} from '../core/errors.js';
 
 import {
   documents,

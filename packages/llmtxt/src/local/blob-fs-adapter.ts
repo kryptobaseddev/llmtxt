@@ -31,48 +31,28 @@ import type {
   BlobData,
 } from '../core/backend.js';
 
+// Import canonical error classes from core/errors.ts
+import {
+  BlobTooLargeError,
+  BlobNameInvalidError,
+  BlobCorruptError,
+  BlobNotFoundError,
+} from '../core/errors.js';
+
+// Re-export for downstream consumers that import from this module directly
+export {
+  BlobTooLargeError,
+  BlobNameInvalidError,
+  BlobCorruptError,
+  BlobNotFoundError,
+} from '../core/errors.js';
+
 import { blobAttachments } from './schema-local.js';
 import * as wasmModule from '../../wasm/llmtxt_core.js';
 
 // ── Constants ──────────────────────────────────────────────────
 
 const DEFAULT_MAX_BLOB_SIZE = 100 * 1024 * 1024; // 100 MB
-
-// ── Error classes ──────────────────────────────────────────────
-
-/** Thrown when blob size exceeds the configured maximum. */
-export class BlobTooLargeError extends Error {
-  constructor(size: number, maxBytes: number) {
-    super(
-      `Blob size ${size} bytes exceeds maximum of ${maxBytes} bytes (${Math.round(maxBytes / 1024 / 1024)} MB)`
-    );
-    this.name = 'BlobTooLargeError';
-  }
-}
-
-/** Thrown when a blob name fails validation (path traversal, null bytes, etc.). */
-export class BlobNameInvalidError extends Error {
-  constructor(name: string, reason: string) {
-    super(`Blob name "${name}" is invalid: ${reason}`);
-    this.name = 'BlobNameInvalidError';
-  }
-}
-
-/** Thrown when hash verification fails on read — indicates storage corruption or tampering. */
-export class BlobCorruptError extends Error {
-  constructor(hash: string, path: string) {
-    super(`Blob hash mismatch for ${hash} at ${path} — storage may be corrupt or tampered`);
-    this.name = 'BlobCorruptError';
-  }
-}
-
-/** Thrown when a blob hash is not found in the store (used during sync lazy pull). */
-export class BlobNotFoundError extends Error {
-  constructor(hash: string) {
-    super(`Blob with hash ${hash} not found in store`);
-    this.name = 'BlobNotFoundError';
-  }
-}
 
 // ── Internal helpers ───────────────────────────────────────────
 

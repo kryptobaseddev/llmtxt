@@ -353,6 +353,16 @@ export interface AgentPubkeyRecord {
   revokedAt?: number;
 }
 
+// ── Blob error classes ─────────────────────────────────────────
+// Re-exported from core/errors.ts as the canonical location.
+export {
+  BlobTooLargeError,
+  BlobNameInvalidError,
+  BlobCorruptError,
+  BlobNotFoundError,
+  BlobAccessDeniedError,
+} from './errors.js';
+
 // ── Sub-interfaces ──────────────────────────────────────────────
 
 // ── Blob types ─────────────────────────────────────────────────
