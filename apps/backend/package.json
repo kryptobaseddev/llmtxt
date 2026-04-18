@@ -22,6 +22,8 @@
     "forge:build": "pnpm -w exec forge-ts build",
     "forge:doctor": "pnpm -w exec forge-ts doctor",
     "openapi:gen": "pnpm -w exec forge-ts build --skip-gen && node scripts/postman-gen.mjs",
+    "openapi:validate": "node scripts/validate-openapi.mjs openapi.json",
+    "openapi:ts-client": "openapi-typescript openapi.json -o /tmp/llmtxt-api-types.ts && echo 'TS client codegen: OK'",
     "prepublishOnly": "pnpm -w exec forge-ts prepublish",
     "prepare": "husky || true"
   },
@@ -73,7 +75,9 @@
     "@typescript-eslint/parser": "^7.0.0",
     "drizzle-kit": "1.0.0-beta.21",
     "eslint": "^8.57.0",
+    "openapi-schema-validator": "^12.1.3",
     "openapi-to-postmanv2": "6.0.1",
+    "openapi-typescript": "^7.13.0",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2"
   },

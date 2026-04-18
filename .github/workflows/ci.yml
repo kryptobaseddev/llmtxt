@@ -118,7 +118,7 @@ jobs:
         run: bash scripts/ci-migrate-check.sh
 
   openapi-drift:
-    name: OpenAPI spec drift check
+    name: OpenAPI spec — drift check, validation, and artifacts
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -155,3 +155,30 @@ jobs:
             echo "ERROR: openapi.json is out of sync. Run 'pnpm --filter backend run openapi:gen' and commit."
             exit 1
           }
+
+      - name: Validate OpenAPI 3.1 spec (openapi-schema-validator)
+        working-directory: apps/backend
+        run: node scripts/validate-openapi.mjs openapi.json
+
+      - name: Verify TypeScript client can be generated (openapi-typescript)
+        working-directory: apps/backend
+        run: pnpm run openapi:ts-client
+
+      - name: Upload Postman collection as build artifact
+        # Upload on push and PRs so reviewers can import the collection.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: postman-collection
+          path: apps/backend/postman-collection.json
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Upload OpenAPI spec as build artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-spec
+          path: apps/backend/openapi.json
+          retention-days: 30
+          if-no-files-found: warn
