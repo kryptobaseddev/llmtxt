@@ -252,7 +252,7 @@ export async function userDataRoutes(fastify: FastifyInstance): Promise<void> {
 				.where(
 					and(
 						eq(auditLogs.userId, userId),
-						lt(auditLogs.timestamp, ninetyDaysAgo),
+						gte(auditLogs.timestamp, ninetyDaysAgo),
 					),
 				)
 				.orderBy(desc(auditLogs.timestamp))

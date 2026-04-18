@@ -33,6 +33,7 @@ import { webhookRoutes } from './routes/webhooks.js';
 import { startWebhookWorker } from './events/webhooks.js';
 import { startEventLogJobs } from './jobs/event-log-compaction.js';
 import { startAuditCheckpointJob } from './jobs/audit-checkpoint.js';
+import { initAuditSigningKey } from './lib/audit-signing-key.js';
 import { crossDocRoutes } from './routes/cross-doc.js';
 import { collectionRoutes } from './routes/collections.js';
 import { publicDir, extractSlug, extractSlugWithExtension, handleContentNegotiation, getDocumentWithContent } from './routes/web.js';

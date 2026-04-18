@@ -43,6 +43,7 @@ import { blobRoutes } from '../blobs.js';
 import { auditVerifyRoutes } from '../audit-verify.js';
 import { keyRotationRoutes } from '../key-rotation.js';
 import { secretRotationRoutes } from '../secret-rotation.js';
+import { userDataRoutes } from '../user-data.js';
 import {
   API_VERSION_REGISTRY,
   addVersionResponseHeaders,
@@ -114,4 +115,6 @@ export async function v1Routes(app: FastifyInstance): Promise<void> {
   await app.register(keyRotationRoutes);
   // T090: Secret rotation metadata management
   await app.register(secretRotationRoutes);
+  // T094: GDPR data export and deletion
+  await app.register(userDataRoutes);
 }

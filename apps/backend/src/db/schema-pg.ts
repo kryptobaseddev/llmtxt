@@ -746,6 +746,19 @@ export const auditCheckpoints = pgTable(
     /** Number of audit_log events included in this checkpoint. */
     eventCount: integer('event_count').notNull().default(0),
     createdAt: timestamp('created_at', { mode: 'date' }).notNull(),
+    /**
+     * T107: Ed25519 signature of the Merkle root.
+     * Format: 128-char lowercase hex (64-byte raw signature).
+     * Canonical message: "{merkle_root}|{checkpoint_date}" (ASCII, pipe-separated).
+     * NULL if AUDIT_SIGNING_KEY was not configured when the checkpoint was created.
+     */
+    signedRootSig: text('signed_root_sig'),
+    /**
+     * T107: Signing key fingerprint — first 16 hex chars of SHA-256(pubkey_hex).
+     * Identifies the key used without exposing the full public key.
+     * NULL when signedRootSig is null.
+     */
+    signingKeyId: text('signing_key_id'),
   },
   (table) => ({
     dateIdx: uniqueIndex('audit_checkpoints_date_idx').on(table.checkpointDate),

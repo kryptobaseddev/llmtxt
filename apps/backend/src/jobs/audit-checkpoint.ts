@@ -23,6 +23,7 @@ import { and, gte, lt, isNotNull, eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { auditLogs, auditCheckpoints } from '../db/schema-pg.js';
 import { requestRfc3161Timestamp } from '../lib/rfc3161.js';
+import { signMerkleRoot } from '../lib/audit-signing-key.js';
 
 const CHECKPOINT_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
 
@@ -118,6 +119,18 @@ export async function createCheckpointForDate(dateStr: string): Promise<void> {
   const merkleRoot = computeMerkleRoot(leaves);
   console.log(`${tag} ${leaves.length} events → merkle root: ${merkleRoot.slice(0, 16)}...`);
 
+  // T107: Sign the Merkle root with the server ed25519 key.
+  let signedRootSig: string | null = null;
+  let signingKeyId: string | null = null;
+  const sigResult = await signMerkleRoot(merkleRoot, dateStr);
+  if (sigResult) {
+    signedRootSig = sigResult.signature;
+    signingKeyId = sigResult.keyId;
+    console.log(`${tag} Merkle root signed with key_id=${signingKeyId}`);
+  } else {
+    console.warn(`${tag} signing skipped — AUDIT_SIGNING_KEY not configured`);
+  }
+
   // Request RFC 3161 timestamp.
   let tsrToken: string | null = null;
   try {
@@ -134,6 +147,8 @@ export async function createCheckpointForDate(dateStr: string): Promise<void> {
     checkpointDate: dateStr,
     merkleRoot,
     tsrToken,
+    signedRootSig,
+    signingKeyId,
     eventCount: leaves.length,
     createdAt: new Date(),
   });
