@@ -109,10 +109,16 @@ async function getServerPurify(): Promise<any> {
   if (_serverPurify) return _serverPurify;
 
   // Dynamic import — not bundled in browser builds.
-  const [{ JSDOM }, DOMPurifyModule] = await Promise.all([
-    import('jsdom'),
-    import('dompurify'),
-  ]);
+  // jsdom and dompurify are optional runtime-only peer deps (Node.js server use).
+  // They are NOT in devDependencies to keep browser/WASM builds lean.
+  // ts-ignore suppresses missing-type-stubs errors from tsc.
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  const jsdomMod: any = await import('jsdom');
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  const DOMPurifyModule: any = await import('dompurify');
+  const { JSDOM } = jsdomMod as { JSDOM: any };
 
   const { window: jsdomWindow } = new JSDOM('');
   // DOMPurify's default export is a factory function that accepts a window
