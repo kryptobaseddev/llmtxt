@@ -8,8 +8,8 @@
  * @module
  */
 
-import { BlobNameInvalidError } from '../core/errors.js';
-import * as wasmModule from '../../wasm/llmtxt_core.js';
+import * as wasmModule from "../../wasm/llmtxt_core.js";
+import { BlobNameInvalidError } from "../core/errors.js";
 
 /**
  * Validate a blob attachment name using the Rust WASM primitive.
@@ -27,10 +27,10 @@ import * as wasmModule from '../../wasm/llmtxt_core.js';
  * @throws {@link BlobNameInvalidError} on violation
  */
 export function validateBlobName(name: string): void {
-  try {
-    wasmModule.blobNameValidate(name);
-  } catch (err: unknown) {
-    const reason = err instanceof Error ? err.message : String(err);
-    throw new BlobNameInvalidError(name, reason);
-  }
+	try {
+		wasmModule.blobNameValidate(name);
+	} catch (err: unknown) {
+		const reason = err instanceof Error ? err.message : String(err);
+		throw new BlobNameInvalidError(name, reason);
+	}
 }

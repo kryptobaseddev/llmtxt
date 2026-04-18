@@ -24,13 +24,13 @@
  * @module
  */
 
-import { nanoid } from 'nanoid';
-import { eq, and, isNull } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { and, eq, isNull } from "drizzle-orm";
+import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import { nanoid } from "nanoid";
 
-import type { BlobRef } from '../core/backend.js';
-import { blobAttachments } from '../local/schema-local.js';
-import type { BlobFsAdapter } from './fs-adapter.js';
+import type { BlobRef } from "../core/backend.js";
+import { blobAttachments } from "../local/schema-local.js";
+import type { BlobFsAdapter } from "./fs-adapter.js";
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -42,22 +42,22 @@ import type { BlobFsAdapter } from './fs-adapter.js';
  * The blob bytes are pulled lazily on first `getBlob(includeData=true)` call.
  */
 export interface BlobChangeset {
-  /** The cr-sqlite binary changeset (may be empty Uint8Array). */
-  crsqlChangeset: Uint8Array;
-  /** Blob references for all blob operations in the transaction window. */
-  blobs: BlobRef[];
+	/** The cr-sqlite binary changeset (may be empty Uint8Array). */
+	crsqlChangeset: Uint8Array;
+	/** Blob references for all blob operations in the transaction window. */
+	blobs: BlobRef[];
 }
 
 /**
  * Result of applying a BlobChangeset.
  */
 export interface ApplyBlobChangesetResult {
-  /** Number of blob refs successfully applied (winners inserted). */
-  applied: number;
-  /** Number of blob refs that lost LWW and were discarded. */
-  discarded: number;
-  /** Hashes scheduled for lazy background pull. */
-  pendingFetches: string[];
+	/** Number of blob refs successfully applied (winners inserted). */
+	applied: number;
+	/** Number of blob refs that lost LWW and were discarded. */
+	discarded: number;
+	/** Hashes scheduled for lazy background pull. */
+	pendingFetches: string[];
 }
 
 // ── buildBlobChangeset ──────────────────────────────────────────────
@@ -77,42 +77,42 @@ export interface ApplyBlobChangesetResult {
  * @param sinceMs    - Only include blobs with uploadedAt > sinceMs (0 = all)
  */
 export function buildBlobChangeset(
-  db: BetterSQLite3Database<Record<string, never>>,
-  crsqlBytes: Uint8Array,
-  docSlug?: string,
-  sinceMs = 0
+	db: BetterSQLite3Database<Record<string, never>>,
+	crsqlBytes: Uint8Array,
+	docSlug?: string,
+	sinceMs = 0,
 ): BlobChangeset {
-  // Query active (non-deleted) blob attachment records
-  // Filter by uploadedAt > sinceMs to capture the transaction window.
-  const rows = db
-    .select()
-    .from(blobAttachments)
-    .where(
-      docSlug
-        ? and(
-            eq(blobAttachments.docSlug, docSlug),
-            isNull(blobAttachments.deletedAt)
-          )
-        : isNull(blobAttachments.deletedAt)
-    )
-    .all();
+	// Query active (non-deleted) blob attachment records
+	// Filter by uploadedAt > sinceMs to capture the transaction window.
+	const rows = db
+		.select()
+		.from(blobAttachments)
+		.where(
+			docSlug
+				? and(
+						eq(blobAttachments.docSlug, docSlug),
+						isNull(blobAttachments.deletedAt),
+					)
+				: isNull(blobAttachments.deletedAt),
+		)
+		.all();
 
-  const refs: BlobRef[] = rows
-    .filter((r) => sinceMs === 0 || r.uploadedAt > sinceMs)
-    .map((r) => ({
-      blobName: r.blobName,
-      hash: r.hash,
-      size: r.size,
-      contentType: r.contentType,
-      uploadedBy: r.uploadedBy,
-      uploadedAt: r.uploadedAt,
-      docSlug: r.docSlug,
-    }));
+	const refs: BlobRef[] = rows
+		.filter((r) => sinceMs === 0 || r.uploadedAt > sinceMs)
+		.map((r) => ({
+			blobName: r.blobName,
+			hash: r.hash,
+			size: r.size,
+			contentType: r.contentType,
+			uploadedBy: r.uploadedBy,
+			uploadedAt: r.uploadedAt,
+			docSlug: r.docSlug,
+		}));
 
-  return {
-    crsqlChangeset: crsqlBytes,
-    blobs: refs,
-  };
+	return {
+		crsqlChangeset: crsqlBytes,
+		blobs: refs,
+	};
 }
 
 // ── LWW comparison ──────────────────────────────────────────────────
@@ -126,13 +126,13 @@ export function buildBlobChangeset(
  *   - same (uploadedAt, uploadedBy) = same record, no-op
  */
 export function incomingWinsLWW(
-  incoming: BlobRef,
-  existing: { uploadedAt: number; uploadedBy: string }
+	incoming: BlobRef,
+	existing: { uploadedAt: number; uploadedBy: string },
 ): boolean {
-  if (incoming.uploadedAt > existing.uploadedAt) return true;
-  if (incoming.uploadedAt < existing.uploadedAt) return false;
-  // Tie-break: higher lex uploadedBy wins
-  return incoming.uploadedBy > existing.uploadedBy;
+	if (incoming.uploadedAt > existing.uploadedAt) return true;
+	if (incoming.uploadedAt < existing.uploadedAt) return false;
+	// Tie-break: higher lex uploadedBy wins
+	return incoming.uploadedBy > existing.uploadedBy;
 }
 
 // ── applyBlobChangeset ──────────────────────────────────────────────
@@ -154,88 +154,90 @@ export function incomingWinsLWW(
  *                         a background pull; receives (docSlug, hash)
  */
 export function applyBlobChangeset(
-  db: BetterSQLite3Database<Record<string, never>>,
-  blobFs: BlobFsAdapter,
-  refs: BlobRef[],
-  pendingFetches: Set<string>,
-  scheduleFetch?: (docSlug: string, hash: string) => void
+	db: BetterSQLite3Database<Record<string, never>>,
+	blobFs: BlobFsAdapter,
+	refs: BlobRef[],
+	pendingFetches: Set<string>,
+	scheduleFetch?: (docSlug: string, hash: string) => void,
 ): ApplyBlobChangesetResult {
-  let applied = 0;
-  let discarded = 0;
-  const newPendingFetches: string[] = [];
+	let applied = 0;
+	let discarded = 0;
+	const newPendingFetches: string[] = [];
 
-  for (const ref of refs) {
-    // Refs extended with docSlug come from buildBlobChangeset; plain BlobRef
-    // (per the spec interface) may also arrive without docSlug. Skip if absent.
-    const docSlug = (ref as BlobRef & { docSlug?: string }).docSlug;
-    if (!docSlug) {
-      discarded++;
-      continue;
-    }
+	for (const ref of refs) {
+		// Refs extended with docSlug come from buildBlobChangeset; plain BlobRef
+		// (per the spec interface) may also arrive without docSlug. Skip if absent.
+		const docSlug = (ref as BlobRef & { docSlug?: string }).docSlug;
+		if (!docSlug) {
+			discarded++;
+			continue;
+		}
 
-    // Query the currently active manifest record for this (docSlug, blobName)
-    const existing = db
-      .select({
-        id: blobAttachments.id,
-        uploadedAt: blobAttachments.uploadedAt,
-        uploadedBy: blobAttachments.uploadedBy,
-        hash: blobAttachments.hash,
-      })
-      .from(blobAttachments)
-      .where(
-        and(
-          eq(blobAttachments.docSlug, docSlug),
-          eq(blobAttachments.blobName, ref.blobName),
-          isNull(blobAttachments.deletedAt)
-        )
-      )
-      .get();
+		// Query the currently active manifest record for this (docSlug, blobName)
+		const existing = db
+			.select({
+				id: blobAttachments.id,
+				uploadedAt: blobAttachments.uploadedAt,
+				uploadedBy: blobAttachments.uploadedBy,
+				hash: blobAttachments.hash,
+			})
+			.from(blobAttachments)
+			.where(
+				and(
+					eq(blobAttachments.docSlug, docSlug),
+					eq(blobAttachments.blobName, ref.blobName),
+					isNull(blobAttachments.deletedAt),
+				),
+			)
+			.get();
 
-    // Check LWW
-    if (existing && !incomingWinsLWW(ref, existing)) {
-      discarded++;
-      continue;
-    }
+		// Check LWW
+		if (existing && !incomingWinsLWW(ref, existing)) {
+			discarded++;
+			continue;
+		}
 
-    // Incoming wins — apply in a transaction
-    const now = Date.now();
-    const newId = nanoid(21);
+		// Incoming wins — apply in a transaction
+		const now = Date.now();
+		const newId = nanoid(21);
 
-    db.transaction(() => {
-      if (existing) {
-        // Soft-delete the displaced record
-        db.update(blobAttachments)
-          .set({ deletedAt: now })
-          .where(eq(blobAttachments.id, existing.id))
-          .run();
-      }
+		db.transaction(() => {
+			if (existing) {
+				// Soft-delete the displaced record
+				db.update(blobAttachments)
+					.set({ deletedAt: now })
+					.where(eq(blobAttachments.id, existing.id))
+					.run();
+			}
 
-      // Insert new active record with the incoming ref's metadata
-      db.insert(blobAttachments).values({
-        id: newId,
-        docSlug,
-        blobName: ref.blobName,
-        hash: ref.hash,
-        size: ref.size,
-        contentType: ref.contentType,
-        uploadedBy: ref.uploadedBy,
-        uploadedAt: ref.uploadedAt,
-        deletedAt: null,
-      }).run();
-    });
+			// Insert new active record with the incoming ref's metadata
+			db.insert(blobAttachments)
+				.values({
+					id: newId,
+					docSlug,
+					blobName: ref.blobName,
+					hash: ref.hash,
+					size: ref.size,
+					contentType: ref.contentType,
+					uploadedBy: ref.uploadedBy,
+					uploadedAt: ref.uploadedAt,
+					deletedAt: null,
+				})
+				.run();
+		});
 
-    applied++;
+		applied++;
 
-    // Check if the winner's hash is already in local blob storage
-    const localBytes = blobFs.fetchBlobByHash(ref.hash);
-    if (localBytes === null && !pendingFetches.has(ref.hash)) {
-      pendingFetches.add(ref.hash);
-      newPendingFetches.push(ref.hash);
-      scheduleFetch?.(docSlug, ref.hash);
-    }
-  }
+		// Check if the winner's hash is already in local blob storage
+		const localBytes = blobFs.fetchBlobByHash(ref.hash);
+		if (localBytes === null && !pendingFetches.has(ref.hash)) {
+			pendingFetches.add(ref.hash);
+			newPendingFetches.push(ref.hash);
+			scheduleFetch?.(docSlug, ref.hash);
+		}
+	}
 
-  return { applied, discarded, pendingFetches: newPendingFetches };
+	return { applied, discarded, pendingFetches: newPendingFetches };
 }
 
 // ── BlobRef type augmentation for internal use ─────────────────────
@@ -246,5 +248,5 @@ export function applyBlobChangeset(
  * BlobRef spec interface (which is scoped to a document context by the caller).
  */
 export interface BlobRefWithDocSlug extends BlobRef {
-  docSlug: string;
+	docSlug: string;
 }

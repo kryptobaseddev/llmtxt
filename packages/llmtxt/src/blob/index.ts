@@ -15,23 +15,22 @@
  * @module
  */
 
-// ── Error classes ──────────────────────────────────────────────────
-export {
-  BlobTooLargeError,
-  BlobNameInvalidError,
-  BlobCorruptError,
-  BlobNotFoundError,
-  BlobAccessDeniedError,
-} from '../core/errors.js';
-
 // ── Types ──────────────────────────────────────────────────────────
 export type {
-  AttachBlobParams,
-  BlobAttachment,
-  BlobData,
-  BlobRef,
-  BlobOps,
-} from '../core/backend.js';
+	AttachBlobParams,
+	BlobAttachment,
+	BlobData,
+	BlobOps,
+	BlobRef,
+} from "../core/backend.js";
+// ── Error classes ──────────────────────────────────────────────────
+export {
+	BlobAccessDeniedError,
+	BlobCorruptError,
+	BlobNameInvalidError,
+	BlobNotFoundError,
+	BlobTooLargeError,
+} from "../core/errors.js";
 
 // ── WASM primitives ────────────────────────────────────────────────
 
@@ -45,8 +44,20 @@ export type {
  * @param data - Raw bytes to hash
  * @returns Lowercase hex SHA-256 digest (64 chars)
  */
-export { hashBlob } from '../wasm.js';
-
+export { hashBlob } from "../wasm.js";
+export type {
+	ApplyBlobChangesetResult,
+	BlobChangeset,
+	BlobRefWithDocSlug,
+} from "./changeset.js";
+// ── Changeset utilities ────────────────────────────────────────────
+export {
+	applyBlobChangeset,
+	buildBlobChangeset,
+	incomingWinsLWW,
+} from "./changeset.js";
+// ── Filesystem adapter ─────────────────────────────────────────────
+export { BlobFsAdapter } from "./fs-adapter.js";
 /**
  * Validate a blob attachment name.
  *
@@ -62,20 +73,4 @@ export { hashBlob } from '../wasm.js';
  * @param name - The attachment name to validate (e.g. "diagram.png")
  * @throws {@link BlobNameInvalidError} on violation
  */
-export { validateBlobName } from './primitives.js';
-
-// ── Filesystem adapter ─────────────────────────────────────────────
-export { BlobFsAdapter } from './fs-adapter.js';
-
-// ── Changeset utilities ────────────────────────────────────────────
-export {
-  buildBlobChangeset,
-  applyBlobChangeset,
-  incomingWinsLWW,
-} from './changeset.js';
-
-export type {
-  BlobChangeset,
-  ApplyBlobChangesetResult,
-  BlobRefWithDocSlug,
-} from './changeset.js';
+export { validateBlobName } from "./primitives.js";
