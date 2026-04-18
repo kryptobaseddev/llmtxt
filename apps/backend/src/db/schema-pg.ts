@@ -1830,3 +1830,88 @@ export const insertAuditArchiveSchema = createInsertSchema(auditArchive);
 export const selectAuditArchiveSchema = createSelectSchema(auditArchive);
 export const insertDeletionCertificateSchema = createInsertSchema(deletionCertificates);
 export const selectDeletionCertificateSchema = createSelectSchema(deletionCertificates);
+
+// ────────────────────────────────────────────────────────────────
+// T086: Signing Key Rotation — versioned agent_keys
+// T090: Secret Rotation — secrets_config
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Versioned per-agent Ed25519 keypairs.
+ *
+ * privkey_wrapped is AES-256-GCM(KEK, sk_bytes) — 60 bytes.
+ * The KEK comes from SIGNING_KEY_KEK env var or a KMS — never stored here.
+ */
+export const agentKeys = pgTable(
+  'agent_keys',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    agentId: text('agent_id').notNull(),
+    keyVersion: integer('key_version').notNull().default(1),
+    keyId: text('key_id').notNull(),
+    pubkey: bytea('pubkey').notNull(),
+    privkeyWrapped: bytea('privkey_wrapped'),
+    status: text('status').notNull().default('active'),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+    rotatedAt: timestamp('rotated_at', { withTimezone: true, mode: 'date' }),
+    retiredAt: timestamp('retired_at', { withTimezone: true, mode: 'date' }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true, mode: 'date' }),
+    graceWindowSecs: integer('grace_window_secs').notNull().default(172800),
+    label: text('label'),
+  },
+  (table) => ({
+    agentIdIdx: index('agent_keys_agent_id_idx').on(table.agentId),
+    keyIdIdx: uniqueIndex('agent_keys_key_id_idx').on(table.keyId),
+    retiringIdx: index('agent_keys_retiring_rotated_at_idx').on(table.rotatedAt),
+  })
+);
+
+/**
+ * Secret rotation configuration.
+ * Tracks version metadata only — no secret values stored.
+ */
+export const secretsConfig = pgTable(
+  'secrets_config',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    secretName: text('secret_name').notNull().unique(),
+    currentVersion: integer('current_version').notNull().default(1),
+    previousVersion: integer('previous_version'),
+    rotatedAt: timestamp('rotated_at', { withTimezone: true, mode: 'date' }),
+    graceWindowSecs: integer('grace_window_secs').notNull().default(3600),
+    provider: text('provider').notNull().default('env'),
+    vaultPath: text('vault_path'),
+    kmsKeyId: text('kms_key_id'),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  }
+);
+
+/**
+ * Immutable audit trail for key rotation and revocation events (T086, T164).
+ */
+export const agentKeyRotationEvents = pgTable(
+  'agent_key_rotation_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    agentId: text('agent_id').notNull(),
+    keyId: text('key_id').notNull(),
+    keyVersion: integer('key_version').notNull(),
+    eventType: text('event_type').notNull(),
+    actorId: text('actor_id'),
+    ipAddress: text('ip_address'),
+    details: text('details'),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  },
+  (table) => ({
+    agentIdIdx: index('agent_key_rotation_events_agent_id_idx').on(table.agentId),
+    createdAtIdx: index('agent_key_rotation_events_created_at_idx').on(table.createdAt),
+  })
+);
+
+export type AgentKey = typeof agentKeys.$inferSelect;
+export type NewAgentKey = typeof agentKeys.$inferInsert;
+export type SecretsConfig = typeof secretsConfig.$inferSelect;
+export type NewSecretsConfig = typeof secretsConfig.$inferInsert;
+export type AgentKeyRotationEvent = typeof agentKeyRotationEvents.$inferSelect;
+export type NewAgentKeyRotationEvent = typeof agentKeyRotationEvents.$inferInsert;

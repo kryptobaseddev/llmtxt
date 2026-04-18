@@ -48,7 +48,12 @@ import {
 import { securityHeaders } from './middleware/security.js';
 import { registerCsrf } from './middleware/csrf.js';
 import { registerAuditLogging, auditLogRoutes } from './middleware/audit.js';
-import { registerRateLimiting } from './middleware/rate-limit.js';
+import {
+  registerRateLimiting,
+  anonSessionRateLimitHook,
+  anonIdResponseHook,
+} from './middleware/rate-limit.js';
+import { runAnonSessionCleanup } from './jobs/anon-session-cleanup.js';
 import { registerMetrics } from './middleware/metrics.js';
 import { wellKnownAgentsRoutes } from './routes/well-known-agents.js';
 import { startNonceCleanup } from './middleware/verify-agent-signature.js';
@@ -178,6 +183,18 @@ async function main() {
 
     // Register rate limiting (after CORS and compression, before routes)
     await registerRateLimiting(app);
+
+    // ──────────────────────────────────────────────────────────────────
+    // Anonymous session enforcement hooks (T167).
+    // Dual-axis rate limiting: per-session-fingerprint (300 req/hour)
+    // independent of the per-IP axis registered above.
+    // X-Anonymous-Id response header (non-PII, epoch-salted fingerprint).
+    // ──────────────────────────────────────────────────────────────────
+    app.addHook('preHandler', anonSessionRateLimitHook);
+    app.addHook('onSend', async (request, reply, payload) => {
+      await anonIdResponseHook(request, reply);
+      return payload;
+    });
 
     // ──────────────────────────────────────────────────────────────────
     // Metrics hooks: per-request HTTP duration + counter recording.
@@ -622,6 +639,21 @@ async function main() {
     // Runs every 15 seconds; deletes expired section_leases rows and emits events.
     const leaseExpiryTimer = startLeaseExpiryJob();
     leaseExpiryTimer.unref?.();
+
+    // ── Anonymous session cleanup job (T167) ──────────────────────────────────
+    // Purge expired anonymous users + auto-archive stale anonymous docs (30d).
+    const ANON_CLEANUP_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+    const anonCleanupTimer = setInterval(async () => {
+      try {
+        const result = await runAnonSessionCleanup();
+        if (result.purgedUsers > 0 || result.archivedDocs > 0) {
+          app.log.info(result, '[anon-cleanup] purged expired anonymous sessions/docs');
+        }
+      } catch (err) {
+        app.log.warn({ err }, '[anon-cleanup] cleanup job failed');
+      }
+    }, ANON_CLEANUP_INTERVAL_MS);
+    anonCleanupTimer.unref?.();
 
     // Register error handler
     app.setErrorHandler((error: unknown, request, reply) => {

@@ -285,17 +285,24 @@ export async function getMonthlyUsage(userId: string): Promise<MonthlyUsage> {
 // ── Document count ────────────────────────────────────────────────────────────
 
 /**
- * Count non-deleted documents owned by the user.
- * The documents table uses bigint for deleted_at (null = active).
+ * Count active documents owned by the user.
+ *
+ * "Active" = not in ARCHIVED state and not yet expired.
+ * The documents table does not have a deleted_at column; archival
+ * is tracked via the `state` column ('DRAFT' | 'REVIEW' | 'LOCKED' | 'ARCHIVED').
+ * Expired documents are purged by the GC job so we only count non-expired ones
+ * (expiresAt IS NULL OR expiresAt > now()).
  */
 export async function getUserDocumentCount(userId: string): Promise<number> {
+  const now = Date.now();
   const rows = await db
     .select({ n: count(documents.id).mapWith(Number) })
     .from(documents)
     .where(
       and(
         eq(documents.ownerId, userId),
-        sql`${documents.deletedAt} IS NULL`
+        sql`${documents.state} != 'ARCHIVED'`,
+        sql`(${documents.expiresAt} IS NULL OR ${documents.expiresAt} > ${now})`
       )
     );
   return rows[0]?.n ?? 0;
