@@ -291,6 +291,12 @@ importers:
       '@vlcn.io/crsqlite':
         specifier: '>=0.16.3'
         version: 0.16.3
+      better-sqlite3:
+        specifier: '>=11.0.0'
+        version: 12.8.0
+      drizzle-orm:
+        specifier: '>=1.0.0-beta.21'
+        version: 1.0.0-beta.21(@opentelemetry/api@1.9.1)(@types/better-sqlite3@7.6.13)(@types/mssql@9.1.9(@azure/core-client@1.10.1))(@types/pg@8.20.0)(better-sqlite3@12.8.0)(mssql@11.0.1(@azure/core-client@1.10.1))(pg@8.20.0)(postgres@3.4.9)(zod@4.3.6)
       loro-crdt:
         specifier: ^1.11.0
         version: 1.11.0
@@ -300,6 +306,9 @@ importers:
       onnxruntime-node:
         specifier: '>=1.18.0'
         version: 1.24.3
+      postgres:
+        specifier: '>=3.4.0'
+        version: 3.4.9
       yjs:
         specifier: ^13.6.30
         version: 13.6.30
@@ -346,16 +355,6 @@ importers:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
-    optionalDependencies:
-      better-sqlite3:
-        specifier: ^12.8.0
-        version: 12.8.0
-      drizzle-orm:
-        specifier: 1.0.0-beta.21
-        version: 1.0.0-beta.21(@opentelemetry/api@1.9.1)(@types/better-sqlite3@7.6.13)(@types/mssql@9.1.9(@azure/core-client@1.10.1))(@types/pg@8.20.0)(better-sqlite3@12.8.0)(mssql@11.0.1(@azure/core-client@1.10.1))(pg@8.20.0)(postgres@3.4.9)(zod@4.3.6)
-      postgres:
-        specifier: ^3.4.9
-        version: 3.4.9
 
 packages:
 

@@ -2,6 +2,24 @@
 
 All notable changes to the LLMtxt ecosystem (npm `llmtxt`, Rust crate `llmtxt-core`, apps/backend, apps/frontend, apps/docs).
 
+## [2026.4.7] — 2026-04-17 (npm SDK patch)
+
+Only `llmtxt` (npm) is republished. `llmtxt-core` (crates.io) stays at 2026.4.6 — no Rust changes.
+
+### Fixed
+- **Bundler compatibility**: `await import('onnxruntime-node')` calls in `packages/llmtxt/src/embeddings.ts` now use a runtime-constructed specifier (`['onnxruntime', 'node'].join('-')`) plus `/* @vite-ignore */` and `/* webpackIgnore: true */` hints. Previously esbuild, webpack, and vite chased the literal and tried to inline the `.node` native addon, which failed. Consumer bundles no longer need `--external onnxruntime-node` to succeed. Verified with esbuild 0.28 bundling — bundle contains no `onnxruntime-node` module resolution.
+
+### Changed
+- **Optional deps reclassified**: `better-sqlite3`, `drizzle-orm`, and `postgres` moved from `optionalDependencies` to `peerDependencies` with `peerDependenciesMeta.optional: true`. pnpm no longer auto-installs them for consumers that don't need LocalBackend / PostgresBackend. Matches how `onnxruntime-node` and `@vlcn.io/crsqlite` are already declared.
+- `packages/llmtxt/README.md` adds an install matrix (which extras each topology needs) and an **esbuild / webpack / vite externalize list** for deep integrators.
+
+### Migration
+Consumers that previously relied on implicit drizzle-orm / better-sqlite3 / postgres installs MUST add them explicitly. Example for a hub-spoke deployment:
+
+```bash
+pnpm add llmtxt postgres drizzle-orm
+```
+
 ## [2026.4.6] — 2026-04-17
 
 ### Added — Storage Evolution (T384/T385/T386/T426/T427/T428/T429)

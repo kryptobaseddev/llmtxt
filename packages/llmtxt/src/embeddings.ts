@@ -160,10 +160,13 @@ async function _loadModel(): Promise<void> {
 
   const modelPath = join(cacheDir, MODEL_FILES[0].name);
 
-  // Load ONNX runtime (Node.js path)
-  // Dynamic import so bundlers can tree-shake the browser path.
+  // Load ONNX runtime (Node.js path). The specifier is built at runtime
+  // via array-join so static bundler analysis (esbuild, webpack, vite)
+  // cannot follow it and try to inline the `.node` native addon.
+  // Consumers must install `onnxruntime-node` manually to enable embeddings.
+  const ortSpec = ['onnxruntime', 'node'].join('-');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ort: any = await import('onnxruntime-node');
+  const ort: any = await import(/* @vite-ignore */ /* webpackIgnore: true */ ortSpec);
   _session = await ort.InferenceSession.create(modelPath, {
     executionProviders: ['cpu'],
     graphOptimizationLevel: 'all',
@@ -397,8 +400,10 @@ async function _runInference(texts: string[]): Promise<Float32Array[]> {
     tokenTypeIds.set(enc.tokenTypeIds, i * MAX_SEQ_LEN);
   }
 
+  // Bundler-opaque dynamic import (see loadModel() for rationale).
+  const ortSpec = ['onnxruntime', 'node'].join('-');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ort: any = await import('onnxruntime-node');
+  const ort: any = await import(/* @vite-ignore */ /* webpackIgnore: true */ ortSpec);
   const { Tensor } = ort;
 
   const feeds = {

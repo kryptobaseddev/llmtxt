@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026.4.7] — 2026-04-17
+
+### Fixed
+- **Bundler compatibility for `onnxruntime-node`**: dynamic import in `embeddings.ts` now uses a runtime-constructed specifier + `/* @vite-ignore */` + `/* webpackIgnore: true */` hints. esbuild, webpack, vite, and rollup no longer try to inline the `.node` native addon. Verified with esbuild 0.28 bundle of `llmtxt` + `llmtxt/embeddings` — exit 0, no `--external` flag needed for the onnxruntime path.
+
+### Changed
+- `better-sqlite3`, `drizzle-orm`, `postgres` moved from `optionalDependencies` to `peerDependencies` + `peerDependenciesMeta.optional: true`. pnpm no longer auto-installs them — consumers must opt in per topology. Matches treatment of `onnxruntime-node` and `@vlcn.io/crsqlite`.
+- README adds install matrix + esbuild/webpack/vite externalize list.
+
 ## [2026.4.5] - 2026-04-16
 
 This release ships the full Round 1+2+3 multi-agent foundation: CRDT/Yrs, signed Ed25519 identity, append-only event log, real-time presence/leases/diff-subscriptions (W1+W2), BFT consensus, agent scratchpad, A2A envelope routing (W3), a self-hosted observability stack (Grafana / Loki / Tempo / Prometheus / OTel collector / GlitchTip on Railway), OpenAPI schema generation with forge-ts integration, local semantic embeddings via pgvector + ONNX, four reference agents plus a `/demo` page, and a fully portable SDK offering `LocalBackend`, `RemoteBackend`, and `llmtxt` CLI — including a complete CLEO integration example. Also upgrades drizzle-orm/kit to `1.0.0-beta.21` and zod to `^4`.

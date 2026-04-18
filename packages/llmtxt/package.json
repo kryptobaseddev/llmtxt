@@ -1,6 +1,6 @@
 {
   "name": "llmtxt",
-  "version": "2026.4.6",
+  "version": "2026.4.7",
   "description": "Primitives and SDK for LLM agent content workflows: compression, patching, progressive disclosure, signed URLs, collaborative document lifecycle, and retrieval planning",
   "type": "module",
   "main": "dist/index.js",
@@ -103,7 +103,10 @@
   "peerDependencies": {
     "@cleocode/lafs": ">=2026.3",
     "@vlcn.io/crsqlite": ">=0.16.3",
-    "onnxruntime-node": ">=1.18.0"
+    "better-sqlite3": ">=11.0.0",
+    "drizzle-orm": ">=1.0.0-beta.21",
+    "onnxruntime-node": ">=1.18.0",
+    "postgres": ">=3.4.0"
   },
   "peerDependenciesMeta": {
     "@cleocode/lafs": {
@@ -112,7 +115,16 @@
     "@vlcn.io/crsqlite": {
       "optional": true
     },
+    "better-sqlite3": {
+      "optional": true
+    },
+    "drizzle-orm": {
+      "optional": true
+    },
     "onnxruntime-node": {
+      "optional": true
+    },
+    "postgres": {
       "optional": true
     }
   },
@@ -146,10 +158,5 @@
   "homepage": "https://github.com/kryptobaseddev/llmtxt/tree/main/packages/llmtxt",
   "bugs": {
     "url": "https://github.com/kryptobaseddev/llmtxt/issues"
-  },
-  "optionalDependencies": {
-    "better-sqlite3": "^12.8.0",
-    "drizzle-orm": "1.0.0-beta.21",
-    "postgres": "^3.4.9"
   }
 }

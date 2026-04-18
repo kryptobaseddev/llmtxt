@@ -1,11 +1,13 @@
 # llmtxt
 
-[![v2026.4.6](https://img.shields.io/badge/version-2026.4.6-blue)](https://www.npmjs.com/package/llmtxt)
+[![v2026.4.7](https://img.shields.io/badge/version-2026.4.7-blue)](https://www.npmjs.com/package/llmtxt)
 
 Primitives and SDK for LLM agent content workflows.
 
 `llmtxt` wraps the Rust `llmtxt-core` crate through WASM so TypeScript
 consumers use the same single-source-of-truth logic as native Rust consumers.
+
+**v2026.4.7** (patch): bundler-friendly dynamic import of `onnxruntime-node`; `drizzle-orm` / `better-sqlite3` / `postgres` moved from `optionalDependencies` to optional `peerDependencies` so consumers no longer auto-install them. Docs add the required externalize list for esbuild / webpack / vite / rollup.
 
 **v2026.4.6**: Loro CRDT (replaces Yrs — binary-incompatible), AgentSession lifecycle, document export/import (4 formats), binary blob attachments, `createBackend()` topology factory, cr-sqlite changeset sync, P2P mesh, and new CLI commands.
 
@@ -14,6 +16,40 @@ consumers use the same single-source-of-truth logic as native Rust consumers.
 ```bash
 npm install llmtxt
 ```
+
+All database/embedding drivers are **optional peer dependencies** — install only the ones your topology needs:
+
+| Topology / feature | Extra install |
+|---|---|
+| `standalone` (local SQLite) | `pnpm add better-sqlite3 drizzle-orm` |
+| `hub-spoke` (Postgres hub) | `pnpm add postgres drizzle-orm` |
+| `mesh` + cr-sqlite CRR | `pnpm add @vlcn.io/crsqlite` |
+| Semantic embeddings | `pnpm add onnxruntime-node` |
+| RemoteBackend-only consumer (no local DB) | nothing extra |
+
+## Bundling with esbuild / webpack / vite / rollup
+
+`llmtxt` keeps optional peer deps opaque to static bundler analysis where possible, but deep imports inside `LocalBackend` (drizzle-orm) and native addons (onnxruntime-node) must be marked **external** by consumers who bundle. Minimum external list:
+
+```js
+// esbuild
+esbuild.build({
+  bundle: true,
+  platform: 'node',
+  external: [
+    'onnxruntime-node',          // native .node addon
+    'better-sqlite3',            // native .node addon
+    '@vlcn.io/crsqlite',         // native extension + ESM-only
+    'drizzle-orm',               // transitively pulls mssql, @opentelemetry/api
+    'drizzle-orm/*',             // subpath imports
+    'postgres',
+    'mssql',
+    '@opentelemetry/api',
+  ],
+});
+```
+
+Same list works as `externals` in webpack/rollup and `build.rollupOptions.external` in vite. If your deployment does NOT use LocalBackend (e.g. RemoteBackend only), you may also externalize `llmtxt/local`.
 
 ## Topology Factory
 
