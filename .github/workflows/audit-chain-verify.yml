@@ -28,6 +28,13 @@ jobs:
 
     env:
       DATABASE_URL_PG: postgres://test:test@localhost:5432/llmtxt_test
+      # Explicit PG* fallback — postgres-js can fall back to $USER on the runner
+      # if URL parsing hiccups, which produces `password authentication failed for user "runner"`.
+      PGUSER: test
+      PGPASSWORD: test
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGDATABASE: llmtxt_test
 
     steps:
       - uses: actions/checkout@v4
