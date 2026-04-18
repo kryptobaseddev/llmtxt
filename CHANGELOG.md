@@ -2,6 +2,20 @@
 
 All notable changes to the LLMtxt ecosystem (npm `llmtxt`, Rust crate `llmtxt-core`, apps/backend, apps/frontend, apps/docs).
 
+## [2026.4.8] — 2026-04-17 (npm SDK patch — fixes v2026.4.7 regression)
+
+Only `llmtxt` (npm) is republished. `llmtxt-core` (crates.io) stays at 2026.4.6.
+
+### Fixed
+- **`import('llmtxt')` no longer triggers `better-sqlite3` / `drizzle-orm` / `postgres` resolution at load time**. v2026.4.7 moved those deps to optional peers but `packages/llmtxt/src/backend/factory.ts` kept top-level static imports of `LocalBackend` + `RemoteBackend`, whose module graph pulled `better-sqlite3` into the load-time resolution chain. Lightweight consumers (e.g. CLEO's `cleo docs generate`, which only calls `generateOverview`) hit `ERR_MODULE_NOT_FOUND: Cannot find package 'better-sqlite3'` and silently fell back.
+- Factory now uses `import type { LocalBackend }` / `import type { RemoteBackend }` at the top of the file (zero-runtime type-only imports) and runs `await import('../local/index.js')` / `await import('../remote/index.js')` inside the matching `createBackend` branch. Module resolution is deferred until a consumer actually asks for `topology: 'standalone'`, `'hub-spoke'` persistent, or `'mesh'`.
+
+### Verification
+- `pnpm --filter llmtxt test` → 470/470 pass
+- Lightweight consumer bundle (no `better-sqlite3` installed) successfully imports `generateOverview` and `createBackend` and instantiates an ephemeral `hub-spoke` `RemoteBackend`
+- esbuild bundle test from v2026.4.7 still passes (no `onnxruntime-node` module resolution)
+- Consumers wanting standalone mode still need `pnpm add better-sqlite3 drizzle-orm` per the install matrix in `packages/llmtxt/README.md`
+
 ## [2026.4.7] — 2026-04-17 (npm SDK patch)
 
 Only `llmtxt` (npm) is republished. `llmtxt-core` (crates.io) stays at 2026.4.6 — no Rust changes.

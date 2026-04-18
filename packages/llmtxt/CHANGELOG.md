@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026.4.8] — 2026-04-17
+
+### Fixed
+- **Regression from v2026.4.7**: `import('llmtxt')` failed at load time with `ERR_MODULE_NOT_FOUND: Cannot find package 'better-sqlite3'` for consumers that only wanted utility functions (e.g. CLEO's `cleo docs generate` calling `generateOverview`). Root cause: `packages/llmtxt/src/backend/factory.ts` had top-level static `import { LocalBackend }` whose module graph pulled better-sqlite3 into the load-time resolution chain even when `createBackend` was never called. Fix: type-only imports at top of file + runtime `await import(...)` inside the matching createBackend branch. Module resolution now only happens when the consumer instantiates the specific topology that needs it.
+
 ## [2026.4.7] — 2026-04-17
 
 ### Fixed

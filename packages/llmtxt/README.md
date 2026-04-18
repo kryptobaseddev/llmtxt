@@ -1,6 +1,6 @@
 # llmtxt
 
-[![v2026.4.7](https://img.shields.io/badge/version-2026.4.7-blue)](https://www.npmjs.com/package/llmtxt)
+[![v2026.4.8](https://img.shields.io/badge/version-2026.4.8-blue)](https://www.npmjs.com/package/llmtxt)
 
 Primitives and SDK for LLM agent content workflows.
 

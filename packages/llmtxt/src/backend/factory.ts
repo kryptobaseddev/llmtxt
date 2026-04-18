@@ -52,8 +52,20 @@
  * ```
  */
 
-import { LocalBackend } from '../local/index.js';
-import { RemoteBackend } from '../remote/index.js';
+// Type-only imports so that `import 'llmtxt'` does NOT trigger better-sqlite3
+// / drizzle-orm / postgres module resolution at load time. Actual class
+// construction happens inside createBackend() via dynamic import.
+//
+// Rationale: consumers like CLEO call `await import('llmtxt')` to reach a
+// single utility (generateOverview). Before this patch a top-level
+// `import { LocalBackend }` forced Node to resolve the entire LocalBackend
+// dependency chain (better-sqlite3 native addon, drizzle-orm, etc.) even
+// when createBackend was never called. Since v2026.4.7 moved those deps
+// from optionalDependencies to peer-optional, lightweight consumers hit
+// ERR_MODULE_NOT_FOUND on the import itself. Deferring to runtime removes
+// the coupling.
+import type { LocalBackend } from '../local/index.js';
+import type { RemoteBackend } from '../remote/index.js';
 import type { Backend, BackendConfig } from '../core/backend.js';
 import { validateTopologyConfig, TopologyConfigError } from '../topology.js';
 import type {
@@ -1006,6 +1018,7 @@ export async function createBackend(config: TopologyConfig): Promise<Backend> {
 
   switch (config.topology) {
     case 'standalone': {
+      const { LocalBackend } = await import('../local/index.js');
       return new LocalBackend({
         storagePath: config.storagePath,
         identityPath: config.identityPath,
@@ -1031,6 +1044,10 @@ export async function createBackend(config: TopologyConfig): Promise<Backend> {
           storagePath: config.storagePath,
           identityPath: config.identityPath,
         };
+        const [{ LocalBackend }, { RemoteBackend }] = await Promise.all([
+          import('../local/index.js'),
+          import('../remote/index.js'),
+        ]);
         const local = new LocalBackend(localConfig);
         const remote = new RemoteBackend(remoteConfig);
         return new HubSpokeBackend({
@@ -1041,6 +1058,7 @@ export async function createBackend(config: TopologyConfig): Promise<Backend> {
       }
 
       // Ephemeral swarm worker: pure RemoteBackend, no local .db
+      const { RemoteBackend } = await import('../remote/index.js');
       return new RemoteBackend(remoteConfig);
     }
 
@@ -1052,6 +1070,7 @@ export async function createBackend(config: TopologyConfig): Promise<Backend> {
         storagePath: config.storagePath,
         identityPath: config.identityPath,
       };
+      const { LocalBackend } = await import('../local/index.js');
       const local = new LocalBackend(localConfig);
       return new MeshBackend({
         local,
