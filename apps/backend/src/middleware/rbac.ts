@@ -163,7 +163,8 @@ export async function hasPermission(
  *
  * The handler is responsible for checking document existence (404) separately
  * when the slug is not found — this middleware returns 403 for permission
- * denied and 401 for unauthenticated requests on private documents.
+ * denied. For anonymous (unauthenticated) users on private/org documents,
+ * returns 404 (not 401/403) to avoid leaking document existence (T167/AC3).
  */
 export function requirePermission(permission: Permission) {
   return async function checkPermission(request: FastifyRequest, reply: FastifyReply) {
@@ -186,11 +187,13 @@ export function requirePermission(permission: Permission) {
     const perms = await getDocumentPermissions(userId, slug);
 
     if (perms.length === 0 && !userId) {
-      // Non-existent document or unauthenticated on private doc — 401 to signal
-      // the client should authenticate before retrying.
-      return reply.status(401).send({
-        error: 'Unauthorized',
-        message: 'Authentication required to access this document',
+      // Anonymous user with no permissions on this document.
+      // Return 404 (not 401/403) to avoid leaking whether the document exists.
+      // T167/AC3: "Anonymous user attempting to access a private document returns
+      // 404 (not 403) to avoid leaking document existence."
+      return reply.status(404).send({
+        error: 'Not Found',
+        message: 'Document not found',
       });
     }
 
