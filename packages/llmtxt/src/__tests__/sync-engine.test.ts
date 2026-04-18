@@ -14,6 +14,7 @@
 
 import { describe, it, before } from 'node:test';
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 
 import { AgentIdentity } from '../identity.js';
 import {
@@ -35,6 +36,29 @@ function mockBackend(opts?: { changes?: Uint8Array }): Backend & { mutationCount
   } as unknown as Backend & { mutationCount: number };
 }
 
+class MockTransport extends EventEmitter implements PeerTransport {
+  readonly type = 'mock';
+  sent: Array<{ peerId: string; address: string; data: Uint8Array }> = [];
+  listener: ((peerId: string, data: Uint8Array) => void) | undefined;
+
+  constructor(private opts?: {
+    onSend?: (peerId: string, address: string, data: Uint8Array) => void;
+    inboundListener?: [(peerId: string, data: Uint8Array) => void];
+  }) { super(); }
+
+  async listen(cb: (peerId: string, data: Uint8Array) => void) {
+    this.listener = cb;
+    if (this.opts?.inboundListener) this.opts.inboundListener[0] = cb;
+  }
+
+  async sendChangeset(peerId: string, address: string, data: Uint8Array) {
+    this.sent.push({ peerId, address, data });
+    this.opts?.onSend?.(peerId, address, data);
+  }
+
+  async close() { /* no-op */ }
+}
+
 function mockTransport(opts?: {
   onSend?: (peerId: string, address: string, data: Uint8Array) => void;
   inboundListener?: [(peerId: string, data: Uint8Array) => void];
@@ -42,27 +66,7 @@ function mockTransport(opts?: {
   sent: Array<{ peerId: string; address: string; data: Uint8Array }>;
   listener: ((peerId: string, data: Uint8Array) => void) | undefined;
 } {
-  const sent: Array<{ peerId: string; address: string; data: Uint8Array }> = [];
-  let listener: ((peerId: string, data: Uint8Array) => void) | undefined;
-
-  return {
-    type: 'mock',
-    sent,
-    get listener() {
-      return listener;
-    },
-    async listen(cb: (peerId: string, data: Uint8Array) => void) {
-      listener = cb;
-      if (opts?.inboundListener) opts.inboundListener[0] = cb;
-    },
-    async sendChangeset(peerId: string, address: string, data: Uint8Array) {
-      sent.push({ peerId, address, data });
-      opts?.onSend?.(peerId, address, data);
-    },
-    async close() {
-      // no-op
-    },
-  };
+  return new MockTransport(opts);
 }
 
 function mockDiscovery(peers: PeerInfo[]): PeerRegistry & { peers: PeerInfo[] } {

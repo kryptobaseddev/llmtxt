@@ -42,7 +42,7 @@ import path from 'node:path';
 import { LocalBackend } from '../local/local-backend.js';
 import { AgentIdentity } from '../identity.js';
 import { SyncEngine, type PeerInfo, type PeerRegistry } from '../mesh/sync-engine.js';
-import { UnixSocketTransport, type TransportIdentity } from '../mesh/transport.js';
+import { UnixSocketTransport, type TransportIdentity } from '../transport/index.js';
 import * as ed from '@noble/ed25519';
 import { sha512 } from '@noble/hashes/sha2.js';
 

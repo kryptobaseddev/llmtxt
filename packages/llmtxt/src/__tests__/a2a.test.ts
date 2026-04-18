@@ -13,6 +13,7 @@
 
 import { describe, it, before } from 'node:test';
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 
 import { AgentIdentity } from '../identity.js';
 import { MeshMessenger, type A2AEnvelope } from '../mesh/a2a.js';
@@ -31,6 +32,35 @@ function buildA2AFrame(envelope: A2AEnvelope): Uint8Array {
   return out;
 }
 
+class MockA2ATransport extends EventEmitter implements PeerTransport {
+  readonly type = 'mock-a2a';
+  sent: Array<{ peerId: string; data: Uint8Array }> = [];
+  private listener: ((peerId: string, data: Uint8Array) => void) | undefined;
+
+  constructor(private opts?: {
+    onSend?: (peerId: string, data: Uint8Array) => void | Promise<void>;
+    failForPeer?: string;
+  }) { super(); }
+
+  simulateInbound(peerId: string, data: Uint8Array): void {
+    this.listener?.(peerId, data);
+  }
+
+  async listen(cb: (peerId: string, data: Uint8Array) => void) {
+    this.listener = cb;
+  }
+
+  async sendChangeset(peerId: string, _address: string, data: Uint8Array) {
+    if (this.opts?.failForPeer && peerId === this.opts.failForPeer) {
+      throw new Error(`[mock] peer ${peerId} unreachable`);
+    }
+    this.sent.push({ peerId, data });
+    await this.opts?.onSend?.(peerId, data);
+  }
+
+  async close() { /* no-op */ }
+}
+
 function mockTransport(opts?: {
   onSend?: (peerId: string, data: Uint8Array) => void | Promise<void>;
   failForPeer?: string;
@@ -38,29 +68,7 @@ function mockTransport(opts?: {
   sent: Array<{ peerId: string; data: Uint8Array }>;
   simulateInbound: (peerId: string, data: Uint8Array) => void;
 } {
-  const sent: Array<{ peerId: string; data: Uint8Array }> = [];
-  let listener: ((peerId: string, data: Uint8Array) => void) | undefined;
-
-  return {
-    type: 'mock-a2a',
-    sent,
-    simulateInbound(peerId: string, data: Uint8Array) {
-      listener?.(peerId, data);
-    },
-    async listen(cb: (peerId: string, data: Uint8Array) => void) {
-      listener = cb;
-    },
-    async sendChangeset(peerId: string, _address: string, data: Uint8Array) {
-      if (opts?.failForPeer && peerId === opts.failForPeer) {
-        throw new Error(`[mock] peer ${peerId} unreachable`);
-      }
-      sent.push({ peerId, data });
-      await opts?.onSend?.(peerId, data);
-    },
-    async close() {
-      // no-op
-    },
-  };
+  return new MockA2ATransport(opts);
 }
 
 function mockDiscovery(peers: PeerInfo[]): PeerRegistry {

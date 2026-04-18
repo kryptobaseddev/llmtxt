@@ -1,4 +1,4 @@
 {
   "title": "Primitives",
-  "pages": ["identity", "events", "blob"]
+  "pages": ["identity", "events", "blob", "transport", "sdk", "crdt", "similarity"]
 }

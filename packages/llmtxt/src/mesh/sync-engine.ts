@@ -14,19 +14,11 @@ import { EventEmitter } from 'node:events';
 
 import type { AgentIdentity } from '../identity.js';
 import type { Backend } from '../core/backend.js';
+import type { PeerTransport } from '../transport/index.js';
 
-// ── Transport Abstraction ─────────────────────────────────────────
-
-/**
- * Minimal transport interface required by SyncEngine.
- * Full interface spec: P3-p2p-mesh.md §4.1
- */
-export interface PeerTransport {
-  readonly type: string;
-  listen(onMessage: (peerId: string, data: Uint8Array) => void): Promise<void>;
-  sendChangeset(peerId: string, peerAddress: string, data: Uint8Array): Promise<void>;
-  close(): Promise<void>;
-}
+// Re-export PeerTransport so existing mesh consumers that imported it from
+// sync-engine.ts continue to work without changes (T610 migration shim).
+export type { PeerTransport };
 
 // ── Peer Discovery ────────────────────────────────────────────────
 

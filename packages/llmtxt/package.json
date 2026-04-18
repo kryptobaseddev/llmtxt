@@ -60,6 +60,14 @@
     "./export-backend": {
       "types": "./dist/export/backend-export.d.ts",
       "import": "./dist/export/backend-export.js"
+    },
+    "./identity": {
+      "types": "./dist/identity/index.d.ts",
+      "import": "./dist/identity/index.js"
+    },
+    "./transport": {
+      "types": "./dist/transport/index.d.ts",
+      "import": "./dist/transport/index.js"
     }
   },
   "files": [

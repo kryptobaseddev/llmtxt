@@ -1249,7 +1249,7 @@ async function cmdMeshStart(args: CliArgs): Promise<void> {
   const pubkeyB64 = Buffer.from(pubkeyBytes).toString('base64');
 
   // 4. Build transport.
-  let transport: import('../mesh/transport.js').PeerTransport;
+  let transport: import('../transport/index.js').PeerTransport;
   let listenAddress: string;
 
   const transportIdentity = {
@@ -1259,12 +1259,12 @@ async function cmdMeshStart(args: CliArgs): Promise<void> {
   };
 
   if (transportType === 'unix') {
-    const { UnixSocketTransport } = await import('../mesh/transport.js');
+    const { UnixSocketTransport } = await import('../transport/index.js');
     const socketPath = defaultSocketPath(storagePath);
     transport = new UnixSocketTransport({ identity: transportIdentity, socketPath });
     listenAddress = `unix:${socketPath}`;
   } else if (transportType === 'http') {
-    const { HttpTransport } = await import('../mesh/transport.js');
+    const { HttpTransport } = await import('../transport/index.js');
     const port = args.port ?? 7890;
     transport = new HttpTransport({ identity: transportIdentity, port });
     listenAddress = `http://127.0.0.1:${port}`;

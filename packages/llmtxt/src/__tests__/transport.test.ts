@@ -34,7 +34,7 @@ import {
   ChangesetTooLargeError,
   MAX_CHANGESET_BYTES,
   type TransportIdentity,
-} from '../mesh/transport.js';
+} from '../transport/index.js';
 
 // ── Test helpers ──────────────────────────────────────────────────
 

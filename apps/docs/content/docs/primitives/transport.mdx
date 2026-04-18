@@ -1,0 +1,373 @@
+---
+title: Transport (llmtxt/transport)
+description: PeerTransport abstraction — UnixSocketTransport, HttpTransport, and Ed25519 mutual handshake for P2P changeset exchange between agents.
+---
+
+# Transport (`llmtxt/transport`)
+
+The `llmtxt/transport` subpath provides the peer transport abstraction for
+sending and receiving binary changesets between agents. It includes:
+
+- `PeerTransport` — the interface all transport implementations satisfy.
+- `UnixSocketTransport` — high-performance Unix domain socket transport for
+  same-machine collaboration.
+- `HttpTransport` — HTTP-based transport for cross-machine collaboration.
+- Ed25519 mutual handshake — built-in, mandatory authentication before any data
+  is exchanged.
+
+The transport layer is independently importable. It does not require the mesh
+module; future consumers such as Hub-Spoke `RemoteBackend` can import
+`llmtxt/transport` without pulling in mesh-specific code.
+
+---
+
+## Installation
+
+```bash
+# Already bundled with the llmtxt package:
+pnpm add llmtxt
+```
+
+---
+
+## Quick Start
+
+```ts
+import {
+  UnixSocketTransport,
+  HttpTransport,
+  type PeerTransport,
+  type TransportIdentity,
+} from 'llmtxt/transport';
+import * as ed from '@noble/ed25519';
+import * as crypto from 'node:crypto';
+
+// Build a TransportIdentity from an Ed25519 keypair.
+async function makeIdentity(): Promise<TransportIdentity> {
+  const sk = ed.utils.randomSecretKey();
+  const pk = await ed.getPublicKeyAsync(sk);
+  const agentId = crypto.createHash('sha256').update(pk).digest('hex');
+  return { agentId, publicKey: pk, privateKey: sk };
+}
+
+// --- Server side ---
+const serverIdentity = await makeIdentity();
+const server = new UnixSocketTransport({
+  identity: serverIdentity,
+  socketPath: '/tmp/agent-server.sock',
+});
+
+await server.listen((peerId, changeset) => {
+  console.log(`received ${changeset.length} bytes from ${peerId}`);
+});
+
+// --- Client side ---
+const clientIdentity = await makeIdentity();
+const client = new UnixSocketTransport({
+  identity: clientIdentity,
+  socketPath: '/tmp/agent-client.sock',
+});
+
+const payload = new TextEncoder().encode('{"op":"update","doc":"abc"}');
+await client.sendChangeset(
+  serverIdentity.agentId,
+  'unix:/tmp/agent-server.sock',
+  payload,
+);
+
+await server.close();
+```
+
+---
+
+## Security Model
+
+Transport security is **built-in and mandatory**, not optional:
+
+- Every connection MUST complete the Ed25519 mutual handshake before any
+  changeset data is sent or received.
+- Connections that fail the handshake are closed immediately.
+- Unauthenticated peers are rejected before any data exchange begins.
+- Changesets larger than 10 MiB are rejected at both send and receive.
+
+---
+
+## PeerTransport Interface
+
+```ts
+import { EventEmitter } from 'node:events';
+
+interface PeerTransport extends EventEmitter {
+  /** Transport type identifier (e.g., "unix", "http"). */
+  readonly type: string;
+
+  /**
+   * Start listening for incoming connections.
+   * Invokes onChangeset only after a successful Ed25519 handshake.
+   */
+  listen(onChangeset: (peerId: string, changeset: Uint8Array) => void): Promise<void>;
+
+  /**
+   * Send a changeset to a peer at the given address.
+   * Runs the full handshake as the initiator first.
+   */
+  sendChangeset(peerId: string, peerAddress: string, changeset: Uint8Array): Promise<void>;
+
+  /** Graceful shutdown. */
+  close(): Promise<void>;
+}
+```
+
+Implementations MUST extend `EventEmitter` and emit `peerError` events when a
+handshake fails or a peer is unreachable.
+
+---
+
+## TransportIdentity
+
+```ts
+interface TransportIdentity {
+  /** Hex-encoded SHA-256 of publicKey bytes. */
+  agentId: string;
+  /** 32-byte Ed25519 public key. */
+  publicKey: Uint8Array;
+  /** 32-byte Ed25519 private key seed. */
+  privateKey: Uint8Array;
+}
+```
+
+The `agentId` MUST be the lowercase hex-encoded SHA-256 of `publicKey`. The
+`privateKey` is the raw 32-byte seed (not the 64-byte expanded key).
+
+---
+
+## UnixSocketTransport
+
+Primary transport for same-machine agent collaboration.
+
+```ts
+const transport = new UnixSocketTransport({
+  identity: TransportIdentity,
+  socketPath: string,   // Absolute path. Format: unix:<socketPath>
+});
+```
+
+### Address Format
+
+```
+unix:/absolute/path/to/socket.sock
+```
+
+### Behaviour
+
+- Listens on a Unix domain socket.
+- Frames messages with a 4-byte little-endian length prefix.
+- Performs the 3-message binary Ed25519 handshake on every connection.
+- Retries `sendChangeset` up to `MAX_RETRIES` times (3) with exponential
+  backoff starting at `RETRY_BASE_MS` (1000 ms).
+- Removes stale socket files from previous crashes at startup.
+- Emits `peerError` events for handshake failures and unreachable peers.
+
+---
+
+## HttpTransport
+
+Secondary transport for cross-machine agent collaboration.
+
+```ts
+const transport = new HttpTransport({
+  identity: TransportIdentity,
+  port: number,
+  host?: string,   // Default: '127.0.0.1'
+});
+```
+
+### Address Format
+
+```
+http://<host>:<port>
+```
+
+### HTTP Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/mesh/handshake` | `POST` | 2-phase JSON handshake |
+| `/mesh/changeset` | `POST` | Binary changeset delivery |
+
+### Handshake Flow (HTTP)
+
+Phase 1 — client sends:
+```json
+{
+  "phase": 1,
+  "agentId": "<hex-sha256-of-pubkey>",
+  "pubkey": "<base64-32-bytes>",
+  "challenge": "<base64-32-random-bytes>"
+}
+```
+
+Server responds:
+```json
+{
+  "agentId": "<server-agentId>",
+  "pubkey": "<server-pubkey-base64>",
+  "sig": "<base64-sig-over-client-challenge>",
+  "challenge": "<base64-32-server-challenge>"
+}
+```
+
+Phase 2 — client sends:
+```json
+{
+  "phase": 2,
+  "agentId": "<client-agentId>",
+  "sig": "<base64-sig-over-server-challenge>"
+}
+```
+
+Server responds:
+```json
+{ "ok": true }
+```
+
+After the handshake, the client POSTs changesets to `/mesh/changeset` with:
+- `Content-Type: application/octet-stream`
+- `X-Agent-Id: <agentId>` header
+- Raw binary changeset as the body
+
+Requests without a completed handshake session return `401`.
+
+---
+
+## Error Classes
+
+### `HandshakeFailedError`
+
+```ts
+class HandshakeFailedError extends Error {
+  readonly code: 'HANDSHAKE_FAILED';
+}
+```
+
+Thrown when the Ed25519 mutual handshake cannot be completed.
+Not retried — handshake failures are security violations.
+
+### `PeerUnreachableError`
+
+```ts
+class PeerUnreachableError extends Error {
+  readonly code: 'PEER_UNREACHABLE';
+  constructor(peerId: string, address: string, cause?: unknown)
+}
+```
+
+Thrown after `MAX_RETRIES` (3) failed connection attempts.
+
+### `ChangesetTooLargeError`
+
+```ts
+class ChangesetTooLargeError extends Error {
+  readonly code: 'CHANGESET_TOO_LARGE';
+}
+```
+
+Thrown synchronously when `changeset.length > MAX_CHANGESET_BYTES`.
+
+---
+
+## Constants
+
+| Name | Value | Purpose |
+|------|-------|---------|
+| `MAX_CHANGESET_BYTES` | `10 * 1024 * 1024` | 10 MiB max changeset size |
+| `MAX_RETRIES` | `3` | Connection retry limit |
+| `RETRY_BASE_MS` | `1000` | Base exponential backoff (ms) |
+
+---
+
+## Wire Format (Unix)
+
+All socket messages use a 4-byte little-endian length prefix:
+
+```
+[msg-length: u32 LE][msg-bytes: N bytes]
+```
+
+### Handshake Message Types
+
+| Byte | Message | Layout |
+|------|---------|--------|
+| `0x01` | INIT | `[type][agentId-len: u8][agentId: utf8][pubkey: 32B][challenge: 32B]` |
+| `0x02` | RESP | `[type][agentId-len: u8][agentId: utf8][pubkey: 32B][sig: 64B][challenge: 32B]` |
+| `0x03` | FINAL | `[type][sig: 64B]` |
+| `0x04` | CHANGESET | `[type][payload: N bytes]` |
+
+---
+
+## Listening for peerError Events
+
+```ts
+const transport = new UnixSocketTransport({ identity, socketPath });
+
+transport.on('peerError', (err: Error) => {
+  console.error('Peer error:', err.message);
+  // err may be HandshakeFailedError or PeerUnreachableError
+});
+
+await transport.listen((peerId, changeset) => {
+  // Only called for authenticated peers.
+  applyChangeset(changeset);
+});
+```
+
+---
+
+## Implementing a Custom Transport
+
+```ts
+import { EventEmitter } from 'node:events';
+import type { PeerTransport } from 'llmtxt/transport';
+
+export class MyTransport extends EventEmitter implements PeerTransport {
+  readonly type = 'my-transport';
+
+  async listen(onChangeset: (peerId: string, changeset: Uint8Array) => void) {
+    // MUST complete Ed25519 handshake before calling onChangeset.
+    // MUST emit 'peerError' on handshake failure.
+  }
+
+  async sendChangeset(peerId: string, address: string, changeset: Uint8Array) {
+    // MUST complete Ed25519 handshake as initiator.
+    // MUST throw ChangesetTooLargeError if changeset exceeds MAX_CHANGESET_BYTES.
+  }
+
+  async close() { /* drain and shutdown */ }
+}
+```
+
+---
+
+## Mesh Integration
+
+The `mesh` module delegates all transport operations to `llmtxt/transport`. If
+you are using the full `SyncEngine`, pass a `PeerTransport` implementation:
+
+```ts
+import { SyncEngine } from 'llmtxt/src/mesh/sync-engine.js';
+import { UnixSocketTransport } from 'llmtxt/transport';
+
+const transport = new UnixSocketTransport({ identity, socketPath });
+const engine = new SyncEngine({ backend, transport, discovery, identity });
+await engine.start();
+```
+
+---
+
+## Spec References
+
+- `docs/specs/P3-p2p-mesh.md` §4 — Transport Abstraction
+- `docs/specs/P3-p2p-mesh.md` §4.1 — PeerTransport interface
+- `docs/specs/P3-p2p-mesh.md` §4.2 — Unix transport
+- `docs/specs/P3-p2p-mesh.md` §4.3 — HTTP transport
+- T610 specification: `.cleo/rcasd/T610/specification/transport-subpath-spec.md`

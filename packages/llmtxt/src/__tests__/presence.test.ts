@@ -12,6 +12,7 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 
 import { PresenceManager, type PresenceEntry } from '../mesh/presence.js';
 import type { PeerTransport, PeerRegistry, PeerInfo } from '../mesh/sync-engine.js';
@@ -29,33 +30,34 @@ function buildPresenceFrame(entry: Omit<PresenceEntry, 'receivedAt'>): Uint8Arra
   return out;
 }
 
+class MockPresenceTransport extends EventEmitter implements PeerTransport {
+  readonly type = 'mock-presence';
+  sent: Array<{ peerId: string; data: Uint8Array }> = [];
+  private _listener: ((peerId: string, data: Uint8Array) => void) | undefined;
+
+  get listener() { return this._listener; }
+
+  simulateInbound(peerId: string, data: Uint8Array): void {
+    this._listener?.(peerId, data);
+  }
+
+  async listen(cb: (peerId: string, data: Uint8Array) => void) {
+    this._listener = cb;
+  }
+
+  async sendChangeset(peerId: string, _address: string, data: Uint8Array) {
+    this.sent.push({ peerId, data });
+  }
+
+  async close() { /* no-op */ }
+}
+
 function mockTransport(): PeerTransport & {
   sent: Array<{ peerId: string; data: Uint8Array }>;
   listener: ((peerId: string, data: Uint8Array) => void) | undefined;
   simulateInbound: (peerId: string, data: Uint8Array) => void;
 } {
-  const sent: Array<{ peerId: string; data: Uint8Array }> = [];
-  let listener: ((peerId: string, data: Uint8Array) => void) | undefined;
-
-  return {
-    type: 'mock-presence',
-    sent,
-    get listener() {
-      return listener;
-    },
-    simulateInbound(peerId: string, data: Uint8Array) {
-      listener?.(peerId, data);
-    },
-    async listen(cb: (peerId: string, data: Uint8Array) => void) {
-      listener = cb;
-    },
-    async sendChangeset(peerId: string, _address: string, data: Uint8Array) {
-      sent.push({ peerId, data });
-    },
-    async close() {
-      // no-op
-    },
-  };
+  return new MockPresenceTransport();
 }
 
 function mockDiscovery(peers: PeerInfo[]): PeerRegistry {
