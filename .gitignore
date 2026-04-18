@@ -18,3 +18,7 @@ crates/*/target/
 # The wasm/ directory IS committed (needed for npm package consumers)
 .gitnexus
 .claude/worktrees/
+
+# Rust build artifacts in examples
+examples/audit-verifier/target/
+examples/*/tarpaulin-report.json
