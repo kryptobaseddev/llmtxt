@@ -6,7 +6,37 @@
  * and auditable receipts.
  *
  * Spec: docs/specs/ARCH-T426-ephemeral-agent-lifecycle.md
- * Implements: T430 (skeleton), T431 (open), T432 (contribute), T433 (close), T437 (receipt)
+ * Implements: T430 (skeleton), T431 (open), T432 (contribute), T433 (close), T437 (receipt),
+ *             T434 (crash recovery contract)
+ *
+ * ── Crash Recovery Contract (spec §5) ────────────────────────────────────────
+ *
+ * AgentSession relies exclusively on TTL mechanisms already present in the backend.
+ * No new server-side session registry is required.
+ *
+ * CRASH GUARANTEE: If an agent process dies without calling close(), all lease and
+ * presence state WILL be cleaned up within max(leaseMaxDuration, presenceTtlMs) of
+ * the crash — currently at most 330 s under default config:
+ *
+ *   | Resource       | TTL mechanism                   | Default expiry |
+ *   |----------------|---------------------------------|----------------|
+ *   | Leases         | leases.expiresAt (reaper-swept) | ≤ 300 s        |
+ *   | Presence       | presenceTtlMs in BackendConfig  | 30 s           |
+ *   | A2A inbox msgs | expiresAt on InboxMessage       | Policy-defined |
+ *   | Nonces         | nonces table TTL                | Policy-defined |
+ *
+ * DATA SAFETY: close() is BEST-EFFORT. A crash is SURVIVABLE. Data (document
+ * writes) is NOT LOST — contributions persisted via contribute() are durable
+ * in the backend from the moment they complete, regardless of whether close()
+ * is called. Only leases and presence entries expire; written documents remain.
+ *
+ * KNOWN GAP (acknowledged per spec §5): A2A inbox messages addressed to the
+ * crashed agent accumulate until sender TTLs fire. Senders SHOULD set short
+ * TTLs on ephemeral-worker-addressed messages.
+ *
+ * INTEGRATION TEST: packages/llmtxt/src/__tests__/session-crash-recovery.test.ts
+ * SWARM TEST: packages/llmtxt/src/__tests__/session-swarm.test.ts (50 workers)
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 
 import { randomUUID } from "node:crypto";

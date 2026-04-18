@@ -9,7 +9,9 @@
 # Exits 1 if any table or index name appears in two or more separate migration files.
 # No Node.js, no database connection, no network access required.
 
-set -euo pipefail
+# -e intentionally omitted: the script tracks FAIL explicitly and the
+# sort|awk|while pipeline returns non-zero at EOF which would abort with -e.
+set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 MIGRATIONS_DIR="$SCRIPT_DIR/../src/db/migrations"

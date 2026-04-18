@@ -38,6 +38,8 @@ import { PostgresBackend } from 'llmtxt/pg';
 import type { Backend } from 'llmtxt/local';
 // Wave A: inject schema tables so PostgresBackend can query without cross-package static imports.
 import * as schemaPg from '../db/schema-pg.js';
+// Blob adapter (Wave T461): inject BlobPgAdapter so PostgresBackend.attachBlob/getBlob/etc work.
+import { BlobPgAdapter } from '../storage/blob-pg-adapter.js';
 // Wave B: inject event-log + CRDT helpers (monorepo boundary: cannot import from packages/llmtxt).
 import { appendDocumentEvent } from '../lib/document-events.js';
 import { persistCrdtUpdate, loadSectionState } from '../crdt/persistence.js';
@@ -123,6 +125,47 @@ export async function registerPostgresBackendPlugin(app: FastifyInstance): Promi
     scratchpadRead: readScratchpad,
     scratchpadSubscribe: subscribeScratchpad,
   });
+
+  // Inject BlobPgAdapter (T461): wire blob storage to PostgresBackend.
+  // Mode and S3 config are read from environment variables following the
+  // same conventions as BackendConfig (BLOB_STORAGE_MODE, S3_BUCKET, etc.).
+  const blobMode = (process.env.BLOB_STORAGE_MODE === 'pg-lo' ? 'pg-lo' : 's3') as 's3' | 'pg-lo';
+  const s3Bucket = process.env.BLOB_S3_BUCKET ?? process.env.S3_BUCKET ?? '';
+  // In pg-lo mode we do not require a bucket, so only construct s3 config when bucket is set.
+  const blobAdapterConfig = blobMode === 'pg-lo'
+    ? { mode: 'pg-lo' as const }
+    : {
+        mode: 's3' as const,
+        s3: {
+          endpoint: process.env.BLOB_S3_ENDPOINT ?? process.env.S3_ENDPOINT,
+          bucket: s3Bucket,
+          region: process.env.BLOB_S3_REGION ?? process.env.S3_REGION,
+          accessKeyId: process.env.BLOB_S3_ACCESS_KEY_ID ?? process.env.S3_ACCESS_KEY_ID,
+          secretAccessKey: process.env.BLOB_S3_SECRET_ACCESS_KEY ?? process.env.S3_SECRET_ACCESS_KEY,
+        },
+      };
+
+  try {
+    // Construct the raw postgres-js sql client for the adapter by sharing
+    // the backend's internal _sql client. We access it as a typed cast since
+    // it is a private field.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sql = (backend as any)._sql;
+    const blobAdapter = new BlobPgAdapter(null, sql, blobAdapterConfig);
+    (backend as unknown as { setBlobAdapter: (a: BlobPgAdapter) => void }).setBlobAdapter(blobAdapter);
+    app.log.info(
+      { mode: blobMode, bucket: s3Bucket || '(pg-lo mode)' },
+      '[postgres-backend-plugin] BlobPgAdapter injected'
+    );
+  } catch (err: unknown) {
+    // Non-fatal: blob routes will return 500 if blob operations are attempted
+    // without a properly configured adapter. Log the reason so operators can fix it.
+    app.log.warn(
+      { err },
+      '[postgres-backend-plugin] BlobPgAdapter injection failed — blob routes will error. ' +
+      'Set BLOB_S3_BUCKET (and S3 credentials) or BLOB_STORAGE_MODE=pg-lo to enable blob storage.'
+    );
+  }
 
   app.log.info('[postgres-backend-plugin] PostgresBackend opened');
 
