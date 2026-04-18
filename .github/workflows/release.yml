@@ -7,6 +7,15 @@ name: Release
 # Tag conventions (see memory/reference_release_workflow.md):
 #   core-v<VERSION>        → publishes packages/llmtxt to npm
 #   llmtxt-core-v<VERSION> → publishes crates/llmtxt-core to crates.io via OIDC
+#
+# Gate ordering (npm path):
+#   1. CHANGELOG validation  — abort if missing entry
+#   2. Migration safety      — check-migrations.sh + ci-migrate-check.sh
+#   3. Tests + build
+#   4. Idempotency check     — skip if already published
+#   5. npm publish --provenance (PUBLISH_ONLY_IN_CI=1 set in env)
+#   6. npm audit signatures  — verify provenance attestation
+#   7. GitHub Release
 
 on:
   push:
@@ -22,6 +31,20 @@ jobs:
   publish-npm:
     if: startsWith(github.ref_name, 'core-v')
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: llmtxt_test
+        options: >-
+          --health-cmd "pg_isready -U test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     steps:
       - uses: actions/checkout@v4
 
@@ -44,6 +67,34 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#core-v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      # Gate 1: CHANGELOG-of-record validation
+      # Must have an entry for this exact version in packages/llmtxt/CHANGELOG.md
+      # before ANY build or publish step runs.
+      - name: Validate CHANGELOG entry for this release
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: bash scripts/validate-changelog.sh "$VERSION"
+
+      # Gate 2a: Static migration lint — no duplicate CREATE TABLE / CREATE INDEX
+      - name: Lint migrations (static duplicate detection)
+        working-directory: apps/backend
+        run: bash scripts/check-migrations.sh
+
+      # Gate 2b: Migration idempotency — fresh DB + second pass both succeed
+      - name: Run migrations against fresh DB (idempotency check)
+        working-directory: apps/backend
+        env:
+          DATABASE_URL_PG: postgres://test:test@localhost:5432/llmtxt_test
+        run: bash scripts/ci-migrate-check.sh
+
+      # Gate 3: Tests + build
       - name: Run Rust tests
         working-directory: crates/llmtxt-core
         run: cargo test
@@ -56,16 +107,18 @@ jobs:
         working-directory: packages/llmtxt
         run: pnpm run typecheck
 
-      - name: Extract version from tag
-        id: version
-        run: echo "version=${GITHUB_REF_NAME#core-v}" >> "$GITHUB_OUTPUT"
+      - name: SDK contract tests
+        working-directory: packages/llmtxt
+        env:
+          DATABASE_URL_PG: postgres://test:test@localhost:5432/llmtxt_test
+        run: pnpm run test
 
+      # Gate 4: Idempotency check — already published → skip publish, still audit
       - name: Check if version already published on npm
         id: npm_check
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          # `npm view X@Y version` prints the version on hit, empty on miss
           if [ -n "$(npm view "llmtxt@${VERSION}" version 2>/dev/null)" ]; then
             echo "already_published=true" >> "$GITHUB_OUTPUT"
             echo "llmtxt@${VERSION} already on npm — publish step will skip"
@@ -73,12 +126,32 @@ jobs:
             echo "already_published=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # Gate 5: npm publish with OIDC provenance
+      # PUBLISH_ONLY_IN_CI=1 satisfies the prepublishOnly guard in package.json.
+      # Local attempts without this env var will fail with a clear error.
       - name: Publish to npm with provenance
         if: steps.npm_check.outputs.already_published != 'true'
         working-directory: packages/llmtxt
         run: pnpm publish --provenance --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          PUBLISH_ONLY_IN_CI: '1'
+
+      # Gate 6: Provenance verification
+      # Runs whether or not publish happened (verifies the version that should
+      # now be on npm has valid provenance attestation).
+      - name: Verify provenance attestation (npm audit signatures)
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          sleep 10
+          npm audit signatures "llmtxt@${VERSION}" || {
+            echo "ERROR: Provenance attestation check failed for llmtxt@${VERSION}."
+            echo "This means the package was published without --provenance or the"
+            echo "attestation has not yet propagated. Re-run this workflow after 60s"
+            echo "or investigate the publish step above."
+            exit 1
+          }
 
       - name: Extract changelog for this version
         id: changelog
@@ -89,9 +162,11 @@ jobs:
           if [ -z "$NOTES" ]; then
             NOTES="Release llmtxt v${VERSION}"
           fi
-          echo "notes<<CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
-          echo "$NOTES" >> "$GITHUB_OUTPUT"
-          echo "CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
+          {
+            echo "notes<<CHANGELOG_EOF"
+            echo "$NOTES"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         env:
@@ -109,6 +184,13 @@ jobs:
 
   # crates.io publish via OIDC trusted publishing. No CARGO_REGISTRY_TOKEN.
   # Triggered by llmtxt-core-v* tag.
+  #
+  # IMPORTANT: This job uses rust-lang/crates-io-auth-action for OIDC.
+  # There is NO secret-in-if guard here — OIDC tokens are obtained at runtime
+  # by the action itself. The old release-rust.yml pattern of checking
+  # `secrets.CARGO_REGISTRY_TOKEN != ''` is explicitly NOT used because it
+  # could accidentally skip publish when the secret is unset. OIDC auth fails
+  # loudly if misconfigured — it never silently skips.
   publish-crates:
     if: startsWith(github.ref_name, 'llmtxt-core-v')
     runs-on: ubuntu-latest
@@ -120,7 +202,10 @@ jobs:
 
       - name: Extract version from tag
         id: version
-        run: echo "version=${GITHUB_REF_NAME#llmtxt-core-v}" >> "$GITHUB_OUTPUT"
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#llmtxt-core-v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Check if version already published on crates.io
         id: crates_check
@@ -130,11 +215,12 @@ jobs:
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://crates.io/api/v1/crates/llmtxt-core/${VERSION}")
           if [ "$STATUS" = "200" ]; then
             echo "already_published=true" >> "$GITHUB_OUTPUT"
+            echo "llmtxt-core@${VERSION} already on crates.io — publish step will skip"
           else
             echo "already_published=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Validate crate
+      - name: Validate crate (tests)
         working-directory: crates/llmtxt-core
         run: cargo test
 
@@ -143,6 +229,8 @@ jobs:
         working-directory: crates/llmtxt-core
         run: cargo package --allow-dirty
 
+      # OIDC-based authentication. No CARGO_REGISTRY_TOKEN secret required.
+      # If OIDC is misconfigured, this action fails loudly — never silently skips.
       - name: Authenticate to crates.io via OIDC
         if: steps.crates_check.outputs.already_published != 'true'
         uses: rust-lang/crates-io-auth-action@v1
@@ -164,9 +252,11 @@ jobs:
           if [ -z "$NOTES" ]; then
             NOTES="Release llmtxt-core v${VERSION}"
           fi
-          echo "notes<<CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
-          echo "$NOTES" >> "$GITHUB_OUTPUT"
-          echo "CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
+          {
+            echo "notes<<CHANGELOG_EOF"
+            echo "$NOTES"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         env:

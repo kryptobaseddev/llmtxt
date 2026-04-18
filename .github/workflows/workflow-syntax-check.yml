@@ -1,0 +1,67 @@
+name: Workflow Syntax Check
+
+# Runs actionlint on release-critical GitHub Actions workflow files on every
+# PR and push to main that touches workflows or release scripts.
+# Catches YAML syntax errors, expression type errors, and the secret-in-if
+# anti-pattern before they reach production.
+#
+# actionlint docs: https://github.com/rhysd/actionlint
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/**'
+      - 'scripts/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/**'
+      - 'scripts/**'
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download actionlint
+        run: |
+          bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+
+      - name: Run actionlint on release-critical workflow files
+        # Scope to release.yml, ci.yml, and this workflow.
+        # Pre-existing style issues in other workflows (restore-drill-monthly,
+        # slo-report) are tracked separately and do not block release safety.
+        run: |
+          ./actionlint -color \
+            .github/workflows/release.yml \
+            .github/workflows/ci.yml \
+            .github/workflows/workflow-syntax-check.yml
+
+      - name: Verify release scripts are executable
+        run: |
+          for script in scripts/validate-changelog.sh scripts/pre-release-check.sh; do
+            if [ ! -x "$script" ]; then
+              echo "ERROR: $script is not executable. Run: chmod +x $script" >&2
+              exit 1
+            fi
+          done
+          echo "OK: Release scripts are executable"
+
+      - name: Smoke-test validate-changelog.sh (known-good version)
+        run: |
+          bash scripts/validate-changelog.sh 2026.4.8
+          echo "OK: validate-changelog.sh correctly found entry for 2026.4.8"
+
+      - name: Smoke-test validate-changelog.sh (missing version exits 1)
+        run: |
+          if bash scripts/validate-changelog.sh 0.0.0-nonexistent 2>/dev/null; then
+            echo "ERROR: validate-changelog.sh should have exited 1 for missing version" >&2
+            exit 1
+          fi
+          echo "OK: validate-changelog.sh correctly rejected missing version 0.0.0-nonexistent"
