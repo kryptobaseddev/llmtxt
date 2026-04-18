@@ -1,0 +1,287 @@
+---
+title: SDK (llmtxt/sdk)
+description: Collaborative document SDK — lifecycle state machine, version stack, attribution, consensus, storage references, retrieval planning, BFT quorum, scratchpad, A2A messaging, and AgentSession lifecycle.
+---
+
+# Collaborative Document SDK (`llmtxt/sdk`)
+
+The `llmtxt/sdk` subpath is the primary entry point for multi-agent collaborative
+document workflows. It composes the core primitives — lifecycle, versioning,
+attribution, consensus, storage, and retrieval — into a single cohesive API.
+
+---
+
+## Installation
+
+```bash
+pnpm add llmtxt
+```
+
+---
+
+## Quick Start
+
+```ts
+import {
+  LlmtxtDocument,
+  DOCUMENT_STATES,
+  isValidTransition,
+  isEditable,
+  evaluateApprovals,
+  DEFAULT_APPROVAL_POLICY,
+} from 'llmtxt/sdk';
+
+// Check lifecycle
+isEditable('DRAFT');        // true — DRAFT and REVIEW allow edits
+isValidTransition('DRAFT', 'REVIEW'); // true
+isValidTransition('ARCHIVED', 'DRAFT'); // false — terminal state
+
+// Evaluate approvals
+const result = evaluateApprovals(reviews, DEFAULT_APPROVAL_POLICY, currentVersion);
+console.log(result.approved, result.approvedBy, result.reason);
+```
+
+---
+
+## Exports Reference
+
+### Document
+
+#### `LlmtxtDocument`
+
+High-level orchestration class composing all SDK modules behind a single API.
+All I/O is delegated to the `StorageAdapter`; all computation uses WASM-backed
+pure functions.
+
+```ts
+const doc = new LlmtxtDocument({ slug: string; storage: StorageAdapter });
+```
+
+---
+
+### Lifecycle
+
+#### `DOCUMENT_STATES`
+
+```ts
+readonly DOCUMENT_STATES: readonly ['DRAFT', 'REVIEW', 'LOCKED', 'ARCHIVED']
+```
+
+All valid lifecycle states in order.
+
+#### `isValidTransition(from, to): boolean`
+
+Returns `true` if the state transition is permitted by the lifecycle rules.
+
+| Transition | Allowed |
+|------------|---------|
+| DRAFT to REVIEW | yes |
+| DRAFT to LOCKED | yes |
+| REVIEW to DRAFT | yes (reopen) |
+| REVIEW to LOCKED | yes |
+| LOCKED to ARCHIVED | yes |
+| ARCHIVED to any | no (terminal) |
+
+#### `validateTransition(from, to): TransitionResult`
+
+Returns `{ valid, reason?, allowedTargets }`.
+
+#### `isEditable(state): boolean`
+
+Returns `true` if the state allows content modifications. Both `DRAFT` and
+`REVIEW` are editable.
+
+#### `isTerminal(state): boolean`
+
+Returns `true` if the state has no outgoing transitions (`ARCHIVED`).
+
+---
+
+### Versions
+
+#### `reconstructVersion(versions, base, target): ReconstructionResult`
+
+Reconstruct document content at a specific version number by replaying patches.
+
+#### `validatePatchApplies(patchText, content): PatchValidationResult`
+
+Check whether a patch applies cleanly to the given content.
+
+#### `squashPatches(versions, base): string`
+
+Squash a range of consecutive patches into a single unified diff.
+
+#### `computeReversePatch(patchText, content): string`
+
+Compute the reverse patch for rollback purposes.
+
+#### `diffVersions(versions, vA, vB): VersionDiffSummary`
+
+Summarise the difference between two version numbers.
+
+---
+
+### Attribution
+
+#### `attributeVersion(before, after, authorId, entry): VersionAttribution`
+
+Compute per-version attribution data (lines/tokens added/removed, sections
+modified).
+
+#### `buildContributorSummary(attributions): ContributorSummary[]`
+
+Aggregate attributions into per-agent contributor summaries, sorted by
+versions authored descending.
+
+---
+
+### Consensus
+
+#### `DEFAULT_APPROVAL_POLICY`
+
+Default approval policy requiring one approval, non-unanimous, no timeout.
+
+#### `evaluateApprovals(reviews, policy, atVersion): ApprovalResult`
+
+Evaluate whether the current review set satisfies the approval policy.
+Returns `{ approved, approvedBy, rejectedBy, pendingFrom, staleFrom, reason }`.
+
+#### `markStaleReviews(reviews, currentVersion): Review[]`
+
+Return a new reviews array with reviews at older versions marked `STALE`.
+
+---
+
+### Storage
+
+#### `inlineRef(contentHash, originalSize, compressedSize): ContentRef`
+
+Build a `ContentRef` for inline (database) storage.
+
+#### `objectStoreRef(storageKey, contentHash, originalSize, compressedSize): ContentRef`
+
+Build a `ContentRef` for object-store (S3-compatible) storage.
+
+#### `versionStorageKey(slug, versionNumber): string`
+
+Compute the object-store key for a version blob.
+
+#### `shouldUseObjectStore(sizeBytes): boolean`
+
+Returns `true` if the content is large enough to warrant object-store routing.
+
+---
+
+### Retrieval
+
+#### `planRetrieval(overview, tokenBudget, query?, options?): RetrievalPlan`
+
+Select sections from a document overview that fit within a token budget.
+Sections are ranked by text similarity when a query is provided; otherwise
+document order is preserved.
+
+#### `estimateRetrievalCost(overview, sectionIndices): number`
+
+Estimate the total token cost of fetching specific sections by index.
+
+---
+
+### BFT Consensus
+
+#### `bftQuorum(f): number`
+
+Compute the minimum quorum for Byzantine fault tolerance given fault tolerance `f`.
+Formula: `2f + 1`.
+
+#### `buildApprovalCanonicalPayload(slug, reviewerId, status, atVersion, timestamp): string`
+
+Build the canonical newline-delimited string to be signed by `signApproval`.
+
+#### `signApproval(identity, slug, agentId, status, atVersion): Promise<SignedApprovalEnvelope>`
+
+Sign a BFT approval with an `AgentIdentity` (Ed25519).
+
+---
+
+### Scratchpad
+
+#### `sendScratchpad(backend, params): Promise<void>`
+
+Send a scratchpad message to a document ephemeral message bus.
+
+#### `readScratchpad(backend, slug, agentId, options?): Promise<ScratchpadMessage[]>`
+
+Read scratchpad messages for the given agent.
+
+#### `onScratchpadMessage(backend, slug, agentId, callback): Unsubscribe`
+
+Subscribe to real-time scratchpad messages.
+
+---
+
+### A2A (Agent-to-Agent)
+
+#### `A2AMessage`
+
+Constructor for A2A envelope messages.
+
+#### `buildA2AMessage(options): A2AEnvelope`
+
+Build a typed A2A envelope ready for delivery.
+
+#### `sendToInbox(backend, envelope): Promise<InboxDeliveryResponse>`
+
+Deliver an A2A message to the target agent inbox.
+
+#### `pollInbox(backend, agentId, options?): Promise<InboxPollResponse>`
+
+Poll the A2A inbox for pending messages.
+
+#### `onDirectMessage(backend, agentId, callback): Unsubscribe`
+
+Subscribe to direct messages arriving in the inbox.
+
+---
+
+### AgentSession
+
+#### `AgentSession`
+
+Ephemeral agent lifecycle manager. Manages state transitions
+(`Idle -> Open -> Active -> Closing -> Closed`), contribution tracking, and
+auditable receipts.
+
+```ts
+const session = new AgentSession({ backend, agentId, slug });
+await session.open();
+await session.contribute({ versionNumber: 1, changelog: 'init' });
+const receipt = await session.close();
+```
+
+#### `AgentSessionState`
+
+Enum-like object: `{ Idle, Open, Active, Closing, Closed }`.
+
+#### `AgentSessionError`
+
+Custom error for session lifecycle violations. Constructor: `(code, message, cause?)`.
+
+---
+
+## Type Reference
+
+| Type | Description |
+|------|-------------|
+| `DocumentState` | `'DRAFT'`, `'REVIEW'`, `'LOCKED'`, or `'ARCHIVED'` |
+| `TransitionResult` | `{ valid, reason?, allowedTargets }` |
+| `VersionEntry` | Version stack entry with patchText, contentHash, metadata |
+| `ReconstructionResult` | Reconstructed content + version + hash + tokenCount |
+| `VersionAttribution` | Per-version attribution: lines/tokens/sections |
+| `ContributorSummary` | Per-agent aggregated contribution summary |
+| `ApprovalPolicy` | Policy for multi-agent review workflows |
+| `ApprovalResult` | Evaluation result with approver/rejector sets |
+| `Review` | Single agent review record |
+| `ContentRef` | Pointer to stored content (inline or object-store) |
+| `RetrievalPlan` | Selected sections within token budget |
+| `AgentSessionState` | Session lifecycle states |
+| `ContributionReceipt` | Auditable proof of work for a session |

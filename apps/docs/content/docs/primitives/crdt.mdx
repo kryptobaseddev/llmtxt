@@ -1,0 +1,156 @@
+---
+title: CRDT (llmtxt/crdt)
+description: Real-time collaborative editing via Loro CRDT — WebSocket-backed section subscriptions and HTTP state fallback using the loro-sync-v1 protocol.
+---
+
+# CRDT Collaborative Editing (`llmtxt/crdt`)
+
+The `llmtxt/crdt` subpath provides real-time collaborative editing primitives
+backed by the Loro CRDT library. It implements the `loro-sync-v1` WebSocket
+sub-protocol for multi-agent section synchronisation.
+
+---
+
+## Installation
+
+```bash
+pnpm add llmtxt
+```
+
+---
+
+## Quick Start
+
+```ts
+import { subscribeSection, getSectionText } from 'llmtxt/crdt';
+
+// Subscribe to real-time section updates
+const unsub = subscribeSection('my-doc', 'intro', (delta) => {
+  console.log('Section updated:', delta.text, 'at seq', delta.receivedAt);
+});
+
+// Later — stop listening and close the WebSocket
+unsub();
+
+// HTTP fallback — no WebSocket required
+const text = await getSectionText('my-doc', 'intro', {
+  baseUrl: 'https://api.llmtxt.my',
+  token: 'llmtxt_...',
+});
+```
+
+---
+
+## Wire Protocol
+
+The subpath implements the `loro-sync-v1` WebSocket sub-protocol:
+
+| Byte | Direction | Payload |
+|------|-----------|---------|
+| `0x01` | client to server | Loro `VersionVector` bytes (SyncStep1) |
+| `0x02` | server to client | Loro `ExportMode::Updates` blob (SyncStep2) |
+| `0x03` | bidirectional | Incremental Loro update blob |
+| `0x04` | bidirectional | AwarenessRelay (raw relay) |
+
+Stray `0x00` frames (legacy Yjs SyncStep1) are dropped and never sent.
+The format is bitwise incompatible with the previous Yrs/lib0 v1 encoding.
+
+---
+
+## Exports Reference
+
+### `subscribeSection(slug, sectionId, callback, options?): Unsubscribe`
+
+Subscribe to real-time CRDT delta events for a single section.
+
+Opens a WebSocket using `loro-sync-v1` and performs the Loro sync handshake
+(SyncStep1 -> SyncStep2 exchange). Subsequent updates are imported into a local
+Loro Doc and emitted as `SectionDelta` events.
+
+```ts
+const unsub = subscribeSection(
+  'my-doc',
+  'intro',
+  (delta: SectionDelta) => {
+    console.log(delta.text);       // current section text
+    console.log(delta.updateBytes); // raw Loro binary bytes
+    console.log(delta.receivedAt); // wall-clock ms
+  },
+  {
+    baseUrl: 'https://api.llmtxt.my', // default
+    token: 'llmtxt_...',
+    onError: (err) => console.error(err),
+    onAwareness: (payload) => handleAwareness(payload),
+  }
+);
+
+// Stop listening
+unsub(); // safe to call multiple times
+```
+
+**Unsubscribe idempotency**: calling `unsub()` more than once is safe and does
+not throw.
+
+---
+
+### `getSectionText(slug, sectionId, options?): Promise<string | null>`
+
+Fetch the current plain-text content of a section via the HTTP fallback.
+
+- Does not require WebSocket support.
+- Returns `null` if the section has not been initialised (HTTP 503).
+- Returns the text extracted from the Loro snapshot stored by the server.
+
+```ts
+const text = await getSectionText('my-doc', 'intro', {
+  baseUrl: 'https://api.llmtxt.my',
+  token: 'llmtxt_...',
+});
+
+if (text === null) {
+  console.log('Section not yet initialised');
+} else {
+  console.log('Current text:', text);
+}
+```
+
+---
+
+## Types
+
+### `SectionDelta`
+
+```ts
+interface SectionDelta {
+  slug: string;
+  sectionId: string;
+  text: string;          // current plain-text after applying the delta
+  updateBytes: Uint8Array; // raw Loro binary update bytes
+  receivedAt: number;    // wall-clock ms since epoch
+}
+```
+
+### `Unsubscribe`
+
+```ts
+type Unsubscribe = () => void;
+```
+
+### `SubscribeSectionOptions`
+
+```ts
+interface SubscribeSectionOptions {
+  baseUrl?: string;       // default: 'https://api.llmtxt.my'
+  token?: string;         // Bearer token (llmtxt_... format)
+  onError?: (err: Event) => void;
+  onAwareness?: (payload: Uint8Array) => void;
+}
+```
+
+---
+
+## Migration Note
+
+This subpath uses Loro binary format exclusively. The previous Yrs/lib0 v1 format
+is bitwise incompatible. Any client still sending `y-sync-v1` (legacy `0x00`/`0x01`
+framing) will be rejected by the server with a `4400` close code.

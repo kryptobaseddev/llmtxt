@@ -83,7 +83,7 @@
     "build:all": "pnpm run build:wasm && pnpm run build",
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
-    "test": "node --import tsx/esm --test src/__tests__/*.test.ts",
+    "test": "node --import tsx/esm --test src/__tests__/*.test.ts src/sdk/sdk.contract.test.ts src/crdt/crdt.contract.test.ts src/similarity/similarity.contract.test.ts",
     "typecheck": "tsc --noEmit",
     "validate": "pnpm run typecheck && pnpm exec forge-ts check && pnpm exec versionguard validate",
     "prepublishOnly": "node -e \"if (!process.env.PUBLISH_ONLY_IN_CI) { console.error('\\nERROR: Direct npm publish is not allowed.\\n\\nPublishing llmtxt must go through GitHub Actions to ensure:\\n  - OIDC provenance attestation (--provenance flag)\\n  - CHANGELOG validation gate\\n  - Migration safety gates\\n  - Full test suite\\n\\nTo release: push a core-v<VERSION> tag to trigger the CI workflow.\\n  git tag core-v<VERSION>\\n  git push origin core-v<VERSION>\\n'); process.exit(1); }\""

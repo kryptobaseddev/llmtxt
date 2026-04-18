@@ -1,0 +1,185 @@
+---
+title: Similarity (llmtxt/similarity)
+description: Text similarity primitives backed by Rust WASM — n-gram Jaccard similarity, MinHash fingerprinting, word shingles, and ranked search.
+---
+
+# Text Similarity (`llmtxt/similarity`)
+
+The `llmtxt/similarity` subpath provides lightweight content similarity primitives
+backed by `crates/llmtxt-core` via WASM (SSoT rule). All functions delegate to
+the Rust implementation — no independent TypeScript reimplementation exists.
+
+This subpath covers Jaccard/MinHash/ranking variants. Cosine similarity for
+dense vectors lives in `llmtxt/embeddings`.
+
+---
+
+## Installation
+
+```bash
+pnpm add llmtxt
+```
+
+---
+
+## Quick Start
+
+```ts
+import {
+  jaccardSimilarity,
+  contentSimilarity,
+  minHashFingerprint,
+  fingerprintSimilarity,
+  rankBySimilarity,
+} from 'llmtxt/similarity';
+
+// Compare two texts
+const score = jaccardSimilarity('machine learning', 'deep learning');
+// 0.0 to 1.0 — higher is more similar
+
+// Rank candidates by relevance to a query
+const results = rankBySimilarity('machine learning models', [
+  'deep neural network training',
+  'baking sourdough bread',
+  'transformer architecture',
+]);
+// results: [{ index: 0, score: 0.42 }, { index: 2, score: 0.38 }, ...]
+```
+
+---
+
+## Exports Reference
+
+### `jaccardSimilarity(a, b): number`
+
+Compute Jaccard similarity between two texts using character n-grams (n=3).
+
+- Returns a value in `[0.0, 1.0]`.
+- Symmetric: `jaccardSimilarity(a, b) === jaccardSimilarity(b, a)`.
+- Delegates to `crates/llmtxt-core::similarity::jaccard_similarity_wasm`.
+
+```ts
+jaccardSimilarity('hello world', 'hello world'); // ~1.0
+jaccardSimilarity('foo', 'bar');                 // ~0.0
+```
+
+### `textSimilarity(a, b): number`
+
+Backward-compatibility alias for `jaccardSimilarity`. Identical behaviour.
+
+### `contentSimilarity(a, b): number`
+
+Compute similarity using word bigrams (shingles of size 2) rather than
+character trigrams. Useful when comparing prose sentences.
+
+- Returns a value in `[0.0, 1.0]`.
+- Delegates to `crates/llmtxt-core::similarity::content_similarity_wasm`.
+
+### `extractNgrams(text, n?): string[]`
+
+Extract character-level n-grams from text.
+
+```ts
+extractNgrams('hello', 3); // ['hel', 'ell', 'llo']
+```
+
+- Default `n = 3`.
+- Returns a sorted array of unique n-gram strings.
+- Empty or shorter-than-n text returns `[]`.
+- Delegates to `crates/llmtxt-core::similarity::extract_ngrams_wasm`.
+
+### `extractWordShingles(text, n?): string[]`
+
+Extract word-level n-gram shingles from text.
+
+```ts
+extractWordShingles('the quick brown fox', 2);
+// ['the quick', 'quick brown', 'brown fox']
+```
+
+- Default `n = 2`.
+- Returns a sorted array.
+- Delegates to `crates/llmtxt-core::similarity::extract_word_shingles_wasm`.
+
+### `minHashFingerprint(text, numHashes?, ngramSize?): number[]`
+
+Compute a MinHash fingerprint for approximate Jaccard estimation.
+
+```ts
+const fp = minHashFingerprint('sample text', 64, 3);
+// number[] of length 64
+```
+
+- `numHashes` defaults to `64`.
+- `ngramSize` defaults to `3`.
+- Deterministic: same input always produces the same output.
+- Delegates to `crates/llmtxt-core::similarity::min_hash_fingerprint_wasm`.
+
+### `fingerprintSimilarity(a, b): number`
+
+Estimate Jaccard similarity from two MinHash fingerprints.
+
+```ts
+const fp1 = minHashFingerprint('text A', 64, 3);
+const fp2 = minHashFingerprint('text B', 64, 3);
+const score = fingerprintSimilarity(fp1, fp2); // 0.0 to 1.0
+```
+
+- Returns `0` for empty or mismatched-length arrays.
+- Symmetric: `fingerprintSimilarity(a, b) === fingerprintSimilarity(b, a)`.
+- Identical fingerprints return `1.0`.
+- Pure TypeScript (no WASM call) — computed as matching hash count / numHashes.
+
+### `rankBySimilarity(query, candidates, options?): SimilarityRankResult[]`
+
+Rank a list of candidate strings by similarity to a query string.
+
+```ts
+const results = rankBySimilarity(
+  'agent collaboration protocol',
+  ['multi-agent sync', 'bread baking', 'agent protocol design'],
+  { method: 'ngram', threshold: 0.1 }
+);
+// results sorted by descending score:
+// [{ index: 2, score: 0.51 }, { index: 0, score: 0.38 }, ...]
+```
+
+- Returns an empty array for empty `candidates`.
+- Results are sorted by descending score.
+- Each `index` maps to the corresponding position in `candidates`.
+- `options.method` accepts `'ngram'` (default) or `'shingle'`.
+- `options.threshold` filters out results below the score threshold.
+- Delegates to `crates/llmtxt-core::similarity::rank_by_similarity_wasm`.
+
+---
+
+## Types
+
+### `SimilarityRankResult`
+
+```ts
+interface SimilarityRankResult {
+  index: number; // 0-based index into the candidates array
+  score: number; // similarity score in [0.0, 1.0]
+}
+```
+
+---
+
+## When to Use Which Function
+
+| Goal | Use |
+|------|-----|
+| Quick text similarity check | `jaccardSimilarity` or `contentSimilarity` |
+| Rank many candidates against a query | `rankBySimilarity` |
+| Large-scale deduplication (approximate) | `minHashFingerprint` + `fingerprintSimilarity` |
+| Extract features for custom logic | `extractNgrams` or `extractWordShingles` |
+| Dense-vector cosine similarity | `llmtxt/embeddings` (not this subpath) |
+
+---
+
+## SSoT Note
+
+All functions in this subpath delegate to `crates/llmtxt-core`. The TypeScript
+wrappers in `src/wasm.ts` are thin bridges. Do not reimplement similarity logic
+in TypeScript — add it to the Rust crate first and expose via WASM.
