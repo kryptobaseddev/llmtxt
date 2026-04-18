@@ -60,6 +60,8 @@ import { registerObservabilityHooks } from './middleware/observability.js';
 import { docsRoutes } from './routes/docs.js';
 import { registerPostgresBackendPlugin } from './plugins/postgres-backend-plugin.js';
 import { adminRoutes } from './routes/admin.js';
+import { billingRoutes } from './routes/billing.js';
+import { startUsageRollupJob } from './jobs/usage-rollup.js';
 import { CONTENT_LIMITS } from './middleware/content-limits.js';
 import { shutdownCoordinator } from './lib/shutdown.js';
 import { validateSigningSecret } from './lib/signing-secret-validator.js';
@@ -511,6 +513,13 @@ async function main() {
     await app.register(adminRoutes, { prefix: '/api/v1' });
 
     // ──────────────────────────────────────────────────────────────────
+    // Billing routes: /api/me/usage, /api/me/subscription,
+    //                 /api/billing/checkout, /api/billing/portal,
+    //                 /api/billing/webhook, /api/v1/admin/subscriptions
+    // ──────────────────────────────────────────────────────────────────
+    await app.register(billingRoutes, { prefix: '/api' });
+
+    // ──────────────────────────────────────────────────────────────────
     // Legacy API routes: /api/* (no version prefix)
     //
     // These continue to work identically for backwards compatibility.
@@ -585,6 +594,9 @@ async function main() {
 
     // T164: Start daily audit log Merkle checkpoint job.
     startAuditCheckpointJob();
+
+    // T010: Start daily usage rollup job (aggregates usage_events into usage_rollups).
+    startUsageRollupJob();
 
     // Initialize CRDT pub/sub adapter (Redis or in-process fallback).
     await initCrdtPubSub();
