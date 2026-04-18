@@ -1,0 +1,288 @@
+---
+title: Agent Identity (llmtxt/identity)
+description: Ed25519 agent identity subpath — key generation, request signing, signature verification, and canonical payload construction for LLMtxt agents.
+---
+
+# Agent Identity (`llmtxt/identity`)
+
+The `llmtxt/identity` subpath provides the canonical primitives for agent
+request signing. It consolidates all Ed25519 identity logic in one place,
+making it the single import point for both the SDK and the backend middleware.
+
+**SSoT note**: The algorithm is defined in Rust at
+`crates/llmtxt-core/src/identity.rs`. The TypeScript implementation in this
+subpath produces byte-identical canonical payloads and is cross-verifiable with
+the Rust WASM exports.
+
+---
+
+## Installation
+
+```bash
+# Already bundled with the llmtxt package:
+pnpm add llmtxt
+```
+
+---
+
+## Quick Start
+
+```ts
+import { createIdentity, signRequest } from 'llmtxt/identity';
+
+// Generate a keypair (persisted to ~/.llmtxt/identity.key, mode 0600)
+const identity = await createIdentity();
+
+// Register the public key once:
+// POST /api/v1/agents/keys { agent_id: 'my-agent', pubkey_hex: identity.pubkeyHex }
+
+// Sign each mutating request:
+const headers = await signRequest(
+  identity,
+  'PUT',
+  '/api/v1/documents/my-doc',
+  JSON.stringify({ content: 'hello' }),
+  'my-agent',
+);
+// headers: { 'X-Agent-Pubkey-Id', 'X-Agent-Signature', 'X-Agent-Nonce', 'X-Agent-Timestamp' }
+```
+
+---
+
+## API Reference
+
+### `createIdentity(): Promise<AgentIdentity>`
+
+Generate a fresh Ed25519 keypair and persist it.
+
+- **Node.js**: writes `~/.llmtxt/identity.key` with mode `0o600`
+- **Browser**: writes to `localStorage['llmtxt_identity_sk']`
+
+Returns a new `AgentIdentity` instance.
+
+---
+
+### `loadIdentity(): Promise<AgentIdentity | null>`
+
+Load the persisted keypair. Returns `null` if no identity has been persisted.
+
+---
+
+### `identityFromSeed(seed: Uint8Array): Promise<AgentIdentity>`
+
+Construct an `AgentIdentity` from a 32-byte seed without persisting. Useful for
+tests and CLI workflows where the seed is provided externally.
+
+---
+
+### `signRequest(identity, method, path, body, agentId, nowMs?, nonce?): Promise<SignatureHeaders>`
+
+Build the four `X-Agent-*` HTTP headers for a mutating request.
+
+| Parameter  | Type                  | Description                                      |
+|------------|-----------------------|--------------------------------------------------|
+| `identity` | `AgentIdentity`       | The signing identity                             |
+| `method`   | `string`              | HTTP method (e.g. `"PUT"`)                       |
+| `path`     | `string`              | Path + optional query string                     |
+| `body`     | `string \| Uint8Array` | Request body bytes (`""` for empty)              |
+| `agentId`  | `string`              | Agent ID registered on the server                |
+| `nowMs`    | `number` (optional)   | Timestamp override (default: `Date.now()`)       |
+| `nonce`    | `string` (optional)   | Nonce hex override (default: 16 random bytes)    |
+
+Returns `SignatureHeaders`:
+
+```ts
+{
+  'X-Agent-Pubkey-Id':  string; // Agent ID to look up the registered public key
+  'X-Agent-Signature':  string; // 128-char hex Ed25519 signature
+  'X-Agent-Nonce':      string; // 32-char hex random nonce (16 bytes)
+  'X-Agent-Timestamp':  string; // Decimal milliseconds since epoch
+}
+```
+
+---
+
+### `verifySignature(payload, sigHex, pubkeyHex): Promise<boolean>`
+
+Verify an Ed25519 signature over canonical payload bytes.
+
+| Parameter    | Type         | Description                                  |
+|--------------|--------------|----------------------------------------------|
+| `payload`    | `Uint8Array` | Canonical payload from `buildCanonicalPayload` |
+| `sigHex`     | `string`     | 128-char hex signature                       |
+| `pubkeyHex`  | `string`     | 64-char hex public key                       |
+
+Returns `true` if the signature is valid; `false` for any mismatch.
+
+---
+
+### `buildCanonicalPayload(opts): Uint8Array`
+
+Build the deterministic canonical payload bytes that are signed and verified.
+
+**Format** (newline-separated, matches `canonical_payload()` in Rust):
+
+```
+METHOD\nPATH_AND_QUERY\nTIMESTAMP_MS\nAGENT_ID\nNONCE_HEX\nBODY_HASH_HEX
+```
+
+All six fields are separated by `\n`. `BODY_HASH_HEX` is the lowercase hex
+SHA-256 digest of the UTF-8-encoded request body.
+
+Options shape (`CanonicalPayloadOptions`):
+
+```ts
+{
+  method:       string;   // HTTP method, uppercased automatically
+  path:         string;   // Path and optional query string
+  timestampMs:  number;   // Milliseconds since epoch
+  agentId:      string;   // Agent identifier
+  nonceHex:     string;   // Hex-encoded nonce
+  bodyHashHex:  string;   // 64-char hex SHA-256 of body
+}
+```
+
+---
+
+### `bodyHashHex(body): Promise<string>`
+
+Compute the SHA-256 digest of the request body as lowercase hex (64 chars).
+
+Accepts `string` or `Uint8Array`. Strings are UTF-8 encoded before hashing.
+Matches what the backend `computeBodyHash` function computes.
+
+```ts
+const hash = await bodyHashHex('{"action":"write"}');
+// → "e.g. 2cf24dba..."
+```
+
+---
+
+### `randomNonceHex(): string`
+
+Generate 16 cryptographically-random bytes as 32-char lowercase hex. Each call
+produces a unique nonce suitable for replay-protection.
+
+---
+
+## `AgentIdentity` Class
+
+The `AgentIdentity` class holds an Ed25519 keypair and exposes signing methods.
+
+```ts
+class AgentIdentity {
+  readonly sk: Uint8Array;   // 32-byte private key seed (KEEP SECRET)
+  readonly pk: Uint8Array;   // 32-byte public key
+  get pubkeyHex(): string;   // 64-char hex of public key
+
+  static generate(): Promise<AgentIdentity>;
+  static load(): Promise<AgentIdentity | null>;
+  static fromSeed(seed: Uint8Array): Promise<AgentIdentity>;
+
+  sign(message: Uint8Array): Promise<Uint8Array>;
+  verify(message: Uint8Array, signature: Uint8Array): Promise<boolean>;
+  buildSignatureHeaders(
+    method: string,
+    path: string,
+    body: string | Uint8Array,
+    agentId: string,
+    nowMs?: number,
+    nonce?: string,
+  ): Promise<SignatureHeaders>;
+}
+```
+
+---
+
+## Security Properties
+
+- **Tamper-evident**: any single-bit mutation of the canonical payload causes
+  verification to fail.
+- **Nonce uniqueness**: each nonce MUST be unique per agent within the 5-minute
+  timestamp window. The backend records seen nonces in `agent_signature_nonces`
+  and rejects replays.
+- **Timestamp window**: the backend rejects timestamps outside
+  `[now − 5 min, now + 1 min]`.
+- **Key storage**: the private key is stored at `~/.llmtxt/identity.key` with
+  `0o600` permissions. Never log or transmit the private key.
+
+---
+
+## Canonical Payload Example
+
+```
+PUT
+/api/v1/documents/xK9mP2nQ
+1700000000000
+my-agent-v1
+aabbccddaabbccddaabbccddaabbccdd
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+```
+
+The above is the UTF-8 encoding of six newline-separated fields. The Ed25519
+signature covers the entire byte string.
+
+---
+
+## Registering a Public Key
+
+Before signing requests, register the agent's public key with the server:
+
+```ts
+import { createIdentity } from 'llmtxt/identity';
+
+const identity = await createIdentity();
+
+await fetch('https://api.llmtxt.my/api/v1/agents/keys', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer <token>' },
+  body: JSON.stringify({
+    agent_id: 'my-agent-v1',
+    pubkey_hex: identity.pubkeyHex,
+    label: 'production',
+  }),
+});
+```
+
+---
+
+## Full Example — Signed PUT
+
+```ts
+import { loadIdentity, signRequest, bodyHashHex } from 'llmtxt/identity';
+
+async function signedPut(slug: string, content: string) {
+  const identity = await loadIdentity();
+  if (!identity) throw new Error('No identity found — run createIdentity() first');
+
+  const body = JSON.stringify({ content });
+  const headers = await signRequest(
+    identity,
+    'PUT',
+    `/api/v1/documents/${slug}`,
+    body,
+    'my-agent-v1',
+  );
+
+  const res = await fetch(`https://api.llmtxt.my/api/v1/documents/${slug}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer <token>',
+      ...headers,
+    },
+    body,
+  });
+  return res.json();
+}
+```
+
+---
+
+## Cross-Language Compatibility
+
+The `buildCanonicalPayload` function produces byte-identical output to the Rust
+`canonical_payload()` function in `crates/llmtxt-core/src/identity.rs`. The
+WASM exports `identity_canonical_payload`, `identity_sign`, and
+`identity_verify` operate on the same wire format. Signatures produced by the
+TypeScript SDK can be verified by the Rust core and vice versa.

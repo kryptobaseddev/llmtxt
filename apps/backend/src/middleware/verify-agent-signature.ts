@@ -20,6 +20,9 @@ import { sha512 } from "@noble/hashes/sha2.js";
 import { eq, isNull, lt, sql } from "drizzle-orm";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { hashContent, signWebhookPayload } from "llmtxt";
+import {
+	buildCanonicalPayload as sdkBuildCanonicalPayload,
+} from "llmtxt/identity";
 import { db, schema } from "../db/index.js";
 import { agentPubkeys, agentSignatureNonces } from "../db/schema.js";
 import { type AgentKey, agentKeys } from "../db/schema-pg.js";
@@ -58,8 +61,8 @@ function computeFingerprint(pubkeyHex: string): string {
  * Compute SHA-256 of raw body bytes as lowercase hex.
  *
  * Converts Buffer to UTF-8 string before hashing (correct for JSON/text bodies).
- * This matches what AgentIdentity.buildSignatureHeaders does on the client:
- * TextEncoder.encode(string) → crypto.subtle.digest('SHA-256', ...).
+ * Uses hashContent (WASM Rust SHA-256, SSoT per docs/SSOT.md) which matches
+ * what the SDK's `bodyHashHex()` computes via WebCrypto on the client side.
  * For binary bodies this may differ; all our API bodies are JSON/UTF-8.
  */
 function computeBodyHash(body: Buffer | null | undefined): string {
@@ -67,7 +70,12 @@ function computeBodyHash(body: Buffer | null | undefined): string {
 	return hashContent(utfStr);
 }
 
-/** Build the canonical payload string. */
+/**
+ * Build the canonical payload string.
+ *
+ * Delegates to `buildCanonicalPayload` from `llmtxt/identity` (T651 — zero
+ * duplicate identity logic between SDK and backend middleware).
+ */
 function buildCanonicalPayload(
 	method: string,
 	pathAndQuery: string,
@@ -76,14 +84,15 @@ function buildCanonicalPayload(
 	nonceHex: string,
 	bodyHashHex: string,
 ): string {
-	return [
-		method.toUpperCase(),
-		pathAndQuery,
-		timestampMs,
+	const bytes = sdkBuildCanonicalPayload({
+		method,
+		path: pathAndQuery,
+		timestampMs: parseInt(timestampMs, 10),
 		agentId,
 		nonceHex,
 		bodyHashHex,
-	].join("\n");
+	});
+	return new TextDecoder().decode(bytes);
 }
 
 /**
