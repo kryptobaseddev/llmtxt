@@ -201,6 +201,25 @@ export function compute_signature(slug: string, agent_id: string, conversation_i
 export function compute_signature_with_length(slug: string, agent_id: string, conversation_id: string, expires_at: number, secret: string, sig_length: number): string;
 
 /**
+ * Compare two hex-encoded digest strings (e.g. SHA-256 or HMAC digests) in
+ * constant time to prevent timing side-channel attacks.
+ *
+ * Returns `true` if and only if `a == b` **and** both strings have the same
+ * length. Strings of different lengths return `false` immediately (the length
+ * difference itself leaks no secret information when both inputs are fixed-
+ * length digests such as SHA-256).
+ *
+ * # S-01 (T108.7)
+ * Use this function whenever comparing API key hashes or webhook signatures.
+ * Never use `==` on secret strings from JavaScript / TypeScript.
+ *
+ * # WASM export
+ * The WASM binding returns `1` for equal, `0` for not equal so that the
+ * JavaScript caller can check `if (constantTimeEqHex(a, b))` cleanly.
+ */
+export function constant_time_eq_hex(a: string, b: string): boolean;
+
+/**
  * Check for binary content by scanning for control characters (0x00–0x08)
  * in the first 8 KB of the content.
  *
@@ -624,6 +643,17 @@ export function l2_normalize_wasm(vec_json: string): string;
 export function mark_stale_reviews(reviews_json: string, current_version: number): string;
 
 /**
+ * WASM: compute Merkle root over an array of leaf hashes.
+ *
+ * `leaves_hex_json` — JSON array of 64-character lowercase hex strings,
+ * one per leaf (each representing a 32-byte SHA-256 digest).
+ *
+ * Returns a 64-character lowercase hex string of the root, or
+ * `{"error":"..."}` on invalid input.
+ */
+export function merkle_root_wasm(leaves_hex_json: string): string;
+
+/**
  * Generate a MinHash fingerprint. Returns JSON array of numbers.
  */
 export function min_hash_fingerprint_wasm(text: string, num_hashes: number, ngram_size: number): string;
@@ -855,3 +885,14 @@ export function top_topics_wasm(graph_json: string, limit: number): string;
  * Matches the TypeScript `TransitionResult` interface.
  */
 export function validate_transition(from: string, to: string): string;
+
+/**
+ * WASM: verify a Merkle inclusion proof.
+ *
+ * `root_hex`  — 64-char hex root.
+ * `leaf_hex`  — 64-char hex leaf.
+ * `proof_json` — JSON array of `[siblingHex, isRightSibling]` pairs.
+ *
+ * Returns `"true"` or `"false"`, or `{"error":"..."}` on invalid input.
+ */
+export function verify_merkle_proof_wasm(root_hex: string, leaf_hex: string, proof_json: string): string;

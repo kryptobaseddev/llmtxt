@@ -174,6 +174,11 @@ export { l2Normalize } from './wasm.js';
 // ── Webhook Signing ─────────────────────────────────────────────
 export { signWebhookPayload } from './wasm.js';
 
+// ── Security Primitives (S-01, T-02, T108.7/T108.9) ────────────
+// constantTimeEqHex: timing-safe comparison of hex digests (S-01)
+// verifyContentHash: verify content integrity vs. server-provided hash (T-02)
+export { constantTimeEqHex, verifyContentHash } from './wasm.js';
+
 // ── Cosine Similarity ────────────────────────────────────────────
 export { cosineSimilarity } from './wasm.js';
 

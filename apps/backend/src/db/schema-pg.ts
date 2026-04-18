@@ -1817,3 +1817,16 @@ export type InsertUsageRollup = z.infer<typeof insertUsageRollupSchema>;
 export type SelectUsageRollup = z.infer<typeof selectUsageRollupSchema>;
 export type InsertStripeEvent = z.infer<typeof insertStripeEventSchema>;
 export type SelectStripeEvent = z.infer<typeof selectStripeEventSchema>;
+
+// Data Lifecycle (T094 / T186 / T187)
+export type AuditArchive = typeof auditArchive.$inferSelect;
+export type NewAuditArchive = typeof auditArchive.$inferInsert;
+export type UserExportRateLimit = typeof userExportRateLimit.$inferSelect;
+export type NewUserExportRateLimit = typeof userExportRateLimit.$inferInsert;
+export type DeletionCertificate = typeof deletionCertificates.$inferSelect;
+export type NewDeletionCertificate = typeof deletionCertificates.$inferInsert;
+
+export const insertAuditArchiveSchema = createInsertSchema(auditArchive);
+export const selectAuditArchiveSchema = createSelectSchema(auditArchive);
+export const insertDeletionCertificateSchema = createInsertSchema(deletionCertificates);
+export const selectDeletionCertificateSchema = createSelectSchema(deletionCertificates);

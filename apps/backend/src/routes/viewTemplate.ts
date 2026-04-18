@@ -1,7 +1,15 @@
 import { sanitizeHtml } from '../middleware/sanitize.js';
 
-/** Render the server-side HTML view template for a document page, including meta tags and structured content display. */
-export function renderViewHtml(slug: string, data: any): string {
+/**
+ * Render the server-side HTML view template for a document page.
+ *
+ * @param slug    - Document slug (used in links and data attributes)
+ * @param data    - Document data object
+ * @param nonce   - Per-request CSP nonce from reply.cspNonce (X-02, T108.5).
+ *                  MUST be passed from the route handler so the inline <script>
+ *                  tag is allowed by the `script-src 'nonce-<value>'` CSP directive.
+ */
+export function renderViewHtml(slug: string, data: any, nonce?: string): string {
   const format = data.format || 'text';
   const created = data.createdAt ? new Date(data.createdAt).toLocaleString() : '-';
   const tokens = data.tokenCount || '-';
@@ -191,7 +199,7 @@ export function renderViewHtml(slug: string, data: any): string {
   
   <div class="content" id="content">${initialContent}</div>
 
-  <script>
+  <script${nonce ? ` nonce="${nonce}"` : ''}>
     const slug = ${JSON.stringify(slug)};
     let documentData = ${injectedData};
     let isRaw = false;

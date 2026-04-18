@@ -26,6 +26,7 @@ import {
   shouldSkipCache,
 } from '../middleware/cache.js';
 import { canRead } from '../middleware/rbac.js';
+import { CONTENT_LIMITS } from '../middleware/content-limits.js';
 
 // ──────────────────────────────────────────────────────────────────
 // Shared helper: resolve a slug to decompressed content
@@ -97,8 +98,12 @@ const lineRangeQuery = z.object({
   end: z.coerce.number().int().min(1).default(50),
 });
 
+// O-05: Search query capped at 1KB to prevent catastrophic backtracking with
+// large patterns and to bound allocations in the Rust search_content function. [T108.2]
+const SEARCH_QUERY_MAX_BYTES = 1024;
+
 const searchQuery = z.object({
-  q: z.string().min(1).max(500),
+  q: z.string().min(1).max(SEARCH_QUERY_MAX_BYTES),
   context: z.coerce.number().int().min(0).max(10).default(2),
   max: z.coerce.number().int().min(1).max(100).default(20),
 });
@@ -111,9 +116,11 @@ const sectionQuery = z.object({
   name: z.string().min(1).max(200),
 });
 
+// O-04: Batch section fetch capped at CONTENT_LIMITS.maxBatchSize (50) to prevent
+// runaway memory allocation on documents with many sections. [T108.4]
 const batchQuerySchema = z.object({
-  sections: z.array(z.string()).optional(),
-  paths: z.array(z.string()).optional(),
+  sections: z.array(z.string()).max(CONTENT_LIMITS.maxBatchSize).optional(),
+  paths: z.array(z.string()).max(CONTENT_LIMITS.maxBatchSize).optional(),
 });
 
 // ──────────────────────────────────────────────────────────────────
@@ -586,6 +593,18 @@ export async function disclosureRoutes(fastify: FastifyInstance) {
     reply,
   ) => {
     const { slug } = slugSchema.parse(request.params);
+
+    // O-04: Enforce batch cap before Zod so the response code is 413. [T108.4]
+    const rawSections = (request.body as { sections?: unknown })?.sections;
+    if (Array.isArray(rawSections) && rawSections.length > CONTENT_LIMITS.maxBatchSize) {
+      return reply.status(413).send({
+        error: 'Batch Too Large',
+        message: `Batch section fetch is limited to ${CONTENT_LIMITS.maxBatchSize} sections per request. Received ${rawSections.length}.`,
+        limit: CONTENT_LIMITS.maxBatchSize,
+        actual: rawSections.length,
+      });
+    }
+
     const parsed = batchQuerySchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({

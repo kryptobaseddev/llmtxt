@@ -407,6 +407,58 @@ export function signWebhookPayload(secret: string, payload: string): string {
   return wasmModule.sign_webhook_payload(secret, payload);
 }
 
+// ── Constant-Time Comparison (S-01, T108.7) ─────────────────────
+
+/**
+ * Compare two hex-encoded digest strings in constant time.
+ *
+ * Use this whenever you need to compare API key hashes, HMAC signatures,
+ * or any other secret-derived values. JavaScript `===` on strings is NOT
+ * timing-safe and MUST NOT be used for secrets.
+ *
+ * Delegates to `crates/llmtxt-core::crypto::constant_time_eq_hex` which
+ * uses the `subtle` crate for guaranteed constant-time byte comparison.
+ *
+ * @param a - First hex digest string (e.g. a SHA-256 hash)
+ * @param b - Second hex digest string
+ * @returns `true` if and only if `a === b` in constant time
+ */
+export function constantTimeEqHex(a: string, b: string): boolean {
+  return wasmModule.constant_time_eq_hex(a, b);
+}
+
+// ── Content Hash Verification (T-02, T108.9) ─────────────────────
+
+/**
+ * Verify that `content` matches an expected SHA-256 hex hash.
+ *
+ * T-02: Client-side content integrity helper for the SDK.  Computes the
+ * SHA-256 hash of the provided content using the Rust WASM primitive and
+ * then performs a constant-time comparison against the expected digest.
+ *
+ * Typical usage: after downloading a document version, call this with the
+ * `content_hash` field from the server response to detect tampering in
+ * transit.
+ *
+ * ```ts
+ * import { verifyContentHash } from 'llmtxt';
+ *
+ * const content = await fetchDocumentContent(slug);
+ * const { content_hash } = await fetchDocumentMeta(slug);
+ * if (!verifyContentHash(content, content_hash)) {
+ *   throw new Error('Content hash mismatch — possible tampering detected');
+ * }
+ * ```
+ *
+ * @param content      - UTF-8 document content string
+ * @param expectedHash - Lowercase hex SHA-256 digest to compare against
+ * @returns `true` when `sha256(content) === expectedHash` in constant time
+ */
+export function verifyContentHash(content: string, expectedHash: string): boolean {
+  const actual = wasmModule.hash_content(content);
+  return wasmModule.constant_time_eq_hex(actual, expectedHash);
+}
+
 // ── Cosine Similarity ───────────────────────────────────────────
 
 /**

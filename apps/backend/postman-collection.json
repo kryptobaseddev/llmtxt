@@ -1,7 +1,7 @@
 {
   "item": [
     {
-      "id": "1428d59f-44c2-43db-9fc8-742657855010",
+      "id": "8189e20c-eb63-4e97-9ac4-689afdf73ee2",
       "name": "documents",
       "description": {
         "content": "Core document storage and retrieval",
@@ -9,7 +9,7 @@
       },
       "item": [
         {
-          "id": "18c835b5-3949-4310-9ce6-7a5fc23e88ca",
+          "id": "ccfe3ae2-d315-4fe9-97ee-7df731ebba36",
           "name": "Compress and store a document.  Accepts plaintext, JSON, or Markdown. Auto-detects format when `format` is omitted. Returns a slug that uniquely identifies the stored document.",
           "request": {
             "name": "Compress and store a document.  Accepts plaintext, JSON, or Markdown. Auto-detects format when `format` is omitted. Returns a slug that uniquely identifies the stored document.",
@@ -39,7 +39,7 @@
           },
           "response": [
             {
-              "id": "a07c7607-7820-4f9b-9eb2-1bc0c5949983",
+              "id": "2750d399-9462-4a49-95d9-0cf150c8189d",
               "name": "Document stored successfully",
               "originalRequest": {
                 "url": {
@@ -70,12 +70,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": \"string\",\n  \"slug\": \"string\",\n  \"url\": \"http://eLQNKoBxteREAhYhjGuFkfnEHB.eetLCmuJtYpEzZvgA0vP.LHabVqVDtf3w47VbGPrbsR\",\n  \"format\": \"text\",\n  \"tokenCount\": 8528,\n  \"compressionRatio\": 4502.717535945781,\n  \"originalSize\": 7865,\n  \"compressedSize\": 8407\n}",
+              "body": "{\n  \"id\": \"string\",\n  \"slug\": \"string\",\n  \"url\": \"http://ZxBZqKXZpWAFodoJG.zplCtgnsFStMH+K5AFOgrAWRjIG6lmdobKPM1O1A.Yd9tT\",\n  \"format\": \"markdown\",\n  \"tokenCount\": 5635,\n  \"compressionRatio\": 962.9688811695625,\n  \"originalSize\": 2542,\n  \"compressedSize\": 5602\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "5bb609c4-4263-4e88-a76b-866775497ae7",
+              "id": "c487f7cc-2318-4b75-8d6c-6e76ea466577",
               "name": "Validation failed — invalid body or unknown schema",
               "originalRequest": {
                 "url": {
@@ -106,12 +106,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "18bb6ad1-227b-47ee-8965-93390d60a222",
+              "id": "552efc22-ba40-4930-a678-d5377c1f8e77",
               "name": "Content too large (exceeds limit)",
               "originalRequest": {
                 "url": {
@@ -142,12 +142,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "c6caebee-0e81-4e68-99ce-dcc4ee56f279",
+              "id": "aafa6fcd-088d-4273-a3f1-14d1b3f51b40",
               "name": "Write rate limit exceeded",
               "originalRequest": {
                 "url": {
@@ -178,7 +178,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -189,7 +189,7 @@
           }
         },
         {
-          "id": "884ed8fd-11f5-4417-ac72-12552ec6f569",
+          "id": "37d93092-d093-4911-9557-22bf17a5633f",
           "name": "Update a document (creates a new version).  Increments `currentVersion`, stores the new compressed content as a version record, updates contributors, and invalidates cache.",
           "request": {
             "name": "Update a document (creates a new version).  Increments `currentVersion`, stores the new compressed content as a version record, updates contributors, and invalidates cache.",
@@ -236,7 +236,7 @@
           },
           "response": [
             {
-              "id": "5488c40f-cb5e-4352-9e73-76a58dd27f69",
+              "id": "d96be9f1-79ff-4605-853b-6a79e3e173ea",
               "name": "New version created",
               "originalRequest": {
                 "url": {
@@ -284,12 +284,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"slug\": \"string\",\n  \"versionNumber\": 6787,\n  \"tokenCount\": 8050,\n  \"compressionRatio\": 3238.1494549428535\n}",
+              "body": "{\n  \"slug\": \"string\",\n  \"versionNumber\": 3815,\n  \"tokenCount\": 6893,\n  \"compressionRatio\": 9343.90739895269\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "f09ae5da-afc6-4084-958d-71185560ad69",
+              "id": "6bab401c-837f-4173-b6bd-1afb77f7fc25",
               "name": "Write access denied",
               "originalRequest": {
                 "url": {
@@ -337,12 +337,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "19a6dd53-3e77-4b2e-8c5f-f320062702dd",
+              "id": "011faae5-4425-4018-bc28-94c1461f101a",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -390,12 +390,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "8fce1a7a-4172-461a-ad62-53c36ae8733f",
+              "id": "0e52f131-cb28-46a4-9842-5762de843979",
               "name": "Document is locked (LOCKED state)",
               "originalRequest": {
                 "url": {
@@ -443,12 +443,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "affe3181-2bdf-433e-b903-6ea9f18452b1",
+              "id": "9bb85137-15c6-44e6-a0d5-e60769b14be5",
               "name": "Write rate limit exceeded",
               "originalRequest": {
                 "url": {
@@ -496,7 +496,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -507,7 +507,7 @@
           }
         },
         {
-          "id": "6d8e7635-8b09-4467-9de9-3e63d2911c50",
+          "id": "228ed156-3cd3-4657-bc46-5d4799c5df66",
           "name": "Decompress a document body via POST.  Alternative to GET when the slug must be sent as a body parameter.",
           "request": {
             "name": "Decompress a document body via POST.  Alternative to GET when the slug must be sent as a body parameter.",
@@ -537,7 +537,7 @@
           },
           "response": [
             {
-              "id": "086109bd-e629-4904-8b90-2a4415e6fc97",
+              "id": "7fcf643c-8f23-48a4-b31b-a9a68bed1214",
               "name": "Document decompressed",
               "originalRequest": {
                 "url": {
@@ -568,12 +568,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"content\": \"string\",\n  \"format\": \"string\",\n  \"tokenCount\": 28\n}",
+              "body": "{\n  \"content\": \"string\",\n  \"format\": \"string\",\n  \"tokenCount\": 4914\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "940f759b-5fd3-4421-ac26-862e0359d371",
+              "id": "77f35677-7620-4292-94c8-b7525f773587",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -604,7 +604,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -615,7 +615,7 @@
           }
         },
         {
-          "id": "7e30cf56-4787-45ac-89e6-93a3f5b6aa87",
+          "id": "ea74e4d4-062d-47b0-9fdd-e11cb142c0b5",
           "name": "Validate content against a predefined schema without storing it.",
           "request": {
             "name": "Validate content against a predefined schema without storing it.",
@@ -645,7 +645,7 @@
           },
           "response": [
             {
-              "id": "372039e2-02ab-4f3b-a392-3555c340c520",
+              "id": "03dff610-c288-4612-8b2d-115c1579af7b",
               "name": "Content is valid",
               "originalRequest": {
                 "url": {
@@ -681,7 +681,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "e68e2379-19c9-4168-9468-6e483a9f7729",
+              "id": "b6ff3ae5-da7a-4eb4-9c20-ee0e02563dba",
               "name": "Validation failed with detailed errors",
               "originalRequest": {
                 "url": {
@@ -712,7 +712,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -723,7 +723,7 @@
           }
         },
         {
-          "id": "deeacbb2-56af-4d49-8e92-d8727b875b59",
+          "id": "132e47c1-c4d2-483d-b556-df6a60f2f36f",
           "name": "List all documents owned by the authenticated user.",
           "request": {
             "name": "List all documents owned by the authenticated user.",
@@ -762,7 +762,7 @@
           },
           "response": [
             {
-              "id": "1cde07c6-89a0-4d83-9e33-9ab5a41b4944",
+              "id": "60d5f7ec-3a09-42d2-89cb-84cfc3223c56",
               "name": "List of owned documents",
               "originalRequest": {
                 "url": {
@@ -802,12 +802,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"documents\": [\n    {\n      \"id\": \"string\",\n      \"slug\": \"string\",\n      \"format\": \"string\",\n      \"tokenCount\": 6006,\n      \"createdAt\": \"1985-09-13T21:54:51.140Z\",\n      \"state\": \"string\"\n    },\n    {\n      \"id\": \"string\",\n      \"slug\": \"string\",\n      \"format\": \"string\",\n      \"tokenCount\": 8575,\n      \"createdAt\": \"2007-12-18T01:31:09.181Z\",\n      \"state\": \"string\"\n    }\n  ],\n  \"total\": 7212\n}",
+              "body": "{\n  \"documents\": [\n    {\n      \"id\": \"string\",\n      \"slug\": \"string\",\n      \"format\": \"string\",\n      \"tokenCount\": 3201,\n      \"createdAt\": \"2020-05-27T01:01:18.911Z\",\n      \"state\": \"string\"\n    },\n    {\n      \"id\": \"string\",\n      \"slug\": \"string\",\n      \"format\": \"string\",\n      \"tokenCount\": 6219,\n      \"createdAt\": \"1994-08-03T01:44:48.567Z\",\n      \"state\": \"string\"\n    }\n  ],\n  \"total\": 5772\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "7133e4da-b0a2-4dfb-a5a8-108060ff0741",
+              "id": "cb8f2a7d-5145-4352-bd34-13a2d5c7df54",
               "name": "Authentication required",
               "originalRequest": {
                 "url": {
@@ -847,7 +847,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -861,7 +861,7 @@
       "event": []
     },
     {
-      "id": "de782ac5-30bf-4889-806d-a48a8ad56bcd",
+      "id": "7b66fc0f-0792-48e3-88af-48568535313e",
       "name": "versions",
       "description": {
         "content": "Version management and diffing",
@@ -869,7 +869,7 @@
       },
       "item": [
         {
-          "id": "069b0870-dd7b-4156-99fb-32ed8e2dcc5c",
+          "id": "46497bbd-9a20-4275-b0c9-31f900e8db44",
           "name": "List all versions of a document.",
           "request": {
             "name": "List all versions of a document.",
@@ -909,7 +909,7 @@
           },
           "response": [
             {
-              "id": "8fb4188b-f3d7-4f6c-b8e2-059b1b432b55",
+              "id": "db14f959-fcd1-4e34-962c-31afb2bc5ee8",
               "name": "Version list",
               "originalRequest": {
                 "url": {
@@ -950,12 +950,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"versions\": [\n    {\n      \"versionNumber\": 4455,\n      \"tokenCount\": 7724,\n      \"createdAt\": \"1976-12-22T11:14:26.948Z\",\n      \"createdBy\": \"string\",\n      \"changelog\": \"string\"\n    },\n    {\n      \"versionNumber\": 2483,\n      \"tokenCount\": 8692,\n      \"createdAt\": \"1964-01-11T15:17:19.508Z\",\n      \"createdBy\": \"string\",\n      \"changelog\": \"string\"\n    }\n  ]\n}",
+              "body": "{\n  \"versions\": [\n    {\n      \"versionNumber\": 9495,\n      \"tokenCount\": 335,\n      \"createdAt\": \"1954-01-24T11:42:35.316Z\",\n      \"createdBy\": \"string\",\n      \"changelog\": \"string\"\n    },\n    {\n      \"versionNumber\": 5567,\n      \"tokenCount\": 7655,\n      \"createdAt\": \"1953-05-09T22:39:21.316Z\",\n      \"createdBy\": \"string\",\n      \"changelog\": \"string\"\n    }\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "e7307f8d-8945-4435-a7bb-2f16beb49803",
+              "id": "38c36d1d-d804-4c21-8b1d-4608e080f062",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -996,7 +996,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -1007,7 +1007,7 @@
           }
         },
         {
-          "id": "077816a9-2668-42c4-b4aa-5c9631f96597",
+          "id": "9edcb1b8-73e4-4952-b28d-0796e67f61e2",
           "name": "Get a specific version of a document.",
           "request": {
             "name": "Get a specific version of a document.",
@@ -1055,7 +1055,7 @@
           },
           "response": [
             {
-              "id": "e33505ba-2de9-47db-ad3f-2bdc0b4b9c86",
+              "id": "62a3fb91-b18a-4ab4-9ed7-408746c8e932",
               "name": "Specific version content",
               "originalRequest": {
                 "url": {
@@ -1104,12 +1104,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"content\": \"string\",\n  \"versionNumber\": 3858,\n  \"tokenCount\": 89,\n  \"createdAt\": \"1960-06-08T15:20:49.382Z\",\n  \"createdBy\": \"string\"\n}",
+              "body": "{\n  \"content\": \"string\",\n  \"versionNumber\": 9805,\n  \"tokenCount\": 837,\n  \"createdAt\": \"1965-06-18T03:56:35.129Z\",\n  \"createdBy\": \"string\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "9332b3b2-e848-42fc-a4e5-6db3b7d12fee",
+              "id": "07b04f23-9ef1-452f-acfa-cc70ac2741ba",
               "name": "Document or version not found",
               "originalRequest": {
                 "url": {
@@ -1158,7 +1158,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -1169,7 +1169,7 @@
           }
         },
         {
-          "id": "894d1121-d0d8-43e0-adf8-2d539dc70bfa",
+          "id": "dca505a1-50b5-46f2-9229-a3aea7c1fe99",
           "name": "Get a two-way diff between two versions of a document.",
           "request": {
             "name": "Get a two-way diff between two versions of a document.",
@@ -1209,7 +1209,7 @@
           },
           "response": [
             {
-              "id": "ddb05271-d0b2-4f3b-b1ee-4b5e33aa31c8",
+              "id": "13c8fe39-cca5-4719-b383-ce7105b8457f",
               "name": "Two-way diff between versions",
               "originalRequest": {
                 "url": {
@@ -1250,12 +1250,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"diff\": [\n    {\n      \"type\": \"remove\",\n      \"content\": \"string\",\n      \"lineNumber\": 2773\n    },\n    {\n      \"type\": \"remove\",\n      \"content\": \"string\",\n      \"lineNumber\": 5648\n    }\n  ],\n  \"fromVersion\": 3192,\n  \"toVersion\": 1166\n}",
+              "body": "{\n  \"diff\": [\n    {\n      \"type\": \"equal\",\n      \"content\": \"string\",\n      \"lineNumber\": 149\n    },\n    {\n      \"type\": \"equal\",\n      \"content\": \"string\",\n      \"lineNumber\": 8879\n    }\n  ],\n  \"fromVersion\": 4557,\n  \"toVersion\": 9469\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "2ffd0ebc-2196-44d4-9417-cf5836f0d380",
+              "id": "91cadcd9-3aba-4c5e-b8ee-fce3674137b9",
               "name": "Invalid version numbers",
               "originalRequest": {
                 "url": {
@@ -1296,12 +1296,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "7d1ad929-f723-47ea-a8e8-75898a75a908",
+              "id": "df7b7e72-f530-474a-a452-0b0bcd2cf4d3",
               "name": "Document or version not found",
               "originalRequest": {
                 "url": {
@@ -1342,7 +1342,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -1353,7 +1353,7 @@
           }
         },
         {
-          "id": "51f74bd1-5aab-45c6-8743-83854e7cb8e3",
+          "id": "b437be57-78f3-4f0f-95ef-14f56b4cec2b",
           "name": "Get a multi-way diff across N versions (N ≥ 2).  Uses LCS-based alignment to produce a consensus view of divergent versions.",
           "request": {
             "name": "Get a multi-way diff across N versions (N ≥ 2).  Uses LCS-based alignment to produce a consensus view of divergent versions.",
@@ -1393,7 +1393,7 @@
           },
           "response": [
             {
-              "id": "86c74df6-4109-4c81-a3ff-a59aef604ed4",
+              "id": "bc4dd450-4c61-4ed4-aaad-d964f048b993",
               "name": "Multi-way LCS-aligned diff",
               "originalRequest": {
                 "url": {
@@ -1434,12 +1434,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"lines\": [\n    {\n      \"type\": \"string\",\n      \"content\": \"string\",\n      \"versions\": [\n        5731,\n        3379\n      ]\n    },\n    {\n      \"type\": \"string\",\n      \"content\": \"string\",\n      \"versions\": [\n        7364,\n        1638\n      ]\n    }\n  ],\n  \"versions\": [\n    8808,\n    644\n  ]\n}",
+              "body": "{\n  \"lines\": [\n    {\n      \"type\": \"string\",\n      \"content\": \"string\",\n      \"versions\": [\n        9872,\n        2498\n      ]\n    },\n    {\n      \"type\": \"string\",\n      \"content\": \"string\",\n      \"versions\": [\n        9578,\n        9404\n      ]\n    }\n  ],\n  \"versions\": [\n    1499,\n    6852\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "6bd77bd5-6fc3-4713-8047-dea78f707609",
+              "id": "9167cff2-755e-47f8-bf65-a50791bda173",
               "name": "Fewer than 2 versions specified",
               "originalRequest": {
                 "url": {
@@ -1480,12 +1480,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "63f6e52e-c748-4d21-b745-1429b35149c8",
+              "id": "e8d4b7ee-889c-4822-a359-3a1582cf8221",
               "name": "Document or version not found",
               "originalRequest": {
                 "url": {
@@ -1526,7 +1526,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -1537,7 +1537,7 @@
           }
         },
         {
-          "id": "c94b4ee2-33bf-4b26-bdad-b6b818f436db",
+          "id": "6bbe351e-c42b-4e51-a643-3d3e7f4b9523",
           "name": "Create multiple versions in a single atomic batch.  Each entry in the batch becomes a separate version record in order.",
           "request": {
             "name": "Create multiple versions in a single atomic batch.  Each entry in the batch becomes a separate version record in order.",
@@ -1577,7 +1577,7 @@
           },
           "response": [
             {
-              "id": "51ce5407-442f-4cd3-be56-977b16fed025",
+              "id": "d9669c23-e06f-4eec-97a8-228173be1e8c",
               "name": "Batch versions created",
               "originalRequest": {
                 "url": {
@@ -1618,12 +1618,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"created\": 8400,\n  \"latestVersion\": 4581\n}",
+              "body": "{\n  \"created\": 7991,\n  \"latestVersion\": 876\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "b01cee0d-6314-4b38-aa9c-4a80e1fced6a",
+              "id": "323c1441-7918-458a-8fc4-fa1f8d743315",
               "name": "Invalid batch payload",
               "originalRequest": {
                 "url": {
@@ -1664,12 +1664,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "de69b32a-ee53-4346-9031-58c4b2f67752",
+              "id": "d800ff32-5fe6-4a7e-a77c-ab04fa56628f",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -1710,7 +1710,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -1724,7 +1724,7 @@
       "event": []
     },
     {
-      "id": "6453d2bf-e486-4b4c-9da4-6923f3533207",
+      "id": "e950b8d5-f52e-492e-ba1e-fcbffa6c85f5",
       "name": "lifecycle",
       "description": {
         "content": "Document lifecycle state machine and approvals",
@@ -1732,7 +1732,7 @@
       },
       "item": [
         {
-          "id": "95f714cf-6579-478d-bdee-d27aff87db00",
+          "id": "342629d8-b879-409f-ba11-2844295d5a80",
           "name": "Transition a document through its lifecycle state machine.  Valid transitions: DRAFT→REVIEW, REVIEW→APPROVED, REVIEW→REJECTED, APPROVED→LOCKED, LOCKED→DRAFT (unlock).",
           "request": {
             "name": "Transition a document through its lifecycle state machine.  Valid transitions: DRAFT→REVIEW, REVIEW→APPROVED, REVIEW→REJECTED, APPROVED→LOCKED, LOCKED→DRAFT (unlock).",
@@ -1780,7 +1780,7 @@
           },
           "response": [
             {
-              "id": "20bba4eb-ca8e-44ba-ad0d-1e2589e575da",
+              "id": "fb0e5f12-2b02-4925-b393-6a083af95a9c",
               "name": "State transitioned",
               "originalRequest": {
                 "url": {
@@ -1829,12 +1829,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"slug\": \"string\",\n  \"state\": \"REVIEW\",\n  \"previousState\": \"string\"\n}",
+              "body": "{\n  \"slug\": \"string\",\n  \"state\": \"APPROVED\",\n  \"previousState\": \"string\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "fc8d9cb5-4b53-4a97-8793-32ba4d0431dd",
+              "id": "5489a07a-5b87-452b-b7ec-35db3e0494fb",
               "name": "Invalid transition",
               "originalRequest": {
                 "url": {
@@ -1883,12 +1883,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "604b2891-0271-4ead-8ff4-fa2ee3ff65b0",
+              "id": "5508a18e-917a-46eb-9346-c419186ab4ff",
               "name": "Insufficient permissions",
               "originalRequest": {
                 "url": {
@@ -1937,12 +1937,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "57dd5999-b7ab-45f8-ab23-b58f9a6fe4c4",
+              "id": "53403ef3-8e88-4ea4-948f-357b38536057",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -1991,7 +1991,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -2002,7 +2002,7 @@
           }
         },
         {
-          "id": "92882659-7718-4d06-bb05-d6f56e27e5e8",
+          "id": "51f55b68-cb38-44ea-bf0d-62dfb55ac7bd",
           "name": "Submit an approval vote for a document in REVIEW state.",
           "request": {
             "name": "Submit an approval vote for a document in REVIEW state.",
@@ -2042,7 +2042,7 @@
           },
           "response": [
             {
-              "id": "d6b93ff6-a814-49eb-a12e-a30eb4e824a1",
+              "id": "3a729bbc-c024-4cf3-9e52-31a77886b60a",
               "name": "Approval recorded",
               "originalRequest": {
                 "url": {
@@ -2083,12 +2083,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"approvalId\": \"string\",\n  \"agentId\": \"string\",\n  \"createdAt\": \"2001-03-28T01:32:35.129Z\"\n}",
+              "body": "{\n  \"approvalId\": \"string\",\n  \"agentId\": \"string\",\n  \"createdAt\": \"2006-08-07T21:42:42.925Z\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "964a83e0-87a7-47e1-ae8d-4419a861bc33",
+              "id": "e374f3ac-2395-4000-9035-73b9ff412257",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -2129,12 +2129,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "4ddce427-b482-4bc9-83dd-956410251b07",
+              "id": "907b94dc-ffb5-418f-bc24-c00b67576c42",
               "name": "Already approved by this agent",
               "originalRequest": {
                 "url": {
@@ -2175,7 +2175,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -2186,7 +2186,7 @@
           }
         },
         {
-          "id": "6e3fc10d-b2de-4e39-84fd-9748b4747f97",
+          "id": "78b16303-06a8-4531-bc6d-80b1e7c68c6b",
           "name": "Submit a rejection for a document in REVIEW state.",
           "request": {
             "name": "Submit a rejection for a document in REVIEW state.",
@@ -2226,7 +2226,7 @@
           },
           "response": [
             {
-              "id": "aff03fbb-a10d-44f2-84b9-40f5884f60f6",
+              "id": "82523286-98bb-4a22-b913-46e3c9883153",
               "name": "Document rejected",
               "originalRequest": {
                 "url": {
@@ -2272,7 +2272,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "b204c324-3f7b-4e48-87d8-dc9006f4d2c7",
+              "id": "10db7dc2-89c3-4b94-8103-8509361462a1",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -2313,7 +2313,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -2324,7 +2324,7 @@
           }
         },
         {
-          "id": "dd642bcc-61d4-499b-a779-b211af22ca0a",
+          "id": "712b63e4-d603-4c6a-b1dd-836c54fd202e",
           "name": "Get approval records for a document.",
           "request": {
             "name": "Get approval records for a document.",
@@ -2364,7 +2364,7 @@
           },
           "response": [
             {
-              "id": "6dde2002-f2ae-4253-b6d9-9fbdcef0e69c",
+              "id": "14c9e8eb-5542-4466-b03f-5547dd9815bf",
               "name": "Approval records",
               "originalRequest": {
                 "url": {
@@ -2405,12 +2405,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"approvals\": [\n    {\n      \"agentId\": \"string\",\n      \"createdAt\": \"2013-11-17T14:32:12.188Z\",\n      \"comment\": \"string\"\n    },\n    {\n      \"agentId\": \"string\",\n      \"createdAt\": \"1985-03-08T16:17:46.325Z\",\n      \"comment\": \"string\"\n    }\n  ]\n}",
+              "body": "{\n  \"approvals\": [\n    {\n      \"agentId\": \"string\",\n      \"createdAt\": \"1973-10-24T06:58:02.572Z\",\n      \"comment\": \"string\"\n    },\n    {\n      \"agentId\": \"string\",\n      \"createdAt\": \"1998-02-10T10:37:26.827Z\",\n      \"comment\": \"string\"\n    }\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "ff1e0e95-ce2b-4b6f-8bb9-faa01f23fa17",
+              "id": "41f65023-b0ac-47da-a465-7443ef1b3851",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -2451,7 +2451,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -2462,7 +2462,7 @@
           }
         },
         {
-          "id": "168d927e-c6e9-4aef-a705-464b5977538a",
+          "id": "e410f5b7-a289-4f7a-b9ae-60d32b24698d",
           "name": "Get contributor statistics for a document.",
           "request": {
             "name": "Get contributor statistics for a document.",
@@ -2502,7 +2502,7 @@
           },
           "response": [
             {
-              "id": "47e40c82-f325-4a06-97ae-6e2c2bcedd20",
+              "id": "e57e5432-9b54-4aa7-b311-5d5bffe00ce0",
               "name": "Contributor statistics",
               "originalRequest": {
                 "url": {
@@ -2543,12 +2543,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"contributors\": [\n    {\n      \"agentId\": \"string\",\n      \"versionsAuthored\": 2910,\n      \"netTokens\": 7795,\n      \"firstContribution\": \"1958-04-10T10:40:48.842Z\",\n      \"lastContribution\": \"2010-07-21T07:28:30.694Z\"\n    },\n    {\n      \"agentId\": \"string\",\n      \"versionsAuthored\": 2793,\n      \"netTokens\": 1912,\n      \"firstContribution\": \"1983-10-29T13:24:55.872Z\",\n      \"lastContribution\": \"1988-07-30T15:03:23.728Z\"\n    }\n  ]\n}",
+              "body": "{\n  \"contributors\": [\n    {\n      \"agentId\": \"string\",\n      \"versionsAuthored\": 1462,\n      \"netTokens\": 3314,\n      \"firstContribution\": \"1986-11-04T17:33:54.417Z\",\n      \"lastContribution\": \"1998-03-20T15:21:01.361Z\"\n    },\n    {\n      \"agentId\": \"string\",\n      \"versionsAuthored\": 1948,\n      \"netTokens\": 7850,\n      \"firstContribution\": \"1985-02-12T18:07:22.526Z\",\n      \"lastContribution\": \"2013-07-25T05:37:06.043Z\"\n    }\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "5afd693c-59ad-4c6d-b14d-7d8cfc9340c7",
+              "id": "7de399fe-3d9b-4687-bb4e-94c29fdb37aa",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -2589,7 +2589,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -2603,7 +2603,7 @@
       "event": []
     },
     {
-      "id": "6fc64fd9-a01c-45b8-9841-5bb10e40cb38",
+      "id": "82e4fa94-facf-494a-8d6a-40defc23d7ea",
       "name": "disclosure",
       "description": {
         "content": "Progressive disclosure — sections, TOC, search",
@@ -2611,7 +2611,7 @@
       },
       "item": [
         {
-          "id": "b8654325-d530-4c49-b4fc-8a1ab0928c00",
+          "id": "28d1a8d3-7a6a-44b6-aa56-4b1db26a23e1",
           "name": "Get a structural overview of a document (section list, stats).",
           "request": {
             "name": "Get a structural overview of a document (section list, stats).",
@@ -2651,7 +2651,7 @@
           },
           "response": [
             {
-              "id": "8ef4f1c7-3f9a-4abc-ae71-65a7db7d0574",
+              "id": "27c82c78-5041-491a-afd8-78340db0cf81",
               "name": "Document structure overview",
               "originalRequest": {
                 "url": {
@@ -2692,12 +2692,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"slug\": \"string\",\n  \"sectionCount\": 9246,\n  \"tokenCount\": 1405,\n  \"format\": \"string\",\n  \"sections\": [\n    \"string\",\n    \"string\"\n  ]\n}",
+              "body": "{\n  \"slug\": \"string\",\n  \"sectionCount\": 5148,\n  \"tokenCount\": 8925,\n  \"format\": \"string\",\n  \"sections\": [\n    \"string\",\n    \"string\"\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "0c4cf405-d740-4a8d-a2cd-909c594b4b24",
+              "id": "c52faddd-cbe6-4a5d-b635-723e789adfa5",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -2738,7 +2738,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -2749,7 +2749,7 @@
           }
         },
         {
-          "id": "0da8964d-0dc2-419f-ae25-b7e24765bc2f",
+          "id": "7679d7f2-db3d-4121-9ae6-c65ff6a075dc",
           "name": "Get all sections of a document.",
           "request": {
             "name": "Get all sections of a document.",
@@ -2789,7 +2789,7 @@
           },
           "response": [
             {
-              "id": "364bd672-ee53-42c8-9c3e-14b8a675f290",
+              "id": "33b979d6-2b63-41f3-b3e0-b246e985e63d",
               "name": "All document sections",
               "originalRequest": {
                 "url": {
@@ -2830,12 +2830,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"sections\": [\n    {\n      \"name\": \"string\",\n      \"content\": \"string\",\n      \"tokenCount\": 4277\n    },\n    {\n      \"name\": \"string\",\n      \"content\": \"string\",\n      \"tokenCount\": 8233\n    }\n  ]\n}",
+              "body": "{\n  \"sections\": [\n    {\n      \"name\": \"string\",\n      \"content\": \"string\",\n      \"tokenCount\": 1402\n    },\n    {\n      \"name\": \"string\",\n      \"content\": \"string\",\n      \"tokenCount\": 7655\n    }\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "36c49848-250a-48f7-89d3-d70c420cb845",
+              "id": "4540c614-9d8b-4c01-b845-9d9808afd4eb",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -2876,7 +2876,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -2887,7 +2887,7 @@
           }
         },
         {
-          "id": "a6e923cc-cba1-421b-a380-669c031c0fde",
+          "id": "c75cc5b3-bcf1-4924-aa80-f402e174e812",
           "name": "Get the table of contents for a document.",
           "request": {
             "name": "Get the table of contents for a document.",
@@ -2927,7 +2927,7 @@
           },
           "response": [
             {
-              "id": "d93816de-95eb-451a-add2-4385d13546e7",
+              "id": "4eaff7b3-9eee-4782-943f-55fd350280fc",
               "name": "Table of contents",
               "originalRequest": {
                 "url": {
@@ -2968,12 +2968,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"toc\": [\n    {\n      \"heading\": \"string\",\n      \"level\": 7985,\n      \"anchor\": \"string\"\n    },\n    {\n      \"heading\": \"string\",\n      \"level\": 1293,\n      \"anchor\": \"string\"\n    }\n  ]\n}",
+              "body": "{\n  \"toc\": [\n    {\n      \"heading\": \"string\",\n      \"level\": 9878,\n      \"anchor\": \"string\"\n    },\n    {\n      \"heading\": \"string\",\n      \"level\": 9485,\n      \"anchor\": \"string\"\n    }\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "cb153496-60f9-403e-afd3-0f42792b8249",
+              "id": "ec2f354f-5892-41b3-809e-4f08e0fa70ad",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -3014,7 +3014,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -3025,7 +3025,7 @@
           }
         },
         {
-          "id": "5fe07d7f-63ba-47f5-a751-77fc8d4a877c",
+          "id": "94bff0fc-b862-4258-b9b6-4e0d053539cc",
           "name": "Get a named section from a document.",
           "request": {
             "name": "Get a named section from a document.",
@@ -3073,7 +3073,7 @@
           },
           "response": [
             {
-              "id": "0b0a7b3e-8a97-4b91-9ac7-97004592d3e4",
+              "id": "104fa2c8-856b-4658-8646-cb9d823da01b",
               "name": "Named section content",
               "originalRequest": {
                 "url": {
@@ -3122,12 +3122,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"name\": \"string\",\n  \"content\": \"string\",\n  \"tokenCount\": 8550\n}",
+              "body": "{\n  \"name\": \"string\",\n  \"content\": \"string\",\n  \"tokenCount\": 809\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "0cf34dea-bc74-42c2-bb7a-cb96056043e7",
+              "id": "d187354b-da86-4c01-b18f-b640c57ce8b3",
               "name": "Document or section not found",
               "originalRequest": {
                 "url": {
@@ -3176,7 +3176,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -3187,7 +3187,7 @@
           }
         },
         {
-          "id": "35fe4149-c316-41d7-80f4-5c9061f754be",
+          "id": "b4fd1f6b-255a-43ac-b2f2-ae7a424f8e86",
           "name": "Full-text search within a document.",
           "request": {
             "name": "Full-text search within a document.",
@@ -3227,7 +3227,7 @@
           },
           "response": [
             {
-              "id": "6ed6756d-2776-49bf-add9-baee36a4bbe7",
+              "id": "b4e4134f-d83e-4bc7-94a7-b2f88ac207c4",
               "name": "Search results within document",
               "originalRequest": {
                 "url": {
@@ -3268,12 +3268,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"results\": [\n    {\n      \"section\": \"string\",\n      \"excerpt\": \"string\",\n      \"score\": 691.4459206109691\n    },\n    {\n      \"section\": \"string\",\n      \"excerpt\": \"string\",\n      \"score\": 184.2613141454408\n    }\n  ]\n}",
+              "body": "{\n  \"results\": [\n    {\n      \"section\": \"string\",\n      \"excerpt\": \"string\",\n      \"score\": 9356.276409508731\n    },\n    {\n      \"section\": \"string\",\n      \"excerpt\": \"string\",\n      \"score\": 9146.47539722805\n    }\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "3a5d69cc-34e6-48f7-97ed-36c9b53dcfa1",
+              "id": "f1731cef-857c-4558-87fa-770675ffa367",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -3314,7 +3314,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -3325,7 +3325,7 @@
           }
         },
         {
-          "id": "c1ffe094-cec3-4cdb-b208-681dcd255a38",
+          "id": "2b715862-ae94-40df-8080-3a16b232235a",
           "name": "Fetch a document's raw (unformatted) content.",
           "request": {
             "name": "Fetch a document's raw (unformatted) content.",
@@ -3365,7 +3365,7 @@
           },
           "response": [
             {
-              "id": "2caf62d5-8290-4218-a378-7d9348d375e8",
+              "id": "bcc2fec0-9cc1-4fe5-9764-232ae3c1808d",
               "name": "Raw document content",
               "originalRequest": {
                 "url": {
@@ -3411,7 +3411,7 @@
               "_postman_previewlanguage": "text"
             },
             {
-              "id": "a2a98048-8e4c-4f67-9e99-5bf8d4bff7f2",
+              "id": "d0711a17-f966-4c26-93b9-459a7710b4c5",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -3452,7 +3452,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -3463,7 +3463,7 @@
           }
         },
         {
-          "id": "ea4781e9-0864-4117-9612-58eaf7af29bb",
+          "id": "6c5c3861-6637-4746-b2b2-45247680bf0c",
           "name": "Batch-fetch multiple sections from a document.",
           "request": {
             "name": "Batch-fetch multiple sections from a document.",
@@ -3503,7 +3503,7 @@
           },
           "response": [
             {
-              "id": "abda276f-0aa2-4d9b-8506-94e1a0747e94",
+              "id": "073379a9-1353-4349-80c3-57d11eb7bf60",
               "name": "Batch section results",
               "originalRequest": {
                 "url": {
@@ -3544,12 +3544,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"sections\": [\n    {\n      \"name\": \"string\",\n      \"content\": \"string\",\n      \"tokenCount\": 4277\n    },\n    {\n      \"name\": \"string\",\n      \"content\": \"string\",\n      \"tokenCount\": 8233\n    }\n  ]\n}",
+              "body": "{\n  \"sections\": [\n    {\n      \"name\": \"string\",\n      \"content\": \"string\",\n      \"tokenCount\": 1402\n    },\n    {\n      \"name\": \"string\",\n      \"content\": \"string\",\n      \"tokenCount\": 7655\n    }\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "d25eb971-c4ea-4ac4-8115-c92329fca4b1",
+              "id": "141e8596-e221-4790-aad7-0419802c895f",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -3590,7 +3590,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -3604,7 +3604,7 @@
       "event": []
     },
     {
-      "id": "c35311b2-d8db-41c8-b5bd-43d0ce6146de",
+      "id": "ea699b49-0d65-4ea2-876f-1715247e98be",
       "name": "crdt",
       "description": {
         "content": "Real-time CRDT collaboration (Loro)",
@@ -3612,7 +3612,7 @@
       },
       "item": [
         {
-          "id": "d6aebd4c-4e5a-4461-8a48-a99511d65c40",
+          "id": "e22073e2-5db8-4da1-b002-951767f0cb8c",
           "name": "Get the current CRDT state for a document section (HTTP fallback).",
           "request": {
             "name": "Get the current CRDT state for a document section (HTTP fallback).",
@@ -3661,7 +3661,7 @@
           },
           "response": [
             {
-              "id": "69817572-5bbe-483d-b23b-6721a52a504c",
+              "id": "f00bf06f-ecc3-43d6-9f1e-ddf0665b8a01",
               "name": "CRDT state (base64-encoded)",
               "originalRequest": {
                 "url": {
@@ -3716,7 +3716,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "ca11df1e-35f4-43c1-a1d6-499916757c13",
+              "id": "f928cc35-76b1-4ad6-9943-c548c580fc34",
               "name": "Document or section not found",
               "originalRequest": {
                 "url": {
@@ -3766,7 +3766,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -3777,7 +3777,7 @@
           }
         },
         {
-          "id": "fd2bff24-7b78-4f6c-952d-0eae51406aa2",
+          "id": "4520957e-6bc5-449a-8dcf-4dacc1810f1f",
           "name": "Apply a CRDT update to a document section (HTTP fallback for WebSocket).",
           "request": {
             "name": "Apply a CRDT update to a document section (HTTP fallback for WebSocket).",
@@ -3826,7 +3826,7 @@
           },
           "response": [
             {
-              "id": "a3870c77-7fe1-4331-90d6-50906045d4f1",
+              "id": "2bfeb290-8209-4a81-923a-43b655b2481c",
               "name": "CRDT update applied",
               "originalRequest": {
                 "url": {
@@ -3881,7 +3881,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "aae94156-b478-4219-9216-356a045cd3d2",
+              "id": "fc87996b-54e5-483d-b943-de99e8bf22bd",
               "name": "Invalid update payload",
               "originalRequest": {
                 "url": {
@@ -3931,12 +3931,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "4ad228e5-e651-4c2b-85bd-e4422f72b09e",
+              "id": "2c1b231e-4b2d-49a4-8b9e-53e9b7ad0f92",
               "name": "Document or section not found",
               "originalRequest": {
                 "url": {
@@ -3986,7 +3986,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -3997,7 +3997,7 @@
           }
         },
         {
-          "id": "cdea867c-6db6-48a7-94c5-dadc3b5f502a",
+          "id": "cef93776-1f42-43e2-b116-eff37d32c418",
           "name": "WebSocket endpoint for real-time CRDT collaboration on a document section.  Subprotocol: `yjs-sync-v1`. Auth via `?token=<apiKey>` query param or session cookie. Unauthenticated connections are closed with code 4401.",
           "request": {
             "name": "WebSocket endpoint for real-time CRDT collaboration on a document section.  Subprotocol: `yjs-sync-v1`. Auth via `?token=<apiKey>` query param or session cookie. Unauthenticated connections are closed with code 4401.",
@@ -4049,7 +4049,7 @@
           },
           "response": [
             {
-              "id": "6921113c-9eae-468c-b0d1-8b5aee555b46",
+              "id": "b69e5f6c-fa4d-48d1-b873-bbef130ccacf",
               "name": "WebSocket upgrade — CRDT collaboration session",
               "originalRequest": {
                 "url": {
@@ -4109,7 +4109,7 @@
               "_postman_previewlanguage": "text"
             },
             {
-              "id": "ab7caae7-be22-41ef-bd0f-a1a5742c9faa",
+              "id": "2012405f-2f67-4174-bd92-b8fa8b994460",
               "name": "Unauthenticated (WS close code 4401)",
               "originalRequest": {
                 "url": {
@@ -4169,7 +4169,7 @@
               "_postman_previewlanguage": "text"
             },
             {
-              "id": "fa492aea-1bcd-4e1b-aba1-cbe620c7f810",
+              "id": "82b5b8a7-2fcd-4ed3-a85e-c1dd8e7fcbbd",
               "name": "Forbidden — insufficient role (WS close code 4403)",
               "originalRequest": {
                 "url": {
@@ -4238,7 +4238,7 @@
       "event": []
     },
     {
-      "id": "89436061-cfbf-431e-9b6d-acbdc1e4a3b0",
+      "id": "ebb3b082-cbd9-41e3-b266-f4f8728220cd",
       "name": "realtime",
       "description": {
         "content": "WebSocket real-time event streams",
@@ -4246,7 +4246,7 @@
       },
       "item": [
         {
-          "id": "e7d1f7d2-514f-4f23-bd21-76acb05a1787",
+          "id": "df7f3141-9f84-4089-a9ac-1faa67259dfd",
           "name": "WebSocket endpoint for legacy real-time document event streaming.",
           "request": {
             "name": "WebSocket endpoint for legacy real-time document event streaming.",
@@ -4287,7 +4287,7 @@
           },
           "response": [
             {
-              "id": "72dab0fc-b617-488c-890c-a907d495e48a",
+              "id": "2c0ac682-918f-44ed-bebb-c73fbfada290",
               "name": "WebSocket upgrade — real-time document event stream",
               "originalRequest": {
                 "url": {
@@ -4336,7 +4336,7 @@
               "_postman_previewlanguage": "text"
             },
             {
-              "id": "534934dd-5af9-4ca4-8c4e-bb2e23d45b1a",
+              "id": "4f838b94-f107-45ba-927c-b07d598ba21c",
               "name": "Unauthenticated (WS close code 4401)",
               "originalRequest": {
                 "url": {
@@ -4394,7 +4394,7 @@
       "event": []
     },
     {
-      "id": "1a4dae46-12ad-40de-98ca-a7dedca3cf34",
+      "id": "f9a565bc-e389-4063-b26c-430314a7f774",
       "name": "presence",
       "description": {
         "content": "Agent presence and awareness",
@@ -4402,7 +4402,7 @@
       },
       "item": [
         {
-          "id": "d6d31357-d7d3-493d-b247-437b7ca87fda",
+          "id": "2031babd-3b2f-4ce4-a7ac-1cee4c814295",
           "name": "Get all agents currently active in a document (within the last 30 seconds).",
           "request": {
             "name": "Get all agents currently active in a document (within the last 30 seconds).",
@@ -4443,7 +4443,7 @@
           },
           "response": [
             {
-              "id": "3de530ac-64ad-4523-bcdf-c78089c122c6",
+              "id": "76a36fec-7ed9-415b-907d-8e501ebaba97",
               "name": "Active agents in document",
               "originalRequest": {
                 "url": {
@@ -4485,12 +4485,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "[\n  {\n    \"agentId\": \"string\",\n    \"section\": \"string\",\n    \"cursorOffset\": 2576,\n    \"lastSeen\": \"1982-10-22T08:56:25.775Z\"\n  },\n  {\n    \"agentId\": \"string\",\n    \"section\": \"string\",\n    \"cursorOffset\": 8099,\n    \"lastSeen\": \"2007-08-26T21:27:51.591Z\"\n  }\n]",
+              "body": "[\n  {\n    \"agentId\": \"string\",\n    \"section\": \"string\",\n    \"cursorOffset\": 9625,\n    \"lastSeen\": \"2023-01-10T23:22:47.639Z\"\n  },\n  {\n    \"agentId\": \"string\",\n    \"section\": \"string\",\n    \"cursorOffset\": 1224,\n    \"lastSeen\": \"1958-09-18T07:22:07.052Z\"\n  }\n]",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "1eef4c94-7658-48a8-a2e7-7e690648793a",
+              "id": "2bbac7c2-4055-4b43-a0e1-5be235aba998",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -4532,7 +4532,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -4546,7 +4546,7 @@
       "event": []
     },
     {
-      "id": "ba7765b0-4832-4f4a-a4cf-c86115c76fd7",
+      "id": "62c5ffb1-e92d-4120-b31f-ed5600b69dc4",
       "name": "leases",
       "description": {
         "content": "Section write leases for turn-taking",
@@ -4554,7 +4554,7 @@
       },
       "item": [
         {
-          "id": "56fe95d6-c7fd-40a9-989c-e02003839af5",
+          "id": "4afae496-6424-4c53-a2c2-11db65f08f71",
           "name": "Acquire an exclusive write lease on a document section.",
           "request": {
             "name": "Acquire an exclusive write lease on a document section.",
@@ -4604,7 +4604,7 @@
           },
           "response": [
             {
-              "id": "6bd3390b-f4b9-4512-8606-a370a8bdf807",
+              "id": "eba746d8-147a-4543-9d2b-34467298f1fe",
               "name": "Lease acquired",
               "originalRequest": {
                 "url": {
@@ -4655,12 +4655,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"leaseId\": \"string\",\n  \"agentId\": \"string\",\n  \"expiresAt\": \"1999-03-14T03:15:14.552Z\"\n}",
+              "body": "{\n  \"leaseId\": \"string\",\n  \"agentId\": \"string\",\n  \"expiresAt\": \"1976-12-28T13:50:52.508Z\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "b5c6de0d-0579-43f1-96c5-eb2ce8836127",
+              "id": "8233c2e1-1834-4cba-a3e7-a012461b9733",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -4711,12 +4711,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "b77cf665-f5f8-4f82-b4e3-87d7d2f804e8",
+              "id": "3232a346-f23b-4a12-9ab0-1793ea6cb4a9",
               "name": "Section already leased by another agent",
               "originalRequest": {
                 "url": {
@@ -4767,7 +4767,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -4778,7 +4778,7 @@
           }
         },
         {
-          "id": "0fc9d7f5-5265-4667-a19f-125b26490dce",
+          "id": "1e25ddfc-a75d-429a-ada6-43931a18d8e9",
           "name": "Get the current lease holder for a document section.",
           "request": {
             "name": "Get the current lease holder for a document section.",
@@ -4828,7 +4828,7 @@
           },
           "response": [
             {
-              "id": "d313969c-8183-4ea6-9ace-08a47386746a",
+              "id": "ea0b33fd-efc5-485f-874e-02911010a80e",
               "name": "Current lease holder (or null)",
               "originalRequest": {
                 "url": {
@@ -4879,12 +4879,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"leaseId\": \"string\",\n  \"agentId\": \"string\",\n  \"expiresAt\": \"1974-04-05T13:46:40.772Z\"\n}",
+              "body": "{\n  \"leaseId\": \"string\",\n  \"agentId\": \"string\",\n  \"expiresAt\": \"2008-07-25T18:02:43.515Z\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "7e595159-887c-47da-b137-9dc32870536b",
+              "id": "9b8edad0-c3a0-4a9c-a76b-588ff7bcab5b",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -4935,7 +4935,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -4946,7 +4946,7 @@
           }
         },
         {
-          "id": "80d487cb-e74c-4cc3-8b94-325b53b8cd51",
+          "id": "563ba338-f8af-45c2-b365-c9ea8838ff7d",
           "name": "Release a lease on a document section.",
           "request": {
             "name": "Release a lease on a document section.",
@@ -4996,7 +4996,7 @@
           },
           "response": [
             {
-              "id": "cc7bd8ec-a9ee-4003-b149-15cd1e98f8ab",
+              "id": "17452e60-0d35-45d0-bfdc-2607d74cac60",
               "name": "Lease released",
               "originalRequest": {
                 "url": {
@@ -5047,12 +5047,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"released\": false\n}",
+              "body": "{\n  \"released\": true\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "17a8c089-8f15-4820-9b85-b005dea8bd8a",
+              "id": "4872c2f2-2228-4867-8b65-5cb5f6ba7840",
               "name": "Lease not found or not owned by caller",
               "originalRequest": {
                 "url": {
@@ -5103,7 +5103,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -5114,7 +5114,7 @@
           }
         },
         {
-          "id": "a7003bae-ca52-4f7e-92da-3b115029c710",
+          "id": "1c7db143-8bc3-42c6-9775-1c611f1e9d44",
           "name": "Renew (heartbeat) a lease on a document section.",
           "request": {
             "name": "Renew (heartbeat) a lease on a document section.",
@@ -5164,7 +5164,7 @@
           },
           "response": [
             {
-              "id": "0738157a-9c41-4825-a7cf-c46084955987",
+              "id": "e42fddf5-6f43-43be-8dd0-6f3e4f399670",
               "name": "Lease renewed",
               "originalRequest": {
                 "url": {
@@ -5215,12 +5215,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"leaseId\": \"string\",\n  \"expiresAt\": \"1967-09-14T16:03:35.190Z\"\n}",
+              "body": "{\n  \"leaseId\": \"string\",\n  \"expiresAt\": \"1949-01-05T12:09:33.661Z\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "34f9cfe9-cd56-4329-81cf-c63da196bd29",
+              "id": "3b013162-9542-43d7-a4f4-be9a4a207553",
               "name": "Lease not found or expired",
               "originalRequest": {
                 "url": {
@@ -5271,7 +5271,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -5285,7 +5285,7 @@
       "event": []
     },
     {
-      "id": "cc3a8034-e7bc-4e9a-886d-bc0e12c6c386",
+      "id": "93746d0c-2822-4fd9-b4a8-6a01109d0d08",
       "name": "scratchpad",
       "description": {
         "content": "Agent scratchpad for ephemeral notes",
@@ -5293,7 +5293,7 @@
       },
       "item": [
         {
-          "id": "7eb59451-7cdb-4a03-a06c-748f86a89a11",
+          "id": "5f6a3965-c821-4b32-b423-106367416bca",
           "name": "Write to an agent's scratchpad within a document.",
           "request": {
             "name": "Write to an agent's scratchpad within a document.",
@@ -5334,7 +5334,7 @@
           },
           "response": [
             {
-              "id": "4f1010dd-7b28-4db1-bfd5-65aeeb9ee06c",
+              "id": "8c2b1876-da69-4c7b-9f02-37aa0db612bc",
               "name": "Scratchpad entry created",
               "originalRequest": {
                 "url": {
@@ -5376,12 +5376,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": \"string\",\n  \"agentId\": \"string\",\n  \"createdAt\": \"1969-01-30T23:22:40.961Z\"\n}",
+              "body": "{\n  \"id\": \"string\",\n  \"agentId\": \"string\",\n  \"createdAt\": \"1958-07-11T10:28:28.501Z\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "37c4890d-6fc0-4cca-a5aa-932326f0c6ef",
+              "id": "3620ce95-dcd3-4d76-a480-4e8c14941b0d",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -5423,7 +5423,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -5434,7 +5434,7 @@
           }
         },
         {
-          "id": "e185a22c-8115-4b10-9a27-6e99c4e7a644",
+          "id": "e1ce85a0-91de-4b12-a950-8eb181b5e76f",
           "name": "Read all scratchpad entries for a document (optionally filtered by agent).",
           "request": {
             "name": "Read all scratchpad entries for a document (optionally filtered by agent).",
@@ -5475,7 +5475,7 @@
           },
           "response": [
             {
-              "id": "82191b2b-c6ea-4d20-995a-141aef4c0088",
+              "id": "2784b893-c9a5-4355-9dc8-5e27ee02e92b",
               "name": "Scratchpad entries",
               "originalRequest": {
                 "url": {
@@ -5517,12 +5517,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"entries\": [\n    {\n      \"id\": \"string\",\n      \"agentId\": \"string\",\n      \"content\": \"string\",\n      \"section\": \"string\",\n      \"createdAt\": \"1946-11-06T16:03:33.716Z\"\n    },\n    {\n      \"id\": \"string\",\n      \"agentId\": \"string\",\n      \"content\": \"string\",\n      \"section\": \"string\",\n      \"createdAt\": \"1952-12-02T07:10:59.153Z\"\n    }\n  ]\n}",
+              "body": "{\n  \"entries\": [\n    {\n      \"id\": \"string\",\n      \"agentId\": \"string\",\n      \"content\": \"string\",\n      \"section\": \"string\",\n      \"createdAt\": \"1959-09-22T08:11:01.374Z\"\n    },\n    {\n      \"id\": \"string\",\n      \"agentId\": \"string\",\n      \"content\": \"string\",\n      \"section\": \"string\",\n      \"createdAt\": \"1962-01-11T08:05:24.128Z\"\n    }\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "78284617-5f68-4681-9b68-c2217375603b",
+              "id": "695f029a-2645-4b8e-8c3e-c32c0ab51c7b",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -5564,7 +5564,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -5575,7 +5575,7 @@
           }
         },
         {
-          "id": "ce5afec4-0e34-405b-a0db-3722c0489ee5",
+          "id": "5a034e5f-db21-4109-830d-d653ad604c70",
           "name": "Server-sent events stream of new scratchpad entries.",
           "request": {
             "name": "Server-sent events stream of new scratchpad entries.",
@@ -5617,7 +5617,7 @@
           },
           "response": [
             {
-              "id": "a38e1ae6-15f2-4c30-9d82-584978ad0ed1",
+              "id": "18abc567-b640-4ab3-971c-b8d4702ecb49",
               "name": "SSE stream of scratchpad entries",
               "originalRequest": {
                 "url": {
@@ -5665,7 +5665,7 @@
               "_postman_previewlanguage": "text"
             },
             {
-              "id": "140185ac-9562-43ee-9399-fb925d4958da",
+              "id": "64903a98-2a5c-4305-aae1-144db81888e4",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -5708,7 +5708,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -5722,7 +5722,7 @@
       "event": []
     },
     {
-      "id": "fd0419ff-5d27-402e-8521-8ef229fd06c7",
+      "id": "9c624add-1c28-4144-a0ec-daf87c718014",
       "name": "bft",
       "description": {
         "content": "Byzantine fault-tolerant consensus voting",
@@ -5730,7 +5730,7 @@
       },
       "item": [
         {
-          "id": "fb6b2f4f-d89e-42d3-a788-1b5c728ecb2f",
+          "id": "3a7422d8-2002-4fe9-ab6f-d1979949a7a6",
           "name": "Submit a BFT consensus vote for a document section.",
           "request": {
             "name": "Submit a BFT consensus vote for a document section.",
@@ -5772,7 +5772,7 @@
           },
           "response": [
             {
-              "id": "9d58e1d7-01d5-4b21-9fba-c9a165ed3322",
+              "id": "dd1edf4a-68e6-4d96-a0e0-c0d351b20e8f",
               "name": "BFT vote submitted",
               "originalRequest": {
                 "url": {
@@ -5820,7 +5820,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "1da99f89-2281-43a8-8450-d26664083f2e",
+              "id": "f3684a0b-9c82-4251-a98d-90c5b5d57eeb",
               "name": "Invalid vote payload",
               "originalRequest": {
                 "url": {
@@ -5863,12 +5863,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "88a754f7-7003-4040-ba98-d643b57bf1c9",
+              "id": "0a8a7a2a-7e7c-401d-8207-d1a5153bad11",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -5911,7 +5911,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -5922,7 +5922,7 @@
           }
         },
         {
-          "id": "730984f1-6f12-4cec-9d32-37e7bb6db045",
+          "id": "29e80a04-f7a7-431b-b307-005c0322573e",
           "name": "Get BFT consensus status for a document.",
           "request": {
             "name": "Get BFT consensus status for a document.",
@@ -5963,7 +5963,7 @@
           },
           "response": [
             {
-              "id": "21a030c3-3f75-4b13-9ada-59a7b559f2ca",
+              "id": "58f379ea-12fc-41d4-8165-dfcc8e9b7cf8",
               "name": "BFT consensus status",
               "originalRequest": {
                 "url": {
@@ -6005,12 +6005,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"status\": \"consensus\",\n  \"votes\": 6817,\n  \"quorum\": 1337\n}",
+              "body": "{\n  \"status\": \"consensus\",\n  \"votes\": 4843,\n  \"quorum\": 8640\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "dcbefa50-66b5-42e0-a7b6-71535cd78ff1",
+              "id": "1f91b110-711d-42c1-8e26-36fe651a1e54",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -6052,7 +6052,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -6063,7 +6063,7 @@
           }
         },
         {
-          "id": "abc99f5f-414b-4f55-ae03-23629d14340a",
+          "id": "07bfb770-f868-41fe-af78-c53f95ee5165",
           "name": "Get the BFT hash chain for audit verification.",
           "request": {
             "name": "Get the BFT hash chain for audit verification.",
@@ -6103,7 +6103,7 @@
           },
           "response": [
             {
-              "id": "5f1edf29-2902-4583-8247-f760ac3c73cb",
+              "id": "6e0caab0-0b8c-49cc-bf0c-9fe921e63da5",
               "name": "BFT hash chain for audit",
               "originalRequest": {
                 "url": {
@@ -6144,12 +6144,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"chain\": [\n    {\n      \"blockIndex\": 5860,\n      \"hash\": \"string\",\n      \"prevHash\": \"string\",\n      \"agentId\": \"string\",\n      \"timestamp\": \"2004-09-13T10:02:03.091Z\"\n    },\n    {\n      \"blockIndex\": 4393,\n      \"hash\": \"string\",\n      \"prevHash\": \"string\",\n      \"agentId\": \"string\",\n      \"timestamp\": \"2022-06-10T05:38:17.318Z\"\n    }\n  ]\n}",
+              "body": "{\n  \"chain\": [\n    {\n      \"blockIndex\": 4109,\n      \"hash\": \"string\",\n      \"prevHash\": \"string\",\n      \"agentId\": \"string\",\n      \"timestamp\": \"1955-07-28T11:15:54.600Z\"\n    },\n    {\n      \"blockIndex\": 3549,\n      \"hash\": \"string\",\n      \"prevHash\": \"string\",\n      \"agentId\": \"string\",\n      \"timestamp\": \"2020-05-30T17:15:30.479Z\"\n    }\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "b90fb326-cfbf-46f7-bb55-1b88cc8cd8b5",
+              "id": "ef3bdde4-5fc7-44b4-937e-e7d6cb417bec",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -6190,7 +6190,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -6204,7 +6204,7 @@
       "event": []
     },
     {
-      "id": "8ba8a1ce-6091-4987-8d9d-72a2e4017161",
+      "id": "4b050023-7b6a-4202-af7c-10f5bb5acacd",
       "name": "a2a",
       "description": {
         "content": "Agent-to-agent messaging",
@@ -6212,7 +6212,7 @@
       },
       "item": [
         {
-          "id": "f439d913-ad08-4aea-bfac-0b81e2363053",
+          "id": "0ab588d9-9264-419c-b167-f06502d1665f",
           "name": "Send a message to an agent's inbox.",
           "request": {
             "name": "Send a message to an agent's inbox.",
@@ -6253,7 +6253,7 @@
           },
           "response": [
             {
-              "id": "b835779f-2392-4574-9003-1f2600eb91d5",
+              "id": "d4f1c36a-6604-46c6-b424-fc0a68c1d8ed",
               "name": "Message queued",
               "originalRequest": {
                 "url": {
@@ -6300,7 +6300,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "b764ca66-7509-41e4-92bd-0443295b3931",
+              "id": "0cc8bdfc-66dc-473b-b5b2-ecc92e1ad331",
               "name": "Agent not found",
               "originalRequest": {
                 "url": {
@@ -6342,7 +6342,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -6353,7 +6353,7 @@
           }
         },
         {
-          "id": "6336f26d-2e5c-4169-8053-bca05d981916",
+          "id": "ad755957-25c2-4587-902f-d7f44e071722",
           "name": "Read messages from an agent's inbox (poll).",
           "request": {
             "name": "Read messages from an agent's inbox (poll).",
@@ -6394,7 +6394,7 @@
           },
           "response": [
             {
-              "id": "5905d1f6-9a8c-433b-96ce-56aa6b9a578b",
+              "id": "2579d47c-363d-4c06-8434-4406d7b4d8bf",
               "name": "Agent inbox messages",
               "originalRequest": {
                 "url": {
@@ -6436,12 +6436,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"messages\": [\n    {\n      \"id\": \"string\",\n      \"from\": \"string\",\n      \"content\": \"string\",\n      \"replyTo\": \"string\",\n      \"ts\": \"1977-10-01T23:30:32.236Z\"\n    },\n    {\n      \"id\": \"string\",\n      \"from\": \"string\",\n      \"content\": \"string\",\n      \"replyTo\": \"string\",\n      \"ts\": \"1983-07-02T18:14:35.572Z\"\n    }\n  ],\n  \"count\": 8969\n}",
+              "body": "{\n  \"messages\": [\n    {\n      \"id\": \"string\",\n      \"from\": \"string\",\n      \"content\": \"string\",\n      \"replyTo\": \"string\",\n      \"ts\": \"1981-05-20T22:32:32.350Z\"\n    },\n    {\n      \"id\": \"string\",\n      \"from\": \"string\",\n      \"content\": \"string\",\n      \"replyTo\": \"string\",\n      \"ts\": \"1952-08-21T22:28:03.645Z\"\n    }\n  ],\n  \"count\": 6783\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "b83ee14e-140b-4a57-a6ae-ed55d49dac64",
+              "id": "4b661689-21b0-41a4-a39d-5e641f3afb74",
               "name": "Agent not found",
               "originalRequest": {
                 "url": {
@@ -6483,7 +6483,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -6497,7 +6497,7 @@
       "event": []
     },
     {
-      "id": "255f303f-1728-4f20-83d3-a5d3c8b85684",
+      "id": "1d0c12a8-0b9e-400f-8d20-f3c487fbc245",
       "name": "events",
       "description": {
         "content": "Document and global event streams",
@@ -6505,7 +6505,7 @@
       },
       "item": [
         {
-          "id": "98f1534f-ecf7-48b6-9432-dd1823eb9793",
+          "id": "41dca4cc-91d4-45ce-b0b8-452eddee2042",
           "name": "Get the event log for a document (paginated).",
           "request": {
             "name": "Get the event log for a document (paginated).",
@@ -6545,7 +6545,7 @@
           },
           "response": [
             {
-              "id": "e7ca6822-c7d8-4200-9cc1-7f91a97908d9",
+              "id": "ce0c30ae-2e1f-4741-8398-6be6108e4c36",
               "name": "Document event log",
               "originalRequest": {
                 "url": {
@@ -6586,12 +6586,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"events\": [\n    {\n      \"id\": \"string\",\n      \"type\": \"string\",\n      \"agentId\": \"string\",\n      \"ts\": \"1984-12-02T11:47:52.637Z\",\n      \"payload\": {}\n    },\n    {\n      \"id\": \"string\",\n      \"type\": \"string\",\n      \"agentId\": \"string\",\n      \"ts\": \"1968-10-19T06:11:34.146Z\",\n      \"payload\": {}\n    }\n  ],\n  \"total\": 9410\n}",
+              "body": "{\n  \"events\": [\n    {\n      \"id\": \"string\",\n      \"type\": \"string\",\n      \"agentId\": \"string\",\n      \"ts\": \"2001-01-04T12:21:37.585Z\",\n      \"payload\": {}\n    },\n    {\n      \"id\": \"string\",\n      \"type\": \"string\",\n      \"agentId\": \"string\",\n      \"ts\": \"1963-01-25T23:49:04.255Z\",\n      \"payload\": {}\n    }\n  ],\n  \"total\": 7572\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "6ef982d0-2c8d-48dc-b224-4342d74a593c",
+              "id": "5bb3a3ea-2ba7-420b-bf38-1bc59ef2b2f5",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -6632,7 +6632,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -6643,7 +6643,7 @@
           }
         },
         {
-          "id": "efc3a098-aa15-48f0-856f-47bf3ab04585",
+          "id": "781303be-c14b-44c8-a49e-639a33b3d2d4",
           "name": "Subscribe to document events as a server-sent event stream.",
           "request": {
             "name": "Subscribe to document events as a server-sent event stream.",
@@ -6684,7 +6684,7 @@
           },
           "response": [
             {
-              "id": "b135a13c-e53a-4729-b595-371718cc8fd3",
+              "id": "e2e2071c-07c5-4e61-934b-f7f7d36c70b9",
               "name": "SSE stream of document events",
               "originalRequest": {
                 "url": {
@@ -6731,7 +6731,7 @@
               "_postman_previewlanguage": "text"
             },
             {
-              "id": "144072cb-2e56-4dd4-a8d1-e15330f26a23",
+              "id": "0454dce6-75f8-4270-aebb-5ff0861b9b00",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -6773,7 +6773,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -6784,7 +6784,7 @@
           }
         },
         {
-          "id": "55df0183-feb5-4c5c-aec8-7c1c19a09288",
+          "id": "95f738d8-e056-4da2-9c64-c8839434af47",
           "name": "Subscribe to global document events via SSE.",
           "request": {
             "name": "Subscribe to global document events via SSE.",
@@ -6815,7 +6815,7 @@
           },
           "response": [
             {
-              "id": "ebc4f42f-b955-4b63-8fe9-28ce53274508",
+              "id": "d004c17f-e7fe-484c-921f-6283708c66f4",
               "name": "SSE stream of global events",
               "originalRequest": {
                 "url": {
@@ -6861,7 +6861,7 @@
       "event": []
     },
     {
-      "id": "2f0765e6-fbab-4d46-9e46-30ba1ab18b7b",
+      "id": "0f3e1153-2b0b-4118-87bb-30f4f967ee9f",
       "name": "blobs",
       "description": {
         "content": "Binary blob attachments (content-addressed)",
@@ -6869,7 +6869,7 @@
       },
       "item": [
         {
-          "id": "0de99210-cda8-43b2-8130-d1dcd972edb8",
+          "id": "4afca2f4-a42e-44f8-975f-e28288757dd9",
           "name": "Attach a binary blob to a document.",
           "request": {
             "name": "Attach a binary blob to a document.",
@@ -6938,7 +6938,7 @@
           },
           "response": [
             {
-              "id": "97bb18e1-8924-4073-a3b2-588fa2afd5af",
+              "id": "2af7429a-9382-4b62-b6bb-48a2fc63b78c",
               "name": "Blob attached",
               "originalRequest": {
                 "url": {
@@ -6999,12 +6999,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"name\": \"string\",\n  \"hash\": \"string\",\n  \"size\": 8575,\n  \"contentType\": \"string\",\n  \"attachedAt\": \"2023-07-21T14:06:39.902Z\"\n}",
+              "body": "{\n  \"name\": \"string\",\n  \"hash\": \"string\",\n  \"size\": 9329,\n  \"contentType\": \"string\",\n  \"attachedAt\": \"1969-09-09T01:26:16.433Z\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "5b1212ad-f296-42bd-a77b-1949ce1c6481",
+              "id": "b1e5e969-bdac-4b3d-9292-6e6d283d1b5c",
               "name": "Invalid blob name or payload",
               "originalRequest": {
                 "url": {
@@ -7065,12 +7065,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "9d44b799-b249-414f-9439-dc9e5170cec1",
+              "id": "43e3773b-94aa-4791-b238-90a9078a62eb",
               "name": "Authentication required",
               "originalRequest": {
                 "url": {
@@ -7131,12 +7131,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "d20c92b2-2051-45b2-bab7-abc4127ad6d5",
+              "id": "1b9ead74-f23e-4ce4-b743-d135be36f4e6",
               "name": "Write access denied",
               "originalRequest": {
                 "url": {
@@ -7197,12 +7197,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "8cf2a1b5-cfa4-4d71-b3da-99e5407f7dc8",
+              "id": "d9b01112-4b5a-4090-945a-b90d5c9638b6",
               "name": "Blob too large (max 100 MB)",
               "originalRequest": {
                 "url": {
@@ -7263,7 +7263,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -7274,7 +7274,7 @@
           }
         },
         {
-          "id": "7c52f70c-dca5-4a76-b805-9b2e173794bd",
+          "id": "f46ee7e2-0b7c-4ec2-91f4-8dd8b0602ccf",
           "name": "List blob attachments for a document (metadata only).",
           "request": {
             "name": "List blob attachments for a document (metadata only).",
@@ -7319,7 +7319,7 @@
           },
           "response": [
             {
-              "id": "316ff1c1-e231-412a-9e6e-9d85731d38cb",
+              "id": "f6b4efb1-c756-4789-a0e6-a32370c83710",
               "name": "Blob list",
               "originalRequest": {
                 "url": {
@@ -7368,12 +7368,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"blobs\": [\n    {\n      \"name\": \"string\",\n      \"hash\": \"string\",\n      \"size\": 6137,\n      \"contentType\": \"string\",\n      \"attachedAt\": \"1981-12-24T10:11:21.723Z\"\n    },\n    {\n      \"name\": \"string\",\n      \"hash\": \"string\",\n      \"size\": 5354,\n      \"contentType\": \"string\",\n      \"attachedAt\": \"1948-10-03T08:15:05.794Z\"\n    }\n  ]\n}",
+              "body": "{\n  \"blobs\": [\n    {\n      \"name\": \"string\",\n      \"hash\": \"string\",\n      \"size\": 907,\n      \"contentType\": \"string\",\n      \"attachedAt\": \"1977-10-10T14:07:23.782Z\"\n    },\n    {\n      \"name\": \"string\",\n      \"hash\": \"string\",\n      \"size\": 2160,\n      \"contentType\": \"string\",\n      \"attachedAt\": \"2008-03-28T14:49:46.647Z\"\n    }\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "ebc831bd-aee0-41ba-ae7e-b2c08fafa989",
+              "id": "a765a205-617e-442a-abf2-0c9ac590d4b5",
               "name": "Authentication required",
               "originalRequest": {
                 "url": {
@@ -7422,12 +7422,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "579b193f-01e1-49ae-8702-d9870b710316",
+              "id": "ee9ca696-8425-4a76-ba1c-fdcc20b44e72",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -7476,7 +7476,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -7487,7 +7487,7 @@
           }
         },
         {
-          "id": "aa4370db-27a7-43c6-a4fb-20e58218f350",
+          "id": "7689cd91-7673-422a-8209-811489e2e79d",
           "name": "Download a named blob attachment with hash verification.",
           "request": {
             "name": "Download a named blob attachment with hash verification.",
@@ -7540,7 +7540,7 @@
           },
           "response": [
             {
-              "id": "c0a9bde9-6292-408d-a582-5142761e3ae8",
+              "id": "f51ff5bc-7b82-46d5-adfa-623a481bb57c",
               "name": "Blob bytes",
               "originalRequest": {
                 "url": {
@@ -7602,7 +7602,7 @@
               "_postman_previewlanguage": "text"
             },
             {
-              "id": "1bd01850-1704-44b5-8573-62ce73aededd",
+              "id": "ffff6e4f-a2bf-4be3-974a-c0f9d4ee6562",
               "name": "Authentication required",
               "originalRequest": {
                 "url": {
@@ -7659,12 +7659,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "860a3779-8e82-4c9b-b4ae-a1b72517494a",
+              "id": "f941bdbc-614a-4c76-addd-020987f0adb8",
               "name": "Blob not found",
               "originalRequest": {
                 "url": {
@@ -7721,12 +7721,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "ecefd74e-806e-42ee-91a8-043db80aef4f",
+              "id": "ed5eebac-fdc3-4ae1-b793-6840c590599a",
               "name": "Blob corrupted — hash mismatch",
               "originalRequest": {
                 "url": {
@@ -7783,7 +7783,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -7794,7 +7794,7 @@
           }
         },
         {
-          "id": "a964419d-89d1-4586-8a00-266ceefb3541",
+          "id": "1bd74225-374d-409c-b420-18b3510a018d",
           "name": "Detach (soft-delete) a named blob from a document.",
           "request": {
             "name": "Detach (soft-delete) a named blob from a document.",
@@ -7847,7 +7847,7 @@
           },
           "response": [
             {
-              "id": "90f29ce9-28d4-47e6-9c48-01fc9d7865fb",
+              "id": "f19024d2-3c28-420f-b3a0-1fb9a39301f9",
               "name": "Blob detached",
               "originalRequest": {
                 "url": {
@@ -7904,12 +7904,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"detached\": false\n}",
+              "body": "{\n  \"detached\": true\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "d01aeae0-36e0-4e41-babb-397b92627088",
+              "id": "df964a9e-535f-4556-ad98-08344a5eb23f",
               "name": "Authentication required",
               "originalRequest": {
                 "url": {
@@ -7966,12 +7966,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "8c7b8cd4-2a87-43e2-9776-1311199a9c4f",
+              "id": "059ea39a-69fc-4669-a6ac-430faede1b58",
               "name": "Write access denied",
               "originalRequest": {
                 "url": {
@@ -8028,12 +8028,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "e02fc3b1-3d10-4aec-8681-33d57f3d8fce",
+              "id": "a379d332-71fe-4a3b-b6fe-52ca38c3d6a6",
               "name": "Blob not found",
               "originalRequest": {
                 "url": {
@@ -8090,7 +8090,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -8101,7 +8101,7 @@
           }
         },
         {
-          "id": "7afe0066-364a-4cb2-8771-509d9f87e007",
+          "id": "7f7e8a63-16a0-41ff-b9b0-de6ebaf3b15d",
           "name": "Fetch blob bytes by content-addressed SHA-256 hash.",
           "request": {
             "name": "Fetch blob bytes by content-addressed SHA-256 hash.",
@@ -8148,7 +8148,7 @@
           },
           "response": [
             {
-              "id": "2ed394ec-48bd-4b7f-85be-aaa7168efed5",
+              "id": "db91c797-3d08-4806-9674-38607eb049f3",
               "name": "Blob bytes",
               "originalRequest": {
                 "url": {
@@ -8201,7 +8201,7 @@
               "_postman_previewlanguage": "text"
             },
             {
-              "id": "89d41fff-2c84-4c6d-bce3-e7e290e25320",
+              "id": "dc2b1eb2-7a90-41bb-a87b-f7b52bc55bf5",
               "name": "Authentication required",
               "originalRequest": {
                 "url": {
@@ -8249,12 +8249,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "b8d73af1-a8d5-4136-b4d0-a070f4d428d1",
+              "id": "7e38dc3e-5011-45fa-8ff4-f292f0b5a518",
               "name": "No document referencing this hash readable by caller",
               "originalRequest": {
                 "url": {
@@ -8302,12 +8302,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "7bf43c54-2648-47f2-a785-7eb12f0528a6",
+              "id": "7c803fee-0ce0-4ba1-9ee9-777e953b492f",
               "name": "Blob not found",
               "originalRequest": {
                 "url": {
@@ -8355,7 +8355,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -8369,7 +8369,7 @@
       "event": []
     },
     {
-      "id": "87468c7b-a45e-4fa9-bcd1-deb9b9e7a780",
+      "id": "ec86e61a-7717-4314-a75c-fa2e0172878f",
       "name": "export",
       "description": {
         "content": "Document export in multiple formats",
@@ -8377,7 +8377,7 @@
       },
       "item": [
         {
-          "id": "68e7a2ff-6133-4188-8b2f-c7c045fc9efc",
+          "id": "6966758d-67bb-48c9-a67e-88edac197fc7",
           "name": "Export a document in one of four canonical formats.",
           "request": {
             "name": "Export a document in one of four canonical formats.",
@@ -8420,7 +8420,7 @@
           },
           "response": [
             {
-              "id": "0b98dc18-aa2b-4c06-ae5c-ec66ea059875",
+              "id": "072ee83c-cf7f-4d95-b9f4-11126605cc1a",
               "name": "Exported document content",
               "originalRequest": {
                 "url": {
@@ -8471,7 +8471,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "2d3032fe-8c90-4eec-af69-965c6d4a729d",
+              "id": "b5377f77-f680-44a0-95d9-123b06806474",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -8517,7 +8517,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -8531,7 +8531,7 @@
       "event": []
     },
     {
-      "id": "d673dac0-3a07-45a3-91a4-df4810904843",
+      "id": "82dbb4be-626e-4143-bef0-20e48c170836",
       "name": "collections",
       "description": {
         "content": "Document collection management",
@@ -8539,7 +8539,7 @@
       },
       "item": [
         {
-          "id": "aac61a20-b402-4509-befd-d3c9762cd34e",
+          "id": "a12b09b1-d00c-44d0-aa32-fc5ac5a8c714",
           "name": "Create a named collection of documents.",
           "request": {
             "name": "Create a named collection of documents.",
@@ -8587,7 +8587,7 @@
           },
           "response": [
             {
-              "id": "3a0a92cb-1566-450c-a782-e8db54f4bd17",
+              "id": "08514f1f-edc1-4d78-b7d8-a6b0849488e6",
               "name": "Collection created",
               "originalRequest": {
                 "url": {
@@ -8634,12 +8634,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": \"string\",\n  \"slug\": \"string\",\n  \"name\": \"string\",\n  \"createdAt\": \"1950-12-09T00:37:04.962Z\"\n}",
+              "body": "{\n  \"id\": \"string\",\n  \"slug\": \"string\",\n  \"name\": \"string\",\n  \"createdAt\": \"2024-05-12T16:40:15.858Z\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "ccf2698b-a500-43b1-affd-63e8b69ba400",
+              "id": "d75bc11c-ae34-4632-8c02-58494e8b1a2f",
               "name": "Authentication required",
               "originalRequest": {
                 "url": {
@@ -8686,7 +8686,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -8697,7 +8697,7 @@
           }
         },
         {
-          "id": "90217847-a47d-44f5-83b9-6144068f639d",
+          "id": "e3ddc927-8df9-45fc-afcc-6f79ac004f59",
           "name": "List all collections accessible to the authenticated user.",
           "request": {
             "name": "List all collections accessible to the authenticated user.",
@@ -8732,7 +8732,7 @@
           },
           "response": [
             {
-              "id": "b280bd95-387d-4b47-8e1a-584f78f20d8c",
+              "id": "3e3e8859-ff3d-4caa-a1c7-23cc21bcd03a",
               "name": "Collection list",
               "originalRequest": {
                 "url": {
@@ -8771,12 +8771,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"collections\": [\n    {\n      \"id\": \"string\",\n      \"slug\": \"string\",\n      \"name\": \"string\",\n      \"documentCount\": 9544,\n      \"createdAt\": \"1994-06-01T16:26:29.392Z\"\n    },\n    {\n      \"id\": \"string\",\n      \"slug\": \"string\",\n      \"name\": \"string\",\n      \"documentCount\": 8144,\n      \"createdAt\": \"1970-04-07T04:27:52.414Z\"\n    }\n  ]\n}",
+              "body": "{\n  \"collections\": [\n    {\n      \"id\": \"string\",\n      \"slug\": \"string\",\n      \"name\": \"string\",\n      \"documentCount\": 7937,\n      \"createdAt\": \"1997-10-14T12:13:36.361Z\"\n    },\n    {\n      \"id\": \"string\",\n      \"slug\": \"string\",\n      \"name\": \"string\",\n      \"documentCount\": 9327,\n      \"createdAt\": \"1989-12-31T23:10:09.267Z\"\n    }\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "863c0800-862a-4d33-ad04-0e370a84fd55",
+              "id": "92586e80-7eeb-4cd6-a2a5-3b27abe2ccb2",
               "name": "Authentication required",
               "originalRequest": {
                 "url": {
@@ -8815,7 +8815,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -8826,7 +8826,7 @@
           }
         },
         {
-          "id": "cb42039d-5a5a-4520-8efe-a553dab2bb6b",
+          "id": "8e436588-fd93-4ddf-b823-e8c4c6710da0",
           "name": "Get a collection and its document list.",
           "request": {
             "name": "Get a collection and its document list.",
@@ -8862,7 +8862,7 @@
           },
           "response": [
             {
-              "id": "0bae3527-311f-44a0-aad4-150ff33c0d37",
+              "id": "5e0f0d92-5dbe-4345-9afe-893802725afd",
               "name": "Collection details",
               "originalRequest": {
                 "url": {
@@ -8907,7 +8907,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "b80e2f5b-613c-4f8c-af81-cfb2f371ad81",
+              "id": "80892d8c-d041-435d-9383-411d370ab34c",
               "name": "Collection not found",
               "originalRequest": {
                 "url": {
@@ -8947,7 +8947,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -8958,7 +8958,7 @@
           }
         },
         {
-          "id": "da1c9a46-b1e9-4cf5-8c16-563eb92e7fe9",
+          "id": "72183553-90e4-4dc3-815c-5e75c9e6e60d",
           "name": "Delete a collection (documents are not deleted).",
           "request": {
             "name": "Delete a collection (documents are not deleted).",
@@ -9002,7 +9002,7 @@
           },
           "response": [
             {
-              "id": "91846e8a-96b7-46a4-bcaa-f6ed802005d7",
+              "id": "b90ae76d-ca80-4979-9dcf-7dc487967e4c",
               "name": "Collection deleted",
               "originalRequest": {
                 "url": {
@@ -9055,7 +9055,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "d860dad1-8554-4438-a2fd-ab7a9a7dad03",
+              "id": "a51ea35e-a0e7-4bdb-8bcb-57c1b5439f10",
               "name": "Authentication required",
               "originalRequest": {
                 "url": {
@@ -9103,12 +9103,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "6cb18c39-9b08-44c5-a6e0-d0d480498e5e",
+              "id": "8adf0bed-6b9c-4f37-a8f9-2aa0302f3a9d",
               "name": "Collection not found",
               "originalRequest": {
                 "url": {
@@ -9156,7 +9156,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -9170,7 +9170,7 @@
       "event": []
     },
     {
-      "id": "26375ea7-cd84-487d-bb22-48db28596536",
+      "id": "8d596b2a-3a70-4bbb-8d38-b31f2fa52c5e",
       "name": "retrieval",
       "description": {
         "content": "Semantic retrieval and similarity",
@@ -9178,7 +9178,7 @@
       },
       "item": [
         {
-          "id": "9af59388-1030-42f6-ab9c-56ab211b6df4",
+          "id": "3cf78337-6851-4559-b95c-30be240f467d",
           "name": "Semantic retrieval — find documents relevant to a query.",
           "request": {
             "name": "Semantic retrieval — find documents relevant to a query.",
@@ -9218,7 +9218,7 @@
           },
           "response": [
             {
-              "id": "1ded915c-b42d-418d-9ade-f678c770eabc",
+              "id": "3bc0f4b0-ef17-48e7-9b3c-00425909a4c4",
               "name": "Retrieval results",
               "originalRequest": {
                 "url": {
@@ -9257,7 +9257,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"results\": [\n    {\n      \"slug\": \"string\",\n      \"score\": 2097.934861470294,\n      \"excerpt\": \"string\"\n    },\n    {\n      \"slug\": \"string\",\n      \"score\": 6055.396484341802,\n      \"excerpt\": \"string\"\n    }\n  ]\n}",
+              "body": "{\n  \"results\": [\n    {\n      \"slug\": \"string\",\n      \"score\": 6806.931582568879,\n      \"excerpt\": \"string\"\n    },\n    {\n      \"slug\": \"string\",\n      \"score\": 7166.4021418279535,\n      \"excerpt\": \"string\"\n    }\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -9271,7 +9271,7 @@
       "event": []
     },
     {
-      "id": "a6fc6fb9-b98c-41fc-99af-3e25f5d6cc9d",
+      "id": "4b43eef1-f852-4ffe-a5fa-1fab4e458752",
       "name": "semantic",
       "description": {
         "content": "Semantic diff and consensus",
@@ -9279,7 +9279,7 @@
       },
       "item": [
         {
-          "id": "ab4e1929-79eb-416f-8cab-04ffabe6a0e8",
+          "id": "e92414c2-fd51-48c4-837e-52a40d5b5f5a",
           "name": "Compute a semantic (embedding-based) diff between two versions.",
           "request": {
             "name": "Compute a semantic (embedding-based) diff between two versions.",
@@ -9319,7 +9319,7 @@
           },
           "response": [
             {
-              "id": "3e080499-424b-41ca-a9bd-3d75b92db84d",
+              "id": "2968a724-a34e-4bc7-9433-37d6a0143047",
               "name": "Semantic diff results",
               "originalRequest": {
                 "url": {
@@ -9360,12 +9360,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"sections\": [\n    {\n      \"name\": \"string\",\n      \"similarity\": 4235.679508510104,\n      \"changed\": false\n    },\n    {\n      \"name\": \"string\",\n      \"similarity\": 2781.3830020638607,\n      \"changed\": false\n    }\n  ]\n}",
+              "body": "{\n  \"sections\": [\n    {\n      \"name\": \"string\",\n      \"similarity\": 6628.4087243368895,\n      \"changed\": true\n    },\n    {\n      \"name\": \"string\",\n      \"similarity\": 2650.3492643140803,\n      \"changed\": true\n    }\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "4a86da64-34c3-49b2-adf5-42749e6c4fa9",
+              "id": "b20256b6-ba1e-4720-8d29-3e0edf27696e",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -9406,7 +9406,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -9417,7 +9417,7 @@
           }
         },
         {
-          "id": "7e10793b-281d-4b91-a678-a2ec0ad99794",
+          "id": "59477a06-4107-4caa-bb30-9a2e88ea7c8d",
           "name": "Compute semantic similarity between two documents.",
           "request": {
             "name": "Compute semantic similarity between two documents.",
@@ -9457,7 +9457,7 @@
           },
           "response": [
             {
-              "id": "3b0c8653-66ee-42a5-a1c4-1f82d50bc75b",
+              "id": "297c4da5-dfe1-43a7-add0-55f4f66c4118",
               "name": "Cosine similarity score",
               "originalRequest": {
                 "url": {
@@ -9498,12 +9498,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"similarity\": 585.5851035697435\n}",
+              "body": "{\n  \"similarity\": 6603.636867632383\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "3d6b7062-8372-4072-846c-ad5fd78528ac",
+              "id": "a32c80a9-830a-4694-8ba0-d10972d02d18",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -9544,7 +9544,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -9555,7 +9555,7 @@
           }
         },
         {
-          "id": "2dc1657e-9ab0-4f02-a108-a8ee26ac3cce",
+          "id": "e1b8a38b-162a-4ec9-a5f0-9bf45e40a69e",
           "name": "Run a semantic consensus check across multiple agent versions.",
           "request": {
             "name": "Run a semantic consensus check across multiple agent versions.",
@@ -9595,7 +9595,7 @@
           },
           "response": [
             {
-              "id": "4f5bc0c2-f259-474c-b0f8-2540c88d426b",
+              "id": "0c07e4d6-6eee-41af-9f85-93f3136a0ac2",
               "name": "Semantic consensus result",
               "originalRequest": {
                 "url": {
@@ -9636,12 +9636,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"consensus\": true,\n  \"score\": 3486.3257674937654,\n  \"divergentAgents\": [\n    \"string\",\n    \"string\"\n  ]\n}",
+              "body": "{\n  \"consensus\": true,\n  \"score\": 3905.23391382162,\n  \"divergentAgents\": [\n    \"string\",\n    \"string\"\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "f49fff19-7d72-45b9-9b1c-056540d756ac",
+              "id": "c4396371-c89d-49e9-8cd5-d32b6efdafbe",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -9682,7 +9682,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -9696,7 +9696,7 @@
       "event": []
     },
     {
-      "id": "8b47891d-2b79-401c-813b-7b0fd59403f0",
+      "id": "c9418ffb-8b82-4ba6-b6b0-75d605ebffa6",
       "name": "search",
       "description": {
         "content": "Full-text and cross-document search",
@@ -9704,7 +9704,7 @@
       },
       "item": [
         {
-          "id": "78896099-9bf2-4fed-809f-80c471cc489d",
+          "id": "7390549a-77f4-4864-9e7c-a8f34cb3c07b",
           "name": "Cross-document semantic search.",
           "request": {
             "name": "Cross-document semantic search.",
@@ -9734,7 +9734,7 @@
           },
           "response": [
             {
-              "id": "3eb89701-16b9-4ac6-bd66-0721c1c0f57e",
+              "id": "59ddd9b7-e1e1-47aa-b356-53626adbb88b",
               "name": "Cross-document search results",
               "originalRequest": {
                 "url": {
@@ -9765,7 +9765,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"results\": [\n    {\n      \"slug\": \"string\",\n      \"excerpt\": \"string\",\n      \"score\": 3289.7874151047167,\n      \"format\": \"string\"\n    },\n    {\n      \"slug\": \"string\",\n      \"excerpt\": \"string\",\n      \"score\": 6112.251727079322,\n      \"format\": \"string\"\n    }\n  ]\n}",
+              "body": "{\n  \"results\": [\n    {\n      \"slug\": \"string\",\n      \"excerpt\": \"string\",\n      \"score\": 5724.91926373122,\n      \"format\": \"string\"\n    },\n    {\n      \"slug\": \"string\",\n      \"excerpt\": \"string\",\n      \"score\": 3776.54877383486,\n      \"format\": \"string\"\n    }\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -9779,7 +9779,7 @@
       "event": []
     },
     {
-      "id": "0e4f66f2-eb9a-4ff1-bf1a-13a2750e18ec",
+      "id": "1a37d723-563d-4b39-8eef-ea79a6e58487",
       "name": "cross-doc",
       "description": {
         "content": "Cross-document links and graph",
@@ -9787,7 +9787,7 @@
       },
       "item": [
         {
-          "id": "592ba99c-c6a4-408c-9aae-f0320550b586",
+          "id": "c077203b-838a-4a00-8075-1f6f669f617d",
           "name": "List outgoing links from a document.",
           "request": {
             "name": "List outgoing links from a document.",
@@ -9827,7 +9827,7 @@
           },
           "response": [
             {
-              "id": "73fc5040-cfdc-416c-a1e2-0b492d33b220",
+              "id": "559a5e6e-d32a-4eed-8b60-bfbf9b886187",
               "name": "Outgoing document links",
               "originalRequest": {
                 "url": {
@@ -9868,12 +9868,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"links\": [\n    {\n      \"targetSlug\": \"string\",\n      \"label\": \"string\",\n      \"createdAt\": \"2021-05-18T04:26:32.445Z\"\n    },\n    {\n      \"targetSlug\": \"string\",\n      \"label\": \"string\",\n      \"createdAt\": \"2022-09-04T19:19:56.441Z\"\n    }\n  ]\n}",
+              "body": "{\n  \"links\": [\n    {\n      \"targetSlug\": \"string\",\n      \"label\": \"string\",\n      \"createdAt\": \"2011-03-15T16:44:10.386Z\"\n    },\n    {\n      \"targetSlug\": \"string\",\n      \"label\": \"string\",\n      \"createdAt\": \"1948-08-18T22:00:00.842Z\"\n    }\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "cfd5523c-2251-4689-9268-12a3154ed270",
+              "id": "ca5c43a9-81cf-447c-9fc2-95644b26c2e7",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -9914,7 +9914,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -9925,7 +9925,7 @@
           }
         },
         {
-          "id": "36f0500c-4514-48d6-91cc-26a48f89cbb0",
+          "id": "4326010b-c3c3-4eec-bfcf-1a1654116584",
           "name": "Create a link between two documents.",
           "request": {
             "name": "Create a link between two documents.",
@@ -9965,7 +9965,7 @@
           },
           "response": [
             {
-              "id": "7e61921d-8b44-49fa-a312-ca4a570ab415",
+              "id": "4728be09-f5db-4b9c-99e9-44dfcaad27f4",
               "name": "Link created",
               "originalRequest": {
                 "url": {
@@ -10006,12 +10006,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": \"string\",\n  \"sourceSlug\": \"string\",\n  \"targetSlug\": \"string\",\n  \"label\": \"string\",\n  \"createdAt\": \"2007-10-25T03:44:24.710Z\"\n}",
+              "body": "{\n  \"id\": \"string\",\n  \"sourceSlug\": \"string\",\n  \"targetSlug\": \"string\",\n  \"label\": \"string\",\n  \"createdAt\": \"1950-11-17T13:25:24.529Z\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "29063443-87a7-4410-8468-37d19d085177",
+              "id": "31587ffd-427d-4812-a96a-98a5d04ebac0",
               "name": "Source or target document not found",
               "originalRequest": {
                 "url": {
@@ -10052,7 +10052,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -10063,7 +10063,7 @@
           }
         },
         {
-          "id": "cb5c8a19-fec8-4c29-8f96-fe200e6c60db",
+          "id": "9c1cc58b-64d8-4201-a886-b2b304123aec",
           "name": "Delete a link between documents.",
           "request": {
             "name": "Delete a link between documents.",
@@ -10111,7 +10111,7 @@
           },
           "response": [
             {
-              "id": "4e6c096f-dc66-48be-bb2a-3975ef09cd4e",
+              "id": "0a27c0f5-910a-4e46-b606-9d1cdddf7373",
               "name": "Link deleted",
               "originalRequest": {
                 "url": {
@@ -10165,7 +10165,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "32e66820-8039-4666-806a-9153ff89e582",
+              "id": "3bc1fce5-fa76-40a5-9de0-5762e21a3b0b",
               "name": "Link not found",
               "originalRequest": {
                 "url": {
@@ -10214,7 +10214,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -10225,7 +10225,7 @@
           }
         },
         {
-          "id": "9b9976cd-bb7d-4234-a447-b0eec947e502",
+          "id": "d4daca8a-ca5e-424b-a428-fc4e8f7e7a0f",
           "name": "Get the cross-document relationship graph.",
           "request": {
             "name": "Get the cross-document relationship graph.",
@@ -10255,7 +10255,7 @@
           },
           "response": [
             {
-              "id": "4d62a0da-6142-4bfe-a43d-afd48a744ff1",
+              "id": "56c3f0e3-7195-41b0-8879-239b689f8f38",
               "name": "Cross-document relationship graph",
               "originalRequest": {
                 "url": {
@@ -10300,7 +10300,7 @@
       "event": []
     },
     {
-      "id": "536aaeab-65df-4533-8575-a167437ea34a",
+      "id": "47246904-57d1-4049-a02b-51014e9cf8b6",
       "name": "merge",
       "description": {
         "content": "Three-way merge and patch application",
@@ -10308,7 +10308,7 @@
       },
       "item": [
         {
-          "id": "3dbefbaf-c0b5-4994-9fec-f43995bae37b",
+          "id": "37199bb2-f8c4-456c-bd7d-449370d1d406",
           "name": "Three-way merge two document versions with a common ancestor.",
           "request": {
             "name": "Three-way merge two document versions with a common ancestor.",
@@ -10348,7 +10348,7 @@
           },
           "response": [
             {
-              "id": "6163d5e1-6620-479b-8fc7-e61626872cb0",
+              "id": "f3dedb0d-df71-4814-9ba6-c0472f89f222",
               "name": "Merged document",
               "originalRequest": {
                 "url": {
@@ -10389,12 +10389,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"merged\": \"string\",\n  \"conflicts\": 8748\n}",
+              "body": "{\n  \"merged\": \"string\",\n  \"conflicts\": 1497\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "c9a53203-cb5d-41ed-8802-90e9e6303dc0",
+              "id": "66cb849a-44a4-4cfb-833b-05dff75ee372",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -10435,12 +10435,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "91e0ecd7-868c-4d39-b89c-3c6fd58d33c2",
+              "id": "3457c90d-95bd-4a4b-bcbb-14ce76c45707",
               "name": "Unresolvable conflict detected",
               "originalRequest": {
                 "url": {
@@ -10481,7 +10481,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -10492,7 +10492,7 @@
           }
         },
         {
-          "id": "ad58bace-7b5c-4306-b1dd-ebd251f8daa1",
+          "id": "29007539-a7da-4590-96c0-9eb1971276a2",
           "name": "Apply a patch to a document.",
           "request": {
             "name": "Apply a patch to a document.",
@@ -10532,7 +10532,7 @@
           },
           "response": [
             {
-              "id": "0fe65495-6d34-461f-948d-0ee99b986651",
+              "id": "d0371bb4-0d62-4dc2-a1d2-dc2afda5b7b8",
               "name": "Patch applied",
               "originalRequest": {
                 "url": {
@@ -10573,12 +10573,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"versionNumber\": 813,\n  \"applied\": false\n}",
+              "body": "{\n  \"versionNumber\": 788,\n  \"applied\": true\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "13d47f75-e0a3-4a5c-baaf-6c4921dc2abd",
+              "id": "fedb1f63-4574-4734-90c1-bd3f58b7f5ee",
               "name": "Patch failed to apply cleanly",
               "originalRequest": {
                 "url": {
@@ -10619,12 +10619,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "ca1e831d-bdd4-48cf-9ad9-5469d7eb2884",
+              "id": "3ece56c2-9ba0-4892-84af-27f6cea75638",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -10665,7 +10665,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -10679,7 +10679,7 @@
       "event": []
     },
     {
-      "id": "8d0cded6-abac-4093-9baa-91223e9fe5fb",
+      "id": "c08ca761-5a94-4f46-90c0-d4d411ca995a",
       "name": "signed-urls",
       "description": {
         "content": "Temporary signed URLs for unauthenticated access",
@@ -10687,7 +10687,7 @@
       },
       "item": [
         {
-          "id": "e344679f-5247-4506-b744-41449b03e33c",
+          "id": "f7190176-40a6-40a9-a310-ff77e5b7fb41",
           "name": "Generate a time-limited signed URL for unauthenticated document access.",
           "request": {
             "name": "Generate a time-limited signed URL for unauthenticated document access.",
@@ -10717,7 +10717,7 @@
           },
           "response": [
             {
-              "id": "7eff9115-4e5a-4e6c-abcc-fce60bf90604",
+              "id": "b9b11385-9f1b-4da2-8ce6-c9b9e2113e58",
               "name": "Signed URL generated",
               "originalRequest": {
                 "url": {
@@ -10748,12 +10748,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"url\": \"https://qdxBtlnCbUBQHXaJwxDDsAtB.ffTCVaa09UWQ7UNzQr-sFVgeus\",\n  \"expiresAt\": \"2023-09-28T22:20:46.900Z\"\n}",
+              "body": "{\n  \"url\": \"http://ZvnlYhrlLfUnq.xjrwR72TXO9+tTh31mXrLOh64WDiGe\",\n  \"expiresAt\": \"1968-09-06T02:07:57.258Z\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "db9f8226-4b0b-4146-9e29-66eef4d4daeb",
+              "id": "681cbddf-2195-4118-86ce-5cd68073d801",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -10784,7 +10784,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -10798,7 +10798,7 @@
       "event": []
     },
     {
-      "id": "b0ead13a-cdf3-47cf-a6d9-ef661363ab9a",
+      "id": "28999f08-3e17-486c-aa6a-4f91a1caa8bc",
       "name": "webhooks",
       "description": {
         "content": "Webhook event delivery",
@@ -10806,7 +10806,7 @@
       },
       "item": [
         {
-          "id": "d4271209-2ed0-40b3-b563-53a66c56a909",
+          "id": "922f4080-a289-47db-ae99-b8650290a627",
           "name": "Register a new webhook endpoint.",
           "request": {
             "name": "Register a new webhook endpoint.",
@@ -10844,7 +10844,7 @@
           },
           "response": [
             {
-              "id": "cabb8ef2-89bb-452f-980d-53812ac8d8d7",
+              "id": "3ed25c03-2cda-4fda-b476-b1737d112e88",
               "name": "Webhook registered",
               "originalRequest": {
                 "url": {
@@ -10883,12 +10883,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": \"string\",\n  \"url\": \"http://zvCgXJPNXe.crlLwsxN-nSeTeyTjJJDWapyIUFzjF9bH2O+RDdWceNX+4zMlzkCZn\",\n  \"events\": [\n    \"string\",\n    \"string\"\n  ],\n  \"createdAt\": \"1959-10-22T16:33:50.863Z\"\n}",
+              "body": "{\n  \"id\": \"string\",\n  \"url\": \"https://FZfdRRRRBqVWKZJXUNDvChWartwQUVyZ.tlV8KU5M6wOaDR4Vz4xfsNj6U\",\n  \"events\": [\n    \"string\",\n    \"string\"\n  ],\n  \"createdAt\": \"2015-07-17T10:58:24.144Z\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "c80b89ea-f581-4192-8768-7a6b303d1c70",
+              "id": "3b2ddd71-7b63-47f2-aab9-c5c86b51d410",
               "name": "Invalid URL or event types",
               "originalRequest": {
                 "url": {
@@ -10927,12 +10927,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "ad22e3a6-becc-41c8-aa58-af28cfb7383b",
+              "id": "5de66b6e-de8c-4ac4-8756-da8587cacad7",
               "name": "Authentication required",
               "originalRequest": {
                 "url": {
@@ -10971,7 +10971,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -10982,7 +10982,7 @@
           }
         },
         {
-          "id": "c65052de-1dbe-4895-a721-65b1fbf01ca0",
+          "id": "428a3030-efc4-4991-b5fc-204967e54256",
           "name": "List all webhooks for the authenticated user.",
           "request": {
             "name": "List all webhooks for the authenticated user.",
@@ -11020,7 +11020,7 @@
           },
           "response": [
             {
-              "id": "11037b36-2476-41f4-bdda-af28d96f1eac",
+              "id": "8c605575-107b-43ca-8c12-c9ac0236837d",
               "name": "Webhook list",
               "originalRequest": {
                 "url": {
@@ -11059,12 +11059,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"webhooks\": [\n    {\n      \"id\": \"string\",\n      \"url\": \"https://WNLwLqdMZvMzIwydix.kqWN+A.zPZ6s,jIzKv,eycR1FB9GBb33Go+ID6OYDkfHWqkAv7ioACrjjhyW0P-\",\n      \"events\": [\n        \"string\",\n        \"string\"\n      ],\n      \"createdAt\": \"1955-11-23T17:51:51.753Z\",\n      \"lastDelivery\": \"2025-01-31T08:12:45.150Z\"\n    },\n    {\n      \"id\": \"string\",\n      \"url\": \"https://ujEijLKzexllakQB.eteTvkiYZPk.jisB2T.qFlfQ2lQ3TDBEnkjUdNCYKcYG-t0cDFODCr69gFLYUb-2tx+.Evkdx\",\n      \"events\": [\n        \"string\",\n        \"string\"\n      ],\n      \"createdAt\": \"1969-11-26T02:55:12.176Z\",\n      \"lastDelivery\": \"2004-10-30T12:35:30.424Z\"\n    }\n  ]\n}",
+              "body": "{\n  \"webhooks\": [\n    {\n      \"id\": \"string\",\n      \"url\": \"https://CIvILtKwSAOnpMDv.iarasV2lv9PgJYPKnnlDYA6icWSMmWxHUHGPGtcHYyKh5po0pATx+eKhL9r3UwGvjAbgRVJnIOjLtCC\",\n      \"events\": [\n        \"string\",\n        \"string\"\n      ],\n      \"createdAt\": \"2016-01-21T23:33:05.848Z\",\n      \"lastDelivery\": \"1986-05-21T22:30:04.098Z\"\n    },\n    {\n      \"id\": \"string\",\n      \"url\": \"http://aepyoaVLw.ckiZuYFZsoUcz,ruI4zKgdHP9jRYkrJhFDZfhC7voRSlw6yVC3SJUnbt3w7yYdbYbCrVNB5Z\",\n      \"events\": [\n        \"string\",\n        \"string\"\n      ],\n      \"createdAt\": \"2014-12-15T12:38:39.593Z\",\n      \"lastDelivery\": \"2011-11-08T08:19:05.488Z\"\n    }\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "7ef1011f-e8ac-4305-9074-cf1ed3b652e8",
+              "id": "68c1796f-11fc-4c70-b0eb-3a9e36008caa",
               "name": "Authentication required",
               "originalRequest": {
                 "url": {
@@ -11103,7 +11103,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -11114,7 +11114,7 @@
           }
         },
         {
-          "id": "a409b9f4-6193-4459-a130-86bdcb6a320c",
+          "id": "adb089cc-565b-469d-b660-5b521d34681b",
           "name": "Delete a webhook by ID.",
           "request": {
             "name": "Delete a webhook by ID.",
@@ -11161,7 +11161,7 @@
           },
           "response": [
             {
-              "id": "6dc53918-163a-45af-9fa3-a79aee90611c",
+              "id": "d7650e89-411b-4c7f-9786-0f86df906b8c",
               "name": "Webhook deleted",
               "originalRequest": {
                 "url": {
@@ -11214,7 +11214,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "0b80fda5-40b2-4974-ad6f-1d16bfcc86a9",
+              "id": "747a9ac5-93d0-4ea8-b4d9-ebf162edce73",
               "name": "Authentication required",
               "originalRequest": {
                 "url": {
@@ -11262,12 +11262,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "1050b3be-c24a-4800-a7c6-ccb40be9fa3b",
+              "id": "8ae09e02-e553-406c-b231-d78f785ea860",
               "name": "Webhook not found",
               "originalRequest": {
                 "url": {
@@ -11315,7 +11315,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -11329,7 +11329,7 @@
       "event": []
     },
     {
-      "id": "30cd840d-ff52-443e-a202-d30498e25d0f",
+      "id": "3739e1ee-c020-453f-af28-91accb4008eb",
       "name": "access-control",
       "description": {
         "content": "Document ACL and role management",
@@ -11337,7 +11337,7 @@
       },
       "item": [
         {
-          "id": "f4eaf33e-d3ff-4257-af48-84fae28e8a46",
+          "id": "8c80843c-cfa0-47ee-a384-1c6f119cb7f8",
           "name": "Get the access control list (ACL) for a document.",
           "request": {
             "name": "Get the access control list (ACL) for a document.",
@@ -11377,7 +11377,7 @@
           },
           "response": [
             {
-              "id": "ae16a54e-6ad4-4df2-80bf-5e1afdf7f602",
+              "id": "06af07d6-0596-4769-9148-3fe6c4f0986e",
               "name": "Document ACL",
               "originalRequest": {
                 "url": {
@@ -11418,12 +11418,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"roles\": [\n    {\n      \"userId\": \"string\",\n      \"role\": \"admin\"\n    },\n    {\n      \"userId\": \"string\",\n      \"role\": \"editor\"\n    }\n  ],\n  \"visibility\": \"private\"\n}",
+              "body": "{\n  \"roles\": [\n    {\n      \"userId\": \"string\",\n      \"role\": \"viewer\"\n    },\n    {\n      \"userId\": \"string\",\n      \"role\": \"editor\"\n    }\n  ],\n  \"visibility\": \"private\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "025cc2fd-6ea2-43fd-8728-a2fbb1d87a4e",
+              "id": "95528e48-33d3-48f9-a508-cd878f2d4c5c",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -11464,7 +11464,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -11475,7 +11475,7 @@
           }
         },
         {
-          "id": "ecef278f-4241-4fad-b81b-7d634ff633de",
+          "id": "4540adee-c7b3-4c50-ad40-f0ac4b4e4dfd",
           "name": "Grant a role to a user on a document.",
           "request": {
             "name": "Grant a role to a user on a document.",
@@ -11523,7 +11523,7 @@
           },
           "response": [
             {
-              "id": "2bf69cf7-9210-4d85-9af4-bb0debe899d0",
+              "id": "f21fa902-a9ee-4816-bfc2-a943bac36785",
               "name": "Role granted",
               "originalRequest": {
                 "url": {
@@ -11572,12 +11572,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"userId\": \"string\",\n  \"role\": \"string\",\n  \"grantedAt\": \"1950-07-18T17:02:25.688Z\"\n}",
+              "body": "{\n  \"userId\": \"string\",\n  \"role\": \"string\",\n  \"grantedAt\": \"1988-11-28T04:27:01.884Z\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "8ca91874-e9d7-4873-8fe5-704f0dcac82d",
+              "id": "2b607fb2-183f-46b1-9a26-79cb91a4e8f5",
               "name": "Only document owners can grant roles",
               "originalRequest": {
                 "url": {
@@ -11626,12 +11626,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "714922a9-a0b6-45aa-b0f3-729611595c73",
+              "id": "e3892217-dec2-4581-874f-bdbc30dedb5c",
               "name": "Document not found",
               "originalRequest": {
                 "url": {
@@ -11680,7 +11680,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -11691,7 +11691,7 @@
           }
         },
         {
-          "id": "e0ab6451-ebf1-459d-8024-1dea68dc43ab",
+          "id": "02442b53-860e-4314-9d41-62f5e3bb47db",
           "name": "Revoke a user's role on a document.",
           "request": {
             "name": "Revoke a user's role on a document.",
@@ -11739,7 +11739,7 @@
           },
           "response": [
             {
-              "id": "086724bd-31d7-4bf6-a175-2c3ed215977c",
+              "id": "10a5098d-2af3-48aa-9af0-847754536cb3",
               "name": "Role revoked",
               "originalRequest": {
                 "url": {
@@ -11788,12 +11788,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"revoked\": true\n}",
+              "body": "{\n  \"revoked\": false\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "7f0b8868-2cff-46df-a5ee-c5f2a4e7fd7d",
+              "id": "2acd25f0-a462-4886-9535-2132219f6e6a",
               "name": "Role not found",
               "originalRequest": {
                 "url": {
@@ -11842,7 +11842,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -11856,7 +11856,7 @@
       "event": []
     },
     {
-      "id": "05c94611-af51-4ed3-8339-3a0068dbc93b",
+      "id": "56807400-2241-4a51-a134-8ce67b65272f",
       "name": "organizations",
       "description": {
         "content": "Organization and member management",
@@ -11864,7 +11864,7 @@
       },
       "item": [
         {
-          "id": "c9a4e7a1-6eba-4c1d-b831-297978874e79",
+          "id": "13b59ee9-0cfc-42d2-8163-535c0e11866f",
           "name": "Create a new organization.",
           "request": {
             "name": "Create a new organization.",
@@ -11902,7 +11902,7 @@
           },
           "response": [
             {
-              "id": "2f2aaefc-6ca2-4494-841d-8b731b2d2bcd",
+              "id": "0574f70e-01cc-4661-932b-2c78b4ae1bff",
               "name": "Organization created",
               "originalRequest": {
                 "url": {
@@ -11941,12 +11941,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": \"string\",\n  \"slug\": \"string\",\n  \"name\": \"string\",\n  \"createdAt\": \"1950-12-09T00:37:04.962Z\"\n}",
+              "body": "{\n  \"id\": \"string\",\n  \"slug\": \"string\",\n  \"name\": \"string\",\n  \"createdAt\": \"2024-05-12T16:40:15.858Z\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "958c21a9-ff12-4610-8664-705565da9825",
+              "id": "e8de668b-f4e6-479f-98cf-13c1cfd89841",
               "name": "Authentication required",
               "originalRequest": {
                 "url": {
@@ -11985,7 +11985,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -11996,7 +11996,7 @@
           }
         },
         {
-          "id": "d1432415-22d2-4fd3-8db4-d7f83005acff",
+          "id": "f8c22edc-6d30-4785-b5ed-ba913fe60cb7",
           "name": "List organizations the authenticated user belongs to.",
           "request": {
             "name": "List organizations the authenticated user belongs to.",
@@ -12034,7 +12034,7 @@
           },
           "response": [
             {
-              "id": "65de7302-b0aa-4236-aed6-56743d26ce5b",
+              "id": "830c9b09-7e95-42f4-be3e-a83d10e720d0",
               "name": "Organization list",
               "originalRequest": {
                 "url": {
@@ -12078,7 +12078,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "b76eebec-9f27-4f5e-a63a-5019a100e056",
+              "id": "6853bf17-4060-4efd-8d4d-45e7e787c0de",
               "name": "Authentication required",
               "originalRequest": {
                 "url": {
@@ -12117,7 +12117,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -12128,7 +12128,7 @@
           }
         },
         {
-          "id": "5f7f10a1-12e2-45d6-b0a0-a0409ccd1483",
+          "id": "a8344635-087d-4be6-9fb7-569748dd7661",
           "name": "Get an organization by slug.",
           "request": {
             "name": "Get an organization by slug.",
@@ -12167,7 +12167,7 @@
           },
           "response": [
             {
-              "id": "5d8d8308-4611-42d4-8c26-eaf76e29b00f",
+              "id": "86b2fabc-380b-4d22-b85a-bb9b8d773ac1",
               "name": "Organization details",
               "originalRequest": {
                 "url": {
@@ -12207,12 +12207,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": \"string\",\n  \"slug\": \"string\",\n  \"name\": \"string\",\n  \"members\": [\n    {\n      \"userId\": \"string\",\n      \"role\": \"member\"\n    },\n    {\n      \"userId\": \"string\",\n      \"role\": \"admin\"\n    }\n  ]\n}",
+              "body": "{\n  \"id\": \"string\",\n  \"slug\": \"string\",\n  \"name\": \"string\",\n  \"members\": [\n    {\n      \"userId\": \"string\",\n      \"role\": \"admin\"\n    },\n    {\n      \"userId\": \"string\",\n      \"role\": \"member\"\n    }\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "9759275a-fcaf-4a20-9457-332ab74c994f",
+              "id": "f4328f19-4d16-4142-aa8e-e6a24fcc19fc",
               "name": "Organization not found",
               "originalRequest": {
                 "url": {
@@ -12252,7 +12252,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -12263,7 +12263,7 @@
           }
         },
         {
-          "id": "8e855f57-7be9-4b81-bd93-1bf4af9ca917",
+          "id": "ab370237-3aad-453a-a232-7cee13f0b2c9",
           "name": "Add a member to an organization.",
           "request": {
             "name": "Add a member to an organization.",
@@ -12311,7 +12311,7 @@
           },
           "response": [
             {
-              "id": "5646b069-b9a8-42b1-957f-197f20eca50f",
+              "id": "206d74df-552e-43ee-906f-6de219c6790d",
               "name": "Member added",
               "originalRequest": {
                 "url": {
@@ -12365,7 +12365,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "6c90f271-a966-45dd-91a2-9efd1466e930",
+              "id": "02349f40-7f1a-4cdb-bc4a-1b90aafc96f5",
               "name": "Only org admins can add members",
               "originalRequest": {
                 "url": {
@@ -12414,7 +12414,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -12425,7 +12425,7 @@
           }
         },
         {
-          "id": "ead629d7-ac21-444d-9e22-3666bb55c1a4",
+          "id": "d680dbe8-9024-4d93-bf68-a2f95b163dbe",
           "name": "Remove a member from an organization.",
           "request": {
             "name": "Remove a member from an organization.",
@@ -12481,7 +12481,7 @@
           },
           "response": [
             {
-              "id": "848eb08f-c19e-4962-8224-68dfc258b665",
+              "id": "3ebf6d12-b85c-4012-920e-f2b68690a18b",
               "name": "Member removed",
               "originalRequest": {
                 "url": {
@@ -12543,7 +12543,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "edef3d70-eca5-40ca-87e9-d901d72bbb38",
+              "id": "6c4192af-d25b-41b3-b0cc-3e02d7e7b674",
               "name": "Only org admins can remove members",
               "originalRequest": {
                 "url": {
@@ -12600,7 +12600,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -12614,7 +12614,7 @@
       "event": []
     },
     {
-      "id": "47f33585-ce83-4d02-a37c-47720c721944",
+      "id": "4aa25a66-3690-493a-8377-e2bea031e054",
       "name": "api-keys",
       "description": {
         "content": "API key lifecycle management",
@@ -12622,7 +12622,7 @@
       },
       "item": [
         {
-          "id": "b1257780-e7ac-4ea0-8621-03fe945fc264",
+          "id": "0beb9ddc-855e-4dff-a51b-54bb5bee45f8",
           "name": "Create a new API key for programmatic access.",
           "request": {
             "name": "Create a new API key for programmatic access.",
@@ -12660,7 +12660,7 @@
           },
           "response": [
             {
-              "id": "80ea70b5-c454-4699-802e-2551617a6b5c",
+              "id": "ac4ed38f-7b5f-41c7-a9f3-a038fdd14693",
               "name": "API key created — key value shown once",
               "originalRequest": {
                 "url": {
@@ -12699,12 +12699,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": \"string\",\n  \"key\": \"string\",\n  \"name\": \"string\",\n  \"createdAt\": \"1994-05-07T12:44:21.719Z\",\n  \"expiresAt\": \"1993-07-13T14:01:13.133Z\"\n}",
+              "body": "{\n  \"id\": \"string\",\n  \"key\": \"string\",\n  \"name\": \"string\",\n  \"createdAt\": \"1956-03-07T13:09:06.456Z\",\n  \"expiresAt\": \"1988-02-10T19:21:46.704Z\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "5a5e6c6a-f1ba-4c0b-ab11-ee7a40498062",
+              "id": "3c825bca-6455-47f8-a0fa-7cc89ee21a42",
               "name": "Authentication required",
               "originalRequest": {
                 "url": {
@@ -12743,7 +12743,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -12754,7 +12754,7 @@
           }
         },
         {
-          "id": "f256b455-eeae-4ce2-b16b-b82a143bbaa6",
+          "id": "57c2f693-388b-4b5d-aa4e-865ee4b52ad7",
           "name": "List all active API keys for the authenticated user.",
           "request": {
             "name": "List all active API keys for the authenticated user.",
@@ -12792,7 +12792,7 @@
           },
           "response": [
             {
-              "id": "e8a7463c-3584-47d8-b751-9b9e35f42e22",
+              "id": "d928b6f5-8d5d-42c8-8f21-c3f3106940b6",
               "name": "API key list",
               "originalRequest": {
                 "url": {
@@ -12831,12 +12831,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"keys\": [\n    {\n      \"id\": \"string\",\n      \"name\": \"string\",\n      \"createdAt\": \"1989-11-28T00:49:07.071Z\",\n      \"expiresAt\": \"2024-02-06T10:26:38.982Z\",\n      \"lastUsed\": \"1996-08-26T01:34:51.413Z\"\n    },\n    {\n      \"id\": \"string\",\n      \"name\": \"string\",\n      \"createdAt\": \"1972-10-19T20:05:35.991Z\",\n      \"expiresAt\": \"2021-08-07T22:43:09.383Z\",\n      \"lastUsed\": \"2009-02-21T19:26:43.149Z\"\n    }\n  ]\n}",
+              "body": "{\n  \"keys\": [\n    {\n      \"id\": \"string\",\n      \"name\": \"string\",\n      \"createdAt\": \"1999-12-22T02:40:57.325Z\",\n      \"expiresAt\": \"2020-04-19T13:47:08.857Z\",\n      \"lastUsed\": \"2022-01-31T16:15:55.522Z\"\n    },\n    {\n      \"id\": \"string\",\n      \"name\": \"string\",\n      \"createdAt\": \"2005-08-06T17:07:47.521Z\",\n      \"expiresAt\": \"2011-02-15T16:46:33.807Z\",\n      \"lastUsed\": \"1986-05-27T07:35:33.981Z\"\n    }\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "369107a4-1088-4c31-8aff-0ec487bdc355",
+              "id": "4b54c39b-3eb0-4c61-9cf9-1641029735d0",
               "name": "Authentication required",
               "originalRequest": {
                 "url": {
@@ -12875,7 +12875,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -12886,7 +12886,7 @@
           }
         },
         {
-          "id": "0b0f75fb-f3c5-440e-87f1-7a51449e046c",
+          "id": "7810a0e9-70e7-4d2d-940b-12f0f694058a",
           "name": "Delete (revoke) an API key by ID.",
           "request": {
             "name": "Delete (revoke) an API key by ID.",
@@ -12933,7 +12933,7 @@
           },
           "response": [
             {
-              "id": "bb8dddc7-978f-4512-b6b5-304b2d07b5d6",
+              "id": "f49236cb-879b-4eab-9025-f563674d2171",
               "name": "API key deleted",
               "originalRequest": {
                 "url": {
@@ -12986,7 +12986,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "9776f536-ce67-4ce3-961a-e646192b137e",
+              "id": "3f251bfd-f049-4858-a1d1-40ba7b6cd9f3",
               "name": "Authentication required",
               "originalRequest": {
                 "url": {
@@ -13034,12 +13034,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "b650a680-85e6-4036-9284-991a4f8398bb",
+              "id": "475df094-6657-42fc-b448-57b89a988482",
               "name": "Key not found",
               "originalRequest": {
                 "url": {
@@ -13087,7 +13087,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -13098,7 +13098,7 @@
           }
         },
         {
-          "id": "10ba9ab2-35c4-4090-beed-69f6f283538e",
+          "id": "46bed7ed-2a1a-46c9-a781-f9fcc5020a94",
           "name": "Rotate an API key — atomically replaces the secret.",
           "request": {
             "name": "Rotate an API key — atomically replaces the secret.",
@@ -13146,7 +13146,7 @@
           },
           "response": [
             {
-              "id": "a00cb40c-75f6-429a-a701-24e62c441241",
+              "id": "81601589-5053-433e-8c79-b78530dac736",
               "name": "New key value — shown once",
               "originalRequest": {
                 "url": {
@@ -13200,7 +13200,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "d4b1ce55-5de8-4bac-8804-aeb1cbfcd3d8",
+              "id": "828442fd-1285-4e45-93cb-ad566d00d824",
               "name": "Authentication required",
               "originalRequest": {
                 "url": {
@@ -13249,12 +13249,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "e6db36d5-0cb8-40ef-959e-209729c3e4ca",
+              "id": "4431e4dc-9f8f-49e3-a668-c003826c20e0",
               "name": "Key not found",
               "originalRequest": {
                 "url": {
@@ -13303,7 +13303,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -13317,7 +13317,7 @@
       "event": []
     },
     {
-      "id": "119bad06-2da1-47fb-8c12-d22bc2f4f3d4",
+      "id": "9b3c1e8e-ff9c-4347-ba26-23a941b4ceef",
       "name": "agent-keys",
       "description": {
         "content": "Ed25519 agent key registration and revocation",
@@ -13325,7 +13325,7 @@
       },
       "item": [
         {
-          "id": "045d5456-5279-43b3-863a-6d0e1eddb45d",
+          "id": "d34d084b-0468-4fd5-9b6f-a0560cfa63f7",
           "name": "Register an Ed25519 public key for an agent.  The key is validated as a valid Ed25519 point before storage. A SHA-256 fingerprint (first 16 hex chars) is returned for identification.",
           "request": {
             "name": "Register an Ed25519 public key for an agent.  The key is validated as a valid Ed25519 point before storage. A SHA-256 fingerprint (first 16 hex chars) is returned for identification.",
@@ -13364,7 +13364,7 @@
           },
           "response": [
             {
-              "id": "561d045e-e762-4f02-8ae1-73b28319cc96",
+              "id": "62b8e850-79b3-4f28-a16e-23b92b31d674",
               "name": "Agent key registered",
               "originalRequest": {
                 "url": {
@@ -13404,12 +13404,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": \"string\",\n  \"fingerprint\": \"string\",\n  \"pubkey_hex\": \"string\",\n  \"label\": \"string\",\n  \"createdAt\": \"1964-01-15T03:29:09.529Z\"\n}",
+              "body": "{\n  \"id\": \"string\",\n  \"fingerprint\": \"string\",\n  \"pubkey_hex\": \"string\",\n  \"label\": \"string\",\n  \"createdAt\": \"2025-02-05T13:29:45.213Z\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "55688882-8a54-451b-954f-2d8f86047939",
+              "id": "53d8f5b6-56fe-427c-adc2-7ba95ae0a7a9",
               "name": "Invalid Ed25519 public key",
               "originalRequest": {
                 "url": {
@@ -13449,12 +13449,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "6807a332-226f-426f-a737-cc50de6260fe",
+              "id": "24f1d0c8-0f67-4407-a664-48616dc60689",
               "name": "Authentication required",
               "originalRequest": {
                 "url": {
@@ -13494,7 +13494,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -13505,7 +13505,7 @@
           }
         },
         {
-          "id": "836a3c21-d464-45f2-b89a-db99886ed37b",
+          "id": "4cb76d55-3f99-44ec-80ab-67d0e93a2a27",
           "name": "List all active (non-revoked) Ed25519 keys for the authenticated user.",
           "request": {
             "name": "List all active (non-revoked) Ed25519 keys for the authenticated user.",
@@ -13544,7 +13544,7 @@
           },
           "response": [
             {
-              "id": "f2e9c38d-ba5b-4f77-bf23-ae0349540f77",
+              "id": "7d2f2bc1-5b4f-4e9d-b149-711fc719f327",
               "name": "Agent key list",
               "originalRequest": {
                 "url": {
@@ -13584,12 +13584,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"keys\": [\n    {\n      \"id\": \"string\",\n      \"fingerprint\": \"string\",\n      \"pubkey_hex\": \"string\",\n      \"label\": \"string\",\n      \"createdAt\": \"1988-07-15T01:52:57.273Z\"\n    },\n    {\n      \"id\": \"string\",\n      \"fingerprint\": \"string\",\n      \"pubkey_hex\": \"string\",\n      \"label\": \"string\",\n      \"createdAt\": \"1972-05-30T05:18:49.415Z\"\n    }\n  ]\n}",
+              "body": "{\n  \"keys\": [\n    {\n      \"id\": \"string\",\n      \"fingerprint\": \"string\",\n      \"pubkey_hex\": \"string\",\n      \"label\": \"string\",\n      \"createdAt\": \"2012-03-10T00:07:26.383Z\"\n    },\n    {\n      \"id\": \"string\",\n      \"fingerprint\": \"string\",\n      \"pubkey_hex\": \"string\",\n      \"label\": \"string\",\n      \"createdAt\": \"1997-04-17T07:56:14.209Z\"\n    }\n  ]\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "a02df7fa-69a7-4f78-a7b7-be342f75b286",
+              "id": "51799e43-9fdb-4821-93cc-6ccda935a6fb",
               "name": "Authentication required",
               "originalRequest": {
                 "url": {
@@ -13629,7 +13629,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -13640,7 +13640,7 @@
           }
         },
         {
-          "id": "d403abf4-e97c-4872-9828-732df6c11a12",
+          "id": "4fcdbd66-d377-4dcb-bb34-5fbf17a901ab",
           "name": "Revoke (soft-delete) an agent key by ID.  Sets `revoked_at` timestamp; the key is excluded from all future lookups.",
           "request": {
             "name": "Revoke (soft-delete) an agent key by ID.  Sets `revoked_at` timestamp; the key is excluded from all future lookups.",
@@ -13688,7 +13688,7 @@
           },
           "response": [
             {
-              "id": "e4452f0a-634c-40fa-a479-90de86e61898",
+              "id": "a4534336-cdb2-4db2-8614-7713a1be6cd4",
               "name": "Key revoked",
               "originalRequest": {
                 "url": {
@@ -13737,12 +13737,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"id\": \"string\",\n  \"revokedAt\": \"1964-03-31T22:06:44.801Z\"\n}",
+              "body": "{\n  \"id\": \"string\",\n  \"revokedAt\": \"1989-10-12T16:20:45.050Z\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "6cfd38f4-29f5-4cd5-8297-14450158706e",
+              "id": "d588dc0e-8910-4d9e-b1e9-e4f73aad75cc",
               "name": "Authentication required",
               "originalRequest": {
                 "url": {
@@ -13791,12 +13791,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "179a28cd-8c7a-4c45-8d24-5503e72497e8",
+              "id": "47390c6d-5d3b-43b5-af08-81fe2d9fdd75",
               "name": "Key not found or belongs to another user",
               "originalRequest": {
                 "url": {
@@ -13845,7 +13845,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -13859,7 +13859,7 @@
       "event": []
     },
     {
-      "id": "2608ada7-4505-4b65-9f21-c5f9f70b71d9",
+      "id": "19633409-e581-447d-98ac-8d56620d263f",
       "name": "agents",
       "description": {
         "content": "Well-known agent registry",
@@ -13867,7 +13867,7 @@
       },
       "item": [
         {
-          "id": "f55d98ed-b2bc-4f31-94c2-3f320ea73437",
+          "id": "bb849003-dbe8-4115-8440-bd0c8b19a7da",
           "name": "Get the well-known agent descriptor for a registered agent.",
           "request": {
             "name": "Get the well-known agent descriptor for a registered agent.",
@@ -13907,7 +13907,7 @@
           },
           "response": [
             {
-              "id": "b9cddc8d-8d99-4838-93f5-23f6e023b13e",
+              "id": "7a7f701a-1d41-466d-95bb-b197b6d9eb6b",
               "name": "Agent descriptor",
               "originalRequest": {
                 "url": {
@@ -13953,7 +13953,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "005d70f7-bb62-4e0f-a127-1a6c5c525ca7",
+              "id": "7b28c8ce-b899-40be-b827-09ccb897571f",
               "name": "Agent not found",
               "originalRequest": {
                 "url": {
@@ -13994,7 +13994,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -14008,7 +14008,7 @@
       "event": []
     },
     {
-      "id": "3661cfff-ccdb-460f-a227-87dad24674f6",
+      "id": "aa11139c-725a-4812-a8c3-80930b1bc68b",
       "name": "auth",
       "description": {
         "content": "Authentication — session management",
@@ -14016,7 +14016,7 @@
       },
       "item": [
         {
-          "id": "f218f4c3-6b65-40dd-89db-be2a90fd3eda",
+          "id": "4b283ea6-16cd-4660-bd0e-e41c979f86e7",
           "name": "Get the current authenticated session.",
           "request": {
             "name": "Get the current authenticated session.",
@@ -14060,7 +14060,7 @@
           },
           "response": [
             {
-              "id": "223208a1-85c4-4719-a5d9-bc0ad3b9f9c6",
+              "id": "5e159dcc-49d9-4937-a877-041e68f962a9",
               "name": "Session info",
               "originalRequest": {
                 "url": {
@@ -14100,12 +14100,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"userId\": \"string\",\n  \"email\": \"0GngI@robfwypCeEjTnnUSNeAhuS.vd\",\n  \"createdAt\": \"2002-05-17T20:53:36.786Z\"\n}",
+              "body": "{\n  \"userId\": \"string\",\n  \"email\": \"SYHMnLYQ9@YjCfJzCKWLZNNi.jfmx\",\n  \"createdAt\": \"1967-10-19T19:30:34.306Z\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "aacfd778-031f-4090-9b18-ad215837e265",
+              "id": "3b0d1774-8b30-419e-ad03-67ab7dbd425f",
               "name": "Not authenticated",
               "originalRequest": {
                 "url": {
@@ -14145,7 +14145,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -14156,7 +14156,7 @@
           }
         },
         {
-          "id": "a22f4d06-d0cb-4fc0-b0a7-1de72aaf5faa",
+          "id": "df443c0b-f02c-4b21-907d-4b17ae4c3e6c",
           "name": "Sign out and invalidate the current session.",
           "request": {
             "name": "Sign out and invalidate the current session.",
@@ -14200,7 +14200,7 @@
           },
           "response": [
             {
-              "id": "b9bd0233-23f3-43c9-8dad-2e9a64fa274d",
+              "id": "2e51f7c1-3e99-4987-a900-4b3466c1cdd8",
               "name": "Signed out",
               "originalRequest": {
                 "url": {
@@ -14240,7 +14240,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"success\": true\n}",
+              "body": "{\n  \"success\": false\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -14254,7 +14254,7 @@
       "event": []
     },
     {
-      "id": "61b90f5c-af02-4ebc-b50c-2519e2c8aeb9",
+      "id": "4284e9f7-b9db-4d66-a944-71d340dd56b7",
       "name": "schemas",
       "description": {
         "content": "Predefined validation schemas",
@@ -14262,7 +14262,7 @@
       },
       "item": [
         {
-          "id": "1731b3fa-86ed-48ec-b5ca-5715aa171f08",
+          "id": "0899497c-7fb4-43f4-926e-748472e76232",
           "name": "List available predefined validation schemas.",
           "request": {
             "name": "List available predefined validation schemas.",
@@ -14292,7 +14292,7 @@
           },
           "response": [
             {
-              "id": "3818b13b-2c83-4137-9d54-388b3afddad3",
+              "id": "4e78a58a-901d-496b-9825-2549c392858a",
               "name": "Available schema names",
               "originalRequest": {
                 "url": {
@@ -14334,7 +14334,7 @@
           }
         },
         {
-          "id": "974ee409-8a0b-476f-97af-22231fcd6ae3",
+          "id": "59bb62ee-8805-47c9-ad1f-f97d662273ef",
           "name": "Get a specific predefined schema by name.",
           "request": {
             "name": "Get a specific predefined schema by name.",
@@ -14373,7 +14373,7 @@
           },
           "response": [
             {
-              "id": "7bda1b9c-5fe6-4e89-ac07-ecb9653379d1",
+              "id": "aa6e4589-898e-485c-9fef-24bea9bbb693",
               "name": "JSON schema object",
               "originalRequest": {
                 "url": {
@@ -14418,7 +14418,7 @@
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "c213ebb7-4de5-4e46-b644-bbb1f34df514",
+              "id": "aa2efb16-cc58-4b2e-91b7-ec53a89a16e1",
               "name": "Schema not found",
               "originalRequest": {
                 "url": {
@@ -14458,7 +14458,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -14472,7 +14472,7 @@
       "event": []
     },
     {
-      "id": "0fd583ef-c91f-4028-a8a7-85b27a5f5d18",
+      "id": "ee754860-5e8e-41fd-9f5c-d4bdaf3f1a40",
       "name": "health",
       "description": {
         "content": "Liveness, readiness, and Prometheus metrics",
@@ -14480,7 +14480,7 @@
       },
       "item": [
         {
-          "id": "59819a43-95ee-4bb6-8ebb-bae7e148580b",
+          "id": "36a055e0-bb45-467b-9ccb-3b564eafd76e",
           "name": "Liveness probe — no I/O, always 200 when process is alive.",
           "request": {
             "name": "Liveness probe — no I/O, always 200 when process is alive.",
@@ -14510,7 +14510,7 @@
           },
           "response": [
             {
-              "id": "3ac5ffbc-974c-47a2-ab53-bcd2d5d75715",
+              "id": "25c2523e-0bfc-4a08-9556-e4568272f454",
               "name": "Service is alive",
               "originalRequest": {
                 "url": {
@@ -14541,7 +14541,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"status\": \"ok\",\n  \"version\": \"string\",\n  \"ts\": \"1958-05-27T09:00:59.315Z\"\n}",
+              "body": "{\n  \"status\": \"ok\",\n  \"version\": \"string\",\n  \"ts\": \"1956-04-15T17:04:13.161Z\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -14552,7 +14552,7 @@
           }
         },
         {
-          "id": "c3fdf453-7ebf-4b88-af04-024d2fe706f6",
+          "id": "39c0be9e-d8c6-42c8-be33-d48c77c9a428",
           "name": "Readiness probe — pings the database before returning 200.",
           "request": {
             "name": "Readiness probe — pings the database before returning 200.",
@@ -14582,7 +14582,7 @@
           },
           "response": [
             {
-              "id": "c7cea942-f95f-400e-bc42-7b87b5aa49f5",
+              "id": "bd60475c-3cf0-4995-bee6-ba6386aebff8",
               "name": "Service is ready",
               "originalRequest": {
                 "url": {
@@ -14613,12 +14613,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"status\": \"ok\",\n  \"version\": \"string\",\n  \"ts\": \"1958-05-27T09:00:59.315Z\"\n}",
+              "body": "{\n  \"status\": \"ok\",\n  \"version\": \"string\",\n  \"ts\": \"1956-04-15T17:04:13.161Z\"\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "78732ae8-c293-4068-9f14-fa22ee06a7b3",
+              "id": "bb212947-cfa3-43b7-8e34-418bc6ea7afa",
               "name": "Database unavailable",
               "originalRequest": {
                 "url": {
@@ -14649,7 +14649,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -14660,7 +14660,7 @@
           }
         },
         {
-          "id": "ec599e23-3e66-4185-bb66-f06c8136e552",
+          "id": "33854e83-5634-4c25-9893-b50356178401",
           "name": "Prometheus metrics endpoint (prom-client).  Protected by `METRICS_TOKEN` env var when set.",
           "request": {
             "name": "Prometheus metrics endpoint (prom-client).  Protected by `METRICS_TOKEN` env var when set.",
@@ -14698,7 +14698,7 @@
           },
           "response": [
             {
-              "id": "aa7965bd-2ba7-461f-be67-9e33b9bc4ef1",
+              "id": "59313588-7b93-4756-9584-b9d76467f433",
               "name": "Prometheus text metrics",
               "originalRequest": {
                 "url": {
@@ -14742,7 +14742,7 @@
               "_postman_previewlanguage": "text"
             },
             {
-              "id": "1936bbc6-7175-439b-be08-966216f556a8",
+              "id": "6cbcc7ac-6621-4554-8892-57c7fc4928d2",
               "name": "Invalid or missing token",
               "originalRequest": {
                 "url": {
@@ -14781,7 +14781,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -14795,7 +14795,7 @@
       "event": []
     },
     {
-      "id": "379646f2-41ad-4c8b-a191-a6af3247215b",
+      "id": "0236bf54-ffc9-4037-b07c-fd6d42d9b6aa",
       "name": "system",
       "description": {
         "content": "Cache management and system utilities",
@@ -14803,7 +14803,7 @@
       },
       "item": [
         {
-          "id": "107dba5b-c3fa-45a0-a832-996a849b2edd",
+          "id": "e6d1d1b3-75fa-4ca1-bae9-020313c79621",
           "name": "Get cache statistics (hit/miss counts, size).",
           "request": {
             "name": "Get cache statistics (hit/miss counts, size).",
@@ -14834,7 +14834,7 @@
           },
           "response": [
             {
-              "id": "0c1c7f6b-221f-4b68-87fd-9da7297cc8c1",
+              "id": "d0186778-8bef-4a8c-81fb-f6f6ea0ee599",
               "name": "Cache statistics",
               "originalRequest": {
                 "url": {
@@ -14866,7 +14866,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"hits\": 4613,\n  \"misses\": 5152,\n  \"size\": 413\n}",
+              "body": "{\n  \"hits\": 9344,\n  \"misses\": 2723,\n  \"size\": 5371\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -14877,7 +14877,7 @@
           }
         },
         {
-          "id": "cefa3fb8-4e18-4ef5-87b4-99ff6510547c",
+          "id": "9bb2fb23-98cb-4409-98c0-b51ba1d3e3c1",
           "name": "Invalidate all cached documents.",
           "request": {
             "name": "Invalidate all cached documents.",
@@ -14915,7 +14915,7 @@
           },
           "response": [
             {
-              "id": "da7b6ff7-bcb2-4899-97c5-7c51dd46c655",
+              "id": "fd32f27f-deb0-44f2-829b-18fe156b4e87",
               "name": "Cache cleared",
               "originalRequest": {
                 "url": {
@@ -14954,12 +14954,12 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"cleared\": 2343\n}",
+              "body": "{\n  \"cleared\": 7682\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             },
             {
-              "id": "f23fddd2-4add-46b7-b71c-b0774923a912",
+              "id": "0a562fbf-d4f2-40ca-8a45-c0aa731075d5",
               "name": "Authentication required (admin only)",
               "originalRequest": {
                 "url": {
@@ -14998,7 +14998,7 @@
                   "value": "application/json"
                 }
               ],
-              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 3557\n}",
+              "body": "{\n  \"error\": \"string\",\n  \"message\": \"string\",\n  \"statusCode\": 8185\n}",
               "cookie": [],
               "_postman_previewlanguage": "json"
             }
@@ -15009,7 +15009,7 @@
           }
         },
         {
-          "id": "cac57ac6-4829-4381-89ca-717a573c49f9",
+          "id": "15470f54-5d84-4b37-b77d-54686f8ba42e",
           "name": "Serve the llms.txt autodiscovery file.",
           "request": {
             "name": "Serve the llms.txt autodiscovery file.",
@@ -15039,7 +15039,7 @@
           },
           "response": [
             {
-              "id": "c84622f2-4e82-4948-bbd8-e02d3ee0bc87",
+              "id": "db80392e-34bc-4176-8bfa-7fde918642d3",
               "name": "Plain text llms.txt autodiscovery file",
               "originalRequest": {
                 "url": {
@@ -15093,7 +15093,7 @@
     }
   ],
   "info": {
-    "_postman_id": "e7db9cbb-3606-454f-8bf0-2e9bc5341220",
+    "_postman_id": "f91183e6-9b82-4d4f-95df-816640d22870",
     "name": "LLMtxt API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "description": {

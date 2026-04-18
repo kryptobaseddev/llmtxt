@@ -10,8 +10,18 @@ import {
   generateSignedUrl, deriveSigningKey, generateId,
 } from 'llmtxt';
 import { writeRateLimit } from '../middleware/rate-limit.js';
+import { KNOWN_INSECURE_SIGNING_SECRETS } from '../lib/signing-secret-validator.js';
 
-const SIGNING_SECRET = process.env.SIGNING_SECRET || 'llmtxt-dev-secret';
+// The production fail-fast check for SIGNING_SECRET is performed once at
+// process start in index.ts (T108.6 / T472).  This module only needs the
+// constant list to derive the effective runtime secret safely.
+
+const SIGNING_SECRET = process.env.SIGNING_SECRET ?? '';
+
+// Fall back to dev secret in non-production only (index.ts exits before here in prod)
+const _effectiveSigningSecret = KNOWN_INSECURE_SIGNING_SECRETS.has(SIGNING_SECRET)
+  ? 'llmtxt-dev-secret'
+  : SIGNING_SECRET;
 
 /** Register signed URL route: POST /signed-urls to generate time-limited HMAC-signed access tokens for document retrieval. Requires owner authentication. */
 export async function signedUrlRoutes(fastify: FastifyInstance) {
@@ -32,7 +42,7 @@ export async function signedUrlRoutes(fastify: FastifyInstance) {
       const doc = await db.select().from(documents).where(eq(documents.slug, slug)).limit(1);
       if (!doc.length) return reply.status(404).send({ error: 'Not Found' });
 
-      const signingKey = deriveSigningKey(SIGNING_SECRET);
+      const signingKey = deriveSigningKey(_effectiveSigningSecret);
       const expiresAt = Date.now() + expiresIn;
 
       const url = generateSignedUrl(

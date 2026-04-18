@@ -571,6 +571,36 @@ function compute_signature_with_length(slug, agent_id, conversation_id, expires_
 exports.compute_signature_with_length = compute_signature_with_length;
 
 /**
+ * Compare two hex-encoded digest strings (e.g. SHA-256 or HMAC digests) in
+ * constant time to prevent timing side-channel attacks.
+ *
+ * Returns `true` if and only if `a == b` **and** both strings have the same
+ * length. Strings of different lengths return `false` immediately (the length
+ * difference itself leaks no secret information when both inputs are fixed-
+ * length digests such as SHA-256).
+ *
+ * # S-01 (T108.7)
+ * Use this function whenever comparing API key hashes or webhook signatures.
+ * Never use `==` on secret strings from JavaScript / TypeScript.
+ *
+ * # WASM export
+ * The WASM binding returns `1` for equal, `0` for not equal so that the
+ * JavaScript caller can check `if (constantTimeEqHex(a, b))` cleanly.
+ * @param {string} a
+ * @param {string} b
+ * @returns {boolean}
+ */
+function constant_time_eq_hex(a, b) {
+    const ptr0 = passStringToWasm0(a, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(b, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.constant_time_eq_hex(ptr0, len0, ptr1, len1);
+    return ret !== 0;
+}
+exports.constant_time_eq_hex = constant_time_eq_hex;
+
+/**
  * Check for binary content by scanning for control characters (0x00–0x08)
  * in the first 8 KB of the content.
  *
@@ -1666,6 +1696,33 @@ function mark_stale_reviews(reviews_json, current_version) {
 exports.mark_stale_reviews = mark_stale_reviews;
 
 /**
+ * WASM: compute Merkle root over an array of leaf hashes.
+ *
+ * `leaves_hex_json` — JSON array of 64-character lowercase hex strings,
+ * one per leaf (each representing a 32-byte SHA-256 digest).
+ *
+ * Returns a 64-character lowercase hex string of the root, or
+ * `{"error":"..."}` on invalid input.
+ * @param {string} leaves_hex_json
+ * @returns {string}
+ */
+function merkle_root_wasm(leaves_hex_json) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(leaves_hex_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.merkle_root_wasm(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.merkle_root_wasm = merkle_root_wasm;
+
+/**
  * Generate a MinHash fingerprint. Returns JSON array of numbers.
  * @param {string} text
  * @param {number} num_hashes
@@ -2332,6 +2389,39 @@ function validate_transition(from, to) {
     }
 }
 exports.validate_transition = validate_transition;
+
+/**
+ * WASM: verify a Merkle inclusion proof.
+ *
+ * `root_hex`  — 64-char hex root.
+ * `leaf_hex`  — 64-char hex leaf.
+ * `proof_json` — JSON array of `[siblingHex, isRightSibling]` pairs.
+ *
+ * Returns `"true"` or `"false"`, or `{"error":"..."}` on invalid input.
+ * @param {string} root_hex
+ * @param {string} leaf_hex
+ * @param {string} proof_json
+ * @returns {string}
+ */
+function verify_merkle_proof_wasm(root_hex, leaf_hex, proof_json) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(root_hex, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(leaf_hex, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(proof_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.verify_merkle_proof_wasm(ptr0, len0, ptr1, len1, ptr2, len2);
+        deferred4_0 = ret[0];
+        deferred4_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+exports.verify_merkle_proof_wasm = verify_merkle_proof_wasm;
 
 function __wbg_get_imports() {
     const import0 = {

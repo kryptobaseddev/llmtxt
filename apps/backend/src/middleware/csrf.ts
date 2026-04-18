@@ -31,6 +31,18 @@ import fastifyCookie from '@fastify/cookie';
 import { STATE_CHANGING_METHODS } from 'llmtxt';
 
 /**
+ * C-01: Session cookie name read from config, not hardcoded. [T108.8]
+ *
+ * better-auth uses "better-auth.session_token" by default.  Operators can
+ * override this by setting CSRF_SESSION_COOKIE_NAME in their environment so
+ * that the CSRF skip-check (which looks for the session cookie to decide
+ * whether a request is browser-initiated) continues to work correctly without
+ * a code change.
+ */
+export const CSRF_SESSION_COOKIE_NAME =
+  process.env.CSRF_SESSION_COOKIE_NAME ?? 'better-auth.session_token';
+
+/**
  * Paths that are exempt from CSRF checks.
  * - /api/auth/* — better-auth manages its own CSRF protection.
  */
@@ -87,7 +99,7 @@ export async function registerCsrf(app: FastifyInstance) {
     // browser automatically attaches cookies. A bare HTTP client (curl, agent
     // SDK, etc.) without cookies has nothing to forge.
     const cookieHeader = request.headers.cookie || '';
-    if (!cookieHeader.includes('better-auth.session_token')) return;
+    if (!cookieHeader.includes(CSRF_SESSION_COOKIE_NAME)) return;
 
     // Validate CSRF token for cookie-authenticated state-changing requests.
     // app.csrfProtection is a synchronous-style callback — wrap in a promise.

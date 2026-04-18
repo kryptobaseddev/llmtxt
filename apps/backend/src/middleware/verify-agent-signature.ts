@@ -90,7 +90,9 @@ export function computeReceipt(
   canonicalPayload: string,
   responseBodyHex: string
 ): string {
-  const secret = process.env.SERVER_RECEIPT_SECRET ?? 'default-receipt-secret';
+  // D-01: Use configured secret; fall back to dev default only in non-production. [T108.6]
+  const secret = process.env.SERVER_RECEIPT_SECRET ||
+    (process.env.NODE_ENV !== 'production' ? 'default-receipt-secret' : '');
   const message = `${canonicalPayload}\n${responseBodyHex}`;
   const result = signWebhookPayload(secret, message);
   // signWebhookPayload returns 'sha256=<hex>' — strip prefix for compact form.
