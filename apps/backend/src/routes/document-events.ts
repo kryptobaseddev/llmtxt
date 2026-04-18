@@ -19,6 +19,30 @@
  */
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { canRead } from '../middleware/rbac.js';
+import { shutdownCoordinator } from '../lib/shutdown.js';
+
+// ── Active SSE response registry for graceful shutdown (T092) ────────────────
+
+/**
+ * Set of all currently-open ServerResponse objects for SSE streams.
+ * Each entry's close() will write the retry event and end the stream.
+ */
+const _activeSseStreams = new Set<{
+  writeRetryAndClose(): void;
+}>();
+
+/** Drain hook: send SSE retry:5000 event to all open streams and close them. */
+shutdownCoordinator.registerDrainHook('sse-document-events', async () => {
+  const streams = Array.from(_activeSseStreams);
+  for (const stream of streams) {
+    try {
+      stream.writeRetryAndClose();
+    } catch {
+      // Already closed
+    }
+  }
+  _activeSseStreams.clear();
+});
 
 // ── Route parameters / queries ───────────────────────────────────────────────
 
@@ -136,6 +160,16 @@ export async function documentEventRoutes(fastify: FastifyInstance): Promise<voi
         reply.raw.write(': ping\n\n');
       }
 
+      /** Send retry directive and end the stream (T092 AC4). */
+      function writeRetryAndClose(): void {
+        try {
+          reply.raw.write('retry: 5000\n\n');
+          reply.raw.end();
+        } catch {
+          // Already closed
+        }
+      }
+
       // ── Phase 1: Catch-up from DB ──────────────────────────────────────────
       // Fetch all events since sinceSeq before subscribing to live stream.
       const catchupResult = await request.server.backendCore.queryEvents({
@@ -163,9 +197,14 @@ export async function documentEventRoutes(fastify: FastifyInstance): Promise<voi
 
       let streamClosed = false;
 
+      // Register this stream for graceful shutdown (T092 AC4)
+      const streamEntry = { writeRetryAndClose };
+      _activeSseStreams.add(streamEntry);
+
       request.raw.on('close', () => {
         streamClosed = true;
         clearInterval(heartbeatTimer);
+        _activeSseStreams.delete(streamEntry);
       });
 
       // Consume the async iterable from subscribeStream
@@ -189,6 +228,7 @@ export async function documentEventRoutes(fastify: FastifyInstance): Promise<voi
         // Stream was closed by client disconnect — expected, not an error
       } finally {
         clearInterval(heartbeatTimer);
+        _activeSseStreams.delete(streamEntry);
       }
 
       // Keep handler alive until disconnect

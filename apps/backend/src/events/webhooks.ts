@@ -32,6 +32,7 @@ import { webhooks } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { webhookDeliveryTotal } from '../middleware/metrics.js';
+import { shutdownCoordinator } from '../lib/shutdown.js';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -132,6 +133,9 @@ async function deliverWithRetry(
 
 // ── Worker initialisation ────────────────────────────────────────────────────
 
+/** Track in-flight delivery promises so drain can await them (T092 AC5). */
+const _pendingDeliveries = new Set<Promise<void>>();
+
 /**
  * Start the webhook delivery worker.
  *
@@ -141,7 +145,17 @@ async function deliverWithRetry(
 export function startWebhookWorker(): void {
   eventBus.on('document', (event: DocumentEvent) => {
     // Fire-and-forget — never await on the event-bus listener.
-    void dispatchToWebhooks(event);
+    const p = dispatchToWebhooks(event);
+    _pendingDeliveries.add(p);
+    void p.finally(() => _pendingDeliveries.delete(p));
+  });
+
+  // Register drain hook: wait for all in-flight deliveries (T092 AC5).
+  shutdownCoordinator.registerDrainHook('webhook-deliveries', async () => {
+    if (_pendingDeliveries.size === 0) return;
+    console.log(`[shutdown] waiting for ${_pendingDeliveries.size} webhook delivery promises`);
+    await Promise.allSettled(Array.from(_pendingDeliveries));
+    console.log('[shutdown] webhook deliveries flushed');
   });
 }
 

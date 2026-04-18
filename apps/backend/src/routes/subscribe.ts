@@ -25,6 +25,25 @@ import { eventBus } from '../events/bus.js';
 import type { DocumentEvent as BusDocumentEvent } from '../events/bus.js';
 import { matchPath } from '../subscriptions/path-matcher.js';
 import { computeSectionDelta } from '../subscriptions/diff-helper.js';
+import { shutdownCoordinator } from '../lib/shutdown.js';
+
+// ── Active SSE subscribe stream registry for graceful shutdown (T092) ─────────
+
+const _activeSubscribeStreams = new Set<{
+  writeRetryAndClose(): void;
+}>();
+
+shutdownCoordinator.registerDrainHook('sse-subscribe', async () => {
+  const streams = Array.from(_activeSubscribeStreams);
+  for (const stream of streams) {
+    try {
+      stream.writeRetryAndClose();
+    } catch {
+      // Already closed
+    }
+  }
+  _activeSubscribeStreams.clear();
+});
 
 const HEARTBEAT_INTERVAL_MS = 15_000;
 const DIFF_ACCEPT = 'application/vnd.llmtxt.diff+json';
@@ -95,12 +114,27 @@ export async function subscribeRoutes(app: FastifyInstance): Promise<void> {
         reply.raw.write(': ping\n\n');
       }
 
+      /** Send retry directive and end the stream (T092 AC4). */
+      function writeRetryAndClose(): void {
+        try {
+          reply.raw.write('retry: 5000\n\n');
+          reply.raw.end();
+        } catch {
+          // Already closed
+        }
+      }
+
       let streamClosed = false;
       const heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
+
+      // Register for graceful shutdown (T092 AC4)
+      const streamEntry = { writeRetryAndClose };
+      _activeSubscribeStreams.add(streamEntry);
 
       request.raw.on('close', () => {
         streamClosed = true;
         clearInterval(heartbeatTimer);
+        _activeSubscribeStreams.delete(streamEntry);
       });
 
       // ── Phase 1: Catch-up from DB ─────────────────────────────────────────
@@ -237,6 +271,7 @@ export async function subscribeRoutes(app: FastifyInstance): Promise<void> {
       request.raw.on('close', () => {
         clearInterval(heartbeatTimer);
         eventBus.off('document', liveListener);
+        _activeSubscribeStreams.delete(streamEntry);
       });
 
       // Keep handler alive until disconnect

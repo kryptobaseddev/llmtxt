@@ -28,6 +28,29 @@ import { eventBus, type DocumentEvent } from '../events/bus.js';
 import { db } from '../db/index.js';
 import { documents } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
+import { shutdownCoordinator } from '../lib/shutdown.js';
+
+// ── Active socket registry for graceful shutdown (T092) ──────────────────────
+
+/** All currently-open ws.ts sockets (both per-slug and all-docs routes). */
+const _activeSockets = new Set<{
+  send(data: string): void;
+  close(code?: number, reason?: string): void;
+}>();
+
+/** Drain hook: send shutdown frame and close all active sockets. */
+shutdownCoordinator.registerDrainHook('ws-subscriptions', async () => {
+  const sockets = Array.from(_activeSockets);
+  for (const socket of sockets) {
+    try {
+      socket.send(JSON.stringify({ type: 'shutdown', reason: 'Server is shutting down', timestamp: Date.now() }));
+      socket.close(1001, 'shutdown');
+    } catch {
+      // Socket may already be closed
+    }
+  }
+  _activeSockets.clear();
+});
 
 // ── Auth helper ───────────────────────────────────────────────────────────────
 
@@ -102,6 +125,9 @@ export async function wsRoutes(app: FastifyInstance) {
         }
       };
 
+      // Track socket for graceful shutdown (T092)
+      _activeSockets.add(socket);
+
       eventBus.on('document', listener);
 
       // Send a connection-established message immediately.
@@ -123,6 +149,7 @@ export async function wsRoutes(app: FastifyInstance) {
 
       socket.on('close', () => {
         eventBus.off('document', listener);
+        _activeSockets.delete(socket);
       });
     },
   );
@@ -187,6 +214,9 @@ export async function wsRoutes(app: FastifyInstance) {
         }
       };
 
+      // Track socket for graceful shutdown (T092)
+      _activeSockets.add(socket);
+
       eventBus.on('document', listener);
 
       // Verify auth and close with 4401 if unauthenticated.
@@ -221,6 +251,7 @@ export async function wsRoutes(app: FastifyInstance) {
 
       socket.on('close', () => {
         eventBus.off('document', listener);
+        _activeSockets.delete(socket);
       });
     },
   );

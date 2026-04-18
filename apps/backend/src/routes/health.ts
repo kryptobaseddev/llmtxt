@@ -16,6 +16,7 @@ import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import { metricsRegistry } from '../middleware/metrics.js';
+import { shutdownCoordinator } from '../lib/shutdown.js';
 
 // Read package version at startup — resolved relative to this file's directory.
 function readPackageVersion(): string {
@@ -82,6 +83,16 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
       },
     },
     async (_request, reply) => {
+      // Return 503 immediately during graceful shutdown drain (T092 AC7).
+      // Railway and load balancers stop routing traffic when ready returns 503.
+      if (shutdownCoordinator.isDraining) {
+        return reply.status(503).send({
+          status: 'draining',
+          reason: 'Server is shutting down',
+          ts: new Date().toISOString(),
+        });
+      }
+
       try {
         // Dynamic import so health.ts has zero coupling to the DB at module
         // load time — this lets tests import this route without a real DB.

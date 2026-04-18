@@ -59,6 +59,8 @@ import { registerObservabilityHooks } from './middleware/observability.js';
 import { docsRoutes } from './routes/docs.js';
 import { registerPostgresBackendPlugin } from './plugins/postgres-backend-plugin.js';
 import { adminRoutes } from './routes/admin.js';
+import { CONTENT_LIMITS } from './middleware/content-limits.js';
+import { shutdownCoordinator } from './lib/shutdown.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const API_HOSTS = new Set(['api.llmtxt.my']);
@@ -81,6 +83,12 @@ const app = Fastify({
   // Fastify v5 requires `loggerInstance` (not `logger`) for pre-built Pino
   // instances — `logger` only accepts a config object or `true` in v5.
   loggerInstance: pinoLogger,
+  // I-01/I-02: Raise the body parser limit to match CONTENT_LIMITS.maxDocumentSize
+  // so that oversized request bodies are rejected at the parser level (413) before
+  // reaching any route handler. Without this, Fastify's default 1MB limit silently
+  // truncates or rejects smaller bodies while allowing larger ones to slip through
+  // when using streaming.  [T108.1]
+  bodyLimit: CONTENT_LIMITS.maxDocumentSize,
   serverFactory: (handler) => {
     const server = http.createServer((req, res) => {
       const host = req.headers.host || '';
@@ -660,7 +668,8 @@ async function main() {
             
             if (documentData) {
               const { renderViewHtml } = await import('./routes/viewTemplate.js');
-              const html = renderViewHtml(slug, documentData);
+              // X-02: Pass per-request CSP nonce so the inline <script> tag carries it. [T108.5]
+              const html = renderViewHtml(slug, documentData, reply.cspNonce);
               reply.header('Link', `< /api/documents/${slug}/raw >; rel="alternate"; type="text/plain"`);
               return reply.type('text/html').send(html);
             } else {
@@ -682,11 +691,59 @@ async function main() {
       });
     });
 
+    // ── In-flight request tracking (T092 AC2) ─────────────────────────────────
+    // Track active HTTP requests so drain() can wait for them to complete.
+    app.addHook('onRequest', async () => {
+      shutdownCoordinator.requestStarted();
+    });
+    app.addHook('onResponse', async () => {
+      shutdownCoordinator.requestFinished();
+    });
+    // Also decrement on errors so the counter never gets stuck
+    app.addHook('onError', async () => {
+      shutdownCoordinator.requestFinished();
+    });
+
     // Start server
     await app.listen({ port: PORT, host: '0.0.0.0' });
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`API: http://localhost:${PORT}/api/* (or api.llmtxt.my/*)`);
     console.log(`Web: http://localhost:${PORT}/ (or www.llmtxt.my/)`);
+
+    // ── SIGTERM handler for Railway rolling deploys (T092 AC1) ─────────────────
+    // Railway sends SIGTERM before stopping a container. We:
+    //   1. Flip isDraining so /api/ready returns 503 immediately.
+    //   2. Run all drain hooks (WS close, SSE retry, webhook flush).
+    //   3. Wait for in-flight requests to drain (30s grace window).
+    //   4. Close the Fastify server and exit cleanly.
+    process.once('SIGTERM', () => {
+      void (async () => {
+        console.log('[shutdown] SIGTERM received');
+        try {
+          await shutdownCoordinator.drain();
+          await app.close();
+        } catch (err) {
+          console.error('[shutdown] error during graceful shutdown:', err);
+        } finally {
+          process.exit(0);
+        }
+      })();
+    });
+
+    // SIGINT for local dev (Ctrl+C) — same flow
+    process.once('SIGINT', () => {
+      void (async () => {
+        console.log('[shutdown] SIGINT received');
+        try {
+          await shutdownCoordinator.drain();
+          await app.close();
+        } catch (err) {
+          console.error('[shutdown] error during graceful shutdown:', err);
+        } finally {
+          process.exit(0);
+        }
+      })();
+    });
   } catch (err) {
     app.log.error(err);
     process.exit(1);

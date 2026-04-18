@@ -28,5 +28,10 @@ COPY --from=build /app/apps/backend/scripts/run-migrations.ts ./apps/backend/scr
 
 EXPOSE 8080
 ENV PORT=8080
+# Instruct the container runtime to send SIGTERM (not SIGKILL) on stop/restart.
+# The backend registers a SIGTERM handler that drains in-flight requests,
+# closes WS connections with code 1001, and sends SSE retry before exiting.
+# Railway honors STOPSIGNAL and waits up to its configured stop timeout (default 30s).
+STOPSIGNAL SIGTERM
 # run-migrations.ts exits 1 on any migration error — container will NOT start if migrations fail.
 CMD ["sh", "-c", "cd apps/backend && node --import tsx/esm scripts/run-migrations.ts && node --import ./dist/instrumentation.js dist/index.js"]

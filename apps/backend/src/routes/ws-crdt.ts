@@ -70,6 +70,7 @@ import {
 	publishCrdtUpdate,
 	subscribeCrdtUpdates,
 } from "../realtime/redis-pubsub.js";
+import { shutdownCoordinator } from "../lib/shutdown.js";
 
 // ── Protocol constants (Loro framing, spec P1 §3.2) ───────────────────────────
 
@@ -119,6 +120,20 @@ interface SessionEntry {
 }
 
 const activeSessions = new Map<string, Set<SessionEntry>>();
+
+// ── Drain hook: close all CRDT WS sessions on shutdown (T092) ────────────────
+shutdownCoordinator.registerDrainHook('ws-crdt-sessions', async () => {
+	for (const set of activeSessions.values()) {
+		for (const entry of set) {
+			try {
+				entry.socket.close(1001, 'shutdown');
+			} catch {
+				// Already closed
+			}
+		}
+	}
+	activeSessions.clear();
+});
 
 function sessionKey(documentId: string, sectionId: string): string {
 	return `${documentId}:${sectionId}`;
