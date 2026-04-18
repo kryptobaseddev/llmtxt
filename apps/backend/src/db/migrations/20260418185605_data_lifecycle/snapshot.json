@@ -1,0 +1,16 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "id": "20260418185605_data_lifecycle",
+  "prevIds": [
+    "20260417220000_crdt_state_rename"
+  ],
+  "tables": {},
+  "enums": {},
+  "schemas": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  }
+}

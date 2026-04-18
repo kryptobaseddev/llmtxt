@@ -41,6 +41,8 @@ import { searchRoutes } from '../search.js';
 import { exportRoutes } from '../export.js';
 import { blobRoutes } from '../blobs.js';
 import { auditVerifyRoutes } from '../audit-verify.js';
+import { keyRotationRoutes } from '../key-rotation.js';
+import { secretRotationRoutes } from '../secret-rotation.js';
 import {
   API_VERSION_REGISTRY,
   addVersionResponseHeaders,
@@ -108,4 +110,8 @@ export async function v1Routes(app: FastifyInstance): Promise<void> {
   await app.register(blobRoutes);
   // T164: Tamper-evident audit log verification
   await app.register(auditVerifyRoutes);
+  // T086: Per-agent signing key rotation
+  await app.register(keyRotationRoutes);
+  // T090: Secret rotation metadata management
+  await app.register(secretRotationRoutes);
 }

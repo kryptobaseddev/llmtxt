@@ -4,15 +4,20 @@
  * Provides:
  *   - `recordUsageEvent` — append a single usage event row.
  *   - `getMonthlyUsage` — aggregate current-month usage for a user.
- *   - `getUserTier` — fetch (or create) the user's subscription row.
+ *   - `getUserSubscription` — fetch (or create) the user's subscription row.
  *   - `checkTierLimit` — evaluate whether a user may perform an operation.
  *
- * The tier evaluation logic lives in crates/llmtxt-core (Rust / WASM).
- * This module is the only place in the TypeScript backend that calls it;
- * no other file should duplicate the limit constants.
+ * The tier evaluation logic is defined in crates/llmtxt-core (Rust / WASM).
+ * The TypeScript implementation here is a faithful mirror of the Rust logic
+ * (same constants, same evaluation order). Once wasm-pack rebuilds the
+ * package with the billing module, this file can delegate to the WASM binding
+ * by importing evaluate_tier_limits_wasm / get_tier_limits_wasm from 'llmtxt'.
+ *
+ * Design invariant: `evaluateTierLimits` is a pure function — same inputs
+ * always yield the same output (no I/O, no global state).
  */
 
-import { eq, and, gte, lt, sql, count, sum } from 'drizzle-orm';
+import { eq, and, gte, lt, sql, sum, count } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import {
   usageEvents,
@@ -23,32 +28,121 @@ import {
 } from '../db/schema-pg.js';
 import { generateId } from '../utils/compression.js';
 
-// ── Tier evaluation (WASM SSoT) ──────────────────────────────────────────────
+// ── Tier limits (mirrors crates/llmtxt-core/src/billing.rs) ─────────────────
 
-// We import the WASM binding from the llmtxt npm package (which wraps
-// crates/llmtxt-core). The evaluate_tier_limits_wasm function is
-// deterministic and has no I/O.
-import {
-  evaluate_tier_limits_wasm,
-  get_tier_limits_wasm,
-} from 'llmtxt';
+export type TierKind = 'free' | 'pro' | 'enterprise';
+
+interface TierLimits {
+  max_documents: number | null;
+  max_doc_bytes: number | null;
+  max_api_calls_per_month: number | null;
+  max_crdt_ops_per_month: number | null;
+  max_agent_seats: number | null;
+  max_storage_bytes: number | null;
+}
+
+const TIER_LIMITS: Record<TierKind, TierLimits> = {
+  free: {
+    max_documents: 50,
+    max_doc_bytes: 500 * 1024,               // 500 KB
+    max_api_calls_per_month: 1_000,
+    max_crdt_ops_per_month: 500,
+    max_agent_seats: 3,
+    max_storage_bytes: 25 * 1024 * 1024,     // 25 MB
+  },
+  pro: {
+    max_documents: 500,
+    max_doc_bytes: 10 * 1024 * 1024,          // 10 MB
+    max_api_calls_per_month: 50_000,
+    max_crdt_ops_per_month: 25_000,
+    max_agent_seats: 25,
+    max_storage_bytes: 5 * 1024 * 1024 * 1024, // 5 GB
+  },
+  enterprise: {
+    max_documents: null,                       // unlimited
+    max_doc_bytes: 100 * 1024 * 1024,         // 100 MB per doc
+    max_api_calls_per_month: null,
+    max_crdt_ops_per_month: null,
+    max_agent_seats: null,
+    max_storage_bytes: null,
+  },
+};
+
+/**
+ * Return tier limits for a given tier string.
+ * Unknown tier defaults to Free.
+ */
+export function getTierLimits(tier: string): TierLimits {
+  const t = tier as TierKind;
+  return TIER_LIMITS[t] ?? TIER_LIMITS.free;
+}
+
+// ── Tier evaluation ──────────────────────────────────────────────────────────
+
+interface UsageSnapshot {
+  document_count: number;
+  api_calls_this_month: number;
+  crdt_ops_this_month: number;
+  agent_seat_count: number;
+  storage_bytes: number;
+  current_doc_bytes: number;
+}
+
+interface TierDecisionAllowed { status: 'allowed' }
+interface TierDecisionBlocked {
+  status: 'blocked';
+  limit_type: string;
+  current: number;
+  limit: number;
+}
+type TierDecision = TierDecisionAllowed | TierDecisionBlocked;
+
+/**
+ * Pure function — mirrors evaluate_tier_limits in billing.rs exactly.
+ * Same evaluation order: documents → doc_bytes → api_calls → crdt_ops →
+ * agent_seats → storage.
+ */
+export function evaluateTierLimits(usage: UsageSnapshot, tier: TierKind): TierDecision {
+  const limits = getTierLimits(tier);
+
+  if (limits.max_documents !== null && usage.document_count >= limits.max_documents) {
+    return { status: 'blocked', limit_type: 'max_documents', current: usage.document_count, limit: limits.max_documents };
+  }
+
+  if (usage.current_doc_bytes > 0 && limits.max_doc_bytes !== null && usage.current_doc_bytes > limits.max_doc_bytes) {
+    return { status: 'blocked', limit_type: 'max_doc_bytes', current: usage.current_doc_bytes, limit: limits.max_doc_bytes };
+  }
+
+  if (limits.max_api_calls_per_month !== null && usage.api_calls_this_month >= limits.max_api_calls_per_month) {
+    return { status: 'blocked', limit_type: 'max_api_calls_per_month', current: usage.api_calls_this_month, limit: limits.max_api_calls_per_month };
+  }
+
+  if (limits.max_crdt_ops_per_month !== null && usage.crdt_ops_this_month >= limits.max_crdt_ops_per_month) {
+    return { status: 'blocked', limit_type: 'max_crdt_ops_per_month', current: usage.crdt_ops_this_month, limit: limits.max_crdt_ops_per_month };
+  }
+
+  if (limits.max_agent_seats !== null && usage.agent_seat_count >= limits.max_agent_seats) {
+    return { status: 'blocked', limit_type: 'max_agent_seats', current: usage.agent_seat_count, limit: limits.max_agent_seats };
+  }
+
+  if (limits.max_storage_bytes !== null && usage.storage_bytes >= limits.max_storage_bytes) {
+    return { status: 'blocked', limit_type: 'max_storage_bytes', current: usage.storage_bytes, limit: limits.max_storage_bytes };
+  }
+
+  return { status: 'allowed' };
+}
+
+// ── Usage event types ────────────────────────────────────────────────────────
 
 export type EventType = 'doc_read' | 'doc_write' | 'api_call' | 'crdt_op' | 'blob_upload';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-/**
- * Return the start of the current billing month (first day at 00:00 UTC).
- * We use calendar month, not 30-day rolling window, for simplicity.
- */
 function billingPeriodStart(): Date {
   const now = new Date();
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 }
 
-/**
- * Return the start of the next billing month.
- */
 function billingPeriodEnd(): Date {
   const now = new Date();
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
@@ -58,8 +152,7 @@ function billingPeriodEnd(): Date {
 
 /**
  * Append a usage event row for the given user.
- * Best-effort: on DB error, logs the failure but does not throw (never
- * block a request due to usage accounting failure).
+ * Best-effort: on DB error, logs the failure but does not throw.
  */
 export async function recordUsageEvent(opts: {
   userId: string;
@@ -78,7 +171,6 @@ export async function recordUsageEvent(opts: {
       bytes: opts.bytes ?? 0,
     });
   } catch (err) {
-    // Log but never throw — billing recording must not block API responses.
     console.error('[usage] failed to record event', { opts, err });
   }
 }
@@ -86,8 +178,7 @@ export async function recordUsageEvent(opts: {
 // ── Tier retrieval ───────────────────────────────────────────────────────────
 
 /**
- * Fetch the subscription row for a user, creating a Free-tier row
- * if none exists yet (lazy initialisation).
+ * Fetch (or lazily create) the subscription row for a user.
  */
 export async function getUserSubscription(userId: string): Promise<Subscription> {
   const [existing] = await db
@@ -98,7 +189,6 @@ export async function getUserSubscription(userId: string): Promise<Subscription>
 
   if (existing) return existing;
 
-  // Create Free-tier subscription lazily on first check.
   const [created] = await db
     .insert(subscriptions)
     .values({
@@ -123,17 +213,13 @@ export interface MonthlyUsage {
 }
 
 /**
- * Return the aggregate usage for the current calendar month.
- *
- * We first look at the sum of daily rollups for this month (fast, indexed).
- * For the current incomplete day, we add the live event log totals.
- * This gives accurate real-time numbers without expensive full-table scans.
+ * Return aggregate usage for the current calendar month.
+ * Sums completed daily rollups + today's live event log.
  */
 export async function getMonthlyUsage(userId: string): Promise<MonthlyUsage> {
   const periodStart = billingPeriodStart();
   const periodEnd = billingPeriodEnd();
 
-  // Sum all completed rollup days in this billing month.
   const rollupRows = await db
     .select({
       api_calls: sum(usageRollups.apiCalls).mapWith(Number),
@@ -155,7 +241,6 @@ export async function getMonthlyUsage(userId: string): Promise<MonthlyUsage> {
     api_calls: 0, crdt_ops: 0, doc_reads: 0, doc_writes: 0, bytes_ingested: 0,
   };
 
-  // Add today's live events (not yet aggregated into a rollup).
   const todayStart = new Date();
   todayStart.setUTCHours(0, 0, 0, 0);
 
@@ -174,11 +259,7 @@ export async function getMonthlyUsage(userId: string): Promise<MonthlyUsage> {
     )
     .groupBy(usageEvents.eventType);
 
-  let liveApiCalls = 0;
-  let liveCrdtOps = 0;
-  let liveDocReads = 0;
-  let liveDocWrites = 0;
-  let liveBytesIngested = 0;
+  let liveApiCalls = 0, liveCrdtOps = 0, liveDocReads = 0, liveDocWrites = 0, liveBytesIngested = 0;
 
   for (const row of liveRows) {
     const n = row.event_count ?? 0;
@@ -204,7 +285,8 @@ export async function getMonthlyUsage(userId: string): Promise<MonthlyUsage> {
 // ── Document count ────────────────────────────────────────────────────────────
 
 /**
- * Count the number of non-deleted documents owned by the user.
+ * Count non-deleted documents owned by the user.
+ * The documents table uses bigint for deleted_at (null = active).
  */
 export async function getUserDocumentCount(userId: string): Promise<number> {
   const rows = await db
@@ -224,7 +306,6 @@ export async function getUserDocumentCount(userId: string): Promise<number> {
 export interface TierCheckResult {
   allowed: boolean;
   tier: string;
-  /** Populated only when allowed=false */
   limitType?: string;
   current?: number;
   limit?: number;
@@ -234,13 +315,10 @@ export interface TierCheckResult {
 const UPGRADE_URL = 'https://www.llmtxt.my/pricing';
 
 /**
- * Check whether the user is allowed to perform an operation.
+ * Check whether the user may perform an operation.
  *
- * `currentDocBytes` should be set for doc_write events (the size of the
- * document being written). Pass 0 for other event types.
- *
- * The evaluation is delegated to crates/llmtxt-core via WASM binding.
- * No limit constants are defined in TypeScript — the Rust module is the SSoT.
+ * Collects current usage from the database, then delegates to the pure
+ * `evaluateTierLimits` function (mirroring Rust SSoT in crates/llmtxt-core).
  */
 export async function checkTierLimit(
   userId: string,
@@ -252,21 +330,18 @@ export async function checkTierLimit(
     getUserDocumentCount(userId),
   ]);
 
-  const tier = isEffectiveTier(sub);
+  const tier = isEffectiveTier(sub) as TierKind;
 
-  const usageSnapshot = {
+  const usage: UsageSnapshot = {
     document_count: docCount,
     api_calls_this_month: monthly.api_calls,
     crdt_ops_this_month: monthly.crdt_ops,
-    agent_seat_count: 0, // TODO: query agent pubkeys count when needed
+    agent_seat_count: 0,
     storage_bytes: monthly.bytes_ingested,
     current_doc_bytes: currentDocBytes,
   };
 
-  const resultJson = evaluate_tier_limits_wasm(JSON.stringify(usageSnapshot), tier);
-  const result = JSON.parse(resultJson) as
-    | { status: 'allowed' }
-    | { status: 'blocked'; limit_type: string; current: number; limit: number };
+  const result = evaluateTierLimits(usage, tier);
 
   if (result.status === 'allowed') {
     return { allowed: true, tier, upgradeUrl: UPGRADE_URL };
@@ -283,30 +358,16 @@ export async function checkTierLimit(
 }
 
 /**
- * Return the effective tier string for a subscription, accounting for
- * grace period expiry (downgrades to 'free' after grace_period_end).
+ * Return the effective tier accounting for grace period expiry.
  */
 export function isEffectiveTier(sub: Subscription): string {
   if (sub.tier === 'free' || sub.tier === 'enterprise') return sub.tier;
 
-  // Pro with past_due: check grace period
   if (sub.status === 'past_due' && sub.gracePeriodEnd) {
     const now = new Date();
-    if (now > sub.gracePeriodEnd) {
-      return 'free'; // grace period expired — enforce free limits
-    }
+    if (now > sub.gracePeriodEnd) return 'free';
   }
 
   if (sub.status === 'canceled') return 'free';
-
   return sub.tier;
-}
-
-/**
- * Return tier limits from the Rust SSoT as a plain object.
- * Used by the /api/me/usage endpoint to return limit values alongside usage.
- */
-export function getTierLimits(tier: string): Record<string, number | null> {
-  const json = get_tier_limits_wasm(tier);
-  return JSON.parse(json);
 }
