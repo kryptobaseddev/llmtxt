@@ -1662,3 +1662,31 @@ export type AuditCheckpoint = typeof auditCheckpoints.$inferSelect;
 export type NewAuditCheckpoint = typeof auditCheckpoints.$inferInsert;
 export type InsertAuditCheckpoint = z.infer<typeof insertAuditCheckpointSchema>;
 export type SelectAuditCheckpoint = z.infer<typeof selectAuditCheckpointSchema>;
+
+// Monetization
+export type Subscription = typeof subscriptions.$inferSelect;
+export type NewSubscription = typeof subscriptions.$inferInsert;
+export type UsageEvent = typeof usageEvents.$inferSelect;
+export type NewUsageEvent = typeof usageEvents.$inferInsert;
+export type UsageRollup = typeof usageRollups.$inferSelect;
+export type NewUsageRollup = typeof usageRollups.$inferInsert;
+export type StripeEvent = typeof stripeEvents.$inferSelect;
+export type NewStripeEvent = typeof stripeEvents.$inferInsert;
+
+export const insertSubscriptionSchema = createInsertSchema(subscriptions);
+export const selectSubscriptionSchema = createSelectSchema(subscriptions);
+export const insertUsageEventSchema = createInsertSchema(usageEvents);
+export const selectUsageEventSchema = createSelectSchema(usageEvents);
+export const insertUsageRollupSchema = createInsertSchema(usageRollups);
+export const selectUsageRollupSchema = createSelectSchema(usageRollups);
+export const insertStripeEventSchema = createInsertSchema(stripeEvents);
+export const selectStripeEventSchema = createSelectSchema(stripeEvents);
+
+export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
+export type SelectSubscription = z.infer<typeof selectSubscriptionSchema>;
+export type InsertUsageEvent = z.infer<typeof insertUsageEventSchema>;
+export type SelectUsageEvent = z.infer<typeof selectUsageEventSchema>;
+export type InsertUsageRollup = z.infer<typeof insertUsageRollupSchema>;
+export type SelectUsageRollup = z.infer<typeof selectUsageRollupSchema>;
+export type InsertStripeEvent = z.infer<typeof insertStripeEventSchema>;
+export type SelectStripeEvent = z.infer<typeof selectStripeEventSchema>;

@@ -1,0 +1,43 @@
+control_id,category,criterion_short,llmtxt_control,evidence_file,evidence_status,gap_id,notes
+CC1.1,Security - Control Environment,Commitment to integrity and ethical values,Engineering principles in PRINCIPLES.md; no formal code of conduct,PRINCIPLES.md,partial,T184-G8,Need formal code of conduct
+CC1.2,Security - Control Environment,Board oversight,No formal board or audit committee,,gap,,Solo founder; not applicable at current scale but required for enterprise audit
+CC1.3,Security - Control Environment,Structure and reporting lines,GitHub PR workflow; CLEO task hierarchy; no formal org chart,CLAUDE.md,partial,,Org chart and RACI matrix needed
+CC1.4,Security - Control Environment,Commitment to competence,Published Rust crate + npm package; CI enforces cargo fmt + clippy + tsc strict,.github/workflows/ci.yml,met,,Strong evidence via CI enforcement
+CC1.5,Security - Control Environment,Accountability,Tamper-evident audit log hash chain; API key ties writes to actor,apps/backend/src/middleware/audit.ts,met,,T164 shipped; chain verifiable
+CC2.1,Security - Communication,Uses quality information,CLEO task system; red-team analyses; memory bridge,.cleo/,met,,Honest self-assessment documented
+CC2.2,Security - Communication,Internal communication of objectives,Engineering docs in docs/; no formal security policy,docs/,partial,,Security policy document needed
+CC2.3,Security - Communication,External party communication,docs.llmtxt.my public; no privacy policy or ToS,,gap,T184-G1,Privacy policy and ToS required
+CC3.1,Security - Risk Assessment,Specifies objectives,CalVer releases with CHANGELOG; CLEO epics with acceptance criteria,CHANGELOG.md,met,,Clear release documentation
+CC3.2,Security - Risk Assessment,Risk identification and analysis,Red-team analyses; no formal risk register,docs/RED-TEAM-ANALYSIS-2026-04-15.md,partial,,Risk register needed
+CC3.3,Security - Risk Assessment,Fraud risk assessment,API key HMAC; session revocation; tamper-evident audit chain,apps/backend/src/utils/api-keys.ts,partial,,No formal fraud risk assessment document
+CC3.4,Security - Risk Assessment,Change impact assessment,Migration safety CI; CalVer guard; ADRs in .cleo/adrs/,.github/workflows/ci.yml,met,,Strong change management evidence
+CC4.1,Security - Monitoring,Evaluates controls,Self-hosted Grafana/Prometheus; health endpoints; OTel traces,apps/backend/src/middleware/observability.ts,met,,v2026.4.5 shipped observability stack
+CC4.2,Security - Monitoring,Communicates deficiencies,SLO report to Slack; backup failure GitHub issues; no on-call rotation,.github/workflows/slo-report.yml,partial,,On-call runbook needed
+CC5.1,Security - Control Activities,Selects control activities,Rate limiting; content limits; CSRF; CSP/HSTS; RBAC,apps/backend/src/middleware/rate-limit.ts,met,,Comprehensive middleware stack
+CC5.2,Security - Control Activities,Technology controls,Rust crypto core SSoT; WASM-only; CI bans node:crypto,crates/llmtxt-core/,met,,D001 SSoT decision enforced by CI
+CC5.3,Security - Control Activities,Deploys policies,ADR-051 gates; Architecture Principles; no formal security policy,docs/ARCHITECTURE-PRINCIPLES.md,partial,,Written security policy needed
+CC6.1,Security - Logical Access,Logical access security,better-auth sessions; HMAC API keys; RBAC; signed URL tokens,apps/backend/src/middleware/auth.ts,met,,Multi-layer authentication
+CC6.2,Security - Logical Access,User authentication,Session tokens; API key Bearer; email verification; anonymous TTL,apps/backend/src/auth.ts,met,,better-auth handles credential management
+CC6.3,Security - Logical Access,Role-based authorization,Owner/editor/viewer RBAC; document visibility; org membership,apps/backend/src/middleware/rbac.ts,met,,Centralized authorization logic
+CC6.4,Security - Logical Access,Physical access restriction,Railway cloud PaaS; physical access delegated to Railway,Railway ToS,met,,"Delegated to Railway; document in vendor assessment"
+CC6.5,Security - Logical Access,Credential authentication,API key format validation; HMAC-SHA256 hash at rest; Ed25519 agent signatures,apps/backend/src/utils/api-keys.ts,met,,Strong credential hygiene
+CC6.6,Security - Logical Access,Access provisioning/deprovisioning,API key revocation; session invalidation; org member removal,apps/backend/src/routes/,met,,Revocation paths implemented
+CC6.7,Security - Logical Access,Confidential data transmission,TLS via Cloudflare; HSTS max-age=31536000; CSP with nonce,apps/backend/src/middleware/security.ts,met,,No unsafe-inline for scripts
+CC6.8,Security - Logical Access,Prevent malicious software,CI clippy + fmt; no eval; DOMPurify sanitization; node:crypto ban,apps/backend/src/middleware/sanitize.ts,met,,Defense in depth approach
+CC7.1,Security - System Operations,Vulnerability detection,No automated dep scanning; manual review only,,gap,T184-G2,Enable Dependabot for npm + Cargo
+CC7.2,Security - System Operations,System component monitoring,Grafana/Prometheus; /api/health; /api/ready; OTel; Pino->Loki,apps/backend/src/middleware/metrics.ts,met,,Self-hosted stack on Railway
+CC7.3,Security - System Operations,Security event evaluation,Audit log exists; no automated analysis or SIEM,,partial,T184-G7,Add Prometheus alert rules for suspicious patterns
+CC7.4,Security - System Operations,Incident response,No formal IR plan or runbook,,gap,T184-G3,Write docs/runbooks/incident-response.md
+CC7.5,Security - System Operations,IR plan development,See CC7.4,,gap,T184-G3,Tracked with T184-G3
+CC8.1,Security - Change Management,Change authorization and testing,GitHub PRs to main; migration safety CI; CalVer; CHANGELOG; pre-commit hooks,.github/workflows/ci.yml,met,,Strong change management evidence
+CC9.1,Security - Risk Mitigation,Vendor management,Sub-processor register being established (T188); no formal vendor risk assessment,docs/compliance/sub-processors.md,partial,T184-G6,Vendor risk ratings needed
+CC9.2,Security - Risk Mitigation,Business disruption risk,Nightly Postgres backups to S3; monthly restore drill; no formal BCDR plan,.github/workflows/backup-nightly.yml,partial,,RTO/RPO targets needed
+A1.1,Availability,Processing capacity,Railway autoscaling; no formal capacity plan or load test results,Railway deploy,partial,,Load test results needed
+A1.2,Availability,Environmental protections,Railway manages datacenter environment; no on-premises infrastructure,Railway ToS,met,,"Fully delegated; document accordingly"
+A1.3,Availability,Backup and recovery,Nightly/weekly/monthly Postgres backups; age-encrypted; S3 storage,.github/workflows/backup-nightly.yml,met,,Retention: 7 daily + 4 weekly + 12 monthly
+A1.4,Availability,BCDR testing,Monthly restore drill exists; no formal RTO/RPO documented,.github/workflows/restore-drill-monthly.yml,partial,,Define RTO <= 4h / RPO <= 24h targets
+A1.5,Availability,Processing commitments,No published SLA or uptime commitment,,gap,T184-G4,Publish SLA with 99.5% monthly target
+C1.1,Confidentiality,Identify confidential information,Document visibility field; private docs require auth; API keys hashed,apps/backend/src/db/schema-pg.ts,met,,documents.visibility controls access
+C1.2,Confidentiality,Dispose of confidential information,Anonymous user TTL purge; document expiresAt; no formal retention policy,apps/backend/src/db/schema-pg.ts,partial,,Data retention policy document needed
+C1.3,Confidentiality,Protect confidential information,TLS in transit; age-encrypted backups; Railway managed Postgres encryption,apps/backend/scripts/pg-backup.sh,met,,No field-level encryption (not required at this scale)
+C1.4,Confidentiality,Inform external parties,No privacy policy or DPA published,,gap,T184-G5,See T188 for DPA + sub-processor list
