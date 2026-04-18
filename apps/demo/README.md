@@ -1,10 +1,15 @@
 # LLMtxt Demo — Developer Guide
 
+[![v2026.4.6](https://img.shields.io/badge/version-2026.4.6-blue)](https://www.npmjs.com/package/llmtxt)
+
 This directory contains five reference agent implementations that demonstrate
 LLMtxt's multi-agent collaboration capabilities against a live API.
 
+**v2026.4.6**: Mesh demo (`scripts/mesh-example.js`) exercises P2P sync with no server. CRDT WebSocket endpoint now uses Loro framing (`0x01`/`0x02`/`0x03`) — legacy Yjs clients will be rejected.
+
 > For the high-level overview and live-demo instructions, see
 > [`docs/demo/README.md`](../../docs/demo/README.md).
+> Full SDK reference: [docs.llmtxt.my](https://docs.llmtxt.my)
 
 ---
 
