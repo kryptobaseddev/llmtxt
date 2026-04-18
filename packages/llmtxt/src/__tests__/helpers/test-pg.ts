@@ -173,22 +173,71 @@ async function appendDocumentEventStub(
 }
 
 // ── Minimal CRDT stubs ─────────────────────────────────────────────────────
+//
+// Stubs use an in-memory Map keyed by `<documentId>:<sectionId>` so that
+// `applyCrdtUpdate` persists state that `getCrdtState` can retrieve and
+// subsequent `applyCrdtUpdate` calls can merge against. Merge semantics are
+// delegated to the real Loro WASM primitives (crdt_apply_update /
+// crdt_merge_updates) so the merge output matches production behavior.
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function persistCrdtUpdateStub(
-  _documentId: string,
-  _sectionId: string,
+interface CrdtStateRow { crdtState: Buffer; clock: number; updatedAt: Date | null }
+const _crdtStateStore = new Map<string, CrdtStateRow>();
+let _crdtSeq = 0n;
+
+function _crdtKey(documentId: string, sectionId: string): string {
+  return `${documentId}:${sectionId}`;
+}
+
+// Dynamically imported to avoid test-time top-level WASM init cost when
+// tests that don't touch CRDT run.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _crdtPrimitives: { crdt_merge_updates: (updates: Uint8Array[]) => Uint8Array } | null = null;
+
+async function _loadCrdtPrimitives(): Promise<typeof _crdtPrimitives> {
+  if (_crdtPrimitives) return _crdtPrimitives;
+  const primitives = await import('../../crdt-primitives.js');
+  _crdtPrimitives = primitives as unknown as typeof _crdtPrimitives;
+  return _crdtPrimitives;
+}
+
+async function persistCrdtUpdateStub(
+  documentId: string,
+  sectionId: string,
   updateBlob: Buffer,
   _clientId: string
 ): Promise<{ seq: bigint; newState: Buffer }> {
-  return Promise.resolve({ seq: BigInt(1), newState: updateBlob });
+  const primitives = await _loadCrdtPrimitives();
+  const key = _crdtKey(documentId, sectionId);
+  const existing = _crdtStateStore.get(key);
+
+  let newState: Buffer;
+  if (existing) {
+    // Merge prior state with incoming update using real Loro merge semantics
+    const mergedU8 = primitives!.crdt_merge_updates([
+      new Uint8Array(existing.crdtState),
+      new Uint8Array(updateBlob),
+    ]);
+    newState = Buffer.from(mergedU8);
+  } else {
+    // First update for this section — the update itself becomes the state
+    newState = Buffer.from(updateBlob);
+  }
+
+  _crdtStateStore.set(key, {
+    crdtState: newState,
+    clock: (existing?.clock ?? 0) + 1,
+    updatedAt: new Date(),
+  });
+  _crdtSeq += 1n;
+  return { seq: _crdtSeq, newState };
 }
 
 function loadSectionStateStub(
-  _documentId: string,
-  _sectionId: string
-): Promise<{ crdtState: Buffer; clock: number; updatedAt: Date | null } | null> {
-  return Promise.resolve(null);
+  documentId: string,
+  sectionId: string
+): Promise<CrdtStateRow | null> {
+  const row = _crdtStateStore.get(_crdtKey(documentId, sectionId));
+  return Promise.resolve(row ? { ...row, crdtState: Buffer.from(row.crdtState) } : null);
 }
 
 function subscribeCrdtUpdatesStub(
