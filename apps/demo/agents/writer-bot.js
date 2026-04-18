@@ -22,13 +22,13 @@
  *   DEMO_DURATION_MS (optional; how long to run, default 60000)
  */
 
-import { AgentBase } from './shared/base.js';
-import { LeaseConflictError } from 'llmtxt';
 import {
-  crdt_make_incremental_update,
   crdt_apply_update,
+  crdt_make_incremental_update,
   crdt_new_doc,
 } from 'llmtxt/crdt-primitives';
+import { LeaseConflictError } from 'llmtxt';
+import { AgentBase } from './shared/base.js';
 
 const AGENT_ID = 'writerbot-demo';
 const SUMMARIZER_ID = 'summarizerbot-demo';
@@ -220,7 +220,7 @@ class CrdtSectionWriter {
       this._ws = null;
 
       if (!this._closed && this._retryCount < this._maxRetries) {
-        const delayMs = Math.min(1000 * Math.pow(2, this._retryCount), 16_000);
+        const delayMs = Math.min(1000 * 2 ** this._retryCount, 16_000);
         this._retryCount++;
         this._log(`CRDT[${this._sectionId}]: reconnecting in ${delayMs}ms (attempt ${this._retryCount}/${this._maxRetries})`);
         setTimeout(() => this.connect(), delayMs);
