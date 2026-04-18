@@ -12,12 +12,16 @@
  *   GET /admin/metrics/query         — Server-side Prometheus proxy (avoids browser CORS)
  *   GET /admin/errors/issues         — Server-side GlitchTip proxy (avoids iframe X-Frame-Options)
  *   GET /admin/anonymous-sessions    — Active anonymous sessions, top IPs (T167)
+ *   GET /admin/retention             — View current retention policy (T186)
+ *   PUT /admin/retention             — Update retention policy (T186)
  */
 import { and, count, desc, eq, gt, isNotNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
+import { z } from "zod";
 import { db } from "../db/index.js";
 import { requireAdmin } from "../middleware/admin.js";
 import { documents, sessions, users } from "../db/schema.js";
+import { retentionPolicy } from "../db/schema-pg.js";
 
 /** Railway GraphQL endpoint */
 const RAILWAY_API = "https://backboard.railway.app/graphql/v2";
@@ -426,6 +430,166 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
 				topIps,
 				timestamp: new Date().toISOString(),
 			});
+		},
+	);
+
+	// ── GET /admin/retention ────────────────────────────────────────────────────
+	//
+	// Returns the current retention policy configuration (T186).
+	// If no custom policy has been written, returns the hardcoded defaults.
+	//
+	// Only admin users can view or change retention settings.
+
+	app.get(
+		"/admin/retention",
+		{ preHandler: [requireAdmin] },
+		async (_request, reply) => {
+			const defaults = {
+				id: "default",
+				auditLogHotDays: 90,
+				auditLogTotalDays: 2555,
+				softDeletedDocsDays: 30,
+				anonymousDocDays: 1,
+				revokedApiKeyDays: 90,
+				agentInboxDays: 2,
+				policyVersion: 1,
+				updatedAt: null as string | null,
+			};
+
+			try {
+				const rows = await db.select().from(retentionPolicy).limit(1);
+				if (rows.length === 0) {
+					return reply.send({ success: true, policy: defaults });
+				}
+				const row = rows[0];
+				return reply.send({
+					success: true,
+					policy: {
+						id: row.id,
+						auditLogHotDays: row.auditLogHotDays,
+						auditLogTotalDays: row.auditLogTotalDays,
+						softDeletedDocsDays: row.softDeletedDocsDays,
+						anonymousDocDays: row.anonymousDocDays,
+						revokedApiKeyDays: row.revokedApiKeyDays,
+						agentInboxDays: row.agentInboxDays,
+						policyVersion: row.policyVersion,
+						updatedAt: row.updatedAt?.toISOString() ?? null,
+					},
+				});
+			} catch {
+				// If retention_policy table does not exist yet (pre-migration), return defaults.
+				return reply.send({ success: true, policy: defaults });
+			}
+		},
+	);
+
+	// ── PUT /admin/retention ────────────────────────────────────────────────────
+	//
+	// Update the retention policy (T186).
+	// Upserts the singleton 'default' row.
+	//
+	// Body fields are all optional — only the provided fields are updated.
+	// Validation: all day values must be positive integers.
+	// auditLogTotalDays must be >= auditLogHotDays.
+
+	const retentionPolicyUpdateSchema = z
+		.object({
+			auditLogHotDays: z.number().int().positive().optional(),
+			auditLogTotalDays: z.number().int().positive().optional(),
+			softDeletedDocsDays: z.number().int().positive().optional(),
+			anonymousDocDays: z.number().int().positive().optional(),
+			revokedApiKeyDays: z.number().int().positive().optional(),
+			agentInboxDays: z.number().int().positive().optional(),
+		})
+		.refine(
+			(val) => {
+				if (val.auditLogHotDays !== undefined && val.auditLogTotalDays !== undefined) {
+					return val.auditLogTotalDays >= val.auditLogHotDays;
+				}
+				return true;
+			},
+			{ message: "auditLogTotalDays must be >= auditLogHotDays" },
+		);
+
+	app.put(
+		"/admin/retention",
+		{ preHandler: [requireAdmin] },
+		async (request, reply) => {
+			const parsed = retentionPolicyUpdateSchema.safeParse(request.body);
+			if (!parsed.success) {
+				return reply.status(400).send({
+					error: "Invalid retention policy",
+					details: parsed.error.flatten(),
+				});
+			}
+
+			const updates = parsed.data;
+
+			try {
+				// Upsert the singleton row.
+				await db
+					.insert(retentionPolicy)
+					.values({
+						id: "default",
+						auditLogHotDays: updates.auditLogHotDays ?? 90,
+						auditLogTotalDays: updates.auditLogTotalDays ?? 2555,
+						softDeletedDocsDays: updates.softDeletedDocsDays ?? 30,
+						anonymousDocDays: updates.anonymousDocDays ?? 1,
+						revokedApiKeyDays: updates.revokedApiKeyDays ?? 90,
+						agentInboxDays: updates.agentInboxDays ?? 2,
+						policyVersion: 1,
+						updatedAt: new Date(),
+					})
+					.onConflictDoUpdate({
+						target: retentionPolicy.id,
+						set: {
+							...(updates.auditLogHotDays !== undefined && {
+								auditLogHotDays: updates.auditLogHotDays,
+							}),
+							...(updates.auditLogTotalDays !== undefined && {
+								auditLogTotalDays: updates.auditLogTotalDays,
+							}),
+							...(updates.softDeletedDocsDays !== undefined && {
+								softDeletedDocsDays: updates.softDeletedDocsDays,
+							}),
+							...(updates.anonymousDocDays !== undefined && {
+								anonymousDocDays: updates.anonymousDocDays,
+							}),
+							...(updates.revokedApiKeyDays !== undefined && {
+								revokedApiKeyDays: updates.revokedApiKeyDays,
+							}),
+							...(updates.agentInboxDays !== undefined && {
+								agentInboxDays: updates.agentInboxDays,
+							}),
+							updatedAt: new Date(),
+						},
+					});
+
+				const rows = await db.select().from(retentionPolicy).limit(1);
+				const row = rows[0];
+
+				return reply.send({
+					success: true,
+					message: "Retention policy updated.",
+					policy: {
+						id: row.id,
+						auditLogHotDays: row.auditLogHotDays,
+						auditLogTotalDays: row.auditLogTotalDays,
+						softDeletedDocsDays: row.softDeletedDocsDays,
+						anonymousDocDays: row.anonymousDocDays,
+						revokedApiKeyDays: row.revokedApiKeyDays,
+						agentInboxDays: row.agentInboxDays,
+						policyVersion: row.policyVersion,
+						updatedAt: row.updatedAt?.toISOString() ?? null,
+					},
+				});
+			} catch (err: unknown) {
+				const msg = err instanceof Error ? err.message : String(err);
+				return reply.status(500).send({
+					error: "Failed to update retention policy",
+					details: msg,
+				});
+			}
 		},
 	);
 }

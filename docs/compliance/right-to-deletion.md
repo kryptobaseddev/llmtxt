@@ -11,7 +11,7 @@ This document describes how LLMtxt implements the GDPR right-to-erasure (Article
 
 ## How to Request Deletion
 
-Send a `DELETE` request to `POST /api/v1/users/me` while authenticated.
+Send a `DELETE` request to `/api/v1/users/me` while authenticated.
 
 This initiates a **30-day grace period**. During this period:
 

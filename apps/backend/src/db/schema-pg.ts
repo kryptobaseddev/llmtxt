@@ -1990,3 +1990,35 @@ export type SecretsConfig = typeof secretsConfig.$inferSelect;
 export type NewSecretsConfig = typeof secretsConfig.$inferInsert;
 export type AgentKeyRotationEvent = typeof agentKeyRotationEvents.$inferSelect;
 export type NewAgentKeyRotationEvent = typeof agentKeyRotationEvents.$inferInsert;
+
+/**
+ * Retention policy configuration (T186).
+ *
+ * Singleton table — at most one row (id = 'default').
+ * Admin can update via PUT /api/v1/admin/retention.
+ * All values are in days.  Defaults are enforced in code if the row is absent.
+ */
+export const retentionPolicy = pgTable(
+  'retention_policy',
+  {
+    id: text('id').primaryKey().default('default'),
+    /** Days before hot audit_log entries are moved to audit_archive. */
+    auditLogHotDays: integer('audit_log_hot_days').notNull().default(90),
+    /** Total days before archived audit_log entries are hard-deleted from cold store. */
+    auditLogTotalDays: integer('audit_log_total_days').notNull().default(2555),
+    /** Days before soft-deleted documents are hard-deleted (user grace period). */
+    softDeletedDocsDays: integer('soft_deleted_docs_days').notNull().default(30),
+    /** Days before anonymous session docs expire. */
+    anonymousDocDays: integer('anonymous_doc_days').notNull().default(1),
+    /** Days before revoked API keys are purged. */
+    revokedApiKeyDays: integer('revoked_api_key_days').notNull().default(90),
+    /** Days before agent inbox messages expire. */
+    agentInboxDays: integer('agent_inbox_days').notNull().default(2),
+    /** Schema version for forward-compat. */
+    policyVersion: integer('policy_version').notNull().default(1),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  }
+);
+
+export type RetentionPolicy = typeof retentionPolicy.$inferSelect;
+export type NewRetentionPolicy = typeof retentionPolicy.$inferInsert;

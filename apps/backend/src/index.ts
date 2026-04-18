@@ -69,6 +69,7 @@ import { registerRlsPlugin } from './plugins/rls-plugin.js';
 import { adminRoutes } from './routes/admin.js';
 import { billingRoutes } from './routes/billing.js';
 import { startUsageRollupJob } from './jobs/usage-rollup.js';
+import { runAuditRetentionJob } from './jobs/audit-retention.js';
 import { CONTENT_LIMITS } from './middleware/content-limits.js';
 import { shutdownCoordinator } from './lib/shutdown.js';
 import { validateSigningSecret } from './lib/signing-secret-validator.js';
@@ -649,6 +650,26 @@ async function main() {
     // Runs every 15 seconds; deletes expired section_leases rows and emits events.
     const leaseExpiryTimer = startLeaseExpiryJob();
     leaseExpiryTimer.unref?.();
+
+    // ── Audit log retention job (T186) ────────────────────────────────────────
+    // Nightly: archive hot audit_log entries older than 90 days to audit_archive,
+    // hard-delete entries older than 7 years, and finalize expired user deletions.
+    const RETENTION_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
+    setTimeout(() => {
+      // First run deferred 5 seconds to let the server fully start.
+      runAuditRetentionJob().catch((err: unknown) => {
+        app.log.warn({ err }, '[retention] initial run failed');
+      });
+      const retentionTimer = setInterval(async () => {
+        try {
+          const result = await runAuditRetentionJob();
+          app.log.info(result, '[retention] nightly job complete');
+        } catch (err) {
+          app.log.warn({ err }, '[retention] nightly job failed');
+        }
+      }, RETENTION_INTERVAL_MS);
+      retentionTimer.unref?.();
+    }, 5_000);
 
     // ── Anonymous session cleanup job (T167) ──────────────────────────────────
     // Purge expired anonymous users + auto-archive stale anonymous docs (30d).

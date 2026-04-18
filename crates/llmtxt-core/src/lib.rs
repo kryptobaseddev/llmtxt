@@ -199,6 +199,24 @@ pub use export_archive::{
     serialize_export_archive, serialize_retention_policy,
 };
 
+/// Retention policy DSL — T168.2.
+///
+/// Defines [`retention::RetentionPolicy`] (richer DSL struct with per-table tier,
+/// lawful basis, and action) and [`retention::apply_retention`] which computes
+/// the eviction set for a batch of timestamped rows.  WASM-exported as
+/// `retention_apply_wasm`.
+///
+/// Note: this is distinct from `export_archive::RetentionPolicy` (the simpler
+/// TTL config for the export archive format).
+pub mod retention;
+pub use retention::{
+    EvictionSet, LawfulBasis, RetentionAction, RetentionRow, RetentionTier, apply_retention,
+    canonical_policies,
+};
+// Re-export the WASM binding at crate level when feature is active.
+#[cfg(feature = "wasm")]
+pub use retention::retention_apply_wasm;
+
 #[cfg(feature = "wasm")]
 pub use export_archive::{deserialize_export_archive_wasm, serialize_export_archive_wasm};
 
