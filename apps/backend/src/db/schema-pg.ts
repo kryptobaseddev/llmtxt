@@ -59,6 +59,34 @@ export const users = pgTable(
      * Selection is permanent — changing requires a manual migration + customer consent.
      */
     region: text('region').notNull().default('us'),
+
+    // ── T187: GDPR right-to-deletion ──────────────────────────────────────
+    /**
+     * Soft-delete timestamp (unix ms).  Null = active account.
+     * Non-null = user has confirmed deletion; hard-delete scheduled for +30 days.
+     * Documents are soft-deleted immediately on confirmation.
+     */
+    deletedAt: bigint('deleted_at', { mode: 'number' }),
+    /**
+     * Timestamp when the user clicked the email confirmation link (unix ms).
+     * Null = deletion not yet confirmed.
+     */
+    deletionConfirmedAt: bigint('deletion_confirmed_at', { mode: 'number' }),
+    /**
+     * Single-use token for the deletion confirmation email.
+     * Null after confirmation or expiry.
+     */
+    deletionToken: text('deletion_token'),
+    /**
+     * Expiry for the deletion confirmation token (unix ms).
+     * Token is invalid after this time regardless of use.
+     */
+    deletionTokenExpiresAt: bigint('deletion_token_expires_at', { mode: 'number' }),
+    /**
+     * Timestamp when PII (name, email) was replaced with a pseudonym (unix ms).
+     * Null = not yet pseudonymised.  Set during hard-delete phase.
+     */
+    pseudonymizedAt: bigint('pseudonymized_at', { mode: 'number' }),
   },
   (table) => ({
     emailIdx: uniqueIndex('users_email_idx').on(table.email),
@@ -660,6 +688,20 @@ export const auditLogs = pgTable(
      * NULL for rows inserted before T164 was deployed.
      */
     chainHash: text('chain_hash'),
+
+    // ── T186: Audit log retention ──────────────────────────────────────────
+    /**
+     * Legal-hold flag (T186).
+     * When true, the nightly retention job MUST NOT archive or delete this row.
+     * Managed via POST /api/v1/audit/legal-hold.
+     */
+    legalHold: boolean('legal_hold').notNull().default(false),
+    /**
+     * Archival timestamp (unix ms).
+     * Non-null = entry has been serialised to S3 cold storage by the retention job.
+     * The nightly retention job sweeps `WHERE archived_at IS NULL AND timestamp < cutoff`.
+     */
+    archivedAt: bigint('archived_at', { mode: 'number' }),
   },
   (table) => ({
     userIdIdx: index('audit_logs_user_id_idx').on(table.userId),
@@ -668,6 +710,9 @@ export const auditLogs = pgTable(
     timestampIdx: index('audit_logs_timestamp_idx').on(table.timestamp),
     chainHashIdx: index('audit_logs_chain_hash_idx').on(table.chainHash),
     payloadHashIdx: index('audit_logs_payload_hash_idx').on(table.payloadHash),
+    // T186: retention job sweep indexes
+    archivedAtIdx: index('audit_logs_archived_at_idx').on(table.archivedAt),
+    legalHoldIdx: index('audit_logs_legal_hold_idx').on(table.legalHold),
   }),
 );
 
@@ -1483,6 +1528,88 @@ export const stripeEvents = pgTable('stripe_events', {
   eventType: text('event_type').notNull(),
   processedAt: timestamp('processed_at', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
 });
+
+// ────────────────────────────────────────────────────────────────
+// T094 / T186 / T187: Data Lifecycle (GDPR)
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Audit archive cold-storage index (T186).
+ *
+ * Each row tracks an audit_log entry that has been serialised and moved
+ * to S3 cold storage.  The hot audit_logs table retains entries for 90 days;
+ * older entries are referenced here for 7-year total retention.
+ */
+export const auditArchive = pgTable(
+  'audit_archive',
+  {
+    id: text('id').primaryKey(),
+    /** Original audit_logs.id (row may be deleted from hot DB after archival). */
+    auditLogId: text('audit_log_id').notNull(),
+    /** S3/R2 object key where the entry JSON is stored. */
+    s3Key: text('s3_key').notNull(),
+    /** Unix ms when the entry was moved to cold storage. */
+    archivedAt: bigint('archived_at', { mode: 'number' }).notNull(),
+    /** Unix ms timestamp of the original audit event (for date-range export). */
+    eventTimestamp: bigint('event_timestamp', { mode: 'number' }).notNull(),
+    /** user_id of the actor (denormalised for export queries). */
+    userId: text('user_id'),
+    /** Whether this entry is under legal hold (copied from audit_logs). */
+    legalHold: boolean('legal_hold').notNull().default(false),
+  },
+  (table) => ({
+    auditLogIdIdx: index('audit_archive_audit_log_id_idx').on(table.auditLogId),
+    eventTimestampIdx: index('audit_archive_event_timestamp_idx').on(table.eventTimestamp),
+    userIdIdx: index('audit_archive_user_id_idx').on(table.userId),
+  })
+);
+
+/**
+ * User export rate limiter (T094).
+ *
+ * One row per (user_id, calendar date in UTC).
+ * Limits GDPR export requests to 1 per user per day.
+ */
+export const userExportRateLimit = pgTable(
+  'user_export_rate_limit',
+  {
+    /** FK to users.id. */
+    userId: text('user_id').notNull(),
+    /** ISO 8601 date (YYYY-MM-DD) in UTC. */
+    exportDate: text('export_date').notNull(),
+    /** Unix ms of the most recent export request. */
+    lastExportAt: bigint('last_export_at', { mode: 'number' }).notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.userId, table.exportDate], name: 'user_export_rate_limit_pk' }),
+  })
+);
+
+/**
+ * Deletion certificates (T187).
+ *
+ * Immutable receipt issued after a hard-delete completes.
+ * Rows are NEVER deleted — they are the user's proof of erasure.
+ */
+export const deletionCertificates = pgTable(
+  'deletion_certificates',
+  {
+    id: text('id').primaryKey(),
+    /** Original user ID (pseudonymised after deletion). */
+    userId: text('user_id').notNull(),
+    /** ISO 8601 timestamp of hard-delete completion. */
+    deletedAt: text('deleted_at').notNull(),
+    /** JSON object: { documents, versions, apiKeys, auditLogEntries, webhooks, ... } */
+    resourceCounts: text('resource_counts').notNull(),
+    /** SHA-256 hex of the certificate JSON (integrity seal). */
+    certificateHash: text('certificate_hash').notNull(),
+    /** Unix ms when this certificate was created. */
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  },
+  (table) => ({
+    userIdIdx: uniqueIndex('deletion_certificates_user_id_idx').on(table.userId),
+  })
+);
 
 // ────────────────────────────────────────────────────────────────
 // Export TypeScript types
