@@ -13,6 +13,12 @@ import {
 import { decompress } from 'llmtxt';
 import { canRead } from '../middleware/rbac.js';
 
+/**
+ * O-01: Maximum number of nodes allowed in an expanded knowledge graph.
+ * Requests that would produce a larger graph return HTTP 413. [T108.3]
+ */
+export const MAX_GRAPH_NODES = 500;
+
 /** Register knowledge graph route: GET /documents/:slug/graph to extract @mentions, #tags, /directives from document content, and cross-document links. */
 export async function graphRoutes(fastify: FastifyInstance) {
   // GET /documents/:slug/graph
@@ -48,6 +54,17 @@ export async function graphRoutes(fastify: FastifyInstance) {
       }];
 
       const graph = buildGraph(messages);
+
+      // O-01: Guard against runaway graph expansion. [T108.3]
+      const nodeCount = graph.nodes?.length ?? 0;
+      if (nodeCount > MAX_GRAPH_NODES) {
+        return reply.status(413).send({
+          error: 'Graph Too Large',
+          message: `Graph expansion produced ${nodeCount} nodes, exceeding the ${MAX_GRAPH_NODES}-node limit. Reduce document complexity or use targeted extraction endpoints.`,
+          limit: MAX_GRAPH_NODES,
+          actual: nodeCount,
+        });
+      }
 
       // Fetch cross-document links (outgoing: this → others)
       const outgoingLinkRows = await db
