@@ -98,7 +98,8 @@ class WriterBot extends AgentBase {
     if (!this.slug) {
       this.log('Creating new demo document...');
       const initial = this._buildDocument([SECTIONS[0]]);
-      const result = await this.createDocument(initial, { format: 'markdown' });
+      // bft_f=0 → quorum=1 so a single ConsensusBot can reach BFT quorum alone.
+      const result = await this.createDocument(initial, { format: 'markdown', bft_f: 0 });
       this.slug = result.slug;
       this.log(`Created document: ${this.slug}`);
       // Broadcast slug so other agents can pick it up
@@ -139,6 +140,7 @@ class WriterBot extends AgentBase {
         const updated = current.trim() + '\n\n' + section.heading + '\n\n' + section.content;
         await this.updateDocument(this.slug, updated, `WriterBot: added section "${section.id}"`);
         this.log(`Section written: ${section.id}`);
+        this.log(`Signed write: PUT /api/v1/documents/${this.slug} (section=${section.id})`);
         sectionIdx++;
 
         // Ask SummarizerBot to update executive summary via A2A

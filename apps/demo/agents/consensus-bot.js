@@ -2,12 +2,16 @@
  * ConsensusBot — BFT approval orchestrator.
  *
  * Behaviour:
- *  1. Polls its A2A inbox for "review-complete" messages from ReviewerBot.
- *  2. When it accumulates enough "approved" signals to reach BFT quorum (default: 1 peer + self),
+ *  1. Subscribes to the document SSE event stream and self-approves on every
+ *     new versionCreated event (versionCreated / version.published). This path
+ *     is the primary trigger so BFT approval happens even without ReviewerBot.
+ *  2. Also polls its A2A inbox for "review-complete" messages from ReviewerBot
+ *     as a secondary signal (used to tally peer votes).
+ *  3. When it accumulates enough "approved" signals to reach BFT quorum (default: 1 peer + self),
  *     submits a BFT-signed approval via POST /documents/:slug/bft/approve.
- *  3. Watches the BFT status endpoint; when quorum is reached it transitions
+ *  4. Watches the BFT status endpoint; when quorum is reached it transitions
  *     the document to APPROVED.
- *  4. If "changes-requested" signals arrive, it logs them and waits for a new version.
+ *  5. If "changes-requested" signals arrive, it logs them and waits for a new version.
  *
  * BFT note: For the demo, f=0 → quorum=1 (ConsensusBot alone can approve).
  * In production with multiple ConsensusBot instances, quorum would be 2f+1.
@@ -37,6 +41,8 @@ class ConsensusBot extends AgentBase {
     /** unix ms timestamp recorded just before run() starts polling — used to
      *  filter out stale inbox messages from prior test runs (T369 fix). */
     this._startTime = null;
+    /** Versions self-approved via SSE event stream — prevents double-approvals. */
+    this._sseApprovedVersions = new Set();
   }
 
   async run() {
@@ -55,13 +61,79 @@ class ConsensusBot extends AgentBase {
 
     const deadline = this._startTime + DEMO_DURATION_MS;
 
+    // Start SSE event stream watcher in the background — this is the primary
+    // trigger for self-approvals. It runs concurrently with the A2A poll loop.
+    const ac = new AbortController();
+    const timeoutId = setTimeout(() => ac.abort(), DEMO_DURATION_MS);
+    const eventWatcherPromise = this._watchVersionEvents(ac.signal);
+
+    // A2A poll loop (secondary trigger: ReviewerBot signals)
     while (Date.now() < deadline) {
       await this._processPendingMessages();
       await this._checkQuorum();
       await this.sleep(POLL_INTERVAL_MS);
     }
 
+    // Abort the SSE watcher and wait for it to finish cleanup
+    ac.abort();
+    clearTimeout(timeoutId);
+    try {
+      await eventWatcherPromise;
+    } catch {
+      // AbortError is expected
+    }
+
     this.log('Run complete.');
+  }
+
+  /**
+   * Subscribe to the SSE event stream and self-approve on every versionCreated event.
+   * This ensures BFT has something to vote on even without ReviewerBot A2A messages.
+   *
+   * @param {AbortSignal} signal
+   */
+  async _watchVersionEvents(signal) {
+    try {
+      for await (const evt of this.watchEvents(this.slug, { signal })) {
+        const t = evt.event_type;
+        const isVersionCreated =
+          t === 'version_created' ||
+          t === 'version.published' ||
+          t === 'document_updated' ||
+          t === 'document.updated';
+
+        if (!isVersionCreated) continue;
+
+        const version = evt.payload?.versionNumber ?? evt.payload?.version ?? null;
+        if (version == null) {
+          this.log(`SSE: versionCreated event missing versionNumber, skipping`);
+          continue;
+        }
+
+        const versionKey = String(version);
+        if (this._sseApprovedVersions.has(versionKey)) {
+          this.log(`SSE: version ${versionKey} already self-approved, skipping`);
+          continue;
+        }
+
+        this.log(`SSE: versionCreated event — version=${versionKey} — triggering self-approval`);
+        this._sseApprovedVersions.add(versionKey);
+
+        // Ensure the version is registered in the votes map for _checkQuorum
+        if (!this._votes.has(versionKey)) {
+          this._votes.set(versionKey, { approved: 0, rejected: 0, reviewers: new Set() });
+        }
+
+        // Immediately submit BFT approval (f=0, quorum=1 — self is enough)
+        const quorum = 2 * BFT_F + 1;
+        this._approvedVersions.add(versionKey);
+        await this._submitBftApproval(versionKey, 1, quorum);
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        this.log(`SSE watch error: ${err.message}`);
+      }
+    }
   }
 
   async _processPendingMessages() {
