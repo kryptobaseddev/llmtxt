@@ -24,7 +24,11 @@
 
 import { AgentBase } from './shared/base.js';
 import { LeaseConflictError } from 'llmtxt';
-import { crdt_make_incremental_update, crdt_new_doc } from 'llmtxt/crdt-primitives';
+import {
+  crdt_make_incremental_update,
+  crdt_apply_update,
+  crdt_new_doc,
+} from 'llmtxt/crdt-primitives';
 
 const AGENT_ID = 'writerbot-demo';
 const SUMMARIZER_ID = 'summarizerbot-demo';
@@ -262,19 +266,16 @@ class CrdtSectionWriter {
    * @returns {number}     Number of update bytes sent (or queued).
    */
   sendUpdate(text) {
-    // crdt_make_incremental_update builds a Loro update containing only the
-    // delta operations needed to append `text` to the current local state.
+    // crdt_make_incremental_update produces Loro binary bytes for the delta
+    // operation of appending `text` to the section's "content" LoroText root.
+    // It reads the current content length from this._localState to determine
+    // the insert position, so the local state MUST be current.
     const updateBuf = crdt_make_incremental_update(this._localState, text);
-    // Advance local state: create a new snapshot that includes the appended text
-    // so subsequent calls produce correct incremental deltas (not full re-inserts).
-    this._localState = crdt_make_incremental_update(this._localState, '').constructor
-      ? (() => {
-          // Recompute: build a state that has `text` applied.
-          // Use crdt_make_incremental_update on the new empty-delta to get a stable state.
-          // For demo purposes: track cumulative text separately instead of applying updates.
-          return this._localState; // Retained — next call will still delta correctly
-        })()
-      : this._localState;
+
+    // Advance local state: apply the update we just sent so that the next
+    // sendUpdate() call produces a correct delta relative to the new state.
+    // crdt_apply_update merges the update blob into the existing snapshot.
+    this._localState = crdt_apply_update(this._localState, updateBuf);
 
     const updateBytes = new Uint8Array(updateBuf.buffer, updateBuf.byteOffset, updateBuf.byteLength);
 
