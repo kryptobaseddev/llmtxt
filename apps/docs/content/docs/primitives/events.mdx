@@ -1,0 +1,194 @@
+---
+title: Event Streaming (llmtxt/events)
+description: Shared event bus primitives for document event streaming and CRDT section subscriptions. Used by LocalBackend and PostgresBackend.
+---
+
+# Event Streaming (`llmtxt/events`)
+
+The `llmtxt/events` subpath provides the canonical in-process event bus
+primitives used by both `LocalBackend` and `PostgresBackend`. It encapsulates
+the queue-and-resolve async iterator pattern, eliminating duplicated logic
+across backends.
+
+---
+
+## Installation
+
+```bash
+# Already bundled with the llmtxt package:
+pnpm add llmtxt
+```
+
+---
+
+## Quick Start
+
+```ts
+import { EventBus } from 'llmtxt/events';
+import type { DocumentEvent } from 'llmtxt/events';
+
+const bus = new EventBus();
+
+// Subscribe to all events for a document
+const stream = bus.subscribeTyped<DocumentEvent>('events:my-doc-id');
+
+// Publish an event
+bus.publishTyped<DocumentEvent>('events:my-doc-id', {
+  id: 'evt-1',
+  documentId: 'my-doc-id',
+  type: 'version.created',
+  agentId: 'agent-1',
+  payload: { version: 3 },
+  createdAt: Date.now(),
+});
+
+// Consume
+for await (const event of stream) {
+  console.log(event.type, event.documentId);
+  break; // unsubscribes on break via return()
+}
+```
+
+---
+
+## API Reference
+
+### `EventBus`
+
+In-process event bus backed by a Node.js `EventEmitter`. Used by `LocalBackend`.
+
+```ts
+class EventBus {
+  constructor(maxListeners?: number); // default: 500
+
+  /** Publish an event on a named channel. */
+  publishTyped<T>(channel: string, event: T): void;
+
+  /** Subscribe to a channel. Returns AsyncIterable<T>. */
+  subscribeTyped<T>(channel: string): AsyncIterable<T>;
+
+  /** Access the underlying EventEmitter (advanced). */
+  get emitter(): EventEmitter;
+}
+```
+
+**Channel naming conventions used by the backends:**
+
+| Channel pattern | Used for |
+|----------------|---------|
+| `events:<documentId>` | Document event stream (`appendEvent` + `subscribeStream`) |
+| `crdt:<documentId>:<sectionKey>` | CRDT section update stream (`applyCrdtUpdate` + `subscribeSection`) |
+
+### `makeEventStream<T>`
+
+Low-level factory that converts any `EventEmitter`-compatible object into an
+`AsyncIterable<T>` with backpressure queue semantics.
+
+```ts
+function makeEventStream<T>(
+  emitter: EmitterLike,
+  channel: string
+): AsyncIterable<T>
+```
+
+- Events emitted on `channel` before the consumer calls `next()` are buffered in
+  an in-memory queue.
+- Calling `return()` on the iterator removes the listener immediately.
+- Delivery is FIFO within a channel.
+
+### `ExternalBusAdapter`
+
+Bridges an injected external bus (e.g. the `DocumentEventBusLike` interface
+used by `PostgresBackend`) to the `EventSubscriber<T>` interface.
+
+```ts
+class ExternalBusAdapter implements EventSubscriber<unknown> {
+  constructor(bus: DocumentEventBusLike);
+
+  /** Subscribe filtered by slug. */
+  subscribeBySlug<T>(slug: string): AsyncIterable<T>;
+}
+```
+
+---
+
+## Types
+
+```ts
+/** An object that can publish events onto a named channel. */
+interface EventPublisher<T> {
+  publish(channel: string, event: T): void;
+}
+
+/** An object that returns an async iterable from a named channel. */
+interface EventSubscriber<T> {
+  subscribe(channel: string): AsyncIterable<T>;
+}
+
+/** Combined publisher + subscriber. */
+interface EventStream<T> extends EventPublisher<T>, EventSubscriber<T> {}
+```
+
+The `DocumentEvent` and `CrdtUpdate` types are re-exported for convenience:
+
+```ts
+export type { DocumentEvent, CrdtUpdate } from 'llmtxt/events';
+```
+
+---
+
+## Design Decisions
+
+### Why a shared subpath?
+
+Before `llmtxt/events`, both `LocalBackend` and `PostgresBackend` contained
+identical queue-and-resolve `AsyncIterator` implementations (~40 lines each).
+Any fix or enhancement had to be applied in two places.
+
+The extraction:
+1. Eliminates the duplication — one implementation in `events/stream.ts`.
+2. Makes the pattern testable in isolation (see contract tests).
+3. Provides a typed, documented API for consumers who need in-process event streams.
+
+### Channel isolation
+
+Each channel is a distinct string key on the underlying `EventEmitter`. Subscribing
+to `events:doc-A` receives no events from `events:doc-B`. This matches Node's
+built-in EventEmitter semantics.
+
+### Backpressure
+
+Events published while no consumer is awaiting `next()` are buffered in an
+in-memory queue (unbounded). For long-running, high-throughput streams, ensure
+consumers drain promptly or apply external rate limiting.
+
+### PostgresBackend relay pattern
+
+`PostgresBackend` uses an injected external bus (Redis pub/sub in production).
+Its `subscribeStream` bridges to `makeEventStream` via a local `EventEmitter`
+relay:
+
+```
+external bus → relay EventEmitter → makeEventStream<DocumentEvent>
+```
+
+This keeps the queue-and-resolve logic in one place while supporting the
+injected-dependency architecture of the server backend.
+
+---
+
+## Contract Tests
+
+The `llmtxt/events` subpath ships with contract tests at:
+
+```
+packages/llmtxt/src/__tests__/events-contract.test.ts
+```
+
+Coverage:
+- Publisher/subscriber round-trip
+- FIFO ordered delivery
+- Channel isolation
+- Cleanup on `return()`
+- Buffer before `next()` is called
+- Multiple concurrent subscribers

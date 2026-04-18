@@ -1,0 +1,369 @@
+---
+title: Blob Attachments (llmtxt/blob)
+description: Content-addressed binary blob subpath — hash-verified storage, name validation, filesystem adapter, and P2P sync changeset utilities for LLMtxt agents.
+---
+
+# Blob Attachments (`llmtxt/blob`)
+
+The `llmtxt/blob` subpath provides portable binary blob primitives promoted out
+of the `/local` backend. It is the single import point for content-addressed
+blob operations — hashing, name validation, filesystem storage, and P2P sync
+changeset utilities.
+
+**SSoT note**: The `hashBlob` and `blobNameValidate` primitives are defined in
+Rust at `crates/llmtxt-core/src/lib.rs` and exposed via WASM. The TypeScript
+wrapper in this subpath delegates to those primitives exactly — no independent
+implementation.
+
+---
+
+## Installation
+
+```bash
+# Already bundled with the llmtxt package:
+pnpm add llmtxt
+```
+
+---
+
+## Quick Start
+
+```ts
+import {
+  hashBlob,
+  validateBlobName,
+  BlobFsAdapter,
+  BlobNameInvalidError,
+  BlobTooLargeError,
+} from 'llmtxt/blob';
+
+// Hash raw bytes (SHA-256 hex, 64 chars)
+const bytes = Buffer.from('hello world');
+const hash = hashBlob(new Uint8Array(bytes));
+// => "b94d27b9934d3e08a52e52d7da7dabfac484efe04294e576fea1d4f00cf7b1e4"
+
+// Validate a blob attachment name
+validateBlobName('diagram.png');   // ok
+validateBlobName('../evil');       // throws BlobNameInvalidError
+validateBlobName('path/sep');      // throws BlobNameInvalidError
+
+// Filesystem adapter (requires drizzle-orm + better-sqlite3)
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import Database from 'better-sqlite3';
+
+const db = drizzle({ client: new Database('./data/llmtxt.db') });
+const adapter = new BlobFsAdapter(db, './data');
+
+const attachment = adapter.attachBlob({
+  docSlug: 'my-document',
+  name: 'diagram.png',
+  contentType: 'image/png',
+  data: imageBytes,
+  uploadedBy: 'agent-001',
+});
+console.log(attachment.hash); // 64-char SHA-256 hex
+```
+
+---
+
+## API Reference
+
+### `hashBlob(data: Uint8Array): string`
+
+Compute SHA-256 hash of raw binary data.
+
+Returns a lowercase hex string (64 characters). Delegates to
+`crates/llmtxt-core::hash_blob` via WASM. Use this for content-addressing
+blobs — it is byte-identical to the Rust primitive.
+
+```ts
+import { hashBlob } from 'llmtxt/blob';
+
+const hash = hashBlob(new Uint8Array([1, 2, 3]));
+// => lowercase 64-char hex string
+```
+
+**Throws**: Never. Returns an empty string if WASM fails to load.
+
+---
+
+### `validateBlobName(name: string): void`
+
+Validate a blob attachment name using the Rust WASM primitive.
+
+Delegates to `crates/llmtxt-core::blob_name_validate`.
+
+**Throws `BlobNameInvalidError`** when any of the following are true:
+
+| Condition | Example |
+|-----------|---------|
+| Empty name | `""` |
+| Name exceeds 255 bytes (UTF-8) | Very long names |
+| Path traversal sequence | `"../etc/passwd"` |
+| Path separator | `"foo/bar"` or `"foo\\bar"` |
+| Null byte | `"name\0"` |
+| Leading or trailing whitespace | `" name"` or `"name "` |
+
+```ts
+import { validateBlobName, BlobNameInvalidError } from 'llmtxt/blob';
+
+try {
+  validateBlobName('../exploit');
+} catch (err) {
+  if (err instanceof BlobNameInvalidError) {
+    console.error(err.message);
+    // Blob name "../exploit" is invalid: ...
+  }
+}
+```
+
+---
+
+### `BlobFsAdapter`
+
+Filesystem-backed content-addressed blob storage adapter.
+
+Stores blob bytes at `<storagePath>/blobs/<sha256-hex>` using atomic
+write-via-tmp-rename. Verifies the SHA-256 hash on every read. Maintains an
+attachment manifest in SQLite. Enforces LWW semantics per `(docSlug, blobName)`.
+
+#### Constructor
+
+```ts
+new BlobFsAdapter(
+  db: BetterSQLite3Database,
+  storagePath: string,
+  maxBlobSizeBytes?: number  // default: 100 MB
+)
+```
+
+#### `attachBlob(params: AttachBlobParams): BlobAttachment`
+
+Attach a binary blob to a document.
+
+1. Validates the blob name via `validateBlobName`.
+2. Enforces `maxBlobSizeBytes` — throws `BlobTooLargeError` on excess.
+3. Computes SHA-256 hash via `hashBlob`.
+4. Writes bytes atomically to `<blobsDir>/<hash>` if not already present.
+5. Applies LWW: soft-deletes any existing active record for `(docSlug, blobName)`.
+6. Returns the new `BlobAttachment` record.
+
+```ts
+const att = adapter.attachBlob({
+  docSlug: 'doc-1',
+  name: 'report.pdf',
+  contentType: 'application/pdf',
+  data: pdfBytes,        // Buffer | Uint8Array
+  uploadedBy: 'agent-a',
+});
+// att.hash  — 64-char SHA-256 hex
+// att.size  — byte length
+// att.id    — nanoid record ID
+```
+
+#### `getBlob(docSlug: string, blobName: string, opts?: { includeData?: boolean }): BlobData | null`
+
+Retrieve a blob attachment record.
+
+- Returns `null` if no active attachment with `blobName` exists on `docSlug`.
+- When `includeData: true`, reads bytes from disk and verifies the SHA-256 hash.
+- Throws `BlobCorruptError` if hash mismatch detected (file tampered or corrupt).
+
+```ts
+// Metadata only (default)
+const meta = adapter.getBlob('doc-1', 'report.pdf');
+
+// With bytes
+const full = adapter.getBlob('doc-1', 'report.pdf', { includeData: true });
+if (full?.data) {
+  // full.data is a Buffer with the raw bytes
+}
+```
+
+#### `listBlobs(docSlug: string): BlobAttachment[]`
+
+List all active (non-deleted) blob attachments for a document.
+
+Returns an empty array when no blobs are attached. Never returns raw bytes.
+
+```ts
+const blobs = adapter.listBlobs('doc-1');
+for (const b of blobs) {
+  console.log(b.blobName, b.hash, b.size);
+}
+```
+
+#### `detachBlob(docSlug: string, blobName: string, detachedBy: string): boolean`
+
+Soft-delete a named blob attachment from a document.
+
+Sets `deleted_at = now()`. Does NOT delete bytes from disk (orphan GC is a
+deferred concern). Returns `false` if no active attachment exists.
+
+```ts
+const removed = adapter.detachBlob('doc-1', 'report.pdf', 'agent-a');
+// removed === true if it existed, false if not found
+```
+
+#### `fetchBlobByHash(hash: string): Buffer | null`
+
+Fetch blob bytes directly by hash (used during lazy sync pull).
+
+Returns `null` if no file exists for this hash. Returns `null` for invalid
+hash format (must be 64 lowercase hex chars). Verifies hash on return and
+throws `BlobCorruptError` if mismatch.
+
+```ts
+const bytes = adapter.fetchBlobByHash('b94d27b9...');
+```
+
+---
+
+### Changeset Utilities
+
+The following utilities are used by the P2P sync layer to propagate blob
+references between peers without sending raw bytes.
+
+#### `buildBlobChangeset(db, crsqlBytes, docSlug?, sinceMs?): BlobChangeset`
+
+Collect `BlobRef` entries for all active blobs modified since `sinceMs`.
+
+```ts
+import { buildBlobChangeset } from 'llmtxt/blob';
+
+const changeset = buildBlobChangeset(db, crsqlChangeset, 'doc-1', lastSyncMs);
+// changeset.blobs — array of BlobRef (metadata only, no bytes)
+// changeset.crsqlChangeset — the binary cr-sqlite changeset embedded as-is
+```
+
+#### `applyBlobChangeset(db, blobFs, refs, pendingFetches, scheduleFetch?): ApplyBlobChangesetResult`
+
+Apply incoming `BlobRef` entries with LWW semantics.
+
+For each ref: applies LWW, writes the winner to the manifest, and schedules
+lazy byte-fetches for any hash not yet on disk.
+
+```ts
+import { applyBlobChangeset } from 'llmtxt/blob';
+
+const pending = new Set<string>();
+const result = applyBlobChangeset(db, blobFs, refs, pending, (docSlug, hash) => {
+  // schedule background pull of this hash from the peer
+});
+// result.applied — refs accepted as LWW winners
+// result.discarded — refs that lost LWW
+// result.pendingFetches — hashes queued for lazy pull
+```
+
+#### `incomingWinsLWW(incoming, existing): boolean`
+
+Returns `true` if `incoming` wins over `existing` under the LWW rule:
+- Newer `uploadedAt` wins.
+- Tie-break: higher `uploadedBy` lexicographically.
+- Identical `(uploadedAt, uploadedBy)` = same record, returns `false`.
+
+---
+
+## Error Classes
+
+All error classes are exported from `llmtxt/blob`. They are also the canonical
+error classes re-exported from `llmtxt/local` and `llmtxt/core/errors`.
+
+| Class | Thrown when |
+|-------|-------------|
+| `BlobTooLargeError` | Blob exceeds `maxBlobSizeBytes` (default 100 MB) |
+| `BlobNameInvalidError` | Name fails validation (path traversal, separators, etc.) |
+| `BlobCorruptError` | SHA-256 hash mismatch on read (storage corrupt or tampered) |
+| `BlobNotFoundError` | Hash not found in store (lazy sync pull failure) |
+| `BlobAccessDeniedError` | Agent lacks READ/WRITE permission on the document |
+
+```ts
+import {
+  BlobTooLargeError,
+  BlobNameInvalidError,
+  BlobCorruptError,
+  BlobNotFoundError,
+  BlobAccessDeniedError,
+} from 'llmtxt/blob';
+
+try {
+  await backend.attachBlob(params);
+} catch (err) {
+  if (err instanceof BlobTooLargeError) { /* ... */ }
+  if (err instanceof BlobNameInvalidError) { /* ... */ }
+  if (err instanceof BlobCorruptError) { /* ... */ }
+}
+```
+
+---
+
+## Type Reference
+
+```ts
+/** Parameters for attaching a blob to a document. */
+interface AttachBlobParams {
+  docSlug: string;
+  name: string;           // validated by validateBlobName
+  contentType: string;    // MIME type, e.g. "image/png"
+  data: Buffer | Uint8Array;
+  uploadedBy: string;     // agent ID performing the upload
+}
+
+/** A stored blob attachment record (metadata). */
+interface BlobAttachment {
+  id: string;
+  docSlug: string;
+  blobName: string;
+  hash: string;           // SHA-256 hex (64 chars)
+  size: number;           // bytes
+  contentType: string;
+  uploadedBy: string;
+  uploadedAt: number;     // Unix ms
+}
+
+/** BlobAttachment with optional raw bytes. */
+interface BlobData extends BlobAttachment {
+  data?: Buffer;          // only present when fetched with includeData=true
+}
+
+/** Changeset blob reference (bytes omitted — lazy pull). */
+interface BlobRef {
+  blobName: string;
+  hash: string;
+  size: number;
+  contentType: string;
+  uploadedBy: string;
+  uploadedAt: number;
+}
+
+/** Extended BlobRef with docSlug (internal sync use). */
+interface BlobRefWithDocSlug extends BlobRef {
+  docSlug: string;
+}
+
+/** Extended cr-sqlite changeset carrying blob refs. */
+interface BlobChangeset {
+  crsqlChangeset: Uint8Array;
+  blobs: BlobRef[];
+}
+
+/** Result of applyBlobChangeset. */
+interface ApplyBlobChangesetResult {
+  applied: number;
+  discarded: number;
+  pendingFetches: string[];
+}
+```
+
+---
+
+## Security Properties
+
+The `BlobFsAdapter` implements all security guarantees from ARCH-T428:
+
+- **Hash verified on EVERY read** with `includeData: true` — `BlobCorruptError` on mismatch.
+- **Blob name validated before ANY storage operation** — `BlobNameInvalidError` on violation.
+- **Filesystem path derived from hash only** (never the name) — no path traversal possible.
+- **Size enforced before write** — `BlobTooLargeError` before any allocation.
+- **Atomic writes** via `tmp → rename` — no partial writes visible on disk.
+- **LWW semantics** — only one active record per `(docSlug, blobName)` at any time.
