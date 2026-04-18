@@ -289,10 +289,45 @@ llmtxt mesh peers
 llmtxt mesh sync
 ```
 
+## Security Helpers
+
+### `verifyContentHash(content, expectedHash)` — MITM defense (T-02)
+
+Verify that downloaded content matches the `content_hash` field returned by the API.
+Computes `sha256(content)` in Rust (via WASM) and compares it in constant time.
+
+```ts
+import { verifyContentHash } from 'llmtxt';
+
+const content = await fetchDocumentContent(slug);
+const { content_hash } = await fetchDocumentMeta(slug);
+
+if (!verifyContentHash(content, content_hash)) {
+  throw new Error('Content hash mismatch — possible tampering detected');
+}
+```
+
+### `constantTimeEqHex(a, b)` — timing-safe digest comparison (S-01)
+
+Compare two hex-encoded SHA-256 or HMAC digests without leaking timing information.
+Delegates to `crates/llmtxt-core::crypto::constant_time_eq_hex` (the `subtle` crate).
+Use this instead of JavaScript `===` whenever comparing any secret-derived value.
+
+```ts
+import { constantTimeEqHex } from 'llmtxt';
+
+// Never: if (storedHash === incomingHash)
+// Always:
+if (constantTimeEqHex(storedHash, incomingHash)) {
+  // hashes match — timing-safe
+}
+```
+
 ## What Ships
 
 - Compression, hashing, base62, token estimation (Rust WASM)
 - Signed URL generation and verification (HMAC-SHA256, Ed25519)
+- `verifyContentHash` + `constantTimeEqHex`: timing-safe content integrity helpers
 - Unified diff patch creation, application, version reconstruction
 - Loro CRDT via WASM (crdt_new_doc, crdt_apply_update, crdt_merge_updates, crdt_diff_update)
 - Multi-way diff across up to 5 agent versions (LCS-aligned, WASM)
