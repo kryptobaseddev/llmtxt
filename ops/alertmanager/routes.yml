@@ -1,0 +1,184 @@
+# ops/alertmanager/routes.yml
+# Alertmanager routing configuration for LLMtxt SLO alerts.
+# Epic: T157 (Ops: SLO/SLI definition)
+#
+# This file defines how alerts from Prometheus are routed to receivers.
+# Self-hosted Alertmanager running alongside the Prometheus/Grafana stack
+# on Railway (no paid SaaS — see owner memory D004, no-paid-observability).
+#
+# CHANGES TO THIS FILE REQUIRE A PR REVIEW.
+# See CODEOWNERS for enforcement.
+#
+# Receivers:
+#   slack-warning  — Posts to #llmtxt-alerts Slack channel (warning severity)
+#   slack-critical — Posts to #llmtxt-oncall Slack channel (critical severity)
+#   webhook-slo    — Generic webhook for SLO events (e.g., PagerDuty-style)
+#   null           — Silences low-priority or noisy alerts
+#
+# Environment variables required (set in Railway/Docker secrets):
+#   ALERTMANAGER_SLACK_WARNING_WEBHOOK_URL  — Slack webhook for #llmtxt-alerts
+#   ALERTMANAGER_SLACK_CRITICAL_WEBHOOK_URL — Slack webhook for #llmtxt-oncall
+#   ALERTMANAGER_SLO_WEBHOOK_URL            — Generic SLO report webhook URL
+#
+# To apply: restart the Alertmanager service after updating this file.
+# Changes take effect within the next evaluation cycle (30s).
+
+global:
+  # How long to wait before resending an alert that has already been sent.
+  resolve_timeout: 5m
+
+  # Default Slack API URL — overridden per-receiver below.
+  # This acts as a fallback only.
+  slack_api_url: "${ALERTMANAGER_SLACK_WARNING_WEBHOOK_URL}"
+
+# ─── Inhibit rules ────────────────────────────────────────────────────────────
+# Suppress warning alerts when a critical alert is already firing for the
+# same service and SLO. Prevents alert storms.
+
+inhibit_rules:
+  - source_matchers:
+      - severity = "critical"
+    target_matchers:
+      - severity = "warning"
+    equal:
+      - service
+      - slo
+
+# ─── Routing tree ─────────────────────────────────────────────────────────────
+
+route:
+  # Default receiver for unmatched alerts.
+  receiver: "slack-warning"
+
+  # Group alerts by service + alertname to avoid flooding on correlated failures.
+  group_by:
+    - service
+    - alertname
+    - slo
+
+  # Wait up to 30s to batch alerts before sending the initial notification.
+  group_wait: 30s
+
+  # Wait 5 minutes before sending a repeat notification for the same group.
+  group_interval: 5m
+
+  # Resend if the alert is still firing after 4 hours.
+  repeat_interval: 4h
+
+  routes:
+
+    # ── Critical SLO alerts → #llmtxt-oncall + webhook ──────────────────────
+    - matchers:
+        - severity = "critical"
+      receiver: "slack-critical"
+      group_wait: 10s
+      group_interval: 2m
+      repeat_interval: 1h
+      routes:
+        # Burn-rate critical also triggers the SLO webhook for automated
+        # runbook execution or external integrations.
+        - matchers:
+            - alertname =~ "SLOBurnRate.*"
+          receiver: "slack-critical-with-webhook"
+
+    # ── Warning SLO alerts → #llmtxt-alerts ─────────────────────────────────
+    - matchers:
+        - severity = "warning"
+      receiver: "slack-warning"
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+
+    # ── Health check alerts (Watchdog) → null sink ───────────────────────────
+    # The Prometheus Watchdog alert fires continuously to confirm the
+    # alert pipeline is working. Silence it here.
+    - matchers:
+        - alertname = "Watchdog"
+      receiver: "null"
+
+# ─── Receivers ────────────────────────────────────────────────────────────────
+
+receivers:
+
+  - name: "null"
+    # Intentional null sink for suppressed alerts.
+
+  - name: "slack-warning"
+    slack_configs:
+      - api_url: "${ALERTMANAGER_SLACK_WARNING_WEBHOOK_URL}"
+        channel: "#llmtxt-alerts"
+        send_resolved: true
+        username: "LLMtxt Alerts"
+        icon_emoji: ":warning:"
+        title: |
+          [{{ .Status | toUpper }}{{ if eq .Status "firing" }} :{{ .Alerts.Firing | len }}{{ end }}]
+          {{ .CommonLabels.alertname }}
+        text: |
+          {{ range .Alerts }}
+          *Summary*: {{ .Annotations.summary }}
+          *Severity*: {{ .Labels.severity }}
+          *Service*: {{ .Labels.service }}
+          *Endpoint class*: {{ .Labels.endpoint_class | default "all" }}
+          *Description*: {{ .Annotations.description }}
+          {{ end }}
+        actions:
+          - type: button
+            text: "Dashboard"
+            url: "https://grafana.llmtxt.my/d/slo"
+          - type: button
+            text: "Runbook"
+            url: "https://github.com/kryptobaseddev/llmtxt/blob/main/ops/RUNBOOK.md"
+
+  - name: "slack-critical"
+    slack_configs:
+      - api_url: "${ALERTMANAGER_SLACK_CRITICAL_WEBHOOK_URL}"
+        channel: "#llmtxt-oncall"
+        send_resolved: true
+        username: "LLMtxt On-Call"
+        icon_emoji: ":rotating_light:"
+        title: |
+          :rotating_light: CRITICAL [{{ .Status | toUpper }}]
+          {{ .CommonLabels.alertname }}
+        text: |
+          {{ range .Alerts }}
+          *Summary*: {{ .Annotations.summary }}
+          *Service*: {{ .Labels.service }}
+          *SLO*: {{ .Labels.slo }}
+          {{ .Annotations.description }}
+          {{ end }}
+        actions:
+          - type: button
+            text: "Dashboard"
+            url: "https://grafana.llmtxt.my/d/slo"
+          - type: button
+            text: "Runbook"
+            url: "https://github.com/kryptobaseddev/llmtxt/blob/main/ops/RUNBOOK.md"
+
+  - name: "slack-critical-with-webhook"
+    slack_configs:
+      - api_url: "${ALERTMANAGER_SLACK_CRITICAL_WEBHOOK_URL}"
+        channel: "#llmtxt-oncall"
+        send_resolved: true
+        username: "LLMtxt On-Call"
+        icon_emoji: ":rotating_light:"
+        title: |
+          :rotating_light: CRITICAL SLO BURN [{{ .Status | toUpper }}]
+          {{ .CommonLabels.alertname }}
+        text: |
+          {{ range .Alerts }}
+          *Summary*: {{ .Annotations.summary }}
+          *Service*: {{ .Labels.service }}
+          {{ .Annotations.description }}
+          {{ end }}
+    webhook_configs:
+      - url: "${ALERTMANAGER_SLO_WEBHOOK_URL}"
+        send_resolved: true
+        http_config:
+          bearer_token: "${ALERTMANAGER_WEBHOOK_TOKEN}"
+
+# ─── Templates ────────────────────────────────────────────────────────────────
+# Place custom template files in ops/alertmanager/templates/*.tmpl
+# and reference them in the 'templates' key below if needed.
+#
+# templates:
+#   - "/etc/alertmanager/templates/*.tmpl"

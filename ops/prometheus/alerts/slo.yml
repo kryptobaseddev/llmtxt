@@ -1,0 +1,226 @@
+# ops/prometheus/alerts/slo.yml
+# Prometheus alert rules for LLMtxt SLO enforcement.
+# Epic: T157 (Ops: SLO/SLI definition)
+#
+# Alert summary:
+#   SectionsP95LatencyHigh      — p95 > 200ms for sections endpoint for >5min
+#   DocumentsP95LatencyHigh     — p95 > 300ms for documents endpoint for >5min
+#   WritesP95LatencyHigh        — p95 > 500ms for writes endpoint for >5min
+#   AuthP95LatencyHigh          — p95 > 400ms for auth endpoint for >5min
+#   AuthenticatedErrorRateHigh  — >1% error rate on authed endpoints over 10min
+#   SLOBurnRateWarning          — 5% monthly budget consumed in 1hr window
+#   SLOBurnRateCritical         — 10% monthly budget consumed in 1hr window
+#
+# All rules reference recording rules from ops/prometheus/rules/sli.yml.
+#
+# Changes to this file require a PR review (see CODEOWNERS).
+#
+# To validate:
+#   promtool check rules ops/prometheus/alerts/slo.yml
+
+groups:
+
+  # ─── Latency SLO alerts ───────────────────────────────────────────────────
+
+  - name: llmtxt_slo_latency
+    interval: 30s
+    rules:
+
+      - alert: SectionsP95LatencyHigh
+        # P0: sections endpoint p95 must stay below 200ms.
+        # Fires when the 5-minute rolling p95 exceeds 0.2s for >5 minutes.
+        expr: job:llmtxt_sections_request_duration_seconds:p95_5m > 0.200
+        for: 5m
+        labels:
+          severity: warning
+          service: llmtxt-api
+          endpoint_class: sections
+          slo: latency_p95
+        annotations:
+          summary: "LLMtxt sections p95 latency exceeds 200ms SLO"
+          description: |
+            The p95 latency for GET /api/v1/documents/:slug/sections has been
+            above 200ms for more than 5 minutes.
+
+            Current p95: {{ printf "%.0f" (mul $value 1000) }}ms  (SLO: 200ms)
+
+            Triage steps:
+            1. Check database query performance in Grafana / Loki traces
+            2. Verify Railway service CPU/memory is not saturated
+            3. Check for slow Postgres queries (pg_stat_statements)
+            4. Review recent deploys: git log --oneline -5 origin/main
+
+            Dashboard: https://grafana.llmtxt.my/d/slo
+            Runbook: https://github.com/kryptobaseddev/llmtxt/blob/main/ops/RUNBOOK.md
+
+      - alert: DocumentsP95LatencyHigh
+        # P0: documents endpoint p95 must stay below 300ms.
+        expr: job:llmtxt_documents_request_duration_seconds:p95_5m > 0.300
+        for: 5m
+        labels:
+          severity: warning
+          service: llmtxt-api
+          endpoint_class: documents
+          slo: latency_p95
+        annotations:
+          summary: "LLMtxt documents p95 latency exceeds 300ms SLO"
+          description: |
+            The p95 latency for document read endpoints has been above 300ms
+            for more than 5 minutes.
+
+            Current p95: {{ printf "%.0f" (mul $value 1000) }}ms  (SLO: 300ms)
+
+            Dashboard: https://grafana.llmtxt.my/d/slo
+            Runbook: https://github.com/kryptobaseddev/llmtxt/blob/main/ops/RUNBOOK.md
+
+      - alert: WritesP95LatencyHigh
+        # P1: write endpoints p95 must stay below 500ms.
+        expr: job:llmtxt_writes_request_duration_seconds:p95_5m > 0.500
+        for: 5m
+        labels:
+          severity: warning
+          service: llmtxt-api
+          endpoint_class: writes
+          slo: latency_p95
+        annotations:
+          summary: "LLMtxt write endpoints p95 latency exceeds 500ms SLO"
+          description: |
+            The p95 latency for document write endpoints has been above 500ms
+            for more than 5 minutes.
+
+            Current p95: {{ printf "%.0f" (mul $value 1000) }}ms  (SLO: 500ms)
+
+            Dashboard: https://grafana.llmtxt.my/d/slo
+            Runbook: https://github.com/kryptobaseddev/llmtxt/blob/main/ops/RUNBOOK.md
+
+      - alert: AuthP95LatencyHigh
+        # P1: auth endpoints p95 must stay below 400ms.
+        expr: job:llmtxt_auth_request_duration_seconds:p95_5m > 0.400
+        for: 5m
+        labels:
+          severity: warning
+          service: llmtxt-api
+          endpoint_class: auth
+          slo: latency_p95
+        annotations:
+          summary: "LLMtxt auth endpoints p95 latency exceeds 400ms SLO"
+          description: |
+            The p95 latency for authentication endpoints has been above 400ms
+            for more than 5 minutes.
+
+            Current p95: {{ printf "%.0f" (mul $value 1000) }}ms  (SLO: 400ms)
+
+            Dashboard: https://grafana.llmtxt.my/d/slo
+            Runbook: https://github.com/kryptobaseddev/llmtxt/blob/main/ops/RUNBOOK.md
+
+  # ─── Error rate SLO alerts ────────────────────────────────────────────────
+
+  - name: llmtxt_slo_error_rate
+    interval: 30s
+    rules:
+
+      - alert: AuthenticatedErrorRateHigh
+        # Fires when the 5xx error rate for authenticated endpoints exceeds
+        # 1% over any 10-minute window. Uses the recording rule which covers
+        # /api/v1/*, /api/auth/*, /api/admin/*.
+        expr: job:llmtxt_authed_error_rate:rate10m > 0.01
+        for: 10m
+        labels:
+          severity: critical
+          service: llmtxt-api
+          slo: error_rate
+        annotations:
+          summary: "LLMtxt authenticated endpoint error rate exceeds 1%"
+          description: |
+            The 5xx error rate for authenticated endpoints has exceeded 1%
+            over the last 10 minutes.
+
+            Current error rate: {{ printf "%.2f" (mul $value 100) }}%  (SLO: 1%)
+
+            Triage steps:
+            1. curl -i https://api.llmtxt.my/api/health
+            2. curl -i https://api.llmtxt.my/api/ready
+            3. Check Railway deployment status
+            4. Query Loki for error logs: {job="llmtxt-api"} |= "error"
+            5. Check Sentry for new exceptions
+
+            Dashboard: https://grafana.llmtxt.my/d/slo
+            Runbook: https://github.com/kryptobaseddev/llmtxt/blob/main/ops/RUNBOOK.md
+
+  # ─── Error budget burn-rate alerts (Google SRE workbook multi-burn-rate) ──
+
+  - name: llmtxt_slo_burn_rate
+    interval: 30s
+    rules:
+
+      - alert: SLOBurnRateWarning
+        # Warning: burning 5% of the monthly error budget within 1 hour.
+        #
+        # Error budget rate = 1 - 0.995 = 0.005 (0.5%)
+        # 5% of monthly budget consumed in 1 hour:
+        #   1 month ≈ 720 hours
+        #   burn_rate_threshold = (5% / 100%) * (720h / 1h) * 0.005
+        #                      = 0.05 * 720 * 0.005 = 0.18 (18%)
+        #
+        # Both the 1-hour and 5-minute windows must be above threshold
+        # to reduce false positives (dual-window approach).
+        expr: |
+          (
+            job:llmtxt_all_error_rate:rate1h > 0.18
+            AND
+            job:llmtxt_all_error_rate:rate5m > 0.18
+          )
+        for: 5m
+        labels:
+          severity: warning
+          service: llmtxt-api
+          slo: error_budget
+        annotations:
+          summary: "LLMtxt SLO error budget burning fast (warning: 5%/hr)"
+          description: |
+            The error budget for api.llmtxt.my is being consumed at a rate
+            that would exhaust 5% of the monthly budget within 1 hour.
+
+            Current 1hr error rate: {{ printf "%.1f" (mul (index $labels "job:llmtxt_all_error_rate:rate1h") 100) }}%
+            Warning threshold: 18%
+
+            At this rate the full monthly budget (3.65 hours downtime) will
+            be consumed in approximately {{ printf "%.1f" (div 1 (div $value 0.005)) }} hours.
+
+            Dashboard: https://grafana.llmtxt.my/d/slo
+            Runbook: https://github.com/kryptobaseddev/llmtxt/blob/main/ops/RUNBOOK.md
+
+      - alert: SLOBurnRateCritical
+        # Critical: burning 10% of the monthly error budget within 1 hour.
+        #
+        # burn_rate_threshold = (10% / 100%) * (720h / 1h) * 0.005
+        #                     = 0.10 * 720 * 0.005 = 0.36 (36%)
+        expr: |
+          (
+            job:llmtxt_all_error_rate:rate1h > 0.36
+            AND
+            job:llmtxt_all_error_rate:rate5m > 0.36
+          )
+        for: 5m
+        labels:
+          severity: critical
+          service: llmtxt-api
+          slo: error_budget
+        annotations:
+          summary: "LLMtxt SLO error budget burning critically fast (10%/hr)"
+          description: |
+            CRITICAL: The error budget is burning at a rate that would
+            exhaust 10% of the monthly budget within 1 hour.
+
+            Current 1hr error rate: above 36%
+            Critical threshold: 36%
+
+            IMMEDIATE ACTION REQUIRED:
+            1. Check https://api.llmtxt.my/api/health immediately
+            2. Open Railway logs for llmtxt-api service
+            3. Check for recent deploys (git log --oneline -3 origin/main)
+            4. Consider rolling back if recent deploy caused the spike
+            5. Update status page if degraded (>5 minutes)
+
+            Dashboard: https://grafana.llmtxt.my/d/slo
+            Runbook: https://github.com/kryptobaseddev/llmtxt/blob/main/ops/RUNBOOK.md

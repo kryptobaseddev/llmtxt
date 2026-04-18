@@ -1,0 +1,329 @@
+name: SLO Weekly Report
+
+# Epic: T157 (Ops: SLO/SLI definition)
+#
+# Runs every Monday at 09:00 UTC. Queries the self-hosted Prometheus instance
+# for the past 7 days of SLI data, computes p50/p95/p99 latency and error rates
+# per endpoint class, calculates error budget consumed and remaining, and posts
+# a Markdown summary to the configured Slack webhook.
+#
+# Required secrets (set in GitHub repository settings):
+#   PROMETHEUS_URL          — Self-hosted Prometheus base URL
+#                             e.g. https://prometheus.llmtxt.my
+#   PROMETHEUS_BEARER_TOKEN — Bearer token for Prometheus API auth
+#                             (optional; leave unset if no auth required)
+#   SLO_WEBHOOK_URL         — Slack incoming webhook URL for #llmtxt-slo-reports
+#
+# No paid SaaS — all metrics come from the self-hosted Prometheus/Grafana stack
+# on Railway (see owner directive: no-paid-observability).
+
+on:
+  schedule:
+    # Every Monday at 09:00 UTC
+    - cron: "0 9 * * 1"
+
+  # Allow manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      lookback_days:
+        description: "Number of days to look back (default: 7)"
+        required: false
+        default: "7"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  slo-report:
+    name: Generate and post SLO report
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set report parameters
+        id: params
+        run: |
+          LOOKBACK="${INPUT_LOOKBACK:-7}"
+          REPORT_DATE=$(date -u +"%Y-%m-%d")
+          WEEK_START=$(date -u -d "-${LOOKBACK} days" +"%Y-%m-%d")
+          echo "lookback=${LOOKBACK}" >> "$GITHUB_OUTPUT"
+          echo "report_date=${REPORT_DATE}" >> "$GITHUB_OUTPUT"
+          echo "week_start=${WEEK_START}" >> "$GITHUB_OUTPUT"
+        env:
+          INPUT_LOOKBACK: ${{ github.event.inputs.lookback_days }}
+
+      - name: Query Prometheus SLIs
+        id: metrics
+        env:
+          PROMETHEUS_URL: ${{ secrets.PROMETHEUS_URL }}
+          PROMETHEUS_BEARER_TOKEN: ${{ secrets.PROMETHEUS_BEARER_TOKEN }}
+          LOOKBACK: ${{ steps.params.outputs.lookback }}
+        run: |
+          set -euo pipefail
+
+          # Helper: query Prometheus instant query and return the first scalar value
+          prom_query() {
+            local expr="$1"
+            local encoded
+            encoded=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))" "$expr")
+            local url="${PROMETHEUS_URL}/api/v1/query?query=${encoded}"
+
+            if [ -n "${PROMETHEUS_BEARER_TOKEN:-}" ]; then
+              curl -sf -H "Authorization: Bearer ${PROMETHEUS_BEARER_TOKEN}" "$url"
+            else
+              curl -sf "$url"
+            fi | python3 -c "
+          import sys, json
+          d = json.load(sys.stdin)
+          r = d.get('data', {}).get('result', [])
+          print(r[0]['value'][1] if r else 'N/A')
+          "
+          }
+
+          # Helper: format seconds to ms with 1 decimal
+          fmt_ms() {
+            python3 -c "
+          v = '$1'
+          print(f'{float(v)*1000:.1f}ms' if v != 'N/A' else 'N/A')
+          "
+          }
+
+          # Helper: format as percentage
+          fmt_pct() {
+            python3 -c "
+          v = '$1'
+          print(f'{float(v)*100:.3f}%' if v != 'N/A' else 'N/A')
+          "
+          }
+
+          # Helper: SLO status check
+          check_slo() {
+            local val="$1"
+            local threshold="$2"
+            python3 -c "
+          val, threshold = '$val', $threshold
+          if val == 'N/A':
+              print(':white_circle: N/A')
+          elif float(val) <= threshold:
+              print(':white_check_mark: MET')
+          else:
+              print(':x: MISSED')
+          "
+          }
+
+          # ── Query per endpoint class ───────────────────────────────────────
+
+          SECTIONS_P50=$(prom_query "avg_over_time(job:llmtxt_sections_request_duration_seconds:p50_5m[${LOOKBACK}d])")
+          SECTIONS_P95=$(prom_query "avg_over_time(job:llmtxt_sections_request_duration_seconds:p95_5m[${LOOKBACK}d])")
+          SECTIONS_P99=$(prom_query "avg_over_time(job:llmtxt_sections_request_duration_seconds:p99_5m[${LOOKBACK}d])")
+          SECTIONS_ERR=$(prom_query "avg_over_time(job:llmtxt_sections_error_rate:rate5m[${LOOKBACK}d])")
+
+          DOCS_P50=$(prom_query "avg_over_time(job:llmtxt_documents_request_duration_seconds:p50_5m[${LOOKBACK}d])")
+          DOCS_P95=$(prom_query "avg_over_time(job:llmtxt_documents_request_duration_seconds:p95_5m[${LOOKBACK}d])")
+          DOCS_P99=$(prom_query "avg_over_time(job:llmtxt_documents_request_duration_seconds:p99_5m[${LOOKBACK}d])")
+          DOCS_ERR=$(prom_query "avg_over_time(job:llmtxt_documents_error_rate:rate5m[${LOOKBACK}d])")
+
+          WRITES_P50=$(prom_query "avg_over_time(job:llmtxt_writes_request_duration_seconds:p50_5m[${LOOKBACK}d])")
+          WRITES_P95=$(prom_query "avg_over_time(job:llmtxt_writes_request_duration_seconds:p95_5m[${LOOKBACK}d])")
+          WRITES_P99=$(prom_query "avg_over_time(job:llmtxt_writes_request_duration_seconds:p99_5m[${LOOKBACK}d])")
+          WRITES_ERR=$(prom_query "avg_over_time(job:llmtxt_writes_error_rate:rate5m[${LOOKBACK}d])")
+
+          AUTH_P50=$(prom_query "avg_over_time(job:llmtxt_auth_request_duration_seconds:p50_5m[${LOOKBACK}d])")
+          AUTH_P95=$(prom_query "avg_over_time(job:llmtxt_auth_request_duration_seconds:p95_5m[${LOOKBACK}d])")
+          AUTH_P99=$(prom_query "avg_over_time(job:llmtxt_auth_request_duration_seconds:p99_5m[${LOOKBACK}d])")
+          AUTH_ERR=$(prom_query "avg_over_time(job:llmtxt_auth_error_rate:rate5m[${LOOKBACK}d])")
+
+          OVERALL_ERR=$(prom_query "avg_over_time(job:llmtxt_all_error_rate:rate5m[${LOOKBACK}d])")
+
+          # ── Compute derived values ─────────────────────────────────────────
+
+          AVAILABILITY=$(python3 -c "
+          e = '${OVERALL_ERR}'
+          print(f'{(1-float(e))*100:.4f}%' if e != 'N/A' else 'N/A')
+          ")
+
+          BUDGET_CONSUMED=$(python3 -c "
+          e = '${OVERALL_ERR}'
+          lookback = int('${LOOKBACK}')
+          if e == 'N/A':
+              print('N/A')
+          else:
+              # burn_rate = error_rate / budget_rate
+              # budget consumed in period = burn_rate * (period / month)
+              burn_rate = float(e) / 0.005
+              period_fraction = lookback / 30.0
+              pct = burn_rate * period_fraction * 100
+              print(f'{pct:.2f}%')
+          ")
+
+          # ── SLO status ─────────────────────────────────────────────────────
+
+          SECTIONS_P95_STATUS=$(check_slo "${SECTIONS_P95}" 0.200)
+          SECTIONS_P99_STATUS=$(check_slo "${SECTIONS_P99}" 0.500)
+          DOCS_P95_STATUS=$(check_slo "${DOCS_P95}" 0.300)
+          WRITES_P95_STATUS=$(check_slo "${WRITES_P95}" 0.500)
+          AUTH_P95_STATUS=$(check_slo "${AUTH_P95}" 0.400)
+          AVAIL_STATUS=$(python3 -c "
+          e = '${OVERALL_ERR}'
+          if e == 'N/A':
+              print(':white_circle: N/A')
+          elif (1 - float(e)) >= 0.995:
+              print(':white_check_mark: MET')
+          else:
+              print(':x: MISSED')
+          ")
+
+          # ── Export to GITHUB_ENV ───────────────────────────────────────────
+
+          {
+            printf 'SECTIONS_P50_FMT=%s\n' "$(fmt_ms "${SECTIONS_P50}")"
+            printf 'SECTIONS_P95_FMT=%s\n' "$(fmt_ms "${SECTIONS_P95}")"
+            printf 'SECTIONS_P99_FMT=%s\n' "$(fmt_ms "${SECTIONS_P99}")"
+            printf 'SECTIONS_ERR_FMT=%s\n' "$(fmt_pct "${SECTIONS_ERR}")"
+            printf 'DOCS_P50_FMT=%s\n'     "$(fmt_ms "${DOCS_P50}")"
+            printf 'DOCS_P95_FMT=%s\n'     "$(fmt_ms "${DOCS_P95}")"
+            printf 'DOCS_P99_FMT=%s\n'     "$(fmt_ms "${DOCS_P99}")"
+            printf 'DOCS_ERR_FMT=%s\n'     "$(fmt_pct "${DOCS_ERR}")"
+            printf 'WRITES_P50_FMT=%s\n'   "$(fmt_ms "${WRITES_P50}")"
+            printf 'WRITES_P95_FMT=%s\n'   "$(fmt_ms "${WRITES_P95}")"
+            printf 'WRITES_P99_FMT=%s\n'   "$(fmt_ms "${WRITES_P99}")"
+            printf 'WRITES_ERR_FMT=%s\n'   "$(fmt_pct "${WRITES_ERR}")"
+            printf 'AUTH_P50_FMT=%s\n'     "$(fmt_ms "${AUTH_P50}")"
+            printf 'AUTH_P95_FMT=%s\n'     "$(fmt_ms "${AUTH_P95}")"
+            printf 'AUTH_P99_FMT=%s\n'     "$(fmt_ms "${AUTH_P99}")"
+            printf 'AUTH_ERR_FMT=%s\n'     "$(fmt_pct "${AUTH_ERR}")"
+            printf 'AVAILABILITY=%s\n'     "${AVAILABILITY}"
+            printf 'BUDGET_CONSUMED=%s\n'  "${BUDGET_CONSUMED}"
+            printf 'SECTIONS_P95_STATUS=%s\n' "${SECTIONS_P95_STATUS}"
+            printf 'SECTIONS_P99_STATUS=%s\n' "${SECTIONS_P99_STATUS}"
+            printf 'DOCS_P95_STATUS=%s\n'     "${DOCS_P95_STATUS}"
+            printf 'WRITES_P95_STATUS=%s\n'   "${WRITES_P95_STATUS}"
+            printf 'AUTH_P95_STATUS=%s\n'     "${AUTH_P95_STATUS}"
+            printf 'AVAIL_STATUS=%s\n'        "${AVAIL_STATUS}"
+          } >> "$GITHUB_ENV"
+
+      - name: Build and post Slack message
+        env:
+          SLO_WEBHOOK_URL: ${{ secrets.SLO_WEBHOOK_URL }}
+          REPORT_DATE: ${{ steps.params.outputs.report_date }}
+          WEEK_START: ${{ steps.params.outputs.week_start }}
+          LOOKBACK: ${{ steps.params.outputs.lookback }}
+          GH_REPO: ${{ github.repository }}
+          GH_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          DASHBOARD_URL="https://grafana.llmtxt.my/d/slo"
+          SLO_DOC_URL="https://github.com/${GH_REPO}/blob/main/ops/SLO.md"
+          RUN_URL="https://github.com/${GH_REPO}/actions/runs/${GH_RUN_ID}"
+
+          # Build Slack payload using Python to handle quoting safely
+          python3 - <<PYEOF
+          import json, os
+
+          payload = {
+              "text": f"LLMtxt SLO Weekly Report — {os.environ['WEEK_START']} to {os.environ['REPORT_DATE']}",
+              "blocks": [
+                  {
+                      "type": "header",
+                      "text": {
+                          "type": "plain_text",
+                          "text": "LLMtxt SLO Weekly Report"
+                      }
+                  },
+                  {
+                      "type": "section",
+                      "text": {
+                          "type": "mrkdwn",
+                          "text": (
+                              f"*Period*: {os.environ['WEEK_START']} → {os.environ['REPORT_DATE']} ({os.environ['LOOKBACK']} days)\n"
+                              f"*Availability*: {os.environ['AVAILABILITY']}  {os.environ['AVAIL_STATUS']} (SLO: ≥99.5%)\n"
+                              f"*Error budget consumed*: {os.environ['BUDGET_CONSUMED']} of {os.environ['LOOKBACK']}-day budget"
+                          )
+                      }
+                  },
+                  {"type": "divider"},
+                  {
+                      "type": "section",
+                      "text": {
+                          "type": "mrkdwn",
+                          "text": (
+                              "*Latency SLOs (avg over period)*\n\n"
+                              f"`sections` (P0 — GET /api/v1/documents/:slug/sections):\n"
+                              f"  p50={os.environ['SECTIONS_P50_FMT']}  "
+                              f"p95={os.environ['SECTIONS_P95_FMT']} {os.environ['SECTIONS_P95_STATUS']}  "
+                              f"p99={os.environ['SECTIONS_P99_FMT']} {os.environ['SECTIONS_P99_STATUS']}\n"
+                              f"  error rate={os.environ['SECTIONS_ERR_FMT']}\n\n"
+                              f"`documents` (P0 — GET /api/v1/documents/*):\n"
+                              f"  p50={os.environ['DOCS_P50_FMT']}  "
+                              f"p95={os.environ['DOCS_P95_FMT']} {os.environ['DOCS_P95_STATUS']}  "
+                              f"p99={os.environ['DOCS_P99_FMT']}\n"
+                              f"  error rate={os.environ['DOCS_ERR_FMT']}\n\n"
+                              f"`writes` (P1 — POST/PUT/PATCH documents):\n"
+                              f"  p50={os.environ['WRITES_P50_FMT']}  "
+                              f"p95={os.environ['WRITES_P95_FMT']} {os.environ['WRITES_P95_STATUS']}  "
+                              f"p99={os.environ['WRITES_P99_FMT']}\n"
+                              f"  error rate={os.environ['WRITES_ERR_FMT']}\n\n"
+                              f"`auth` (P1 — /api/auth/*):\n"
+                              f"  p50={os.environ['AUTH_P50_FMT']}  "
+                              f"p95={os.environ['AUTH_P95_FMT']} {os.environ['AUTH_P95_STATUS']}  "
+                              f"p99={os.environ['AUTH_P99_FMT']}\n"
+                              f"  error rate={os.environ['AUTH_ERR_FMT']}"
+                          )
+                      }
+                  },
+                  {"type": "divider"},
+                  {
+                      "type": "section",
+                      "text": {
+                          "type": "mrkdwn",
+                          "text": (
+                              f"<{os.environ['DASHBOARD_URL']}|Grafana Dashboard>  |  "
+                              f"<{os.environ['SLO_DOC_URL']}|SLO Definition>  |  "
+                              f"<{os.environ['RUN_URL']}|Workflow Run>"
+                          )
+                      }
+                  }
+              ]
+          }
+
+          with open('/tmp/slo-payload.json', 'w') as f:
+              json.dump(payload, f)
+
+          print("Slack payload built successfully.")
+          PYEOF
+
+          if [ -z "${SLO_WEBHOOK_URL:-}" ]; then
+            echo "SLO_WEBHOOK_URL secret not set. Printing payload to log:"
+            cat /tmp/slo-payload.json
+            exit 0
+          fi
+
+          HTTP_STATUS=$(curl -sf -o /tmp/slack-response.txt -w "%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d @/tmp/slo-payload.json \
+            "${SLO_WEBHOOK_URL}")
+
+          if [ "${HTTP_STATUS}" != "200" ]; then
+            echo "Failed to post to Slack. HTTP status: ${HTTP_STATUS}"
+            cat /tmp/slack-response.txt
+            exit 1
+          fi
+
+          echo "SLO report posted successfully (HTTP ${HTTP_STATUS})."
+
+      - name: Print report summary
+        run: |
+          echo "=== LLMtxt SLO Weekly Report ==="
+          echo "Availability:     ${AVAILABILITY}  ${AVAIL_STATUS}"
+          echo "Budget consumed:  ${BUDGET_CONSUMED}"
+          echo ""
+          echo "sections — p50=${SECTIONS_P50_FMT} p95=${SECTIONS_P95_FMT} ${SECTIONS_P95_STATUS} p99=${SECTIONS_P99_FMT} ${SECTIONS_P99_STATUS}"
+          echo "documents — p50=${DOCS_P50_FMT} p95=${DOCS_P95_FMT} ${DOCS_P95_STATUS} p99=${DOCS_P99_FMT}"
+          echo "writes    — p50=${WRITES_P50_FMT} p95=${WRITES_P95_FMT} ${WRITES_P95_STATUS} p99=${WRITES_P99_FMT}"
+          echo "auth      — p50=${AUTH_P50_FMT} p95=${AUTH_P95_FMT} ${AUTH_P95_STATUS} p99=${AUTH_P99_FMT}"

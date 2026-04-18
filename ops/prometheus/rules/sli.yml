@@ -1,0 +1,249 @@
+# ops/prometheus/rules/sli.yml
+# Prometheus recording rules for LLMtxt SLI measurement.
+# Epic: T157 (Ops: SLO/SLI definition)
+#
+# These rules pre-compute per-endpoint-class latency percentiles and
+# error rates so that dashboards and alert rules can evaluate them
+# efficiently without re-computing heavy histogram queries at runtime.
+#
+# Endpoint classes:
+#   sections  — GET /api/v1/documents/:slug/sections  (P0)
+#   documents — GET /api/v1/documents/:slug, GET /api/v1/documents  (P0)
+#   writes    — POST/PUT/PATCH document routes  (P1)
+#   auth      — POST/GET /api/auth/*  (P1)
+#   admin     — GET/POST /api/admin/*  (P2)
+#
+# To validate:
+#   promtool check rules ops/prometheus/rules/sli.yml
+#
+# Assumes Prometheus scrapes https://api.llmtxt.my/api/metrics with
+# job="llmtxt-api" and METRICS_TOKEN bearer auth.
+
+groups:
+  - name: llmtxt_sli_recording
+    interval: 30s
+    rules:
+
+      # ─── sections endpoint class (P0) ─────────────────────────────────────
+
+      - record: job:llmtxt_sections_request_duration_seconds:p50_5m
+        expr: |
+          histogram_quantile(0.50,
+            sum(rate(http_request_duration_seconds_bucket{
+              job="llmtxt-api",
+              route=~"/api/v1/documents/[^/]+/sections"
+            }[5m])) by (le)
+          )
+
+      - record: job:llmtxt_sections_request_duration_seconds:p95_5m
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{
+              job="llmtxt-api",
+              route=~"/api/v1/documents/[^/]+/sections"
+            }[5m])) by (le)
+          )
+
+      - record: job:llmtxt_sections_request_duration_seconds:p99_5m
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket{
+              job="llmtxt-api",
+              route=~"/api/v1/documents/[^/]+/sections"
+            }[5m])) by (le)
+          )
+
+      - record: job:llmtxt_sections_error_rate:rate5m
+        expr: |
+          sum(rate(http_requests_total{
+            job="llmtxt-api",
+            route=~"/api/v1/documents/[^/]+/sections",
+            status_code=~"5.."
+          }[5m]))
+          /
+          sum(rate(http_requests_total{
+            job="llmtxt-api",
+            route=~"/api/v1/documents/[^/]+/sections"
+          }[5m]))
+
+      # ─── documents endpoint class (P0) ────────────────────────────────────
+
+      - record: job:llmtxt_documents_request_duration_seconds:p50_5m
+        expr: |
+          histogram_quantile(0.50,
+            sum(rate(http_request_duration_seconds_bucket{
+              job="llmtxt-api",
+              route=~"/api/v1/documents(/[^/]+)?$",
+              method="GET"
+            }[5m])) by (le)
+          )
+
+      - record: job:llmtxt_documents_request_duration_seconds:p95_5m
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{
+              job="llmtxt-api",
+              route=~"/api/v1/documents(/[^/]+)?$",
+              method="GET"
+            }[5m])) by (le)
+          )
+
+      - record: job:llmtxt_documents_request_duration_seconds:p99_5m
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket{
+              job="llmtxt-api",
+              route=~"/api/v1/documents(/[^/]+)?$",
+              method="GET"
+            }[5m])) by (le)
+          )
+
+      - record: job:llmtxt_documents_error_rate:rate5m
+        expr: |
+          sum(rate(http_requests_total{
+            job="llmtxt-api",
+            route=~"/api/v1/documents(/[^/]+)?$",
+            method="GET",
+            status_code=~"5.."
+          }[5m]))
+          /
+          sum(rate(http_requests_total{
+            job="llmtxt-api",
+            route=~"/api/v1/documents(/[^/]+)?$",
+            method="GET"
+          }[5m]))
+
+      # ─── writes endpoint class (P1) ───────────────────────────────────────
+
+      - record: job:llmtxt_writes_request_duration_seconds:p50_5m
+        expr: |
+          histogram_quantile(0.50,
+            sum(rate(http_request_duration_seconds_bucket{
+              job="llmtxt-api",
+              route=~"/api/v1/documents.*",
+              method=~"POST|PUT|PATCH"
+            }[5m])) by (le)
+          )
+
+      - record: job:llmtxt_writes_request_duration_seconds:p95_5m
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{
+              job="llmtxt-api",
+              route=~"/api/v1/documents.*",
+              method=~"POST|PUT|PATCH"
+            }[5m])) by (le)
+          )
+
+      - record: job:llmtxt_writes_request_duration_seconds:p99_5m
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket{
+              job="llmtxt-api",
+              route=~"/api/v1/documents.*",
+              method=~"POST|PUT|PATCH"
+            }[5m])) by (le)
+          )
+
+      - record: job:llmtxt_writes_error_rate:rate5m
+        expr: |
+          sum(rate(http_requests_total{
+            job="llmtxt-api",
+            route=~"/api/v1/documents.*",
+            method=~"POST|PUT|PATCH",
+            status_code=~"5.."
+          }[5m]))
+          /
+          sum(rate(http_requests_total{
+            job="llmtxt-api",
+            route=~"/api/v1/documents.*",
+            method=~"POST|PUT|PATCH"
+          }[5m]))
+
+      # ─── auth endpoint class (P1) ─────────────────────────────────────────
+
+      - record: job:llmtxt_auth_request_duration_seconds:p50_5m
+        expr: |
+          histogram_quantile(0.50,
+            sum(rate(http_request_duration_seconds_bucket{
+              job="llmtxt-api",
+              route=~"/api/auth/.*"
+            }[5m])) by (le)
+          )
+
+      - record: job:llmtxt_auth_request_duration_seconds:p95_5m
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{
+              job="llmtxt-api",
+              route=~"/api/auth/.*"
+            }[5m])) by (le)
+          )
+
+      - record: job:llmtxt_auth_request_duration_seconds:p99_5m
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket{
+              job="llmtxt-api",
+              route=~"/api/auth/.*"
+            }[5m])) by (le)
+          )
+
+      - record: job:llmtxt_auth_error_rate:rate5m
+        expr: |
+          sum(rate(http_requests_total{
+            job="llmtxt-api",
+            route=~"/api/auth/.*",
+            status_code=~"5.."
+          }[5m]))
+          /
+          sum(rate(http_requests_total{
+            job="llmtxt-api",
+            route=~"/api/auth/.*"
+          }[5m]))
+
+      # ─── Overall availability / error budget ──────────────────────────────
+
+      # Aggregate 5xx error rate across ALL authenticated endpoints
+      # (excludes /api/health, /api/ready, /api/metrics)
+      - record: job:llmtxt_all_error_rate:rate5m
+        expr: |
+          sum(rate(http_requests_total{
+            job="llmtxt-api",
+            route!~"/api/health|/api/ready|/api/metrics",
+            status_code=~"5.."
+          }[5m]))
+          /
+          sum(rate(http_requests_total{
+            job="llmtxt-api",
+            route!~"/api/health|/api/ready|/api/metrics"
+          }[5m]))
+
+      # 1-hour window error rate (used by burn-rate alerts)
+      - record: job:llmtxt_all_error_rate:rate1h
+        expr: |
+          sum(rate(http_requests_total{
+            job="llmtxt-api",
+            route!~"/api/health|/api/ready|/api/metrics",
+            status_code=~"5.."
+          }[1h]))
+          /
+          sum(rate(http_requests_total{
+            job="llmtxt-api",
+            route!~"/api/health|/api/ready|/api/metrics"
+          }[1h]))
+
+      # 10-minute window error rate for authenticated endpoints
+      # (used by the 1%-in-10min alert)
+      - record: job:llmtxt_authed_error_rate:rate10m
+        expr: |
+          sum(rate(http_requests_total{
+            job="llmtxt-api",
+            route=~"/api/v1/.*|/api/auth/.*|/api/admin/.*",
+            status_code=~"5.."
+          }[10m]))
+          /
+          sum(rate(http_requests_total{
+            job="llmtxt-api",
+            route=~"/api/v1/.*|/api/auth/.*|/api/admin/.*"
+          }[10m]))

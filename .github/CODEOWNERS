@@ -1,0 +1,21 @@
+# CODEOWNERS
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Changes to alert routing, SLO definitions, and ops configs require
+# a PR review from the platform team (kryptobaseddev).
+
+# Default owner for everything
+*                               @kryptobaseddev
+
+# Ops alert configs — require PR review before merging
+ops/alerts/                     @kryptobaseddev
+ops/alertmanager/               @kryptobaseddev
+ops/prometheus/alerts/          @kryptobaseddev
+ops/prometheus/rules/           @kryptobaseddev
+ops/SLO.md                      @kryptobaseddev
+
+# GitHub Actions workflows
+.github/workflows/              @kryptobaseddev
+
+# Grafana dashboards
+ops/grafana/                    @kryptobaseddev
