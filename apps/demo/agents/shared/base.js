@@ -120,6 +120,46 @@ export class AgentBase {
   // ── Authenticated fetch ───────────────────────────────────────────────────
 
   /**
+   * Produce Ed25519 signature headers for a mutating HTTP request.
+   *
+   * Returns all 4 required signature headers:
+   *   - `X-Agent-Id`        — human-readable agent identifier
+   *   - `X-Agent-Nonce`     — per-request unique nonce (UUID-style 16-byte hex)
+   *   - `X-Agent-Timestamp` — milliseconds since epoch as decimal string
+   *   - `X-Agent-Signature` — hex-encoded 64-byte Ed25519 signature
+   *
+   * Additionally includes `X-Agent-Pubkey-Id` (server lookup key — same value as
+   * `X-Agent-Id`) for compatibility with the backend's verifyAgentSignature middleware.
+   *
+   * Canonical signing input (newline-separated):
+   *   METHOD\nPATH\nTIMESTAMP_MS\nAGENT_ID\nNONCE_HEX\nBODY_HASH_HEX
+   *
+   * @param {string} method  HTTP method (e.g. 'PUT')
+   * @param {string} path    Request path starting with '/' (e.g. '/api/v1/documents/abc')
+   * @param {string} [body]  Raw request body string (default: '')
+   * @returns {Promise<Record<string, string>>} Signature headers object
+   */
+  async sign(method, path, body = '') {
+    if (!this.identity) throw new Error(`[${this.agentId}] Agent not initialized — call init() first`);
+    const sdkHeaders = await this.identity.buildSignatureHeaders(
+      method,
+      path,
+      body,
+      this.agentId,
+    );
+    // Expose X-Agent-Id alongside X-Agent-Pubkey-Id so both observer-bot
+    // and the server middleware see a consistent agent identifier.
+    return {
+      'X-Agent-Id': this.agentId,
+      'X-Agent-Nonce': sdkHeaders['X-Agent-Nonce'],
+      'X-Agent-Timestamp': sdkHeaders['X-Agent-Timestamp'],
+      'X-Agent-Signature': sdkHeaders['X-Agent-Signature'],
+      // Required by verifyAgentSignature middleware for pubkey lookup
+      'X-Agent-Pubkey-Id': sdkHeaders['X-Agent-Pubkey-Id'],
+    };
+  }
+
+  /**
    * Signed fetch — attaches Ed25519 signature headers for state-mutating requests.
    *
    * @param {string} path       Path starting with '/', e.g. '/api/v1/documents'
@@ -139,12 +179,7 @@ export class AgentBase {
     };
 
     if (!skipSignature && this.identity && method !== 'GET') {
-      const sigHeaders = await this.identity.buildSignatureHeaders(
-        method,
-        path,
-        body ?? '',
-        this.agentId,
-      );
+      const sigHeaders = await this.sign(method, path, body ?? '');
       Object.assign(headers, sigHeaders);
     }
 

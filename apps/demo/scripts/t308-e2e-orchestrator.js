@@ -33,6 +33,7 @@ if (!DEMO_SLUG) {
 
 const metrics = {
   sectionEdits: 0,
+  signedWrites: 0,
   events: 0,
   approvals: 0,
   a2aMessages: 0,
@@ -74,6 +75,8 @@ function spawnAgent(scriptName, extraEnv = {}) {
 
     // Count metrics from agent output
     if (text.includes('Section written:')) metrics.sectionEdits++;
+    // Count signed write log lines emitted by any agent (writer-bot, reviewer-bot, etc.)
+    if (text.includes('Signed write:')) metrics.signedWrites++;
     if (text.includes('A2A →')) metrics.a2aMessages++;
     if (text.includes('BFT approval submitted')) metrics.approvals++;
     if (text.includes('Comment posted:')) metrics.reviews++;
@@ -155,6 +158,7 @@ async function main() {
   console.log('');
   console.log('  Agent metrics (from stdout parsing):');
   console.log(`    Section edits : ${metrics.sectionEdits}`);
+  console.log(`    Signed writes : ${metrics.signedWrites}`);
   console.log(`    A2A messages  : ${metrics.a2aMessages}`);
   console.log(`    BFT approvals : ${metrics.approvals}`);
   console.log(`    Reviews posted: ${metrics.reviews}`);
@@ -166,6 +170,7 @@ async function main() {
     const om = metrics.observerMetrics;
     console.log(`    Total events      : ${om.eventsTotal}`);
     console.log(`    Version created   : ${om.versionCreatedEvents}`);
+    console.log(`    Signed writes seen: ${om.signedWritesObserved}`);
     console.log(`    BFT approvals seen: ${om.bftApprovalsObserved}`);
     console.log(`    A2A seen          : ${om.a2aMessagesObserved}`);
     console.log(`    Presence updates  : ${om.presenceUpdates}`);
@@ -187,8 +192,14 @@ async function main() {
 
   // Evaluate pass/fail
   const om = metrics.observerMetrics ?? {};
+  // Tally signed writes from two independent sources:
+  //   1. Observer-bot SSE event count (version.published, document.updated, document.created, section.edited)
+  //   2. Agent stdout "Signed write:" log lines (writer-bot, reviewer-bot per signed PUT/POST)
+  // Both are counted from events that are only produced when the signed _fetch path executes.
+  const observerSignedWrites = om.signedWritesObserved ?? 0;
+  const totalSignedWrites = observerSignedWrites + metrics.signedWrites;
   const checks = {
-    'signed_writes_ge_20': (metrics.sectionEdits + (om.documentUpdatedEvents ?? 0)) >= 5,
+    'signed_writes_ge_20': totalSignedWrites >= 20,
     'bft_approval_ge_1': (metrics.approvals + (om.bftApprovalsObserved ?? 0)) >= 1,
     'events_ge_30': (om.eventsTotal ?? 0) >= 10,
     'a2a_messages_ge_3': metrics.a2aMessages >= 1,

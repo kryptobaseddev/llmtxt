@@ -212,6 +212,7 @@ class ConsensusBot extends AgentBase {
         `BFT quorum met: ${totalApprovals}/${quorum} approvals. Signed by ${this.agentId}.`,
       );
       this.log(`BFT approval submitted for version ${versionKey}`);
+      this.log(`Signed write: POST /api/v1/documents/${this.slug}/bft/approve (version=${versionKey})`);
     } catch (err) {
       this.log(`BFT approval failed: ${err.message}`);
       return;

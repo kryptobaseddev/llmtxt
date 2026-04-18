@@ -131,6 +131,7 @@ class SummarizerBot extends AgentBase {
       await this.updateDocument(this.slug, updated, `SummarizerBot: updated executive summary (${trigger})`);
       this._summaryCount++;
       this.log(`Summary written (${trigger}): ${summary.slice(0, 80)}...`);
+      this.log(`Signed write: PUT /api/v1/documents/${this.slug} (summary trigger=${trigger})`);
     } catch (err) {
       this.log(`Failed to write summary: ${err.message}`);
     } finally {

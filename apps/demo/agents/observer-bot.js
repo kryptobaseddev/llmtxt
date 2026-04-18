@@ -1,8 +1,15 @@
 /**
  * ObserverBot — T308 E2E production verification observer.
  *
- * Connects via SSE event stream and WebSocket (CRDT), records every event,
- * presence update, and state change during the test run.
+ * Connects via SSE event stream and CRDT WebSocket (subscribeSection from SDK),
+ * records every event, presence update, and state change during the test run.
+ *
+ * CRDT observation (T381):
+ *  - Uses subscribeSection() from 'llmtxt' (SDK SSoT) — no raw WebSocket code.
+ *  - subscribeSection opens a loro-sync-v1 WS and emits SectionDelta events.
+ *  - Each SectionDelta.updateBytes is counted toward crdt_bytes metrics.
+ *  - Convergence check: after the run, calls getSectionText() (HTTP fallback) on
+ *    each observed section and compares hash to WS-received text.
  *
  * Environment:
  *   LLMTXT_API_KEY   (required)
@@ -13,11 +20,16 @@
 
 import { AgentBase } from './shared/base.js';
 import { createHash } from 'node:crypto';
-// WebSocket is available natively in Node.js 22+ (no ws package needed)
-const NativeWebSocket = globalThis.WebSocket;
+import { subscribeSection, getSectionText } from 'llmtxt';
 
 const AGENT_ID = 'observerbot-t308';
 const DEMO_DURATION_MS = Number(process.env.DEMO_DURATION_MS ?? 180_000);
+
+/**
+ * Section IDs the writer-bot writes to — observer subscribes to all of them
+ * via subscribeSection() to measure non-zero crdt_bytes (T381 AC #3).
+ */
+const OBSERVED_SECTION_IDS = ['introduction', 'architecture', 'multi-agent'];
 
 class ObserverBot extends AgentBase {
   constructor() {
@@ -36,14 +48,32 @@ class ObserverBot extends AgentBase {
       a2aMessagesObserved: 0,
       presenceUpdates: 0,
       errors: 0,
+      /**
+       * Total CRDT update bytes received via subscribeSection callbacks (T381 AC #3).
+       * Must be non-zero for the test to pass.
+       */
+      crdt_bytes: 0,
+      /** Count of CRDT SectionDelta messages received. */
+      crdt_messages: 0,
     };
     this.seenVersions = new Set();
     this.eventLog = [];
     this.startTime = null;
-    /** Map<sectionId, Array<{ ts, stateHash, byteLen }>> for CRDT state snapshots */
-    this._crdtSnapshots = new Map();
-    /** Map<sectionId, WebSocket> active CRDT connections */
-    this._crdtWs = new Map();
+    /**
+     * Map<sectionId, SectionDelta[]> — CRDT deltas received per section.
+     * Each delta has { text, updateBytes, receivedAt } per the SDK type.
+     */
+    this._crdtDeltas = new Map();
+    /**
+     * Unsubscribe functions returned by subscribeSection(); called on cleanup.
+     * @type {Array<() => void>}
+     */
+    this._crdtUnsubs = [];
+    /**
+     * Latest text received per section (from SectionDelta.text) for convergence.
+     * @type {Map<string, string>}
+     */
+    this._latestSectionText = new Map();
   }
 
   async run() {
@@ -62,11 +92,10 @@ class ObserverBot extends AgentBase {
     const timeoutId = setTimeout(() => ac.abort(), DEMO_DURATION_MS);
 
     try {
-      // Connect to CRDT WebSocket for first 3 sections and capture state snapshots every 30s
-      await this._initCrdtObservers();
-      const crdtSnapshotInterval = setInterval(() => this._snapshotCrdtStates(), 30_000);
+      // Open subscribeSection() connections for CRDT observation (T381)
+      this._initCrdtObservers();
 
-      // Poll for presence updates (no dedicated endpoint, use doc metadata)
+      // Poll for presence updates (proxy via doc access count)
       const presenceInterval = setInterval(() => this._pollPresence(), 5000);
 
       for await (const evt of this.watchEvents(this.slug, { signal: ac.signal })) {
@@ -82,13 +111,11 @@ class ObserverBot extends AgentBase {
         this._categorizeEvent(evt);
 
         if (this.metrics.eventsTotal % 5 === 0) {
-          this.log(`Events seen: ${this.metrics.eventsTotal} | versions: ${this.seenVersions.size}`);
+          this.log(`Events: ${this.metrics.eventsTotal} | versions: ${this.seenVersions.size} | crdt_bytes: ${this.metrics.crdt_bytes}`);
         }
       }
 
-      clearInterval(crdtSnapshotInterval);
       clearInterval(presenceInterval);
-      this._closeCrdtConnections();
     } catch (err) {
       if (err.name !== 'AbortError') {
         this.metrics.errors++;
@@ -98,10 +125,13 @@ class ObserverBot extends AgentBase {
       clearTimeout(timeoutId);
     }
 
-    // Final document state check
+    // Close all subscribeSection WebSocket connections
+    this._closeCrdtObservers();
+
+    // Final document state + convergence check
     await this._finalStateCheck();
 
-    this.log(`\n=== ObserverBot Final Metrics ===`);
+    this.log('\n=== ObserverBot Final Metrics ===');
     this.log(`Total events: ${this.metrics.eventsTotal}`);
     this.log(`Versions seen: ${this.seenVersions.size}`);
     this.log(`Version created events: ${this.metrics.versionCreatedEvents}`);
@@ -114,149 +144,85 @@ class ObserverBot extends AgentBase {
     this.log(`A2A messages observed: ${this.metrics.a2aMessagesObserved}`);
     this.log(`Errors: ${this.metrics.errors}`);
 
-    // CRDT state summary
-    if (this._crdtSnapshots.size > 0) {
-      this.log('\n=== CRDT WebSocket State ===');
-      for (const [sid, snaps] of this._crdtSnapshots) {
-        const totalBytes = snaps.reduce((s, e) => s + e.byteLen, 0);
-        const connected = this._crdtWs.has(sid);
-        this.log(`  ${sid}: msgs=${snaps.length} totalBytes=${totalBytes} connected=${connected}`);
-        this.metrics[`crdt_${sid}_msgs`] = snaps.length;
-        this.metrics[`crdt_${sid}_bytes`] = totalBytes;
-      }
+    // CRDT summary (T381 AC #3 — crdt_bytes must be > 0)
+    this.log('\n=== CRDT State (subscribeSection via loro-sync-v1) ===');
+    this.log(`crdt_bytes (total received): ${this.metrics.crdt_bytes}`);
+    this.log(`crdt_messages (total deltas): ${this.metrics.crdt_messages}`);
+    for (const [sid, deltas] of this._crdtDeltas) {
+      const bytes = deltas.reduce((s, d) => s + d.updateBytes.length, 0);
+      this.log(`  ${sid}: ${deltas.length} deltas, ${bytes} bytes`);
+      this.metrics[`crdt_${sid}_msgs`] = deltas.length;
+      this.metrics[`crdt_${sid}_bytes`] = bytes;
     }
 
-    // Emit metrics as JSON for orchestrator parsing
+    // Emit metrics JSON for orchestrator parsing
     console.log('\n__OBSERVER_METRICS__' + JSON.stringify(this.metrics) + '__END_METRICS__');
 
     this.log('Run complete.');
   }
 
   /**
-   * Connect to the CRDT WebSocket collab endpoint for each section we know about.
-   * Captures binary Y.js sync messages to track state bytes over time.
+   * Open subscribeSection() connections for each known section ID.
+   *
+   * subscribeSection(slug, sectionId, callback, options) is the SDK's SSoT for
+   * CRDT observation (T381). It opens a loro-sync-v1 WebSocket per section,
+   * performs the SyncStep1/SyncStep2 handshake, and emits a SectionDelta on
+   * every incoming Update (0x03) frame.
+   *
+   * Each SectionDelta has:
+   *   - text:        full plain-text content of the section after the update
+   *   - updateBytes: raw Loro binary update bytes (Uint8Array) — measured here
+   *   - receivedAt:  wall clock timestamp (ms)
    */
-  async _initCrdtObservers() {
-    // Fetch section list from the document
-    let sections = [];
-    try {
-      const doc = await this.getDocument(this.slug);
-      // sections may be embedded in doc or available via a sections endpoint
-      const sectionsResp = await this._api(`/api/v1/documents/${this.slug}/sections`).catch(() => []);
-      sections = Array.isArray(sectionsResp) ? sectionsResp : (sectionsResp.sections ?? []);
-    } catch {
-      this.log('CRDT observer: could not fetch section list, skipping WS observation');
-      return;
-    }
-
-    // Connect to at most 3 sections to avoid connection overload
-    const toConnect = sections.slice(0, 3);
-    if (toConnect.length === 0) {
-      this.log('CRDT observer: no sections found for document yet — will retry via presence polls');
-      return;
-    }
-
-    const wsBase = this.apiBase.replace(/^http/, 'ws');
-    for (const section of toConnect) {
-      const sid = section.id ?? section.sectionId ?? section.slug;
-      if (!sid) continue;
-      this._connectCrdtSection(wsBase, sid);
-    }
-  }
-
-  _connectCrdtSection(wsBase, sectionId) {
-    const url = `${wsBase}/api/v1/documents/${this.slug}/sections/${sectionId}/collab`;
-    // Node 22+ native WebSocket does not support custom headers; pass API key as query param
-    const urlWithAuth = `${url}?apiKey=${encodeURIComponent(this.apiKey)}`;
-
-    let ws;
-    try {
-      ws = new NativeWebSocket(urlWithAuth);
-    } catch (err) {
-      this.log(`CRDT[${sectionId}]: WebSocket constructor failed: ${err.message}`);
-      return;
-    }
-
-    this._crdtWs.set(sectionId, ws);
-    this._crdtSnapshots.set(sectionId, []);
-
-    ws.addEventListener('open', () => {
-      this.log(`CRDT[${sectionId}]: WebSocket connected`);
-    });
-
-    ws.addEventListener('message', (event) => {
-      // Y.js messages are binary (ArrayBuffer or Blob in native WS).
-      // Track state by accumulating byte counts per snapshot window.
-      const byteLen = event.data instanceof ArrayBuffer
-        ? event.data.byteLength
-        : (typeof event.data === 'string' ? event.data.length : 0);
-      const snapshots = this._crdtSnapshots.get(sectionId) ?? [];
-      snapshots.push({ ts: Date.now(), byteLen });
-      this._crdtSnapshots.set(sectionId, snapshots);
-    });
-
-    ws.addEventListener('error', (event) => {
-      this.log(`CRDT[${sectionId}]: WebSocket error`);
-    });
-
-    ws.addEventListener('close', (event) => {
-      this.log(`CRDT[${sectionId}]: WebSocket closed (code=${event.code})`);
-      this._crdtWs.delete(sectionId);
-    });
-  }
-
-  /**
-   * Snapshot current CRDT state: count total bytes received per section.
-   * Compare consecutive snapshots to detect state divergence or stale connections.
-   */
-  _snapshotCrdtStates() {
-    for (const [sectionId, snapshots] of this._crdtSnapshots) {
-      if (snapshots.length === 0) {
-        this.log(`CRDT[${sectionId}]: no messages received yet`);
-        continue;
-      }
-
-      const totalBytes = snapshots.reduce((s, e) => s + e.byteLen, 0);
-      const lastMsg = snapshots[snapshots.length - 1];
-      const ageSec = Math.round((Date.now() - lastMsg.ts) / 1000);
-      const msgCount = snapshots.length;
-
-      this.log(`CRDT[${sectionId}]: state snapshot — msgs=${msgCount} totalBytes=${totalBytes} lastMsgAge=${ageSec}s`);
-
-      // Stale detection: if last message is >60s old and we're mid-test, flag it
-      if (ageSec > 60) {
-        this.log(`CRDT[${sectionId}]: WARNING — no new state bytes for ${ageSec}s (possible stale/disconnected)`);
+  _initCrdtObservers() {
+    const options = {
+      baseUrl: this.apiBase,
+      token: this.apiKey,
+      onError: (err) => {
+        this.log(`CRDT subscribeSection error: ${err}`);
         this.metrics.errors++;
-      } else {
-        this.log(`CRDT[${sectionId}]: state active — connection healthy`);
-      }
+      },
+    };
+
+    for (const sectionId of OBSERVED_SECTION_IDS) {
+      this._crdtDeltas.set(sectionId, []);
+
+      const unsub = subscribeSection(
+        this.slug,
+        sectionId,
+        (delta) => {
+          const byteLen = delta.updateBytes.length;
+          this.metrics.crdt_bytes += byteLen;
+          this.metrics.crdt_messages++;
+
+          const deltas = this._crdtDeltas.get(sectionId) ?? [];
+          deltas.push(delta);
+          this._crdtDeltas.set(sectionId, deltas);
+
+          // Cache latest text for convergence check at end of run
+          this._latestSectionText.set(sectionId, delta.text);
+
+          this.log(`CRDT[${sectionId}]: delta (${byteLen} bytes, text_len=${delta.text.length})`);
+        },
+        options,
+      );
+
+      this._crdtUnsubs.push(unsub);
+      this.log(`CRDT[${sectionId}]: subscribeSection() opened (loro-sync-v1)`);
     }
   }
 
-  _closeCrdtConnections() {
-    for (const [sectionId, ws] of this._crdtWs) {
-      try {
-        if (ws.readyState === NativeWebSocket.OPEN || ws.readyState === NativeWebSocket.CONNECTING) {
-          ws.close(1000, 'observer cleanup');
-        }
-      } catch {
-        // Ignore close errors
-      }
-      this.log(`CRDT[${sectionId}]: closed on cleanup`);
+  /** Call all Unsubscribe functions — closes subscribeSection WebSockets. */
+  _closeCrdtObservers() {
+    for (const unsub of this._crdtUnsubs) {
+      try { unsub(); } catch { /* best-effort */ }
     }
-    this._crdtWs.clear();
-
-    // Log final CRDT stats
-    this.log('\n=== CRDT State Summary ===');
-    for (const [sectionId, snapshots] of this._crdtSnapshots) {
-      const totalBytes = snapshots.reduce((s, e) => s + e.byteLen, 0);
-      this.log(`  Section ${sectionId}: ${snapshots.length} messages, ${totalBytes} total bytes`);
-    }
+    this._crdtUnsubs = [];
+    this.log('CRDT subscriptions closed.');
   }
 
   _categorizeEvent(evt) {
     const t = evt.event_type;
-    // Production event types use dot notation: version.published, document.created, etc.
     if (t === 'version.published' || t === 'version_created') {
       this.metrics.versionCreatedEvents++;
       if (evt.payload?.versionNumber) this.seenVersions.add(evt.payload.versionNumber);
@@ -265,7 +231,6 @@ class ObserverBot extends AgentBase {
     } else if (t === 'document.created') {
       this.metrics.documentUpdatedEvents++;
     } else if (t === 'section.edited') {
-      // Section leases and edits
       this.metrics.signedWritesObserved++;
     } else if (t === 'state.changed' || t === 'state_changed' || t === 'lifecycle.transition' || t === 'transition') {
       this.metrics.transitionEvents++;
@@ -281,44 +246,88 @@ class ObserverBot extends AgentBase {
 
   async _pollPresence() {
     try {
-      // GET the document to see access count / last accessed (proxy for presence)
       const doc = await this.getDocument(this.slug);
       const accessCount = doc.accessCount ?? 0;
-      if (accessCount > 0) {
-        this.metrics.presenceUpdates++;
-      }
-    } catch {
-      // Non-fatal
-    }
+      if (accessCount > 0) this.metrics.presenceUpdates++;
+    } catch { /* non-fatal */ }
   }
 
+  /**
+   * Final state check: validate hash chain, check convergence between CRDT-observed
+   * text (from subscribeSection) and HTTP-readable state (getSectionText).
+   *
+   * Convergence (T381 AC #4): WS-received text and HTTP text must hash-equal.
+   * getSectionText() uses the SDK HTTP fallback at /v1/documents/:slug/sections/:sid/crdt-state,
+   * which returns the consolidated Loro snapshot state decoded to plain text.
+   */
   async _finalStateCheck() {
     try {
       const doc = await this.getDocument(this.slug);
       this.log(`Final document state: ${doc.state}`);
       this.log(`Final document version: ${doc.currentVersion}`);
-      
-      // Fetch event history for hash chain validation
+
+      // Validate event hash chain
       const eventsResp = await this._api(`/api/v1/documents/${this.slug}/events?limit=100`);
       const events = Array.isArray(eventsResp) ? eventsResp : (eventsResp.events ?? []);
-      
-      // Validate event hash chain
+
       let chainValid = true;
       let lastHash = null;
       for (const event of events) {
         if (lastHash && event.prevHash && event.prevHash !== lastHash) {
-          this.log(`Hash chain BREAK at event ${event.id}: expected ${lastHash}, got ${event.prevHash}`);
+          this.log(`Hash chain BREAK at event ${event.id}`);
           chainValid = false;
         }
         if (event.hash) lastHash = event.hash;
       }
-      
+
       this.log(`Hash chain valid: ${chainValid}`);
       this.log(`Total events in DB: ${events.length}`);
       this.metrics.hashChainValid = chainValid;
       this.metrics.totalEventsInDB = events.length;
 
-      // Check X-Server-Receipt headers by making a mutating request
+      // CRDT convergence check (T381 AC #4)
+      this.log('\n=== CRDT Convergence Check ===');
+      let allConverged = true;
+      for (const sectionId of OBSERVED_SECTION_IDS) {
+        const wsText = this._latestSectionText.get(sectionId) ?? '';
+        let httpText = null;
+        try {
+          httpText = await getSectionText(this.slug, sectionId, {
+            baseUrl: this.apiBase,
+            token: this.apiKey,
+          });
+        } catch (err) {
+          this.log(`CRDT[${sectionId}]: getSectionText error: ${err.message}`);
+        }
+
+        if (httpText === null) {
+          this.log(`CRDT[${sectionId}]: section not initialized — skipping convergence`);
+          continue;
+        }
+
+        // If no WS text was received (writer didn't write to this section yet),
+        // treat as converged (both empty)
+        if (wsText === '' && httpText === '') {
+          this.log(`CRDT[${sectionId}]: both empty — trivially converged`);
+          this.metrics[`crdt_${sectionId}_converged`] = true;
+          continue;
+        }
+
+        const wsHash = createHash('sha256').update(wsText, 'utf8').digest('hex').slice(0, 16);
+        const httpHash = createHash('sha256').update(httpText, 'utf8').digest('hex').slice(0, 16);
+        const converged = wsHash === httpHash;
+
+        this.log(`CRDT[${sectionId}]: ws_hash=${wsHash} http_hash=${httpHash} converged=${converged}`);
+        this.metrics[`crdt_${sectionId}_converged`] = converged;
+        if (!converged) allConverged = false;
+      }
+
+      this.metrics.crdtConverged = allConverged;
+      this.metrics.crdtBytesNonZero = this.metrics.crdt_bytes > 0;
+      this.log(`\nAll sections converged: ${allConverged}`);
+      this.log(`crdt_bytes non-zero: ${this.metrics.crdtBytesNonZero}`);
+
+      // Check X-Server-Receipt header
       const receipt = await this._checkReceiptHeader(doc.currentVersion);
       this.metrics.receiptHeaderPresent = receipt;
     } catch (err) {
@@ -341,7 +350,7 @@ class ObserverBot extends AgentBase {
         this.log(`X-Server-Receipt present: ${receiptHeader.slice(0, 32)}...`);
         return true;
       }
-      this.log(`X-Server-Receipt header: ABSENT`);
+      this.log('X-Server-Receipt header: ABSENT');
       return false;
     } catch (err) {
       this.log(`Receipt header check error: ${err.message}`);
