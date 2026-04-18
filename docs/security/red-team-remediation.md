@@ -26,6 +26,9 @@ buffered them differently.
 constructor in `apps/backend/src/index.ts`. The value is read from the SDK
 constant — no hardcoded bytes.
 
+**Commit**: [`08ddc68`](https://github.com/kryptobaseddev/llmtxt/commit/08ddc6871621f71123eae23539798df1a76f70de)  
+**Guard**: `bodyLimit` constant, value read from `CONTENT_LIMITS.maxDocumentSize` (10 MB)  
+**Test File**: `apps/backend/src/__tests__/body-limit.test.ts`  
 **Files**: `apps/backend/src/index.ts`
 
 ---
@@ -45,6 +48,9 @@ queries before any processing.
 immediately when `query.len() > MAX_QUERY_BYTES` (1024). This protects WASM
 consumers that bypass the route layer.
 
+**Commit**: [`ee2a927`](https://github.com/kryptobaseddev/llmtxt/commit/ee2a9276142f19f077eea8aa74cf0e19eec15fb9)  
+**Guards**: `SEARCH_QUERY_MAX_BYTES` (route layer: 1024 bytes), `MAX_QUERY_BYTES` (Rust core: 1024 bytes)  
+**Test Files**: Integration tests included in `apps/backend/src/__tests__/integration.test.ts`  
 **Files**:
 - `apps/backend/src/routes/disclosure.ts`
 - `crates/llmtxt-core/src/disclosure/search.rs`
@@ -61,6 +67,9 @@ could produce a runaway graph.
 `MAX_GRAPH_NODES` (500). If exceeded, the endpoint returns HTTP 413 with a
 structured error body.
 
+**Commit**: [`b89a424`](https://github.com/kryptobaseddev/llmtxt/commit/b89a424050d2140d2737b3d47304a5ea706c56b4)  
+**Guard**: `MAX_GRAPH_NODES` constant = 500  
+**Test File**: `apps/backend/src/__tests__/graph-route.test.ts`  
 **Files**: `apps/backend/src/routes/graph.ts`
 
 ---
@@ -76,6 +85,9 @@ memory.
 adds `.max(CONTENT_LIMITS.maxBatchSize)` to produce descriptive error messages
 for smaller violations caught by validation.
 
+**Commit**: [`1a6bd16`](https://github.com/kryptobaseddev/llmtxt/commit/1a6bd16b1fecc6aaa27fd714bcfedaaf140cf7f7)  
+**Guard**: `CONTENT_LIMITS.maxBatchSize` constant = 50  
+**Test File**: `apps/backend/src/__tests__/disclosure-batch.test.ts`  
 **Files**: `apps/backend/src/routes/disclosure.ts`
 
 ---
@@ -96,6 +108,9 @@ vulnerable to XSS injection.
 emits `<script nonce="<value>">`.  The call site in `index.ts` passes
 `reply.cspNonce`.
 
+**Commit**: [`1a6bd16`](https://github.com/kryptobaseddev/llmtxt/commit/1a6bd16b1fecc6aaa27fd714bcfedaaf140cf7f7) (grouped with T474)  
+**Guard**: Per-request nonce generation via `crypto.randomBytes(16).toString('base64')`  
+**Test File**: `apps/backend/src/__tests__/security.test.ts`  
 **Files**:
 - `apps/backend/src/middleware/security.ts`
 - `apps/backend/src/routes/viewTemplate.ts`
@@ -116,8 +131,12 @@ or matches any value in `KNOWN_INSECURE_SIGNING_SECRETS`
 The `SERVER_RECEIPT_SECRET` fallback in `verify-agent-signature.ts` also no
 longer falls back to a default string in production.
 
+**Commit**: [`7d62cd0`](https://github.com/kryptobaseddev/llmtxt/commit/7d62cd09a0947efb0d8bfa56c7fe1dcacf73e194)  
+**Guard**: `KNOWN_INSECURE_SIGNING_SECRETS` Set, checked at module load + production mode check  
+**Test File**: `apps/backend/src/__tests__/signing-secret-validator.test.ts`  
 **Files**:
 - `apps/backend/src/routes/signed-urls.ts`
+- `apps/backend/src/lib/signing-secret-validator.ts` (core validation logic)
 - `apps/backend/src/middleware/verify-agent-signature.ts`
 
 ---
@@ -139,10 +158,13 @@ API key comparison in `apps/backend/src/middleware/auth.ts` continues to use
 SHA-256 hash → SQL lookup (already safe), with the constant-time primitive now
 available for any future direct comparison needs.
 
+**Commit**: [`522ca6e`](https://github.com/kryptobaseddev/llmtxt/commit/522ca6e5debca952f722a22446bb717c1058db56) (grouped with T475)  
+**Guard**: `constant_time_eq_hex()` Rust primitive using `subtle::ConstantTimeEq`  
+**Test File**: `apps/backend/src/__tests__/security.test.ts`, `packages/llmtxt/src/__tests__/security-primitives.test.ts`  
 **Files**:
 - `crates/llmtxt-core/src/crypto.rs` (added `constant_time_eq_hex`)
 - `crates/llmtxt-core/src/lib.rs` (re-exported)
-- `packages/llmtxt/src/wasm.ts` (TypeScript wrapper)
+- `packages/llmtxt/src/wasm.ts` (TypeScript wrapper `constantTimeEqHex`)
 - `packages/llmtxt/src/index.ts` (public export)
 
 ---
@@ -158,6 +180,9 @@ cookie-authenticated requests.
 `process.env.CSRF_SESSION_COOKIE_NAME` with a fallback to
 `'better-auth.session_token'`. The preHandler hook uses this constant.
 
+**Commit**: [`1a6bd16`](https://github.com/kryptobaseddev/llmtxt/commit/1a6bd16b1fecc6aaa27fd714bcfedaaf140cf7f7) (grouped with T471)  
+**Guard**: `CSRF_SESSION_COOKIE_NAME` constant, configurable via `process.env.CSRF_SESSION_COOKIE_NAME`  
+**Test File**: `apps/backend/src/__tests__/csrf.test.ts`  
 **Files**: `apps/backend/src/middleware/csrf.ts`
 
 ---
@@ -176,9 +201,14 @@ Rust SSoT.
 
 Exported from `packages/llmtxt/src/index.ts`.
 
+**Commit**: [`522ca6e`](https://github.com/kryptobaseddev/llmtxt/commit/522ca6e5debca952f722a22446bb717c1058db56) (grouped with T473)  
+**Guard**: `verifyContentHash()` SDK function wrapping `hash_content()` + `constant_time_eq_hex()`  
+**Test File**: `packages/llmtxt/src/__tests__/security-primitives.test.ts`  
+**SDK Documentation**: See `packages/llmtxt/README.md` — Security Helpers section  
 **Files**:
-- `packages/llmtxt/src/wasm.ts`
-- `packages/llmtxt/src/index.ts`
+- `packages/llmtxt/src/wasm.ts` (`verifyContentHash` implementation)
+- `packages/llmtxt/src/index.ts` (public export)
+- `packages/llmtxt/README.md` (documentation)
 
 ---
 
@@ -195,6 +225,14 @@ Exported from `packages/llmtxt/src/index.ts`.
 | S-01 | No constant-time hash comparison primitive | Closed | `crypto.rs`, `lib.rs`, `wasm.ts`, `index.ts` |
 | C-01 | CSRF cookie name hardcoded | Closed | `csrf.ts` |
 | T-02 | No SDK content integrity helper | Closed | `wasm.ts`, `index.ts` |
+
+---
+
+## References & Cross-Links
+
+- **Full Red-Team Analysis**: See [`docs/RED-TEAM-ANALYSIS.md`](../RED-TEAM-ANALYSIS.md) for the complete vulnerability assessment and recommendations.
+- **SDK Security Helpers**: See [`packages/llmtxt/README.md`](../../packages/llmtxt/README.md) (Security Helpers section) for usage examples of `verifyContentHash()` and `constantTimeEqHex()`.
+- **CLEO Epic**: [T108 — Red-Team Security Remediation (P0 Fixes)](https://cleo.kryptobaseddev.com/epic/T108)
 
 ---
 
