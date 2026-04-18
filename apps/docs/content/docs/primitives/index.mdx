@@ -1,0 +1,101 @@
+---
+title: Shared Primitives
+description: Seven stable subpath contracts for LLMtxt agents — blob, crdt, events, identity, sdk, similarity, and transport. Each subpath is tree-shakeable, independently importable, and covered by a contract test suite.
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+# Shared Primitives
+
+The `llmtxt` package exports seven stable subpaths under the **Shared Primitives Subpath Contract** (v2026.4.9, T550). Each subpath is:
+
+- **Tree-shakeable** — importing one subpath does not load the others.
+- **Independently versioned** — breaking changes to any subpath surface trigger a minor bump per `STABILITY.md`.
+- **Contract-tested** — `packages/llmtxt/src/__tests__/subpath-contract.test.ts` validates every export on every CI run.
+- **CI-guarded** — `scripts/check-subpath-exports.sh` fails a pull request if any contracted export is removed without a corresponding version bump.
+
+## Subpaths
+
+<Cards>
+  <Card
+    title="llmtxt/sdk"
+    href="/primitives/sdk"
+    description="Collaborative document SDK — AgentSession lifecycle, DocumentLifecycle state machine, VersionStack, ConsensusEvaluator, RetrievalPlanner, and A2A envelope routing."
+  />
+  <Card
+    title="llmtxt/identity"
+    href="/primitives/identity"
+    description="Ed25519 agent identity — key generation, request signing, signature verification, and canonical payload construction."
+  />
+  <Card
+    title="llmtxt/blob"
+    href="/primitives/blob"
+    description="Content-addressed binary blob operations — hashBlob, blobNameValidate, FilesystemBlobStore, and P2P changeset helpers."
+  />
+  <Card
+    title="llmtxt/events"
+    href="/primitives/events"
+    description="Document event bus — subscribe, publish, filter, and drain. Shared by LocalBackend and PostgresBackend."
+  />
+  <Card
+    title="llmtxt/crdt"
+    href="/primitives/crdt"
+    description="Real-time collaborative editing via Loro CRDT — section subscriptions, state vector exchange, and merge operations."
+  />
+  <Card
+    title="llmtxt/transport"
+    href="/primitives/transport"
+    description="PeerTransport abstraction — UnixSocketTransport, HttpTransport, and Ed25519 mutual handshake for P2P changeset exchange."
+  />
+  <Card
+    title="llmtxt/similarity"
+    href="/primitives/similarity"
+    description="Text similarity backed by Rust WASM — n-gram Jaccard, MinHash fingerprinting, word shingles, and ranked search."
+  />
+</Cards>
+
+## Quick Reference
+
+| Subpath | Key exports | Use when… |
+|---|---|---|
+| `llmtxt/sdk` | `AgentSession`, `DocumentLifecycle`, `VersionStack`, `ConsensusEvaluator` | You need the full collaborative document workflow |
+| `llmtxt/identity` | `AgentIdentity`, `signRequest`, `verifyRequestSignature` | You need to sign or verify agent requests |
+| `llmtxt/blob` | `hashBlob`, `blobNameValidate`, `FilesystemBlobStore` | You need to store or transfer binary files |
+| `llmtxt/events` | `EventBus`, `createEventBus` | You need a typed event bus for document streams |
+| `llmtxt/crdt` | `crdtNewDoc`, `crdtApplyUpdate`, `crdtMergeUpdates` | You need real-time section collaboration |
+| `llmtxt/transport` | `UnixSocketTransport`, `HttpTransport` | You need direct P2P agent-to-agent communication |
+| `llmtxt/similarity` | `textSimilarity`, `rankBySimilarity`, `minhashFingerprint` | You need to rank or deduplicate text content |
+
+## Install
+
+```bash
+npm install llmtxt
+```
+
+All 7 subpaths are included in the base package — no additional installs required for the primitives themselves.
+
+```ts
+// Each import is independent
+import { AgentSession } from 'llmtxt/sdk';
+import { AgentIdentity } from 'llmtxt/identity';
+import { hashBlob } from 'llmtxt/blob';
+import { createEventBus } from 'llmtxt/events';
+import { crdtNewDoc } from 'llmtxt/crdt';
+import { UnixSocketTransport } from 'llmtxt/transport';
+import { textSimilarity } from 'llmtxt/similarity';
+```
+
+## Stability Policy
+
+The subpath contract is defined in `packages/llmtxt/STABILITY.md`. Key rules:
+
+- Any **removal or rename** of a contracted export is a **breaking change** — requires a major version bump.
+- Any **signature change** (parameter added without a default, return type narrowed) is a **breaking change**.
+- **Adding** new exports to an existing subpath is backward-compatible and requires only a patch bump.
+- Subpaths marked `@experimental` in JSDoc are excluded from the contract and may change freely.
+
+## Related
+
+- [CLEO Migration Guide](/docs/cleo-migration-guide) — how to migrate from monolithic `llmtxt` root imports to these subpaths.
+- [SDK Reference](/sdk) — full API surface of the `llmtxt` package.
+- [Architecture](/architecture) — how the subpaths fit into the overall system design.

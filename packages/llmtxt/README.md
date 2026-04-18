@@ -1,11 +1,15 @@
 # llmtxt
 
-[![v2026.4.8](https://img.shields.io/badge/version-2026.4.8-blue)](https://www.npmjs.com/package/llmtxt)
+[![v2026.4.9](https://img.shields.io/badge/version-2026.4.9-blue)](https://www.npmjs.com/package/llmtxt)
 
 Primitives and SDK for LLM agent content workflows.
 
 `llmtxt` wraps the Rust `llmtxt-core` crate through WASM so TypeScript
 consumers use the same single-source-of-truth logic as native Rust consumers.
+
+**v2026.4.9**: Shared Primitives Subpath Contract — 7 stable subpaths (`/sdk`, `/crdt`, `/blob`, `/events`, `/identity`, `/transport`, `/similarity`) with contract tests, STABILITY.md, and a CI guard. Also ships: demo harness 8/8, P0 security remediation (10 items), tamper-evident audit log with Merkle chain + RFC 3161, strict release runbook, OpenAPI 3.1, SLO/SLI alerts, CSP/HSTS/COEP, webhook DLQ, PostgreSQL RLS on 21 tenant tables, Ed25519 key rotation + KMS abstraction, anonymous mode threat model, GDPR export/retention/erasure, SOC 2 Type 1 readiness, and monetization foundation (Stripe + Pro tier).
+
+**v2026.4.8** (patch): fixes `import('llmtxt')` triggering `better-sqlite3` / `drizzle-orm` resolution at load time for lightweight consumers (e.g. `generateOverview`).
 
 **v2026.4.7** (patch): bundler-friendly dynamic import of `onnxruntime-node`; `drizzle-orm` / `better-sqlite3` / `postgres` moved from `optionalDependencies` to optional `peerDependencies` so consumers no longer auto-install them. Docs add the required externalize list for esbuild / webpack / vite / rollup.
 
@@ -244,6 +248,25 @@ const merged = cherryPickMerge(
   ])
 );
 ```
+
+## Shared Primitives (v2026.4.9 Subpath Contract)
+
+Seven stable subpaths are now exported under a formal contract with semver-guarded
+stability guarantees documented in `STABILITY.md`. All subpaths are tree-shakeable
+and independently importable.
+
+| Subpath | Description | Import example |
+|---|---|---|
+| `llmtxt/blob` | Content-addressed binary blob operations — hash, name-validate, filesystem adapter, P2P changeset | `import { hashBlob, blobNameValidate } from 'llmtxt/blob'` |
+| `llmtxt/crdt` | Real-time collaborative editing via Loro CRDT — section subscriptions, state vector exchange, merge | `import { crdtNewDoc, crdtApplyUpdate } from 'llmtxt/crdt'` |
+| `llmtxt/events` | Document event bus — subscribe, publish, filter, drain; shared by LocalBackend and PostgresBackend | `import { EventBus, createEventBus } from 'llmtxt/events'` |
+| `llmtxt/identity` | Ed25519 agent identity — key generation, request signing, signature verification, canonical payload | `import { AgentIdentity, signRequest } from 'llmtxt/identity'` |
+| `llmtxt/sdk` | Collaborative document SDK — lifecycle, versions, attribution, consensus, AgentSession, A2A, retrieval | `import { AgentSession, DocumentLifecycle } from 'llmtxt/sdk'` |
+| `llmtxt/similarity` | Text similarity — n-gram Jaccard, MinHash fingerprinting, word shingles, ranked search (Rust WASM) | `import { textSimilarity, rankBySimilarity } from 'llmtxt/similarity'` |
+| `llmtxt/transport` | PeerTransport abstraction — UnixSocketTransport, HttpTransport, Ed25519 mutual handshake | `import { UnixSocketTransport, HttpTransport } from 'llmtxt/transport'` |
+
+> All 7 subpaths are covered by the contract test suite in `packages/llmtxt/src/__tests__/subpath-contract.test.ts`.
+> Breaking changes to any of these exports increment the minor version per T550 STABILITY.md.
 
 ## Subpath Exports
 

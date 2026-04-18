@@ -7,6 +7,108 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026.4.9] — 2026-04-18
+
+### Added — Shared Primitives Subpath Contract (T550 tree)
+
+Seven subpaths are now exported under a formal, versioned stability contract
+(`STABILITY.md`). Breaking changes to any subpath surface trigger a minor bump.
+All subpaths are tree-shakeable and covered by a dedicated contract test suite.
+
+| Subpath | Provides |
+|---|---|
+| `llmtxt/blob` | `hashBlob`, `blobNameValidate`, `FilesystemBlobStore`, P2P changeset helpers |
+| `llmtxt/crdt` | `crdtNewDoc`, `crdtApplyUpdate`, `crdtMergeUpdates`, `crdtStateVector`, `crdtDiffUpdate` (Loro WASM) |
+| `llmtxt/events` | `EventBus`, `createEventBus`, typed event helpers for document + CRDT streams |
+| `llmtxt/identity` | `AgentIdentity`, `signRequest`, `verifyRequestSignature`, `canonicalPayload` |
+| `llmtxt/sdk` | `AgentSession`, `DocumentLifecycle`, `VersionStack`, `ConsensusEvaluator`, `RetrievalPlanner`, A2A routing |
+| `llmtxt/similarity` | `textSimilarity`, `rankBySimilarity`, `minhashFingerprint`, `wordShingles` (Rust WASM) |
+| `llmtxt/transport` | `UnixSocketTransport`, `HttpTransport`, `PeerTransport`, Ed25519 mutual handshake |
+
+- Contract test suite: `packages/llmtxt/src/__tests__/subpath-contract.test.ts` — validates every export exists and is the expected type.
+- CI guard: `scripts/check-subpath-exports.sh` — fails PR if any contracted export is removed without a version bump.
+- `STABILITY.md` added to `packages/llmtxt/` documenting stability guarantees and deprecation policy.
+
+### Added — Demo Harness 8/8 (T380/T381/T382)
+
+- All 8 demo scenarios (progressive disclosure, agent collaboration, conflict resolution, BFT consensus, export/import, blob attachments, mesh sync, session lifecycle) now complete without errors.
+- Demo harness integrated into CI; failures block release.
+
+### Added — P0 Security Remediation (T108 — 10 items)
+
+- CSP `Content-Security-Policy` + HSTS + `Cross-Origin-Embedder-Policy` / `Cross-Origin-Opener-Policy` headers on all routes (T162/T163).
+- XSS sanitization via DOMPurify on all user-controlled display paths.
+- Webhook delivery hardening: DLQ with exponential backoff, max-retry cap, dead-letter audit log (T165).
+- PostgreSQL Row-Level Security (RLS) enabled on 21 tenant-scoped tables; no cross-tenant data leakage in any RLS-covered query (T166).
+- Anonymous mode threat model: aggressive rate limits (10 req/min per IP), abuse fingerprinting, and explicit capability matrix (T167).
+
+### Added — Tamper-Evident Audit Log (T164/T107)
+
+- Merkle chain appended to every audit-log entry; root hash published to append-only `audit_roots` table.
+- RFC 3161 timestamp token requested for each root hash; token stored alongside entry for offline verification.
+- `GET /audit/:id/verify` returns Merkle proof + TSA token for any entry.
+
+### Added — Graceful Shutdown (T092)
+
+- `SIGTERM` handler drains in-flight requests (max 30 s), flushes event log, closes DB pool, emits `server.shutdown` event before exit.
+- Health check at `GET /health` reports `{"status":"draining"}` during shutdown window.
+
+### Added — Strict Release Runbook (T158)
+
+- `docs/RELEASE-RUNBOOK.md`: gate-by-gate checklist (migrations verified, CI green, npm dry-run, crates.io dry-run, changelog entry, git tag, publish).
+- CI enforces CHANGELOG entry presence before any publish step.
+
+### Added — OpenAPI 3.1 (T169)
+
+- `GET /docs/api` serves interactive Swagger UI backed by `openapi.json` generated at build time via `forge-ts`.
+- Schema validated against OAS 3.1 spec on every CI run; schema drift fails the build.
+
+### Added — SLO/SLI + Burn-Rate Alerts (T157)
+
+- P50/P95/P99 latency SLOs defined for all API surface.
+- Grafana alert rules: error-budget burn-rate alert (1 h + 6 h windows) pages on-call when burn rate exceeds 14×.
+- SLO dashboard published at `docs/dashboards/slo.json`.
+
+### Added — LLM-First Content Delivery (T014)
+
+- SSR content negotiation: requests with `Accept: text/plain` or `Accept: text/markdown` receive raw document bodies without HTML wrapper.
+- `llmtxt` envelope format available at `Accept: application/vnd.llmtxt+json`.
+
+### Added — Frontend UX Polish + DiffViewer Rewrite (T030/T031)
+
+- DiffViewer component rewritten with syntax-highlighted unified diff, side-by-side toggle, and section-level jump links.
+- Version selector, token-budget labels, and multi-diff mode promoted to stable UI (previously behind feature flag).
+
+### Added — Ed25519 Key Rotation + KMS Abstraction (T086/T090)
+
+- `POST /keys/rotate` initiates a graceful key rotation: new key published, old key kept for verification for 7 days, then revoked.
+- KMS abstraction layer: `LocalKms` (file-based, dev/test) + `AwsKmsAdapter` (production). Swap via `KMS_PROVIDER` env var.
+
+### Added — GDPR Compliance Suite (T094/T168/T186/T187)
+
+- `GET /me/export` generates a signed ZIP archive of all user data (documents, versions, events, audit log entries).
+- `DELETE /me` triggers right-to-erasure: pseudonymizes all PII fields within 30 s, queues blob deletion, emits `gdpr.erasure` event.
+- Retention policy: configurable `DATA_RETENTION_DAYS`; cron job purges expired rows and blobs nightly.
+- Erasure log: every erasure request appended to `gdpr_erasure_log` table for DPA audit trail.
+
+### Added — SOC 2 Type 1 Readiness (T184/T185/T188)
+
+- Sub-processor list published at `docs/legal/sub-processors.md`.
+- Data Processing Agreement (DPA) template at `docs/legal/dpa-template.md`.
+- Data residency controls: `DATA_RESIDENCY_REGION` env var routes Postgres connections and S3 bucket writes to a named region.
+- `docs/compliance/soc2-readiness.md` documents control mapping against TSC CC6–CC9.
+
+### Added — Monetization Foundation (T009/T010/T011)
+
+- Usage tracking: every API call increments a per-tenant `api_calls` counter; daily roll-up to `usage_daily` table.
+- Tier management: `free` (1 000 req/day, 10 MB blob), `pro` (100 000 req/day, 10 GB blob), `enterprise` (unlimited, custom).
+- Stripe integration: `POST /billing/checkout` creates a Stripe Checkout session; webhook at `POST /billing/webhook` handles subscription events and writes tier to `tenants.tier`.
+- Pro tier gate middleware: returns `402 Payment Required` with upgrade URL when free-tier limit exceeded.
+
+### Fixed
+
+- `pnpm biome ci .` clean — no lint errors introduced by this release.
+
 ## [2026.4.8] — 2026-04-17
 
 ### Fixed

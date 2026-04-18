@@ -2,6 +2,26 @@
 
 All notable changes to the LLMtxt ecosystem (npm `llmtxt`, Rust crate `llmtxt-core`, apps/backend, apps/frontend, apps/docs).
 
+## [2026.4.9] — 2026-04-18
+
+### Packages changed
+- `llmtxt` (npm) — minor release: Shared Primitives Subpath Contract + Wave A–E features
+- `llmtxt-core` (crates.io) — no change from 2026.4.6
+
+### Summary
+
+Full Wave A–E release shipping the Shared Primitives Subpath Contract (7 stable subpaths with CI guard + contract tests), demo harness 8/8, P0 security remediation (10 items), tamper-evident Merkle + RFC 3161 audit log, graceful shutdown, strict release runbook, OpenAPI 3.1, SLO/SLI burn-rate alerts, LLM-first content delivery, frontend DiffViewer rewrite, CSP/HSTS/COEP + XSS sanitization, webhook DLQ, PostgreSQL RLS on 21 tables, Ed25519 key rotation + KMS abstraction, anonymous mode threat model, GDPR export/retention/erasure, SOC 2 Type 1 readiness (sub-processor list, DPA, data residency), and monetization foundation (usage tracking, Stripe, Pro tier).
+
+See `packages/llmtxt/CHANGELOG.md` for the full itemized list.
+
+### Migration
+
+**Shared Primitives Subpath Contract**: all 7 subpath exports (`llmtxt/sdk`, `llmtxt/crdt`, `llmtxt/blob`, `llmtxt/events`, `llmtxt/identity`, `llmtxt/transport`, `llmtxt/similarity`) are now stable. Existing imports continue to work unchanged. CLEO consumers should migrate monolithic root imports to the appropriate subpath — see `docs/cleo-migration-guide.md`.
+
+**No database migrations required** for this release (all schema changes landed in v2026.4.6).
+
+---
+
 ## [2026.4.8] — 2026-04-17 (npm SDK patch — fixes v2026.4.7 regression)
 
 Only `llmtxt` (npm) is republished. `llmtxt-core` (crates.io) stays at 2026.4.6.
