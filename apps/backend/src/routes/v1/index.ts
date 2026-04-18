@@ -40,6 +40,7 @@ import { a2aRoutes } from '../a2a.js';
 import { searchRoutes } from '../search.js';
 import { exportRoutes } from '../export.js';
 import { blobRoutes } from '../blobs.js';
+import { auditVerifyRoutes } from '../audit-verify.js';
 import {
   API_VERSION_REGISTRY,
   addVersionResponseHeaders,
@@ -105,4 +106,6 @@ export async function v1Routes(app: FastifyInstance): Promise<void> {
   await app.register(exportRoutes);
   // T428.8: Blob attachment endpoints
   await app.register(blobRoutes);
+  // T164: Tamper-evident audit log verification
+  await app.register(auditVerifyRoutes);
 }

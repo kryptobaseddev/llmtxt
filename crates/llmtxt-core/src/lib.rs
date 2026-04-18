@@ -104,7 +104,8 @@ pub use consensus::{
 };
 
 pub mod crypto;
-pub use crypto::sign_webhook_payload;
+// S-01: Export constant-time hex comparison alongside the signing primitive. [T108.7]
+pub use crypto::{constant_time_eq_hex, sign_webhook_payload};
 
 pub mod normalize;
 pub use normalize::{l2_normalize, l2_normalize_wasm};
@@ -178,6 +179,28 @@ pub use canonical::{FrontmatterMeta, canonical_frontmatter, canonical_frontmatte
 
 pub mod blob;
 pub use blob::{BlobNameError, blob_name_validate, hash_blob};
+
+pub mod merkle;
+pub use merkle::{merkle_root, verify_merkle_proof};
+
+pub mod billing;
+pub use billing::{
+    TierDecision, TierKind, TierLimits, UsageSnapshot, evaluate_tier_limits,
+    evaluate_tier_limits_wasm, get_tier_limits_wasm, tier_limits,
+};
+
+pub mod export_archive;
+pub use export_archive::{
+    ARCHIVE_VERSION, ExportApiKey, ExportArchive, ExportAuditEntry, ExportDocument, ExportVersion,
+    ExportWebhook, RetentionPolicy, deserialize_export_archive, deserialize_retention_policy,
+    serialize_export_archive, serialize_retention_policy,
+};
+
+#[cfg(feature = "wasm")]
+pub use export_archive::{deserialize_export_archive_wasm, serialize_export_archive_wasm};
+
+#[cfg(feature = "wasm")]
+pub use merkle::{merkle_root_wasm, verify_merkle_proof_wasm};
 
 // ── Semantic Diff (WASM) ─────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 /**
- * Audit logging middleware.
+ * Audit logging middleware — T164: tamper-evident hash chain.
  *
  * Records all state-changing HTTP operations (POST, PUT, DELETE, PATCH) that
  * return a 2xx or 3xx status code. The log entry captures who made the request,
@@ -12,9 +12,12 @@
  * - GET requests are not logged (too noisy; cache and access_count tracking
  *   already cover read auditing).
  * - Health check and well-known discovery endpoints are excluded.
- * - Failed authentication attempts are excluded (rate limiting handles those;
- *   better-auth logs them separately).
- * - Auth events from better-auth (/api/auth/*) are logged as auth.* actions.
+ * - T164: Every inserted row now carries payload_hash and chain_hash for
+ *   tamper-evidence. Chain appends are serialized via a module-level mutex
+ *   (single write at a time) to guarantee chain consistency without a DB-level
+ *   transaction lock on every audit write.
+ * - Chain root: prev_chain_hash for the first row is [0u8;32] (the genesis
+ *   sentinel), encoded as 64 zeros hex.
  *
  * Action naming convention:
  *   <resourceType>.<verb>
@@ -22,20 +25,126 @@
  *             version.create, lifecycle.transition, approval.submit,
  *             approval.reject, auth.login, auth.logout, signed_url.create
  */
+import crypto from 'node:crypto';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { db } from '../db/index.js';
-import { auditLogs } from '../db/schema.js';
+import { auditLogs } from '../db/schema-pg.js';
 import { requireAuth } from './auth.js';
-import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, sql, isNotNull } from 'drizzle-orm';
 import { STATE_CHANGING_METHODS } from 'llmtxt';
+
+// ── Hash chain helpers ───────────────────────────────────────────────────────
+
+const GENESIS_HASH = '0'.repeat(64); // [0u8; 32] encoded as hex
+
+/**
+ * Compute the canonical serialization for a security event.
+ * Format: `{id}|{event_type}|{actor_id}|{resource_id}|{timestamp_ms}`
+ * NULL values are represented as the empty string.
+ */
+function canonicalEventStr(
+  id: string,
+  eventType: string,
+  actorId: string | null,
+  resourceId: string | null,
+  timestampMs: number,
+): string {
+  return [id, eventType, actorId ?? '', resourceId ?? '', String(timestampMs)].join('|');
+}
+
+/**
+ * Compute SHA-256 of a UTF-8 string, returned as 64-char lowercase hex.
+ */
+function sha256hex(data: string): string {
+  return crypto.createHash('sha256').update(data, 'utf8').digest('hex');
+}
+
+/**
+ * Compute chain_hash = SHA-256(prev_chain_hash_bytes || payload_hash_bytes).
+ * Both inputs are 64-char hex strings (32 raw bytes each).
+ */
+function computeChainHash(prevChainHashHex: string, payloadHashHex: string): string {
+  const prev = Buffer.from(prevChainHashHex, 'hex');
+  const payload = Buffer.from(payloadHashHex, 'hex');
+  return crypto.createHash('sha256').update(prev).update(payload).digest('hex');
+}
+
+/**
+ * Fetch the chain_hash of the most recently inserted audit_log row that has
+ * a non-null chain_hash, or return the genesis sentinel if none exists.
+ */
+async function fetchPrevChainHash(): Promise<string> {
+  const rows = await db
+    .select({ chainHash: auditLogs.chainHash })
+    .from(auditLogs)
+    .where(isNotNull(auditLogs.chainHash))
+    .orderBy(desc(auditLogs.timestamp))
+    .limit(1);
+
+  return rows[0]?.chainHash ?? GENESIS_HASH;
+}
+
+/**
+ * Module-level mutex: ensures only one audit write computes and stores its
+ * chain_hash at a time. Prevents race conditions on concurrent requests.
+ */
+let chainMutex: Promise<void> = Promise.resolve();
+
+/**
+ * Append an audit log row with a computed payload_hash and chain_hash.
+ * Serialized: each call waits for the previous one before fetching prev_hash.
+ */
+async function appendAuditRow(entry: {
+  id: string;
+  userId: string | null;
+  agentId: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  action: string;
+  eventType: string;
+  actorId: string | null;
+  resourceType: string;
+  resourceId: string | null;
+  details: string | null;
+  timestamp: number;
+  requestId: string | null;
+  method: string | null;
+  path: string | null;
+  statusCode: number | null;
+}): Promise<void> {
+  // Serialize by chaining promises — each write waits for the previous.
+  const thisWrite = chainMutex.then(async () => {
+    const payloadHash = sha256hex(
+      canonicalEventStr(entry.id, entry.eventType, entry.actorId, entry.resourceId, entry.timestamp),
+    );
+    const prevChainHash = await fetchPrevChainHash();
+    const chainHash = computeChainHash(prevChainHash, payloadHash);
+
+    await db.insert(auditLogs).values({
+      ...entry,
+      payloadHash,
+      chainHash,
+    });
+  });
+
+  chainMutex = thisWrite.catch(() => {
+    // On error, reset mutex so subsequent writes can still proceed.
+  });
+
+  await thisWrite;
+}
+
+// ── Path exclusion ───────────────────────────────────────────────────────────
 
 /** Paths that should never generate audit log entries. */
 const EXCLUDED_PATH_SET = new Set([
   '/api/health',
+  '/api/ready',
   '/.well-known/llm.json',
   '/robots.txt',
   '/api/llms.txt',
   '/api/stats/cache',
+  '/api/metrics',
 ]);
 
 /** Returns true for paths that should be skipped. */
@@ -53,15 +162,31 @@ function isSuccessStatus(status: number): boolean {
  * Derive a structured action name from the HTTP method and request path.
  * Returns null if the route does not warrant audit logging.
  */
-function deriveAction(method: string, path: string): { action: string; resourceType: string; resourceId: string | null } | null {
+function deriveAction(
+  method: string,
+  path: string,
+): { action: string; eventType: string; resourceType: string; resourceId: string | null } | null {
   const pathOnly = path.split('?')[0];
 
   // Auth events
   if (pathOnly.startsWith('/api/auth/')) {
-    if (pathOnly.includes('sign-in')) return { action: 'auth.login', resourceType: 'auth', resourceId: null };
-    if (pathOnly.includes('sign-up')) return { action: 'auth.register', resourceType: 'auth', resourceId: null };
-    if (pathOnly.includes('sign-out')) return { action: 'auth.logout', resourceType: 'auth', resourceId: null };
-    return { action: 'auth.event', resourceType: 'auth', resourceId: null };
+    if (pathOnly.includes('sign-in'))
+      return { action: 'auth.login', eventType: 'auth.login', resourceType: 'auth', resourceId: null };
+    if (pathOnly.includes('sign-up'))
+      return { action: 'auth.register', eventType: 'auth.register', resourceType: 'auth', resourceId: null };
+    if (pathOnly.includes('sign-out'))
+      return { action: 'auth.logout', eventType: 'auth.logout', resourceType: 'auth', resourceId: null };
+    return { action: 'auth.event', eventType: 'auth.event', resourceType: 'auth', resourceId: null };
+  }
+
+  // API key management
+  if (pathOnly.startsWith('/api/api-keys') || pathOnly.startsWith('/api/v1/api-keys')) {
+    if (method === 'POST')
+      return { action: 'api_key.create', eventType: 'api_key.create', resourceType: 'api_key', resourceId: null };
+    if (method === 'DELETE') {
+      const keyId = pathOnly.split('/').pop() ?? null;
+      return { action: 'api_key.revoke', eventType: 'api_key.revoke', resourceType: 'api_key', resourceId: keyId };
+    }
   }
 
   // Extract slug from /api/documents/:slug/...
@@ -70,31 +195,55 @@ function deriveAction(method: string, path: string): { action: string; resourceT
     const slug = docMatch[1];
     const subPath = docMatch[3] || '';
 
-    if (subPath === 'transition') return { action: 'lifecycle.transition', resourceType: 'document', resourceId: slug };
-    if (subPath === 'approve') return { action: 'approval.submit', resourceType: 'approval', resourceId: slug };
-    if (subPath === 'reject') return { action: 'approval.reject', resourceType: 'approval', resourceId: slug };
-    if (subPath === 'patch') return { action: 'version.patch', resourceType: 'version', resourceId: slug };
-    if (subPath === 'merge') return { action: 'version.merge', resourceType: 'version', resourceId: slug };
-    if (subPath === 'batch-versions') return { action: 'version.batch_read', resourceType: 'version', resourceId: slug };
+    if (subPath === 'transition')
+      return { action: 'lifecycle.transition', eventType: 'lifecycle.transition', resourceType: 'document', resourceId: slug };
+    if (subPath === 'approve')
+      return { action: 'approval.submit', eventType: 'approval.submit', resourceType: 'approval', resourceId: slug };
+    if (subPath === 'reject')
+      return { action: 'approval.reject', eventType: 'approval.reject', resourceType: 'approval', resourceId: slug };
+    if (subPath === 'patch')
+      return { action: 'version.patch', eventType: 'version.patch', resourceType: 'version', resourceId: slug };
+    if (subPath === 'merge')
+      return { action: 'version.merge', eventType: 'version.merge', resourceType: 'version', resourceId: slug };
+    if (subPath === 'batch-versions')
+      return { action: 'version.batch_read', eventType: 'version.batch_read', resourceType: 'version', resourceId: slug };
+    if (!subPath && method === 'PUT')
+      return { action: 'document.update', eventType: 'document.update', resourceType: 'document', resourceId: slug };
+    if (!subPath && method === 'DELETE')
+      return { action: 'document.delete', eventType: 'document.delete', resourceType: 'document', resourceId: slug };
+    return null;
+  }
 
-    if (!subPath && method === 'PUT') return { action: 'document.update', resourceType: 'document', resourceId: slug };
-    if (!subPath && method === 'DELETE') return { action: 'document.delete', resourceType: 'document', resourceId: slug };
-    return null; // Other sub-routes (GET-only reads)
+  // v1 document routes
+  const v1DocMatch = pathOnly.match(/^\/api\/v1\/documents\/([^/]+)(\/(.*))?$/);
+  if (v1DocMatch) {
+    const slug = v1DocMatch[1];
+    const subPath = v1DocMatch[3] || '';
+    if (subPath === 'transition')
+      return { action: 'lifecycle.transition', eventType: 'lifecycle.transition', resourceType: 'document', resourceId: slug };
+    if (subPath === 'approve')
+      return { action: 'approval.submit', eventType: 'approval.submit', resourceType: 'approval', resourceId: slug };
+    if (subPath === 'reject')
+      return { action: 'approval.reject', eventType: 'approval.reject', resourceType: 'approval', resourceId: slug };
+    if (!subPath && method === 'PUT')
+      return { action: 'document.update', eventType: 'document.update', resourceType: 'document', resourceId: slug };
+    if (!subPath && method === 'DELETE')
+      return { action: 'document.delete', eventType: 'document.delete', resourceType: 'document', resourceId: slug };
   }
 
   // Document creation
   if (pathOnly === '/api/compress' && method === 'POST') {
-    return { action: 'document.create', resourceType: 'document', resourceId: null };
+    return { action: 'document.create', eventType: 'document.create', resourceType: 'document', resourceId: null };
   }
 
   // Signed URL creation
-  if (pathOnly === '/api/signed-urls' && method === 'POST') {
-    return { action: 'signed_url.create', resourceType: 'signed_url', resourceId: null };
+  if ((pathOnly === '/api/signed-urls' || pathOnly === '/api/v1/signed-urls') && method === 'POST') {
+    return { action: 'signed_url.create', eventType: 'signed_url.create', resourceType: 'signed_url', resourceId: null };
   }
 
   // Cache invalidation
   if (pathOnly === '/api/cache' && method === 'DELETE') {
-    return { action: 'cache.clear', resourceType: 'cache', resourceId: null };
+    return { action: 'cache.clear', eventType: 'cache.clear', resourceType: 'cache', resourceId: null };
   }
 
   return null;
@@ -122,7 +271,9 @@ function extractAgentId(request: FastifyRequest): string | null {
   }
 }
 
-/** Register an onResponse hook that writes audit log entries for all successful state-changing requests. */
+// ── Middleware registration ───────────────────────────────────────────────────
+
+/** Register an onResponse hook that writes tamper-evident audit log entries. */
 export async function registerAuditLogging(app: FastifyInstance) {
   app.addHook('onResponse', async (request: FastifyRequest, reply: FastifyReply) => {
     // Only audit state-changing methods.
@@ -145,6 +296,9 @@ export async function registerAuditLogging(app: FastifyInstance) {
     const ipAddress = getIpAddress(request);
     const userAgent = (request.headers['user-agent'] as string | undefined) ?? null;
 
+    // Actor: prefer agentId (T147 signed identity), fall back to userId.
+    const actorId = agentId ?? userId;
+
     // Build a details blob for context-specific data.
     const details: Record<string, unknown> = {};
     if (request.params && typeof request.params === 'object') {
@@ -160,6 +314,8 @@ export async function registerAuditLogging(app: FastifyInstance) {
       ipAddress,
       userAgent,
       action: actionMeta.action,
+      eventType: actionMeta.eventType,
+      actorId,
       resourceType: actionMeta.resourceType,
       resourceId: actionMeta.resourceId,
       details: detailsJson,
@@ -171,28 +327,22 @@ export async function registerAuditLogging(app: FastifyInstance) {
     };
 
     // Fire-and-forget via setImmediate — never blocks the response.
+    // Chain hash computation is serialized inside appendAuditRow.
     setImmediate(async () => {
       try {
-        await db.insert(auditLogs).values(entry);
+        await appendAuditRow(entry);
       } catch (err) {
-        app.log.error({ err, entry }, 'audit log write failed');
+        app.log.error({ err, entryId: entry.id }, 'audit log write failed');
       }
     });
   });
 }
 
+// ── Audit log query route ────────────────────────────────────────────────────
+
 /**
  * Register the GET /api/audit-logs route.
  * Requires authentication. Returns paginated audit logs with optional filtering.
- *
- * Query parameters:
- *   - action: filter by exact action name (e.g. 'document.create')
- *   - resourceType: filter by resource type
- *   - userId: filter by user ID
- *   - from: start timestamp (unix ms)
- *   - to: end timestamp (unix ms)
- *   - limit: max results (default 50, max 500)
- *   - offset: pagination offset (default 0)
  */
 export async function auditLogRoutes(app: FastifyInstance) {
   app.get<{
@@ -213,7 +363,6 @@ export async function auditLogRoutes(app: FastifyInstance) {
       const limit = Math.min(parseInt(q.limit ?? '50', 10) || 50, 500);
       const offset = parseInt(q.offset ?? '0', 10) || 0;
 
-      // Build Drizzle ORM conditions — compatible with both SQLite and PostgreSQL.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const conditions: any[] = [];
 

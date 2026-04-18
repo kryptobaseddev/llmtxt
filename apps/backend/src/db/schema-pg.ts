@@ -52,11 +52,19 @@ export const users = pgTable(
     agentId: text('agent_id'),
     /** Auto-purge deadline for anonymous users (unix ms). Null = no expiry. */
     expiresAt: bigint('expires_at', { mode: 'number' }),
+    /**
+     * Data residency region for this user.
+     * T185: Controls which regional backend/database stores this user's data.
+     * Valid values: 'us' | 'eu' | 'apac'
+     * Selection is permanent — changing requires a manual migration + customer consent.
+     */
+    region: text('region').notNull().default('us'),
   },
   (table) => ({
     emailIdx: uniqueIndex('users_email_idx').on(table.email),
     expiresAtIdx: index('users_expires_at_idx').on(table.expiresAt),
     agentIdIdx: index('users_agent_id_idx').on(table.agentId),
+    regionIdx: index('users_region_idx').on(table.region),
   })
 );
 
@@ -628,12 +636,74 @@ export const auditLogs = pgTable(
     path: text('path'),
     /** HTTP status code of the response. Populated via onResponse hook. */
     statusCode: integer('status_code'),
+
+    // ── T164: Tamper-evident hash chain ──
+    /**
+     * Structured event type for security taxonomy (mirrors action, e.g. 'auth.login').
+     * Redundant with action; stored for fast security-event filtering.
+     */
+    eventType: text('event_type'),
+    /**
+     * Explicit actor identity (agentId from T147 signed identity, or userId).
+     * Redundant with agentId/userId; stored for chain serialization.
+     */
+    actorId: text('actor_id'),
+    /**
+     * SHA-256 hex of canonical event serialization:
+     * `{id}|{event_type}|{actor_id}|{resource_id}|{timestamp_ms}`
+     * NULL for rows inserted before T164 was deployed.
+     */
+    payloadHash: text('payload_hash'),
+    /**
+     * SHA-256 hex of SHA-256(prev_chain_hash_bytes || payload_hash_bytes).
+     * For the first row, prev_chain_hash is the 32-byte zero genesis sentinel.
+     * NULL for rows inserted before T164 was deployed.
+     */
+    chainHash: text('chain_hash'),
   },
   (table) => ({
     userIdIdx: index('audit_logs_user_id_idx').on(table.userId),
     actionIdx: index('audit_logs_action_idx').on(table.action),
     resourceIdx: index('audit_logs_resource_idx').on(table.resourceType, table.resourceId),
     timestampIdx: index('audit_logs_timestamp_idx').on(table.timestamp),
+    chainHashIdx: index('audit_logs_chain_hash_idx').on(table.chainHash),
+    payloadHashIdx: index('audit_logs_payload_hash_idx').on(table.payloadHash),
+  }),
+);
+
+// ────────────────────────────────────────────────────────────────
+// Audit checkpoints (T164: tamper-evident daily Merkle anchors)
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Audit checkpoints table — one row per day.
+ *
+ * The daily job computes a SHA-256 Merkle root over all audit_log leaf
+ * hashes for that day and optionally commits it to an RFC 3161 timestamp
+ * service (freetsa.org). The TSR token (DER hex) is stored here.
+ *
+ * A NULL tsr_token means the TSA was unavailable; the Merkle root still
+ * provides local tamper-evidence.
+ */
+export const auditCheckpoints = pgTable(
+  'audit_checkpoints',
+  {
+    id: text('id').primaryKey(),
+    /** ISO 8601 date (YYYY-MM-DD) of the covered calendar day. */
+    checkpointDate: text('checkpoint_date').notNull().unique(),
+    /** Hex-encoded 32-byte SHA-256 Merkle root. */
+    merkleRoot: text('merkle_root').notNull(),
+    /**
+     * Hex-encoded DER RFC 3161 TimeStampToken from freetsa.org.
+     * NULL if the TSA was unavailable when the checkpoint was created.
+     */
+    tsrToken: text('tsr_token'),
+    /** Number of audit_log events included in this checkpoint. */
+    eventCount: integer('event_count').notNull().default(0),
+    createdAt: timestamp('created_at', { mode: 'date' }).notNull(),
+  },
+  (table) => ({
+    dateIdx: uniqueIndex('audit_checkpoints_date_idx').on(table.checkpointDate),
   }),
 );
 
@@ -695,9 +765,16 @@ export const organizations = pgTable(
       .references(() => users.id),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
     updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+    /**
+     * Data residency region for this organization.
+     * T185: All members of the org inherit this region for routing purposes.
+     * Valid values: 'us' | 'eu' | 'apac'
+     */
+    region: text('region').notNull().default('us'),
   },
   (table) => ({
     slugIdx: uniqueIndex('organizations_slug_idx').on(table.slug),
+    regionIdx: index('organizations_region_idx').on(table.region),
   })
 );
 
@@ -1301,6 +1378,113 @@ export const blobAttachments = pgTable(
 );
 
 // ────────────────────────────────────────────────────────────────
+// Monetization: subscriptions, usage_events, usage_rollups, stripe_events
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * subscriptions — maps each user to their billing tier and Stripe identifiers.
+ *
+ * Every user gets an implicit Free subscription (created on first API call).
+ * Stripe keys are null for Free-tier users who have never upgraded.
+ *
+ * tier:   'free' | 'pro' | 'enterprise'
+ * status: 'active' | 'past_due' | 'canceled' | 'trialing'
+ */
+export const subscriptions = pgTable(
+  'subscriptions',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .unique()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    tier: text('tier').notNull().default('free'),
+    status: text('status').notNull().default('active'),
+    stripeCustomerId: text('stripe_customer_id').unique(),
+    stripeSubscriptionId: text('stripe_subscription_id').unique(),
+    currentPeriodStart: timestamp('current_period_start', { mode: 'date', withTimezone: true }),
+    currentPeriodEnd: timestamp('current_period_end', { mode: 'date', withTimezone: true }),
+    gracePeriodEnd: timestamp('grace_period_end', { mode: 'date', withTimezone: true }),
+    createdAt: timestamp('created_at', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    stripeCustomerIdx: index('subscriptions_stripe_customer_id_idx').on(table.stripeCustomerId),
+    stripeSubscriptionIdx: index('subscriptions_stripe_subscription_id_idx').on(table.stripeSubscriptionId),
+    tierStatusIdx: index('subscriptions_tier_status_idx').on(table.tier, table.status),
+  })
+);
+
+/**
+ * usage_events — per-request event log used for billing enforcement.
+ *
+ * event_type: 'doc_read' | 'doc_write' | 'api_call' | 'crdt_op' | 'blob_upload'
+ * bytes: payload size (0 for read events)
+ * resource_id: document slug, blob id, etc.
+ *
+ * Rows older than 60 days are purged by the daily rollup job after aggregation.
+ */
+export const usageEvents = pgTable(
+  'usage_events',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    agentId: text('agent_id'),
+    eventType: text('event_type').notNull(),
+    resourceId: text('resource_id'),
+    bytes: bigint('bytes', { mode: 'number' }).notNull().default(0),
+    createdAt: timestamp('created_at', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdCreatedAtIdx: index('usage_events_user_id_created_at_idx').on(table.userId, table.createdAt),
+    eventTypeIdx: index('usage_events_event_type_idx').on(table.eventType),
+  })
+);
+
+/**
+ * usage_rollups — daily aggregate per user.
+ *
+ * Populated at 01:00 UTC by the daily-rollup background job.
+ * Used by GET /api/me/usage to return monthly usage totals.
+ * One row per (user_id, rollup_date) — INSERT ON CONFLICT DO UPDATE.
+ */
+export const usageRollups = pgTable(
+  'usage_rollups',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    rollupDate: timestamp('rollup_date', { mode: 'date', withTimezone: false }).notNull(),
+    apiCalls: bigint('api_calls', { mode: 'number' }).notNull().default(0),
+    crdtOps: bigint('crdt_ops', { mode: 'number' }).notNull().default(0),
+    docReads: bigint('doc_reads', { mode: 'number' }).notNull().default(0),
+    docWrites: bigint('doc_writes', { mode: 'number' }).notNull().default(0),
+    bytesIngested: bigint('bytes_ingested', { mode: 'number' }).notNull().default(0),
+    createdAt: timestamp('created_at', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdRollupDateIdx: index('usage_rollups_user_id_rollup_date_idx').on(table.userId, table.rollupDate),
+    uniqueUserDate: uniqueIndex('usage_rollups_user_id_rollup_date_uniq').on(table.userId, table.rollupDate),
+  })
+);
+
+/**
+ * stripe_events — idempotency table for Stripe webhook events.
+ *
+ * Before processing any Stripe webhook, insert the event ID here.
+ * Duplicate events (replays) will hit the PRIMARY KEY constraint and
+ * be silently discarded — no double processing.
+ */
+export const stripeEvents = pgTable('stripe_events', {
+  stripeEventId: text('stripe_event_id').primaryKey(),
+  eventType: text('event_type').notNull(),
+  processedAt: timestamp('processed_at', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
+});
+
+// ────────────────────────────────────────────────────────────────
 // Export TypeScript types
 // ────────────────────────────────────────────────────────────────
 
@@ -1387,6 +1571,8 @@ export const insertApiKeySchema = createInsertSchema(apiKeys);
 export const selectApiKeySchema = createSelectSchema(apiKeys);
 export const insertAuditLogSchema = createInsertSchema(auditLogs);
 export const selectAuditLogSchema = createSelectSchema(auditLogs);
+export const insertAuditCheckpointSchema = createInsertSchema(auditCheckpoints);
+export const selectAuditCheckpointSchema = createSelectSchema(auditCheckpoints);
 export const insertDocumentRoleSchema = createInsertSchema(documentRoles);
 export const selectDocumentRoleSchema = createSelectSchema(documentRoles);
 export const insertOrganizationSchema = createInsertSchema(organizations);
@@ -1472,3 +1658,7 @@ export type InsertAgentSignatureNonce = z.infer<typeof insertAgentSignatureNonce
 export type SelectAgentSignatureNonce = z.infer<typeof selectAgentSignatureNonceSchema>;
 export type InsertBlobAttachment = z.infer<typeof insertBlobAttachmentSchema>;
 export type SelectBlobAttachment = z.infer<typeof selectBlobAttachmentSchema>;
+export type AuditCheckpoint = typeof auditCheckpoints.$inferSelect;
+export type NewAuditCheckpoint = typeof auditCheckpoints.$inferInsert;
+export type InsertAuditCheckpoint = z.infer<typeof insertAuditCheckpointSchema>;
+export type SelectAuditCheckpoint = z.infer<typeof selectAuditCheckpointSchema>;

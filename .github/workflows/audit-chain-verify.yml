@@ -1,0 +1,64 @@
+name: Audit Chain Verification (T164)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  audit-chain:
+    name: Audit chain integrity (seed + verify)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: llmtxt_test
+        options: >-
+          --health-cmd "pg_isready -U test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DATABASE_URL_PG: postgres://test:test@localhost:5432/llmtxt_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        run: cargo install wasm-pack
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build WASM + TypeScript
+        working-directory: packages/llmtxt
+        run: pnpm run build:all
+
+      - name: Run audit chain unit tests
+        working-directory: apps/backend
+        run: |
+          node --import tsx/esm --test \
+            src/__tests__/audit-chain.test.ts
+
+      - name: Seed test DB with 10 audit events and verify chain
+        working-directory: apps/backend
+        run: node --import tsx/esm scripts/ci-audit-chain-verify.ts

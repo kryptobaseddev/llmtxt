@@ -32,6 +32,7 @@ import { initCrdtPubSub } from './realtime/redis-pubsub.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import { startWebhookWorker } from './events/webhooks.js';
 import { startEventLogJobs } from './jobs/event-log-compaction.js';
+import { startAuditCheckpointJob } from './jobs/audit-checkpoint.js';
 import { crossDocRoutes } from './routes/cross-doc.js';
 import { collectionRoutes } from './routes/collections.js';
 import { publicDir, extractSlug, extractSlugWithExtension, handleContentNegotiation, getDocumentWithContent } from './routes/web.js';
@@ -61,6 +62,22 @@ import { registerPostgresBackendPlugin } from './plugins/postgres-backend-plugin
 import { adminRoutes } from './routes/admin.js';
 import { CONTENT_LIMITS } from './middleware/content-limits.js';
 import { shutdownCoordinator } from './lib/shutdown.js';
+import { validateSigningSecret } from './lib/signing-secret-validator.js';
+
+// S-01: Fail-fast before the server accepts any connections when
+// SIGNING_SECRET is missing or set to a well-known insecure default in
+// production.  Signed URLs produced with a dev secret can be forged by
+// anyone who reads the source code.  [T108.6 / T472]
+try {
+  validateSigningSecret(
+    process.env.SIGNING_SECRET ?? '',
+    process.env.NODE_ENV ?? '',
+  );
+} catch (err) {
+  // eslint-disable-next-line no-console
+  console.error((err as Error).message);
+  process.exit(1);
+}
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const API_HOSTS = new Set(['api.llmtxt.my']);
@@ -565,6 +582,9 @@ async function main() {
 
     // Start event log background jobs (compaction + chain validation).
     startEventLogJobs();
+
+    // T164: Start daily audit log Merkle checkpoint job.
+    startAuditCheckpointJob();
 
     // Initialize CRDT pub/sub adapter (Redis or in-process fallback).
     await initCrdtPubSub();

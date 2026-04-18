@@ -10,9 +10,16 @@
 //! Recipients should compare the value of the `X-LLMtxt-Signature` header
 //! against the value produced by this function using a constant-time
 //! comparison to prevent timing attacks.
+//!
+//! # S-01 Constant-Time Comparison (T108.7)
+//! [`constant_time_eq_hex`] provides a timing-safe hex-digest comparison that
+//! MUST be used whenever two API-key hash digests or HMAC signatures are
+//! compared in application code. JavaScript string equality (`===`) is NOT
+//! timing-safe and MUST NOT be used for secret comparison.
 
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
+use subtle::ConstantTimeEq;
 
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
@@ -38,6 +45,31 @@ pub fn sign_webhook_payload(secret: &str, payload: &str) -> String {
     mac.update(payload.as_bytes());
     let hex = hex::encode(mac.finalize().into_bytes());
     format!("sha256={hex}")
+}
+
+// ── Constant-Time Comparison ──────────────────────────────────────
+
+/// Compare two hex-encoded digest strings (e.g. SHA-256 or HMAC digests) in
+/// constant time to prevent timing side-channel attacks.
+///
+/// Returns `true` if and only if `a == b` **and** both strings have the same
+/// length. Strings of different lengths return `false` immediately (the length
+/// difference itself leaks no secret information when both inputs are fixed-
+/// length digests such as SHA-256).
+///
+/// # S-01 (T108.7)
+/// Use this function whenever comparing API key hashes or webhook signatures.
+/// Never use `==` on secret strings from JavaScript / TypeScript.
+///
+/// # WASM export
+/// The WASM binding returns `1` for equal, `0` for not equal so that the
+/// JavaScript caller can check `if (constantTimeEqHex(a, b))` cleanly.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn constant_time_eq_hex(a: &str, b: &str) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    a.as_bytes().ct_eq(b.as_bytes()).into()
 }
 
 // ── Tests ─────────────────────────────────────────────────────────
@@ -110,5 +142,31 @@ mod tests {
         let sig_a = sign_webhook_payload(secret, r#"{"type":"version.created"}"#);
         let sig_b = sign_webhook_payload(secret, r#"{"type":"document.archived"}"#);
         assert_ne!(sig_a, sig_b);
+    }
+
+    // ── Constant-time comparison tests (S-01, T108.7) ────────────────
+
+    #[test]
+    fn constant_time_eq_hex_equal() {
+        let digest = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
+        assert!(constant_time_eq_hex(digest, digest));
+    }
+
+    #[test]
+    fn constant_time_eq_hex_different() {
+        let a = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
+        let b = "aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899";
+        assert!(!constant_time_eq_hex(a, b));
+    }
+
+    #[test]
+    fn constant_time_eq_hex_different_lengths() {
+        assert!(!constant_time_eq_hex("abc", "abcd"));
+        assert!(!constant_time_eq_hex("", "a"));
+    }
+
+    #[test]
+    fn constant_time_eq_hex_empty_strings() {
+        assert!(constant_time_eq_hex("", ""));
     }
 }
