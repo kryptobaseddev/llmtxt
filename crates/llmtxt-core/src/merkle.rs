@@ -12,8 +12,6 @@
 
 use sha2::{Digest, Sha256};
 
-// ── Core native API ──────────────────────────────────────────────────────────
-
 /// Compute the SHA-256 Merkle root over a slice of 32-byte leaf hashes.
 ///
 /// Returns `[0u8; 32]` for an empty slice.
@@ -48,7 +46,7 @@ pub fn merkle_root(leaves: &[[u8; 32]]) -> [u8; 32] {
     let mut level: Vec<[u8; 32]> = leaves.to_vec();
 
     while level.len() > 1 {
-        let mut next: Vec<[u8; 32]> = Vec::with_capacity((level.len() + 1) / 2);
+        let mut next: Vec<[u8; 32]> = Vec::with_capacity(level.len().div_ceil(2));
 
         let mut i = 0;
         while i < level.len() {
@@ -139,8 +137,6 @@ pub fn verify_merkle_proof(root: &[u8; 32], leaf: &[u8; 32], proof: &[([u8; 32],
 
     &current == root
 }
-
-// ── T107: Audit-specific helpers ─────────────────────────────────────────────
 
 /// A single audit log entry for chain verification.
 ///
@@ -333,8 +329,6 @@ pub fn verify_merkle_root_signature(
     verifying_key.verify(payload.as_bytes(), &sig).is_ok()
 }
 
-// ── WASM exports ─────────────────────────────────────────────────────────────
-
 /// WASM: compute Merkle root over an array of leaf hashes.
 ///
 /// `leaves_hex_json` — JSON array of 64-character lowercase hex strings,
@@ -412,8 +406,6 @@ pub fn verify_merkle_proof_wasm(root_hex: &str, leaf_hex: &str, proof_json: &str
         "false".to_string()
     }
 }
-
-// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {

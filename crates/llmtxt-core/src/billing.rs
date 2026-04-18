@@ -28,7 +28,7 @@ pub enum TierKind {
 impl TierKind {
     /// Parse a string (case-insensitive) into a `TierKind`.
     /// Unknown strings default to `Free`.
-    pub fn from_str(s: &str) -> Self {
+    pub fn from_tier_str(s: &str) -> Self {
         match s.to_ascii_lowercase().as_str() {
             "pro" => TierKind::Pro,
             "enterprise" => TierKind::Enterprise,
@@ -146,71 +146,70 @@ pub fn evaluate_tier_limits(usage: &UsageSnapshot, tier: TierKind) -> TierDecisi
     let limits = tier_limits(tier);
 
     // 1. Document count
-    if let Some(max) = limits.max_documents {
-        if usage.document_count >= max {
-            return TierDecision::Blocked {
-                limit_type: "max_documents".into(),
-                current: usage.document_count,
-                limit: max,
-            };
-        }
+    if let Some(max) = limits.max_documents
+        && usage.document_count >= max
+    {
+        return TierDecision::Blocked {
+            limit_type: "max_documents".into(),
+            current: usage.document_count,
+            limit: max,
+        };
     }
 
     // 2. Per-document size (only meaningful for write events)
-    if usage.current_doc_bytes > 0 {
-        if let Some(max) = limits.max_doc_bytes {
-            if usage.current_doc_bytes > max {
-                return TierDecision::Blocked {
-                    limit_type: "max_doc_bytes".into(),
-                    current: usage.current_doc_bytes,
-                    limit: max,
-                };
-            }
-        }
+    if usage.current_doc_bytes > 0
+        && let Some(max) = limits.max_doc_bytes
+        && usage.current_doc_bytes > max
+    {
+        return TierDecision::Blocked {
+            limit_type: "max_doc_bytes".into(),
+            current: usage.current_doc_bytes,
+            limit: max,
+        };
     }
 
     // 3. Monthly API calls
-    if let Some(max) = limits.max_api_calls_per_month {
-        if usage.api_calls_this_month >= max {
-            return TierDecision::Blocked {
-                limit_type: "max_api_calls_per_month".into(),
-                current: usage.api_calls_this_month,
-                limit: max,
-            };
-        }
+    if let Some(max) = limits.max_api_calls_per_month
+        && usage.api_calls_this_month >= max
+    {
+        return TierDecision::Blocked {
+            limit_type: "max_api_calls_per_month".into(),
+            current: usage.api_calls_this_month,
+            limit: max,
+        };
     }
 
     // 4. Monthly CRDT operations
-    if let Some(max) = limits.max_crdt_ops_per_month {
-        if usage.crdt_ops_this_month >= max {
-            return TierDecision::Blocked {
-                limit_type: "max_crdt_ops_per_month".into(),
-                current: usage.crdt_ops_this_month,
-                limit: max,
-            };
-        }
+    if let Some(max) = limits.max_crdt_ops_per_month
+        && usage.crdt_ops_this_month >= max
+    {
+        return TierDecision::Blocked {
+            limit_type: "max_crdt_ops_per_month".into(),
+            current: usage.crdt_ops_this_month,
+            limit: max,
+        };
     }
 
     // 5. Agent seats
-    if let Some(max) = limits.max_agent_seats {
-        if usage.agent_seat_count >= max {
-            return TierDecision::Blocked {
-                limit_type: "max_agent_seats".into(),
-                current: usage.agent_seat_count,
-                limit: max,
-            };
-        }
+    if let Some(max) = limits.max_agent_seats
+        && usage.agent_seat_count >= max
+    {
+        return TierDecision::Blocked {
+            limit_type: "max_agent_seats".into(),
+            current: usage.agent_seat_count,
+            limit: max,
+        };
     }
 
     // 6. Total storage
-    if let Some(max) = limits.max_storage_bytes {
-        if usage.storage_bytes >= max {
-            return TierDecision::Blocked {
-                limit_type: "max_storage_bytes".into(),
-                current: usage.storage_bytes,
-                limit: max,
-            };
-        }
+    if let Some(max) = limits.max_storage_bytes
+        && usage.storage_bytes >= max
+    {
+        return TierDecision::Blocked {
+            limit_type: "max_storage_bytes".into(),
+            current: usage.storage_bytes,
+            limit: max,
+        };
     }
 
     TierDecision::Allowed
@@ -230,7 +229,7 @@ pub fn evaluate_tier_limits_wasm(usage_json: &str, tier_str: &str) -> String {
         Ok(u) => u,
         Err(e) => return format!(r#"{{"error":{}}}"#, serde_json::json!(e.to_string())),
     };
-    let tier = TierKind::from_str(tier_str);
+    let tier = TierKind::from_tier_str(tier_str);
     let decision = evaluate_tier_limits(&usage, tier);
     match serde_json::to_string(&decision) {
         Ok(json) => json,
@@ -245,7 +244,7 @@ pub fn evaluate_tier_limits_wasm(usage_json: &str, tier_str: &str) -> String {
 /// Returns JSON of `TierLimits`, or `{"error":"..."}` on serialization failure.
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn get_tier_limits_wasm(tier_str: &str) -> String {
-    let tier = TierKind::from_str(tier_str);
+    let tier = TierKind::from_tier_str(tier_str);
     let limits = tier_limits(tier);
     match serde_json::to_string(&limits) {
         Ok(json) => json,
@@ -366,12 +365,12 @@ mod tests {
 
     #[test]
     fn test_tier_kind_parsing() {
-        assert_eq!(TierKind::from_str("free"), TierKind::Free);
-        assert_eq!(TierKind::from_str("pro"), TierKind::Pro);
-        assert_eq!(TierKind::from_str("PRO"), TierKind::Pro);
-        assert_eq!(TierKind::from_str("enterprise"), TierKind::Enterprise);
-        assert_eq!(TierKind::from_str("unknown"), TierKind::Free);
-        assert_eq!(TierKind::from_str(""), TierKind::Free);
+        assert_eq!(TierKind::from_tier_str("free"), TierKind::Free);
+        assert_eq!(TierKind::from_tier_str("pro"), TierKind::Pro);
+        assert_eq!(TierKind::from_tier_str("PRO"), TierKind::Pro);
+        assert_eq!(TierKind::from_tier_str("enterprise"), TierKind::Enterprise);
+        assert_eq!(TierKind::from_tier_str("unknown"), TierKind::Free);
+        assert_eq!(TierKind::from_tier_str(""), TierKind::Free);
     }
 
     #[test]

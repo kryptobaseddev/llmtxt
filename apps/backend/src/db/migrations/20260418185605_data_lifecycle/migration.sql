@@ -13,53 +13,54 @@
 --  10. deletion_certificates table     — cryptographic certificate of completion after hard delete (T187)
 --
 -- All changes are purely additive.  Existing rows are unaffected.
+-- SQLite-compatible version (ADD COLUMN without IF NOT EXISTS; boolean -> integer).
 
 -- ── 1. users.deleted_at ─────────────────────────────────────────────────────
 
 ALTER TABLE "users"
-  ADD COLUMN IF NOT EXISTS "deleted_at" bigint;
+  ADD COLUMN "deleted_at" integer;
 
 --> statement-breakpoint
 
 -- ── 2. users.deletion_confirmed_at ─────────────────────────────────────────
 
 ALTER TABLE "users"
-  ADD COLUMN IF NOT EXISTS "deletion_confirmed_at" bigint;
+  ADD COLUMN "deletion_confirmed_at" integer;
 
 --> statement-breakpoint
 
 -- ── 3. users.deletion_token ─────────────────────────────────────────────────
 
 ALTER TABLE "users"
-  ADD COLUMN IF NOT EXISTS "deletion_token" text;
+  ADD COLUMN "deletion_token" text;
 
 --> statement-breakpoint
 
 -- ── 4. users.deletion_token_expires_at ─────────────────────────────────────
 
 ALTER TABLE "users"
-  ADD COLUMN IF NOT EXISTS "deletion_token_expires_at" bigint;
+  ADD COLUMN "deletion_token_expires_at" integer;
 
 --> statement-breakpoint
 
 -- ── 5. users.pseudonymized_at ───────────────────────────────────────────────
 
 ALTER TABLE "users"
-  ADD COLUMN IF NOT EXISTS "pseudonymized_at" bigint;
+  ADD COLUMN "pseudonymized_at" integer;
 
 --> statement-breakpoint
 
 -- ── 6. audit_logs.legal_hold ────────────────────────────────────────────────
 
 ALTER TABLE "audit_logs"
-  ADD COLUMN IF NOT EXISTS "legal_hold" boolean NOT NULL DEFAULT false;
+  ADD COLUMN "legal_hold" integer NOT NULL DEFAULT 0;
 
 --> statement-breakpoint
 
 -- ── 7. audit_logs.archived_at ───────────────────────────────────────────────
 
 ALTER TABLE "audit_logs"
-  ADD COLUMN IF NOT EXISTS "archived_at" bigint;
+  ADD COLUMN "archived_at" integer;
 
 --> statement-breakpoint
 
@@ -89,13 +90,13 @@ CREATE TABLE IF NOT EXISTS "audit_archive" (
   -- S3/R2 object key where the entry JSON is stored.
   "s3_key"        text        NOT NULL,
   -- Unix ms when the entry was moved to cold storage.
-  "archived_at"   bigint      NOT NULL,
+  "archived_at"   integer     NOT NULL,
   -- Unix ms timestamp of the original audit event (for date-range export).
-  "event_timestamp" bigint    NOT NULL,
+  "event_timestamp" integer   NOT NULL,
   -- user_id of the actor (denormalised for export queries).
   "user_id"       text,
   -- Whether this entry is under legal hold (copied from audit_logs).
-  "legal_hold"    boolean     NOT NULL DEFAULT false
+  "legal_hold"    integer     NOT NULL DEFAULT 0
 );
 
 --> statement-breakpoint
@@ -120,11 +121,11 @@ CREATE INDEX IF NOT EXISTS "audit_archive_user_id_idx"
 -- One row per (user_id, calendar date).  Limits export requests to 1/day.
 
 CREATE TABLE IF NOT EXISTS "user_export_rate_limit" (
-  "user_id"        text  NOT NULL,
+  "user_id"        text    NOT NULL,
   -- ISO 8601 date (YYYY-MM-DD) in UTC.
-  "export_date"    text  NOT NULL,
+  "export_date"    text    NOT NULL,
   -- Unix ms of the most recent export request.
-  "last_export_at" bigint NOT NULL,
+  "last_export_at" integer NOT NULL,
   PRIMARY KEY ("user_id", "export_date")
 );
 
@@ -146,7 +147,7 @@ CREATE TABLE IF NOT EXISTS "deletion_certificates" (
   -- SHA-256 hex of the certificate JSON (integrity seal).
   "certificate_hash" text   NOT NULL,
   -- Unix ms when this certificate was created.
-  "created_at"      bigint  NOT NULL
+  "created_at"      integer NOT NULL
 );
 
 --> statement-breakpoint

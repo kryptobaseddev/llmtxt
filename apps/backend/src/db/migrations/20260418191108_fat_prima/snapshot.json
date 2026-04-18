@@ -3,7 +3,8 @@
   "dialect": "sqlite",
   "id": "a0ce9039-c948-453a-8231-e045b76d2e32",
   "prevIds": [
-    "f9508a83-4dfa-4dd8-9a25-6ccfb098cc50"
+    "f9508a83-4dfa-4dd8-9a25-6ccfb098cc50",
+    "28cb7d27-0f47-42d0-a83b-a0dfe2f3bef0"
   ],
   "ddl": [
     {
