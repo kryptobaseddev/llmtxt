@@ -53,10 +53,12 @@ function buildCsp(nonce: string): string {
     "style-src 'self' 'unsafe-inline'", // inline styles in viewTemplate.ts
     "img-src 'self' data:",
     "font-src 'self'",
-    "connect-src 'self' https://api.llmtxt.my",
+    // wss: covers WebSocket (CRDT sync); https: covers API fetch calls.
+    "connect-src 'self' https://api.llmtxt.my wss://api.llmtxt.my",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
+    "upgrade-insecure-requests",
   ].join('; ');
 }
 
@@ -81,11 +83,23 @@ export async function securityHeaders(app: FastifyInstance) {
     reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
     reply.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 
+    // ── Cross-Origin isolation headers (T162) ──────────────────────────────
+    // COEP: require-corp isolates the browsing context so SharedArrayBuffer
+    // and WASM threads are available. The API serves no cross-origin resources.
+    reply.header('Cross-Origin-Embedder-Policy', 'require-corp');
+    // COOP: same-origin prevents opener access from cross-origin popups.
+    reply.header('Cross-Origin-Opener-Policy', 'same-origin');
+    // CORP: same-origin restricts cross-origin reads of API responses.
+    reply.header('Cross-Origin-Resource-Policy', 'same-origin');
+
+    // ── HSTS (production only) ────────────────────────────────────────────
     // Only enforce HSTS in production — local dev uses plain HTTP.
+    // max-age=63072000 = 2 years (minimum 1 year for HSTS preload list).
+    // includeSubDomains and preload enable submission to hstspreload.org.
     if (process.env.NODE_ENV === 'production') {
       reply.header(
         'Strict-Transport-Security',
-        'max-age=31536000; includeSubDomains',
+        'max-age=63072000; includeSubDomains; preload',
       );
     }
   });
