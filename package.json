@@ -9,7 +9,9 @@
     "db:generate": "pnpm --filter @llmtxt/backend db:generate",
     "db:migrate": "pnpm --filter @llmtxt/backend db:migrate",
     "db:push": "pnpm --filter @llmtxt/backend db:push",
-    "db:studio": "pnpm --filter @llmtxt/backend db:studio"
+    "db:studio": "pnpm --filter @llmtxt/backend db:studio",
+    "test": "pnpm --filter @llmtxt/backend test",
+    "typecheck": "pnpm --filter @llmtxt/backend build"
   },
   "engines": {
     "node": ">=24"

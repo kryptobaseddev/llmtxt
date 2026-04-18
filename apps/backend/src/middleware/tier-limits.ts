@@ -55,7 +55,7 @@ export function enforceTierLimit(
     if (!check.allowed) {
       reply.status(402).send({
         error: 'Payment Required',
-        message: `You have reached the ${formatLimitType(check.limitType!)} limit for your ${check.tier} plan.`,
+        message: `You have reached the ${formatLimitType(check.limitType ?? 'quota')} limit for your ${check.tier} plan.`,
         limit_type: check.limitType,
         current: check.current,
         limit: check.limit,

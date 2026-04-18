@@ -60,7 +60,8 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
     '/me/usage',
     { preHandler: [requireAuth] },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const userId = request.user!.id;
+      const userId = request.user?.id;
+      if (!userId) return reply.status(401).send({ error: 'Unauthorized' });
 
       const [sub, monthly, docCount] = await Promise.all([
         getUserSubscription(userId),
@@ -114,7 +115,8 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
     '/me/subscription',
     { preHandler: [requireAuth] },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const userId = request.user!.id;
+      const userId = request.user?.id;
+      if (!userId) return reply.status(401).send({ error: 'Unauthorized' });
       const sub = await getUserSubscription(userId);
       const effectiveTier = isEffectiveTier(sub);
 
@@ -170,13 +172,14 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
-      const userId = request.user!.id;
+      const userId = request.user?.id;
+      if (!userId) return reply.status(401).send({ error: 'Unauthorized' });
       const sub = await getUserSubscription(userId);
 
       // Re-use existing Stripe customer ID if available.
       const customerParams: Stripe.Checkout.SessionCreateParams = sub.stripeCustomerId
         ? { customer: sub.stripeCustomerId }
-        : { customer_email: request.user!.email ?? undefined };
+        : { customer_email: request.user?.email ?? undefined };
 
       const session = await stripe.checkout.sessions.create({
         mode: 'subscription',
@@ -204,7 +207,8 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(503).send({ error: 'Stripe not configured' });
       }
 
-      const userId = request.user!.id;
+      const userId = request.user?.id;
+      if (!userId) return reply.status(401).send({ error: 'Unauthorized' });
       const sub = await getUserSubscription(userId);
 
       if (!sub.stripeCustomerId) {
@@ -364,20 +368,24 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
  * In Stripe API v2026+, the top-level current_period_start is removed.
  * We read from the first subscription item if available, falling back to null.
  */
+/** Stripe API v2026 removed top-level current_period_* — read from first item. */
+interface StripeLegacyPeriod {
+  current_period_start?: number;
+  current_period_end?: number;
+}
+
 function extractPeriodStart(sub: Stripe.Subscription): Date | null {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const raw = sub as any;
+  const legacy = sub as unknown as StripeLegacyPeriod;
   const ts: number | undefined =
-    raw.current_period_start ??
+    legacy.current_period_start ??
     sub.items?.data?.[0]?.current_period_start;
   return ts ? new Date(ts * 1000) : null;
 }
 
 function extractPeriodEnd(sub: Stripe.Subscription): Date | null {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const raw = sub as any;
+  const legacy = sub as unknown as StripeLegacyPeriod;
   const ts: number | undefined =
-    raw.current_period_end ??
+    legacy.current_period_end ??
     sub.items?.data?.[0]?.current_period_end;
   return ts ? new Date(ts * 1000) : null;
 }

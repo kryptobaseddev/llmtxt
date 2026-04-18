@@ -190,6 +190,7 @@ fn compute_content_hash(archive: &ExportArchive) -> String {
     let mut scratch = archive.clone();
     scratch.content_hash = String::new();
     // serde_json produces deterministic output for structs (field order = declaration order).
+    #[allow(clippy::expect_used)]
     let canonical = serde_json::to_vec(&scratch)
         .expect("ExportArchive serialisation must not fail — no unbounded types");
     let mut hasher = Sha256::new();
@@ -215,6 +216,7 @@ fn compute_content_hash(archive: &ExportArchive) -> String {
 pub fn serialize_export_archive(archive: &ExportArchive) -> String {
     let mut stamped = archive.clone();
     stamped.content_hash = compute_content_hash(archive);
+    #[allow(clippy::expect_used)]
     serde_json::to_string(&stamped).expect("ExportArchive serialisation must not fail")
 }
 
@@ -333,6 +335,7 @@ impl Default for RetentionPolicy {
 
 /// Serialise a [`RetentionPolicy`] to a JSON string.
 pub fn serialize_retention_policy(policy: &RetentionPolicy) -> String {
+    #[allow(clippy::expect_used)]
     serde_json::to_string(policy).expect("RetentionPolicy serialisation must not fail")
 }
 

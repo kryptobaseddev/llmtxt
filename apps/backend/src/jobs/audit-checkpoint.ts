@@ -18,12 +18,12 @@
  * the `llmtxt` npm package which wraps the WASM build).
  */
 
-import crypto from 'node:crypto';
-import { and, gte, lt, isNotNull, eq } from 'drizzle-orm';
-import { db } from '../db/index.js';
-import { auditLogs, auditCheckpoints } from '../db/schema-pg.js';
-import { requestRfc3161Timestamp } from '../lib/rfc3161.js';
-import { signMerkleRoot } from '../lib/audit-signing-key.js';
+import crypto from "node:crypto";
+import { and, eq, gte, isNotNull, lt } from "drizzle-orm";
+import { db } from "../db/index.js";
+import { auditCheckpoints, auditLogs } from "../db/schema-pg.js";
+import { signMerkleRoot } from "../lib/audit-signing-key.js";
+import { requestRfc3161Timestamp } from "../lib/rfc3161.js";
 
 const CHECKPOINT_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
 
@@ -43,40 +43,40 @@ const CHECKPOINT_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
  * - Odd node duplication (Bitcoin convention).
  */
 function pairHash(left: Buffer, right: Buffer): Buffer {
-  return crypto.createHash('sha256').update(left).update(right).digest();
+	return crypto.createHash("sha256").update(left).update(right).digest();
 }
 
 export function computeMerkleRoot(leafHexes: string[]): string {
-  if (leafHexes.length === 0) return '0'.repeat(64);
-  if (leafHexes.length === 1) return leafHexes[0];
+	if (leafHexes.length === 0) return "0".repeat(64);
+	if (leafHexes.length === 1) return leafHexes[0];
 
-  let level: Buffer[] = leafHexes.map((h) => Buffer.from(h, 'hex'));
+	let level: Buffer[] = leafHexes.map((h) => Buffer.from(h, "hex"));
 
-  while (level.length > 1) {
-    const next: Buffer[] = [];
-    for (let i = 0; i < level.length; i += 2) {
-      const left = level[i];
-      const right = i + 1 < level.length ? level[i + 1] : level[i]; // odd duplication
-      next.push(pairHash(left, right));
-    }
-    level = next;
-  }
+	while (level.length > 1) {
+		const next: Buffer[] = [];
+		for (let i = 0; i < level.length; i += 2) {
+			const left = level[i];
+			const right = i + 1 < level.length ? level[i + 1] : level[i]; // odd duplication
+			next.push(pairHash(left, right));
+		}
+		level = next;
+	}
 
-  return level[0].toString('hex');
+	return level[0].toString("hex");
 }
 
 // ── Date utilities ───────────────────────────────────────────────────────────
 
 function isoDate(d: Date): string {
-  return d.toISOString().slice(0, 10); // YYYY-MM-DD
+	return d.toISOString().slice(0, 10); // YYYY-MM-DD
 }
 
 function startOfDayMs(dateStr: string): number {
-  return new Date(`${dateStr}T00:00:00.000Z`).getTime();
+	return new Date(`${dateStr}T00:00:00.000Z`).getTime();
 }
 
 function endOfDayMs(dateStr: string): number {
-  return new Date(`${dateStr}T00:00:00.000Z`).getTime() + 86_400_000;
+	return new Date(`${dateStr}T00:00:00.000Z`).getTime() + 86_400_000;
 }
 
 // ── Core checkpoint logic ────────────────────────────────────────────────────
@@ -86,90 +86,98 @@ function endOfDayMs(dateStr: string): number {
  * Idempotent: if a checkpoint already exists for the date, does nothing.
  */
 export async function createCheckpointForDate(dateStr: string): Promise<void> {
-  const tag = `[audit-checkpoint:${dateStr}]`;
+	const tag = `[audit-checkpoint:${dateStr}]`;
 
-  // Idempotency check — skip if checkpoint for this date already exists.
-  const existingRows = await db
-    .select({ id: auditCheckpoints.id })
-    .from(auditCheckpoints)
-    .where(eq(auditCheckpoints.checkpointDate, dateStr))
-    .limit(1);
+	// Idempotency check — skip if checkpoint for this date already exists.
+	const existingRows = await db
+		.select({ id: auditCheckpoints.id })
+		.from(auditCheckpoints)
+		.where(eq(auditCheckpoints.checkpointDate, dateStr))
+		.limit(1);
 
-  if (existingRows.length > 0) {
-    console.log(`${tag} checkpoint already exists — skipping`);
-    return;
-  }
+	if (existingRows.length > 0) {
+		console.log(`${tag} checkpoint already exists — skipping`);
+		return;
+	}
 
-  const fromMs = startOfDayMs(dateStr);
-  const toMs = endOfDayMs(dateStr);
+	const fromMs = startOfDayMs(dateStr);
+	const toMs = endOfDayMs(dateStr);
 
-  // Collect all audit_log rows for this day that have a payload_hash.
-  const rows = await db
-    .select({ payloadHash: auditLogs.payloadHash })
-    .from(auditLogs)
-    .where(
-      and(
-        isNotNull(auditLogs.payloadHash),
-        gte(auditLogs.timestamp, fromMs),
-        lt(auditLogs.timestamp, toMs),
-      ),
-    );
+	// Collect all audit_log rows for this day that have a payload_hash.
+	const rows = await db
+		.select({ payloadHash: auditLogs.payloadHash })
+		.from(auditLogs)
+		.where(
+			and(
+				isNotNull(auditLogs.payloadHash),
+				gte(auditLogs.timestamp, fromMs),
+				lt(auditLogs.timestamp, toMs),
+			),
+		);
 
-  const leaves = rows.map((r: { payloadHash: string | null }) => r.payloadHash as string);
-  const merkleRoot = computeMerkleRoot(leaves);
-  console.log(`${tag} ${leaves.length} events → merkle root: ${merkleRoot.slice(0, 16)}...`);
+	const leaves = rows.map(
+		(r: { payloadHash: string | null }) => r.payloadHash as string,
+	);
+	const merkleRoot = computeMerkleRoot(leaves);
+	console.log(
+		`${tag} ${leaves.length} events → merkle root: ${merkleRoot.slice(0, 16)}...`,
+	);
 
-  // T107: Sign the Merkle root with the server ed25519 key.
-  let signedRootSig: string | null = null;
-  let signingKeyId: string | null = null;
-  const sigResult = await signMerkleRoot(merkleRoot, dateStr);
-  if (sigResult) {
-    signedRootSig = sigResult.signature;
-    signingKeyId = sigResult.keyId;
-    console.log(`${tag} Merkle root signed with key_id=${signingKeyId}`);
-  } else {
-    console.warn(`${tag} signing skipped — AUDIT_SIGNING_KEY not configured`);
-  }
+	// T107: Sign the Merkle root with the server ed25519 key.
+	let signedRootSig: string | null = null;
+	let signingKeyId: string | null = null;
+	const sigResult = await signMerkleRoot(merkleRoot, dateStr);
+	if (sigResult) {
+		signedRootSig = sigResult.signature;
+		signingKeyId = sigResult.keyId;
+		console.log(`${tag} Merkle root signed with key_id=${signingKeyId}`);
+	} else {
+		console.warn(`${tag} signing skipped — AUDIT_SIGNING_KEY not configured`);
+	}
 
-  // Request RFC 3161 timestamp.
-  let tsrToken: string | null = null;
-  try {
-    tsrToken = await requestRfc3161Timestamp(merkleRoot);
-    console.log(`${tag} RFC 3161 timestamp acquired (${tsrToken.length / 2} bytes)`);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.warn(`${tag} RFC 3161 timestamp failed (partial — continuing without anchor): ${msg}`);
-  }
+	// Request RFC 3161 timestamp.
+	let tsrToken: string | null = null;
+	try {
+		tsrToken = await requestRfc3161Timestamp(merkleRoot);
+		console.log(
+			`${tag} RFC 3161 timestamp acquired (${tsrToken.length / 2} bytes)`,
+		);
+	} catch (err: unknown) {
+		const msg = err instanceof Error ? err.message : String(err);
+		console.warn(
+			`${tag} RFC 3161 timestamp failed (partial — continuing without anchor): ${msg}`,
+		);
+	}
 
-  // Insert checkpoint row.
-  await db.insert(auditCheckpoints).values({
-    id: crypto.randomUUID(),
-    checkpointDate: dateStr,
-    merkleRoot,
-    tsrToken,
-    signedRootSig,
-    signingKeyId,
-    eventCount: leaves.length,
-    createdAt: new Date(),
-  });
+	// Insert checkpoint row.
+	await db.insert(auditCheckpoints).values({
+		id: crypto.randomUUID(),
+		checkpointDate: dateStr,
+		merkleRoot,
+		tsrToken,
+		signedRootSig,
+		signingKeyId,
+		eventCount: leaves.length,
+		createdAt: new Date(),
+	});
 
-  console.log(`${tag} checkpoint created (tsrAnchored=${tsrToken !== null})`);
+	console.log(`${tag} checkpoint created (tsrAnchored=${tsrToken !== null})`);
 }
 
 // ── Job runner ───────────────────────────────────────────────────────────────
 
 async function runCheckpointJob(): Promise<void> {
-  const tag = '[audit-checkpoint-job]';
-  console.log(`${tag} starting`);
+	const tag = "[audit-checkpoint-job]";
+	console.log(`${tag} starting`);
 
-  try {
-    // Checkpoint yesterday (UTC) — today's data is still accumulating.
-    const yesterday = new Date(Date.now() - 86_400_000);
-    const dateStr = isoDate(yesterday);
-    await createCheckpointForDate(dateStr);
-  } catch (err) {
-    console.error(`[audit-checkpoint-job] error:`, err);
-  }
+	try {
+		// Checkpoint yesterday (UTC) — today's data is still accumulating.
+		const yesterday = new Date(Date.now() - 86_400_000);
+		const dateStr = isoDate(yesterday);
+		await createCheckpointForDate(dateStr);
+	} catch (err) {
+		console.error(`[audit-checkpoint-job] error:`, err);
+	}
 }
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -181,20 +189,23 @@ let checkpointTimer: ReturnType<typeof setInterval> | null = null;
  * Safe to call multiple times — subsequent calls are no-ops.
  */
 export function startAuditCheckpointJob(): void {
-  if (checkpointTimer) return;
+	if (checkpointTimer) return;
 
-  void runCheckpointJob();
-  checkpointTimer = setInterval(() => void runCheckpointJob(), CHECKPOINT_INTERVAL_MS);
+	void runCheckpointJob();
+	checkpointTimer = setInterval(
+		() => void runCheckpointJob(),
+		CHECKPOINT_INTERVAL_MS,
+	);
 
-  console.log('[audit-checkpoint] daily checkpoint job started');
+	console.log("[audit-checkpoint] daily checkpoint job started");
 }
 
 /**
  * Stop the audit checkpoint job. Useful in tests or graceful shutdown.
  */
 export function stopAuditCheckpointJob(): void {
-  if (checkpointTimer) {
-    clearInterval(checkpointTimer);
-    checkpointTimer = null;
-  }
+	if (checkpointTimer) {
+		clearInterval(checkpointTimer);
+		checkpointTimer = null;
+	}
 }

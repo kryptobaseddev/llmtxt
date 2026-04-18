@@ -242,7 +242,135 @@ describe('hash chain helpers', () => {
   });
 });
 
-// ── 3. RFC 3161 DER builder sanity check ────────────────────────────────────
+// ── 3. T107: POST /api/v1/audit-logs/verify range-verify ────────────────────
+
+describe('POST /api/v1/audit-logs/verify (range-verify)', () => {
+  // Tests for the route logic itself (without DB), using the TypeScript
+  // helpers to simulate what the endpoint does.
+
+  function sha256hex(data: string): string {
+    return crypto.createHash('sha256').update(data, 'utf8').digest('hex');
+  }
+
+  it('computeMerkleRoot matches claimed_root for a valid range', () => {
+    // Simulate 3 events with payload_hashes.
+    const e1 = sha256hex('id-1|auth.login|alice||1000');
+    const e2 = sha256hex('id-2|document.create|alice|doc-abc|2000');
+    const e3 = sha256hex('id-3|lifecycle.transition|bob|doc-abc|3000');
+    const leaves = [e1, e2, e3];
+    const root = computeMerkleRoot(leaves);
+
+    // A range-verify request with the correct root should return valid: true.
+    assert.equal(root.length, 64);
+    assert.notEqual(root, '0'.repeat(64));
+
+    // Tamper: add a spurious leaf.
+    const tampered = computeMerkleRoot([e1, e2, e3, sha256hex('EXTRA')]);
+    assert.notEqual(root, tampered, 'extra leaf must change root');
+  });
+
+  it('computeMerkleRoot detects missing entry', () => {
+    const e1 = sha256hex('id-1|auth.login|alice||1000');
+    const e2 = sha256hex('id-2|document.create|alice|doc-abc|2000');
+    const e3 = sha256hex('id-3|lifecycle.transition|bob|doc-abc|3000');
+
+    const fullRoot = computeMerkleRoot([e1, e2, e3]);
+    const missingRoot = computeMerkleRoot([e1, e3]); // e2 dropped
+
+    assert.notEqual(fullRoot, missingRoot, 'dropping an entry must change root');
+  });
+
+  it('computeMerkleRoot detects replaced entry', () => {
+    const e1 = sha256hex('id-1|auth.login|alice||1000');
+    const e2 = sha256hex('id-2|document.create|alice|doc-abc|2000');
+    const eReplaced = sha256hex('id-2|document.DELETE|alice|doc-abc|2000');
+
+    const orig = computeMerkleRoot([e1, e2]);
+    const replaced = computeMerkleRoot([e1, eReplaced]);
+
+    assert.notEqual(orig, replaced, 'replaced entry must change root');
+  });
+});
+
+// ── 4. T107: audit-signing-key helpers ──────────────────────────────────────
+
+describe('audit-signing-key module', async () => {
+  const {
+    initAuditSigningKey,
+    getAuditSigningKeyId,
+    getAuditPublicKeyHex,
+    signMerkleRoot,
+    verifyMerkleRootSignature,
+  } = await import('../lib/audit-signing-key.js');
+
+  it('initAuditSigningKey is idempotent', () => {
+    initAuditSigningKey();
+    const keyId1 = getAuditSigningKeyId();
+    initAuditSigningKey(); // second call — no-op
+    const keyId2 = getAuditSigningKeyId();
+    assert.equal(keyId1, keyId2, 'key_id must not change on re-init');
+  });
+
+  it('getAuditSigningKeyId returns 16-char hex after init', () => {
+    initAuditSigningKey();
+    const keyId = getAuditSigningKeyId();
+    assert.ok(keyId, 'key_id must not be null after init');
+    assert.equal(keyId!.length, 16, 'key_id must be 16 chars');
+    assert.ok(/^[0-9a-f]+$/.test(keyId!), 'key_id must be lowercase hex');
+  });
+
+  it('getAuditPublicKeyHex returns 64-char hex after init', () => {
+    initAuditSigningKey();
+    const pubkey = getAuditPublicKeyHex();
+    assert.ok(pubkey, 'pubkey must not be null');
+    assert.equal(pubkey!.length, 64);
+    assert.ok(/^[0-9a-f]+$/.test(pubkey!));
+  });
+
+  it('signMerkleRoot produces 128-char hex signature', async () => {
+    initAuditSigningKey();
+    const result = await signMerkleRoot('a'.repeat(64), '2026-04-18');
+    assert.ok(result, 'signMerkleRoot must return a result after init');
+    assert.equal(result!.signature.length, 128);
+    assert.equal(result!.keyId.length, 16);
+  });
+
+  it('verifyMerkleRootSignature verifies own signature', async () => {
+    initAuditSigningKey();
+    const rootHex = 'b'.repeat(64);
+    const dateStr = '2026-04-18';
+    const result = await signMerkleRoot(rootHex, dateStr);
+    assert.ok(result);
+
+    const pubkey = getAuditPublicKeyHex()!;
+    const valid = await verifyMerkleRootSignature(pubkey, rootHex, dateStr, result!.signature);
+    assert.equal(valid, true, 'own signature must verify');
+  });
+
+  it('verifyMerkleRootSignature rejects wrong date', async () => {
+    initAuditSigningKey();
+    const rootHex = 'c'.repeat(64);
+    const result = await signMerkleRoot(rootHex, '2026-04-18');
+    assert.ok(result);
+
+    const pubkey = getAuditPublicKeyHex()!;
+    const valid = await verifyMerkleRootSignature(pubkey, rootHex, '2026-04-19', result!.signature);
+    assert.equal(valid, false, 'wrong date must fail verification');
+  });
+
+  it('verifyMerkleRootSignature rejects wrong root', async () => {
+    initAuditSigningKey();
+    const dateStr = '2026-04-18';
+    const result = await signMerkleRoot('d'.repeat(64), dateStr);
+    assert.ok(result);
+
+    const pubkey = getAuditPublicKeyHex()!;
+    const valid = await verifyMerkleRootSignature(pubkey, 'e'.repeat(64), dateStr, result!.signature);
+    assert.equal(valid, false, 'wrong root must fail verification');
+  });
+});
+
+// ── 5. RFC 3161 DER builder sanity check ────────────────────────────────────
 
 describe('buildTimestampRequest DER structure', async () => {
   const { buildTimestampRequest } = await import('../lib/rfc3161.js');

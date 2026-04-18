@@ -82,7 +82,7 @@
     }
 
     // checkout
-    if (!auth.user) {
+    if (!auth.session.user) {
       goto('/auth/sign-in?redirect=/pricing');
       return;
     }

@@ -11,7 +11,7 @@
  * Crash-safe: the upsert is idempotent (UNIQUE on user_id + rollup_date).
  */
 
-import { and, gte, lt, sql, sum, count, eq } from 'drizzle-orm';
+import { and, gte, lt, sum, count, eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { usageEvents, usageRollups } from '../db/schema-pg.js';
 import { generateId } from '../utils/compression.js';
@@ -77,7 +77,8 @@ export async function runUsageRollup(targetDate?: Date): Promise<void> {
         api_calls: 0, crdt_ops: 0, doc_reads: 0, doc_writes: 0, bytes_ingested: 0,
       });
     }
-    const u = byUser.get(row.userId)!;
+    const u = byUser.get(row.userId);
+    if (!u) continue;
     const n = row.eventCount ?? 0;
     const b = row.totalBytes ?? 0;
 
@@ -136,7 +137,7 @@ export async function runUsageRollup(targetDate?: Date): Promise<void> {
   purgeOlderThan.setUTCDate(purgeOlderThan.getUTCDate() - 60);
 
   try {
-    const result = await db
+    await db
       .delete(usageEvents)
       .where(lt(usageEvents.createdAt, purgeOlderThan));
     console.info('[usage-rollup] Purged old usage events');

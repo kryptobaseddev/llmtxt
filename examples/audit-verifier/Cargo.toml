@@ -1,0 +1,20 @@
+[package]
+name = "audit-verifier"
+version = "0.1.0"
+edition = "2024"
+description = "Independent audit log verifier for LLMtxt — fetches log + signed Merkle root and verifies without trusting the server"
+publish = false
+
+[[bin]]
+name = "audit-verifier"
+path = "src/main.rs"
+
+[dependencies]
+# Use the workspace crate for all crypto (SSOT: never re-implement SHA-256 here)
+llmtxt-core = { path = "../../crates/llmtxt-core", default-features = false }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+hex = "0.4"
+sha2 = "0.10"

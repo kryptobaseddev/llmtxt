@@ -98,26 +98,26 @@ export const FORBIDDEN_CONTENTS = [
 
 // ── Server-side (Node.js) sanitizer ──────────────────────────────────────────
 
-let _serverPurify: ReturnType<typeof import('dompurify')> | null = null;
+let _serverPurify: any = null;
 
 /**
  * Lazy-initialize the server-side DOMPurify instance.
  * JSDOM is only imported when this function is called, so this module is
  * safe to import in browser contexts (where JSDOM is not available).
  */
-async function getServerPurify(): Promise<ReturnType<typeof import('dompurify')>> {
+async function getServerPurify(): Promise<any> {
   if (_serverPurify) return _serverPurify;
 
   // Dynamic import — not bundled in browser builds.
-  const [{ JSDOM }, DOMPurifyFactory] = await Promise.all([
+  const [{ JSDOM }, DOMPurifyModule] = await Promise.all([
     import('jsdom'),
     import('dompurify'),
   ]);
 
   const { window: jsdomWindow } = new JSDOM('');
-  _serverPurify = (DOMPurifyFactory.default as (win: unknown) => ReturnType<typeof import('dompurify')>)(
-    jsdomWindow as unknown
-  );
+  // DOMPurify's default export is a factory function that accepts a window
+  const DOMPurifyFactory = DOMPurifyModule.default || DOMPurifyModule;
+  _serverPurify = DOMPurifyFactory(jsdomWindow as any);
   return _serverPurify;
 }
 
