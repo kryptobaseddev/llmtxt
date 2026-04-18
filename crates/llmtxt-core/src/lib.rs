@@ -182,13 +182,8 @@ pub use blob::{BlobNameError, blob_name_validate, hash_blob};
 
 pub mod merkle;
 pub use merkle::{
-    AuditEntry,
-    hash_audit_entry,
-    merkle_root,
-    sign_merkle_root,
-    verify_audit_chain,
-    verify_merkle_proof,
-    verify_merkle_root_signature,
+    AuditEntry, hash_audit_entry, merkle_root, sign_merkle_root, verify_audit_chain,
+    verify_merkle_proof, verify_merkle_root_signature,
 };
 
 pub mod billing;
