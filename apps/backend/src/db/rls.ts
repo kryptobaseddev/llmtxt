@@ -16,11 +16,15 @@
  * • For unauthenticated / anonymous requests, pass `userId = ''`.  The RLS
  *   policies treat an empty string as "no user" and permit only `visibility =
  *   'public'` rows to be returned.
+ * • When `DATABASE_PROVIDER !== 'postgresql'` (i.e. SQLite mode), this module
+ *   is a no-op: `withRlsContext` simply calls `fn(db)` without opening a
+ *   transaction or executing any SET LOCAL statements.
  *
  * @module db/rls
  */
 
 import { sql } from 'drizzle-orm';
+import { DATABASE_PROVIDER } from './index.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -95,6 +99,13 @@ export async function withRlsContext<
   ctx: RlsContext,
   fn: RlsFn<TDbTx, TReturn>,
 ): Promise<TReturn> {
+  // No-op in SQLite mode — SET LOCAL is a PG-only construct.
+  if (DATABASE_PROVIDER !== 'postgresql') {
+    // In SQLite mode fn receives the db instance directly (no transaction wrapping).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return fn(db as unknown as TDbTx);
+  }
+
   const userId = ctx.userId ?? '';
   const orgIds = ctx.orgIds ?? '';
   const role = ctx.role ?? (userId ? 'authenticated' : 'anon');

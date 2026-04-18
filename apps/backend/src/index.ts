@@ -65,6 +65,7 @@ import { logger as pinoLogger } from './lib/logger.js';
 import { registerObservabilityHooks } from './middleware/observability.js';
 import { docsRoutes } from './routes/docs.js';
 import { registerPostgresBackendPlugin } from './plugins/postgres-backend-plugin.js';
+import { registerRlsPlugin } from './plugins/rls-plugin.js';
 import { adminRoutes } from './routes/admin.js';
 import { billingRoutes } from './routes/billing.js';
 import { startUsageRollupJob } from './jobs/usage-rollup.js';
@@ -137,6 +138,11 @@ async function main() {
     // Wave A routes (api.ts, versions.ts, lifecycle.ts, disclosure.ts) are
     // refactored; remaining routes use legacy db directly until Wave B-D.
     await registerPostgresBackendPlugin(app);
+
+    // ── RLS context plugin (T166) ─────────────────────────────────────────────
+    // Registers an onRequest hook that injects app.current_user_id etc. into
+    // every Postgres transaction via SET LOCAL.  No-op in SQLite mode.
+    await registerRlsPlugin(app);
 
     // Register API version plugin globally so request.apiVersion is always set
     await app.register(apiVersionPlugin);
@@ -609,6 +615,9 @@ async function main() {
 
     // Start event log background jobs (compaction + chain validation).
     startEventLogJobs();
+
+    // T107: Initialize server ed25519 audit signing key (must run before checkpoint job).
+    initAuditSigningKey();
 
     // T164: Start daily audit log Merkle checkpoint job.
     startAuditCheckpointJob();
