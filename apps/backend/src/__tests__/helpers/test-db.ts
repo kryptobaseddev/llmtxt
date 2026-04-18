@@ -290,6 +290,46 @@ async function createSQLiteTestDb(): Promise<TestDbContext> {
       created_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS webhook_deliveries (
+      id TEXT PRIMARY KEY,
+      webhook_id TEXT NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
+      event_id TEXT NOT NULL,
+      attempt_num INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      response_status INTEGER,
+      duration_ms INTEGER NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS webhook_deliveries_webhook_id_idx ON webhook_deliveries(webhook_id);
+    CREATE INDEX IF NOT EXISTS webhook_deliveries_event_id_idx ON webhook_deliveries(event_id);
+    CREATE INDEX IF NOT EXISTS webhook_deliveries_created_at_idx ON webhook_deliveries(created_at);
+
+    CREATE TABLE IF NOT EXISTS webhook_dlq (
+      id TEXT PRIMARY KEY,
+      webhook_id TEXT NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
+      failed_delivery_id TEXT NOT NULL,
+      event_id TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      captured_at INTEGER NOT NULL,
+      replayed_at INTEGER
+    );
+
+    CREATE INDEX IF NOT EXISTS webhook_dlq_webhook_id_idx ON webhook_dlq(webhook_id);
+    CREATE INDEX IF NOT EXISTS webhook_dlq_event_id_idx ON webhook_dlq(event_id);
+    CREATE INDEX IF NOT EXISTS webhook_dlq_captured_at_idx ON webhook_dlq(captured_at);
+
+    CREATE TABLE IF NOT EXISTS webhook_seen_ids (
+      event_id TEXT PRIMARY KEY,
+      webhook_id TEXT NOT NULL,
+      expires_at INTEGER NOT NULL,
+      seen_at INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS webhook_seen_ids_expires_at_idx ON webhook_seen_ids(expires_at);
+    CREATE INDEX IF NOT EXISTS webhook_seen_ids_webhook_id_idx ON webhook_seen_ids(webhook_id);
+
     CREATE TABLE IF NOT EXISTS signed_url_tokens (
       id TEXT PRIMARY KEY,
       document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,

@@ -1,14 +1,16 @@
 /**
- * Webhook delivery worker.
+ * Webhook delivery worker — hardened (T165).
  *
  * Listens on the event bus and delivers matching events to registered webhook
  * endpoints via HTTP POST. Delivery is fire-and-forget from the perspective
  * of the request handler — events are never awaited on the hot path.
  *
- * Delivery guarantees:
- * - At-least-once delivery with up to 3 retries per event.
- * - Exponential back-off: 1 s, 2 s, 4 s.
- * - Webhook is automatically disabled after 10 consecutive failures.
+ * Delivery guarantees (T165):
+ * - At-least-once delivery with up to MAX_RETRIES attempts per event.
+ * - Exponential back-off: INITIAL_BACKOFF_MS * 2^attempt, capped at MAX_BACKOFF_MS.
+ * - After all retries exhausted, event written to webhook_dlq (dead-letter queue).
+ * - Every attempt (success or failure) writes a row to webhook_deliveries.
+ * - X-Llmtxt-Event-Id is stable across all retry attempts for the same event.
  *
  * Signature:
  * - Each delivery includes an `X-LLMtxt-Signature` header containing
@@ -18,28 +20,89 @@
  * Tracing:
  * - Each delivery includes W3C Trace Context headers (traceparent, tracestate)
  *   to enable correlation with the span that triggered the event.
- * - X-Llmtxt-Event-Id is a UUID for deduplication across retries.
+ *
+ * Circuit breaker (T165):
+ * - In-process sliding window tracks failure ratio per webhook.
+ * - If failure rate > 50% over 5m with >= 4 calls, webhook disabled immediately.
  *
  * Security:
  * - Only HTTPS URLs are allowed in production (NODE_ENV=production).
  * - The secret is stored in plaintext in the DB; treat it as a symmetric key.
  */
-import { signWebhookPayload } from 'llmtxt';
+import { signWebhookPayload, generateId } from 'llmtxt';
 import { context, propagation } from '@opentelemetry/api';
 import { eventBus, type DocumentEvent } from './bus.js';
 import { db } from '../db/index.js';
-import { webhooks } from '../db/schema.js';
-import { eq, and } from 'drizzle-orm';
+import { webhooks, webhookDeliveries, webhookDlq } from '../db/schema.js';
+import { eq } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { webhookDeliveryTotal } from '../middleware/metrics.js';
 import { shutdownCoordinator } from '../lib/shutdown.js';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const MAX_RETRIES = 3;
-const INITIAL_BACKOFF_MS = 1_000;
+/** Maximum number of delivery attempts (1 initial + 9 retries = 10 total). */
+const MAX_RETRIES = 9;
+/** First retry delay: 10 seconds. */
+const INITIAL_BACKOFF_MS = 10_000;
+/** Hard ceiling on backoff delay: 1 hour. */
+const MAX_BACKOFF_MS = 3_600_000;
+/** Consecutive failure count that triggers auto-disable. */
 const MAX_FAILURE_COUNT = 10;
+/** HTTP timeout per delivery attempt. */
 const DELIVERY_TIMEOUT_MS = 10_000;
+
+// ── Circuit-breaker constants ─────────────────────────────────────────────────
+
+const CB_WINDOW_MS = 5 * 60_000; // 5 minutes
+const CB_FAILURE_RATE_THRESHOLD = 0.5; // 50 %
+const CB_MIN_CALLS = 4;
+
+// ── Circuit-breaker state ─────────────────────────────────────────────────────
+
+interface CbRecord {
+  successes: number[];
+  failures: number[];
+}
+
+const _cbState = new Map<string, CbRecord>();
+
+function cbRecord(webhookId: string): CbRecord {
+  let rec = _cbState.get(webhookId);
+  if (!rec) {
+    rec = { successes: [], failures: [] };
+    _cbState.set(webhookId, rec);
+  }
+  return rec;
+}
+
+/**
+ * Record a delivery outcome. Returns true if the circuit should trip.
+ */
+function cbObserve(webhookId: string, success: boolean): boolean {
+  const now = Date.now();
+  const cutoff = now - CB_WINDOW_MS;
+  const rec = cbRecord(webhookId);
+
+  rec.successes = rec.successes.filter(t => t > cutoff);
+  rec.failures = rec.failures.filter(t => t > cutoff);
+
+  if (success) {
+    rec.successes.push(now);
+  } else {
+    rec.failures.push(now);
+  }
+
+  const total = rec.successes.length + rec.failures.length;
+  if (total < CB_MIN_CALLS) return false;
+
+  return rec.failures.length / total > CB_FAILURE_RATE_THRESHOLD;
+}
+
+/** Clear circuit-breaker state for a webhook (used when webhook is re-enabled). */
+export function cbReset(webhookId: string): void {
+  _cbState.delete(webhookId);
+}
 
 // ── HMAC signature ────────────────────────────────────────────────────────────
 
@@ -53,10 +116,24 @@ function computeSignature(secret: string, payload: string): string {
   return signWebhookPayload(secret, payload);
 }
 
-// ── Delivery ─────────────────────────────────────────────────────────────────
+// ── Single-attempt delivery ───────────────────────────────────────────────────
 
-/** Attempt to deliver a single event to a single webhook URL. Returns true on success. */
-async function attemptDelivery(url: string, secret: string, payload: string): Promise<boolean> {
+interface AttemptResult {
+  success: boolean;
+  responseStatus: number | null;
+  reason: 'ok' | 'http_error' | 'timeout' | 'network_error';
+}
+
+/**
+ * Make one HTTP POST to the webhook URL. Never throws — returns structured result.
+ */
+async function singleAttempt(
+  url: string,
+  secret: string,
+  payload: string,
+  eventId: string,
+  eventType: string,
+): Promise<AttemptResult> {
   const signature = computeSignature(secret, payload);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), DELIVERY_TIMEOUT_MS);
@@ -66,13 +143,12 @@ async function attemptDelivery(url: string, secret: string, payload: string): Pr
       'Content-Type': 'application/json',
       'User-Agent': 'llmtxt-webhook/1.0',
       'X-LLMtxt-Signature': signature,
-      'X-LLMtxt-Event': JSON.parse(payload).type ?? 'unknown',
-      'X-Llmtxt-Event-Id': randomUUID(),
+      'X-LLMtxt-Event': eventType,
+      // Stable across all retry attempts — enables idempotent receivers.
+      'X-Llmtxt-Event-Id': eventId,
     };
 
-    // Inject W3C Trace Context headers (traceparent, tracestate)
-    // This enables downstream consumers to correlate their trace with ours.
-    // If OTel is in no-op mode, propagation.inject is a no-op and adds no headers.
+    // Inject W3C Trace Context headers (traceparent, tracestate).
     propagation.inject(context.active(), headers);
 
     const response = await fetch(url, {
@@ -82,14 +158,73 @@ async function attemptDelivery(url: string, secret: string, payload: string): Pr
       signal: controller.signal,
     });
     clearTimeout(timer);
-    return response.ok;
-  } catch {
+
+    if (response.ok) {
+      return { success: true, responseStatus: response.status, reason: 'ok' };
+    }
+    return { success: false, responseStatus: response.status, reason: 'http_error' };
+  } catch (err: unknown) {
     clearTimeout(timer);
-    return false;
+    const isAbort =
+      err instanceof Error && (err.name === 'AbortError' || err.message.includes('abort'));
+    return { success: false, responseStatus: null, reason: isAbort ? 'timeout' : 'network_error' };
   }
 }
 
-/** Deliver an event to a webhook with retries and back-off. Updates failure count in DB. */
+// ── Delivery log writer ───────────────────────────────────────────────────────
+
+async function writeDeliveryLog(
+  webhookId: string,
+  eventId: string,
+  attemptNum: number,
+  result: AttemptResult,
+  durationMs: number,
+): Promise<string> {
+  const id = generateId();
+  await db.insert(webhookDeliveries).values({
+    id,
+    webhookId,
+    eventId,
+    attemptNum,
+    status: result.success ? 'success' : result.reason === 'timeout' ? 'timeout' : 'failed',
+    responseStatus: result.responseStatus ?? null,
+    durationMs,
+    createdAt: Date.now(),
+  });
+  return id;
+}
+
+// ── DLQ writer ────────────────────────────────────────────────────────────────
+
+async function writeToDlq(
+  webhookId: string,
+  eventId: string,
+  failedDeliveryId: string,
+  reason: string,
+  payload: string,
+): Promise<void> {
+  await db.insert(webhookDlq).values({
+    id: generateId(),
+    webhookId,
+    failedDeliveryId,
+    eventId,
+    reason,
+    payload,
+    capturedAt: Date.now(),
+    replayedAt: null,
+  });
+}
+
+// ── Retry loop ────────────────────────────────────────────────────────────────
+
+/**
+ * Deliver an event to one webhook with exponential-backoff retries.
+ *
+ * - Generates a stable eventId once for all attempts.
+ * - Writes a webhook_deliveries row after every attempt.
+ * - On exhaustion, writes to webhook_dlq (no silent drops).
+ * - Evaluates circuit-breaker and disables webhook if tripped.
+ */
 async function deliverWithRetry(
   webhookId: string,
   url: string,
@@ -98,19 +233,47 @@ async function deliverWithRetry(
   payload: string,
   eventType: string = 'unknown',
 ): Promise<void> {
+  // One stable ID for all retry attempts of the same event.
+  const eventId = randomUUID();
+  let lastDeliveryId = '';
+  let lastReason = 'unknown';
   let success = false;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     if (attempt > 0) {
-      await new Promise(res => setTimeout(res, INITIAL_BACKOFF_MS * Math.pow(2, attempt - 1)));
+      const delay = Math.min(INITIAL_BACKOFF_MS * Math.pow(2, attempt - 1), MAX_BACKOFF_MS);
+      await new Promise<void>(res => setTimeout(res, delay));
     }
-    success = await attemptDelivery(url, secret, payload);
-    if (success) break;
+
+    const startMs = Date.now();
+    const result = await singleAttempt(url, secret, payload, eventId, eventType);
+    const durationMs = Date.now() - startMs;
+
+    lastDeliveryId = await writeDeliveryLog(webhookId, eventId, attempt, result, durationMs);
+    lastReason = result.reason;
+
+    const shouldTrip = cbObserve(webhookId, result.success);
+
+    if (result.success) {
+      success = true;
+      break;
+    }
+
+    if (shouldTrip) {
+      console.warn(`[webhook] circuit-breaker tripped for ${webhookId} (${url})`);
+      await db
+        .update(webhooks)
+        .set({ failureCount: MAX_FAILURE_COUNT, active: false, lastDeliveryAt: Date.now() })
+        .where(eq(webhooks.id, webhookId));
+      webhookDeliveryTotal.inc({ event_type: eventType, result: 'circuit_open' });
+      await writeToDlq(webhookId, eventId, lastDeliveryId, 'circuit_breaker', payload);
+      return;
+    }
   }
 
   const now = Date.now();
+
   if (success) {
-    // Reset failure counter on success.
     await db
       .update(webhooks)
       .set({ failureCount: 0, lastDeliveryAt: now, lastSuccessAt: now })
@@ -128,6 +291,9 @@ async function deliverWithRetry(
       })
       .where(eq(webhooks.id, webhookId));
     webhookDeliveryTotal.inc({ event_type: eventType, result: 'failed' });
+
+    // Write to dead-letter queue — event must not be silently dropped.
+    await writeToDlq(webhookId, eventId, lastDeliveryId, lastReason, payload);
   }
 }
 
@@ -162,8 +328,6 @@ export function startWebhookWorker(): void {
 /** Fetch matching webhooks and dispatch the event to each one asynchronously. */
 async function dispatchToWebhooks(event: DocumentEvent): Promise<void> {
   try {
-    // Fetch all active webhooks. We use two queries — one for slug-scoped
-    // and one for user-wide — to keep the SQL simple with SQLite.
     const allActive = await db
       .select()
       .from(webhooks)
@@ -205,4 +369,63 @@ async function dispatchToWebhooks(event: DocumentEvent): Promise<void> {
     // Never throw from the event bus listener — it would propagate to EventEmitter
     // and potentially crash the process.
   }
+}
+
+// ── Re-queue from DLQ (admin replay) ─────────────────────────────────────────
+
+/**
+ * Re-attempt delivery of a single DLQ entry.
+ *
+ * Called from POST /webhooks/:id/dlq/:entryId/replay.
+ * Uses the stored payload verbatim (stable event ID is preserved).
+ * On success, marks the DLQ entry as replayed.
+ */
+export async function replayDlqEntry(
+  dlqEntryId: string,
+): Promise<{ success: boolean; responseStatus: number | null }> {
+  const [entry] = await db
+    .select()
+    .from(webhookDlq)
+    .where(eq(webhookDlq.id, dlqEntryId))
+    .limit(1);
+
+  if (!entry) return { success: false, responseStatus: null };
+
+  const [hook] = await db
+    .select()
+    .from(webhooks)
+    .where(eq(webhooks.id, entry.webhookId))
+    .limit(1);
+
+  if (!hook) return { success: false, responseStatus: null };
+
+  let parsedType = 'unknown';
+  try {
+    parsedType = ((JSON.parse(entry.payload) as Record<string, unknown>).type as string) ?? 'unknown';
+  } catch { /* ignore */ }
+
+  const startMs = Date.now();
+  const result = await singleAttempt(hook.url, hook.secret, entry.payload, entry.eventId, parsedType);
+  const durationMs = Date.now() - startMs;
+
+  // Record the replay attempt (attemptNum = -1 = manual replay).
+  const deliveryId = await writeDeliveryLog(entry.webhookId, entry.eventId, -1, result, durationMs);
+
+  if (result.success) {
+    await db
+      .update(webhookDlq)
+      .set({ replayedAt: Date.now() })
+      .where(eq(webhookDlq.id, dlqEntryId));
+
+    await db
+      .update(webhooks)
+      .set({ failureCount: 0, lastDeliveryAt: Date.now(), lastSuccessAt: Date.now() })
+      .where(eq(webhooks.id, entry.webhookId));
+  } else {
+    console.warn(
+      `[webhook] DLQ replay failed for entry ${dlqEntryId}: ${result.reason} (delivery ${deliveryId})`,
+    );
+  }
+
+  return { success: result.success, responseStatus: result.responseStatus };
 }

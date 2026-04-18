@@ -865,6 +865,62 @@ export const webhooks = sqliteTable(
 );
 
 // ────────────────────────────────────────────────────────────────
+// Webhook Delivery Log (T165)
+// ────────────────────────────────────────────────────────────────
+
+export const webhookDeliveries = sqliteTable(
+  'webhook_deliveries',
+  {
+    id: text('id').primaryKey(),
+    webhookId: text('webhook_id').notNull().references(() => webhooks.id, { onDelete: 'cascade' }),
+    eventId: text('event_id').notNull(),
+    attemptNum: integer('attempt_num').notNull(),
+    status: text('status').notNull(),
+    responseStatus: integer('response_status'),
+    durationMs: integer('duration_ms').notNull(),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => ({
+    webhookIdx: index('webhook_deliveries_webhook_id_idx').on(table.webhookId),
+    eventIdx: index('webhook_deliveries_event_id_idx').on(table.eventId),
+    createdAtIdx: index('webhook_deliveries_created_at_idx').on(table.createdAt),
+  })
+);
+
+export const webhookDlq = sqliteTable(
+  'webhook_dlq',
+  {
+    id: text('id').primaryKey(),
+    webhookId: text('webhook_id').notNull().references(() => webhooks.id, { onDelete: 'cascade' }),
+    failedDeliveryId: text('failed_delivery_id').notNull(),
+    eventId: text('event_id').notNull(),
+    reason: text('reason').notNull(),
+    payload: text('payload').notNull(),
+    capturedAt: integer('captured_at').notNull(),
+    replayedAt: integer('replayed_at'),
+  },
+  (table) => ({
+    webhookIdx: index('webhook_dlq_webhook_id_idx').on(table.webhookId),
+    eventIdx: index('webhook_dlq_event_id_idx').on(table.eventId),
+    capturedAtIdx: index('webhook_dlq_captured_at_idx').on(table.capturedAt),
+  })
+);
+
+export const webhookSeenIds = sqliteTable(
+  'webhook_seen_ids',
+  {
+    eventId: text('event_id').primaryKey(),
+    webhookId: text('webhook_id').notNull(),
+    expiresAt: integer('expires_at').notNull(),
+    seenAt: integer('seen_at').notNull(),
+  },
+  (table) => ({
+    expiresAtIdx: index('webhook_seen_ids_expires_at_idx').on(table.expiresAt),
+    webhookIdx: index('webhook_seen_ids_webhook_id_idx').on(table.webhookId),
+  })
+);
+
+// ────────────────────────────────────────────────────────────────
 // Collection documents (membership)
 // ────────────────────────────────────────────────────────────────
 
@@ -1102,6 +1158,12 @@ export type PendingInvite = typeof pendingInvites.$inferSelect;
 export type NewPendingInvite = typeof pendingInvites.$inferInsert;
 export type Webhook = typeof webhooks.$inferSelect;
 export type NewWebhook = typeof webhooks.$inferInsert;
+export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;
+export type NewWebhookDelivery = typeof webhookDeliveries.$inferInsert;
+export type WebhookDlqEntry = typeof webhookDlq.$inferSelect;
+export type NewWebhookDlqEntry = typeof webhookDlq.$inferInsert;
+export type WebhookSeenId = typeof webhookSeenIds.$inferSelect;
+export type NewWebhookSeenId = typeof webhookSeenIds.$inferInsert;
 export type DocumentLink = typeof documentLinks.$inferSelect;
 export type NewDocumentLink = typeof documentLinks.$inferInsert;
 export type Collection = typeof collections.$inferSelect;
