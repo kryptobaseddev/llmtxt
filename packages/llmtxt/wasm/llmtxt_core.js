@@ -361,10 +361,10 @@ function cherry_pick_merge_wasm(base, versions_json, selection_json) {
 exports.cherry_pick_merge_wasm = cherry_pick_merge_wasm;
 
 /**
- * Compress a UTF-8 string using zlib-wrapped deflate (RFC 1950).
+ * Compress a UTF-8 string using **zstd** (RFC 8478), level 3.
  *
- * Matches Node.js `zlib.deflate` output for backward compatibility
- * with existing stored data.
+ * New writes use zstd. Existing zlib-stored data is still readable via
+ * [`decompress`], which detects the codec by inspecting magic bytes.
  *
  * # Errors
  * Returns an error string if compression fails.
@@ -854,9 +854,14 @@ function decode_base62(s) {
 exports.decode_base62 = decode_base62;
 
 /**
- * Decompress zlib-wrapped deflate bytes back to a UTF-8 string.
+ * Decompress bytes back to a UTF-8 string.
  *
- * Matches Node.js `zlib.inflate` for backward compatibility.
+ * Codec is detected automatically from the magic bytes:
+ * - `0xFD 0x2F 0xB5 0x28` → zstd (RFC 8478)
+ * - `0x78 __` (zlib CMF byte) → zlib/deflate (RFC 1950, legacy)
+ *
+ * This guarantees backward compatibility: all rows written before the zstd
+ * migration continue to decode correctly without a schema change.
  *
  * # Errors
  * Returns an error string if decompression or UTF-8 conversion fails.
@@ -926,6 +931,30 @@ function derive_signing_key(api_key) {
     }
 }
 exports.derive_signing_key = derive_signing_key;
+
+/**
+ * WASM binding for [`deserialize_export_archive`].
+ *
+ * Returns the verified archive JSON on success, or `{"error":"..."}` on
+ * any failure (parse error, version mismatch, hash mismatch).
+ * @param {string} archive_json
+ * @returns {string}
+ */
+function deserialize_export_archive_wasm(archive_json) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(archive_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.deserialize_export_archive_wasm(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.deserialize_export_archive_wasm = deserialize_export_archive_wasm;
 
 /**
  * Detect the structural format of a document.
@@ -1082,6 +1111,35 @@ function evaluate_approvals(reviews_json, policy_json, current_version, now_ms) 
     }
 }
 exports.evaluate_approvals = evaluate_approvals;
+
+/**
+ * WASM binding: evaluate tier limits from JSON-serialised inputs.
+ *
+ * `usage_json` — JSON of `UsageSnapshot`.
+ * `tier_str` — `"free"` | `"pro"` | `"enterprise"` (case-insensitive).
+ *
+ * Returns JSON of `TierDecision`, or `{"error":"..."}` on parse failure.
+ * @param {string} usage_json
+ * @param {string} tier_str
+ * @returns {string}
+ */
+function evaluate_tier_limits_wasm(usage_json, tier_str) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(usage_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(tier_str, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.evaluate_tier_limits_wasm(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+exports.evaluate_tier_limits_wasm = evaluate_tier_limits_wasm;
 
 /**
  * Extract /directives from content. Returns JSON array of strings.
@@ -1319,6 +1377,31 @@ function get_section_wasm(content, section_name, depth_all) {
     }
 }
 exports.get_section_wasm = get_section_wasm;
+
+/**
+ * WASM binding: return tier limits as JSON.
+ *
+ * `tier_str` — `"free"` | `"pro"` | `"enterprise"` (case-insensitive).
+ *
+ * Returns JSON of `TierLimits`, or `{"error":"..."}` on serialization failure.
+ * @param {string} tier_str
+ * @returns {string}
+ */
+function get_tier_limits_wasm(tier_str) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(tier_str, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.get_tier_limits_wasm(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.get_tier_limits_wasm = get_tier_limits_wasm;
 
 /**
  * WASM binding for [`hash_blob`].
@@ -1868,6 +1951,39 @@ function reconstruct_version(base, patches_json, target) {
 exports.reconstruct_version = reconstruct_version;
 
 /**
+ * WASM entry point for retention policy evaluation.
+ *
+ * # Arguments (JSON strings)
+ * - `rows_json`: JSON array of [`RetentionRow`] objects.
+ * - `policy_json`: JSON object matching [`RetentionPolicy`].
+ * - `now_ms`: current Unix timestamp in milliseconds (f64 for JS interop).
+ *
+ * # Returns
+ * JSON-serialised [`EvictionSet`], or a JSON `{"error":"..."}` on parse failure.
+ * @param {string} rows_json
+ * @param {string} policy_json
+ * @param {number} now_ms
+ * @returns {string}
+ */
+function retention_apply_wasm(rows_json, policy_json, now_ms) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(rows_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(policy_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.retention_apply_wasm(ptr0, len0, ptr1, len1, now_ms);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+exports.retention_apply_wasm = retention_apply_wasm;
+
+/**
  * Check if a role has a specific permission.
  *
  * Returns `true` if `role` (e.g. `"editor"`) has the given `permission`
@@ -2055,6 +2171,33 @@ function semantic_diff_wasm(sections_a_json, sections_b_json) {
     }
 }
 exports.semantic_diff_wasm = semantic_diff_wasm;
+
+/**
+ * WASM binding for [`serialize_export_archive`].
+ *
+ * Accepts a JSON string representing an [`ExportArchive`] *without*
+ * a valid `content_hash`, computes the hash, and returns the JSON
+ * string with the hash embedded.
+ *
+ * Returns `{"error":"..."}` on parse failure.
+ * @param {string} archive_json
+ * @returns {string}
+ */
+function serialize_export_archive_wasm(archive_json) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(archive_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.serialize_export_archive_wasm(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.serialize_export_archive_wasm = serialize_export_archive_wasm;
 
 /**
  * Compute the HMAC-SHA256 webhook signature for a payload.
@@ -2422,6 +2565,46 @@ function verify_merkle_proof_wasm(root_hex, leaf_hex, proof_json) {
     }
 }
 exports.verify_merkle_proof_wasm = verify_merkle_proof_wasm;
+
+/**
+ * WASM binding: compress bytes using zstd, returning the compressed bytes.
+ *
+ * Accepts a `Uint8Array` from JavaScript.
+ * @param {Uint8Array} data
+ * @returns {Uint8Array}
+ */
+function zstd_compress_bytes(data) {
+    const ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.zstd_compress_bytes(ptr0, len0);
+    if (ret[3]) {
+        throw takeFromExternrefTable0(ret[2]);
+    }
+    var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v2;
+}
+exports.zstd_compress_bytes = zstd_compress_bytes;
+
+/**
+ * WASM binding: decompress zstd bytes, returning the raw decompressed bytes.
+ *
+ * Accepts a `Uint8Array` from JavaScript.
+ * @param {Uint8Array} data
+ * @returns {Uint8Array}
+ */
+function zstd_decompress_bytes(data) {
+    const ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.zstd_decompress_bytes(ptr0, len0);
+    if (ret[3]) {
+        throw takeFromExternrefTable0(ret[2]);
+    }
+    var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+    return v2;
+}
+exports.zstd_decompress_bytes = zstd_decompress_bytes;
 
 function __wbg_get_imports() {
     const import0 = {

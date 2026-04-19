@@ -10,13 +10,55 @@ import * as wasmModule from '../wasm/llmtxt_core.js';
 
 // ── Compression ─────────────────────────────────────────────────
 
+/**
+ * Compress a UTF-8 string using zstd (RFC 8478), level 3.
+ *
+ * New writes use zstd. Existing zlib-compressed rows are still readable
+ * via {@link decompress}, which detects the codec by magic bytes.
+ *
+ * Delegates to crates/llmtxt-core::compress (Rust WASM).
+ */
 export async function compress(data: string): Promise<Buffer> {
   const bytes = wasmModule.compress(data);
   return Buffer.from(bytes);
 }
 
+/**
+ * Decompress bytes back to a UTF-8 string.
+ *
+ * Auto-detects codec by magic bytes:
+ * - `0xFD 0x2F 0xB5 0x28` → zstd (new writes)
+ * - `0x78 __` → zlib/deflate (legacy rows — backward compatible)
+ *
+ * Delegates to crates/llmtxt-core::decompress (Rust WASM).
+ */
 export async function decompress(data: Buffer): Promise<string> {
   return wasmModule.decompress(new Uint8Array(data));
+}
+
+/**
+ * Compress raw bytes using zstd, returning compressed bytes.
+ *
+ * Use this for binary payloads (blobs, CRDT snapshots) where the
+ * input is not a UTF-8 string. Delegates to crates/llmtxt-core::zstd_compress_bytes.
+ *
+ * @param data - Raw bytes to compress.
+ * @returns Compressed bytes with zstd magic header.
+ */
+export function zstdCompressBytes(data: Uint8Array): Uint8Array {
+  return wasmModule.zstd_compress_bytes(data);
+}
+
+/**
+ * Decompress raw zstd bytes back to raw bytes.
+ *
+ * Delegates to crates/llmtxt-core::zstd_decompress_bytes.
+ *
+ * @param data - zstd-compressed bytes.
+ * @returns Decompressed raw bytes.
+ */
+export function zstdDecompressBytes(data: Uint8Array): Uint8Array {
+  return wasmModule.zstd_decompress_bytes(data);
 }
 
 // ── Base62 ──────────────────────────────────────────────────────

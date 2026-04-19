@@ -146,10 +146,10 @@ export function canonicalFrontmatter(meta_json: string): string;
 export function cherry_pick_merge_wasm(base: string, versions_json: string, selection_json: string): string;
 
 /**
- * Compress a UTF-8 string using zlib-wrapped deflate (RFC 1950).
+ * Compress a UTF-8 string using **zstd** (RFC 8478), level 3.
  *
- * Matches Node.js `zlib.deflate` output for backward compatibility
- * with existing stored data.
+ * New writes use zstd. Existing zlib-stored data is still readable via
+ * [`decompress`], which detects the codec by inspecting magic bytes.
  *
  * # Errors
  * Returns an error string if compression fails.
@@ -353,9 +353,14 @@ export function create_patch(original: string, modified: string): string;
 export function decode_base62(s: string): bigint;
 
 /**
- * Decompress zlib-wrapped deflate bytes back to a UTF-8 string.
+ * Decompress bytes back to a UTF-8 string.
  *
- * Matches Node.js `zlib.inflate` for backward compatibility.
+ * Codec is detected automatically from the magic bytes:
+ * - `0xFD 0x2F 0xB5 0x28` → zstd (RFC 8478)
+ * - `0x78 __` (zlib CMF byte) → zlib/deflate (RFC 1950, legacy)
+ *
+ * This guarantees backward compatibility: all rows written before the zstd
+ * migration continue to decode correctly without a schema change.
  *
  * # Errors
  * Returns an error string if decompression or UTF-8 conversion fails.
@@ -377,6 +382,14 @@ export function default_max_line_bytes(): number;
  * Uses `HMAC-SHA256(api_key, "llmtxt-signing")`.
  */
 export function derive_signing_key(api_key: string): string;
+
+/**
+ * WASM binding for [`deserialize_export_archive`].
+ *
+ * Returns the verified archive JSON on success, or `{"error":"..."}` on
+ * any failure (parse error, version mismatch, hash mismatch).
+ */
+export function deserialize_export_archive_wasm(archive_json: string): string;
 
 /**
  * Detect the structural format of a document.
@@ -433,6 +446,16 @@ export function encode_base62(num: bigint): string;
  * Returns a JSON string matching the TypeScript `ApprovalResult` interface.
  */
 export function evaluate_approvals(reviews_json: string, policy_json: string, current_version: number, now_ms: number): string;
+
+/**
+ * WASM binding: evaluate tier limits from JSON-serialised inputs.
+ *
+ * `usage_json` — JSON of `UsageSnapshot`.
+ * `tier_str` — `"free"` | `"pro"` | `"enterprise"` (case-insensitive).
+ *
+ * Returns JSON of `TierDecision`, or `{"error":"..."}` on parse failure.
+ */
+export function evaluate_tier_limits_wasm(usage_json: string, tier_str: string): string;
 
 /**
  * Extract /directives from content. Returns JSON array of strings.
@@ -504,6 +527,15 @@ export function get_line_range_wasm(content: string, start: number, end: number)
  * Returns JSON result or `{"error":"section not found"}` if missing.
  */
 export function get_section_wasm(content: string, section_name: string, depth_all: boolean): string;
+
+/**
+ * WASM binding: return tier limits as JSON.
+ *
+ * `tier_str` — `"free"` | `"pro"` | `"enterprise"` (case-insensitive).
+ *
+ * Returns JSON of `TierLimits`, or `{"error":"..."}` on serialization failure.
+ */
+export function get_tier_limits_wasm(tier_str: string): string;
 
 /**
  * WASM binding for [`hash_blob`].
@@ -695,6 +727,19 @@ export function rank_by_similarity_wasm(query: string, candidates_json: string, 
 export function reconstruct_version(base: string, patches_json: string, target: number): string;
 
 /**
+ * WASM entry point for retention policy evaluation.
+ *
+ * # Arguments (JSON strings)
+ * - `rows_json`: JSON array of [`RetentionRow`] objects.
+ * - `policy_json`: JSON object matching [`RetentionPolicy`].
+ * - `now_ms`: current Unix timestamp in milliseconds (f64 for JS interop).
+ *
+ * # Returns
+ * JSON-serialised [`EvictionSet`], or a JSON `{"error":"..."}` on parse failure.
+ */
+export function retention_apply_wasm(rows_json: string, policy_json: string, now_ms: number): string;
+
+/**
  * Check if a role has a specific permission.
  *
  * Returns `true` if `role` (e.g. `"editor"`) has the given `permission`
@@ -762,6 +807,17 @@ export function semantic_diff(sections_a_json: string, sections_b_json: string):
  * Returns a JSON-serialised `SemanticDiffResult`, or `{"error":"..."}`.
  */
 export function semantic_diff_wasm(sections_a_json: string, sections_b_json: string): string;
+
+/**
+ * WASM binding for [`serialize_export_archive`].
+ *
+ * Accepts a JSON string representing an [`ExportArchive`] *without*
+ * a valid `content_hash`, computes the hash, and returns the JSON
+ * string with the hash embedded.
+ *
+ * Returns `{"error":"..."}` on parse failure.
+ */
+export function serialize_export_archive_wasm(archive_json: string): string;
 
 /**
  * Compute the HMAC-SHA256 webhook signature for a payload.
@@ -896,3 +952,17 @@ export function validate_transition(from: string, to: string): string;
  * Returns `"true"` or `"false"`, or `{"error":"..."}` on invalid input.
  */
 export function verify_merkle_proof_wasm(root_hex: string, leaf_hex: string, proof_json: string): string;
+
+/**
+ * WASM binding: compress bytes using zstd, returning the compressed bytes.
+ *
+ * Accepts a `Uint8Array` from JavaScript.
+ */
+export function zstd_compress_bytes(data: Uint8Array): Uint8Array;
+
+/**
+ * WASM binding: decompress zstd bytes, returning the raw decompressed bytes.
+ *
+ * Accepts a `Uint8Array` from JavaScript.
+ */
+export function zstd_decompress_bytes(data: Uint8Array): Uint8Array;

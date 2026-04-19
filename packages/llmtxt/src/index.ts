@@ -12,6 +12,8 @@ export {
   decodeBase62,
   compress,
   decompress,
+  zstdCompressBytes,
+  zstdDecompressBytes,
   generateId,
   hashContent,
   hashBlob,
