@@ -1,0 +1,17 @@
+{
+  "name": "@llmtxt-examples/observer-agent",
+  "version": "1.0.0",
+  "description": "Reference observer agent for the LLMtxt SDK",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "help": "node index.js --help"
+  },
+  "dependencies": {
+    "llmtxt": "^2026.4.10"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "license": "MIT"
+}

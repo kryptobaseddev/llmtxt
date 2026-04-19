@@ -1,0 +1,20 @@
+[
+  {
+    "id": "no-code-example",
+    "test": "no-code",
+    "comment": "Add a code example to illustrate this concept.",
+    "severity": "warning"
+  },
+  {
+    "id": "too-short",
+    "test": "too-short",
+    "comment": "This section is brief — consider expanding it.",
+    "severity": "suggestion"
+  },
+  {
+    "id": "no-links",
+    "test": "no-links",
+    "comment": "Link to external documentation to strengthen this section.",
+    "severity": "suggestion"
+  }
+]
