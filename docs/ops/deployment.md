@@ -39,7 +39,7 @@ Set these in the Railway `llmtxt-api` service dashboard
 | `NODE_ENV` | Yes | Must be `production` in Railway |
 | `BETTER_AUTH_SECRET` | Yes | Secret for better-auth session signing |
 | `CORS_ORIGIN` | Recommended | Comma-separated allowed origins (default: `https://www.llmtxt.my`) |
-| `REDIS_URL` | Recommended | Redis URL for CRDT pub/sub. Falls back to in-process if unset |
+| `REDIS_URL` | **Yes (production)** | Redis URL for presence registry + CRDT pub/sub. Server exits with code 1 at startup if unset and `NODE_ENV=production`. Use Railway reference: `${{Redis.REDIS_URL}}`. See [docs/ops/redis-setup.md](redis-setup.md). |
 | `STRIPE_SECRET_KEY` | Conditional | Required for billing endpoints (`/api/billing/*`) |
 | `STRIPE_WEBHOOK_SECRET` | Conditional | Required to verify Stripe webhook signatures |
 | `AUDIT_SIGNING_KEY` | Optional | Ed25519 private key hex for Merkle checkpoint signing (T107) |
