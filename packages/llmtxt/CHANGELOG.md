@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026.4.10] — 2026-04-19
+
+### Fixed — Correctness & Reliability (T699-T701)
+
+- **T699**: `/api/v1/compress` RLS ownership enforced — `owner_id` column marked `NOT NULL`; previously any authenticated user could compress documents they did not own.
+- **T700**: CRDT WebSocket observer ordering fixed — server now sends initial document snapshot to new subscribers before streaming live updates, eliminating missed-state bugs (T308 Cap 2).
+- **T701**: BFT SSE propagation fixed — UUID watermark comparison was string-ordered rather than integer-ordered, causing out-of-order or dropped events under concurrent BFT rounds (T308 Cap 7).
+
+### Added — Infrastructure Hardening (T702-T706)
+
+- **T702**: Redis-backed presence registry — presence state now survives pod restarts and scales horizontally across multiple backend replicas.
+- **T703**: Redis-backed scratchpad durability — scratchpad entries persisted via Redis Streams + consumer group; no data loss on pod churn.
+- **T704**: Enforced leases — `STRICT_LEASES` env flag activates server-side lease validation on every document `PUT`; clients with expired leases receive `423 Locked`.
+- **T705**: TSA token production verification — timestamp tokens are now verified against the live TSA endpoint at read time; `/api/v1/audit/tsa/status` reports TSA reachability and last-token age.
+- **T706**: SLO alerts live Grafana verification + `ops/slo-verification.md` runbook confirming all burn-rate alerts fire correctly under synthetic load.
+
+### Added — Data & Search (T707-T708)
+
+- **T707**: pgvector fully activated — semantic search now uses real embedding vectors; metadata index added; integration test + runbook in `docs/pgvector-runbook.md`.
+- **T708**: zlib → zstd compression migration — new documents compressed with zstd; legacy zlib blobs detected via magic-byte fallback and decompressed transparently.
+
+### Added — Observability & Compliance (T709-T710)
+
+- **T709**: k6 load baseline + CI regression workflow — baseline latency/throughput captured; CI blocks on regressions >10% from baseline.
+- **T710**: SOC 2 external audit engagement prep — controls inventory CSV, evidence vault structure, RFP template, and vendor package assembled under `docs/soc2/`.
+
 ## [2026.4.9] — 2026-04-18
 
 ### Added — Shared Primitives Subpath Contract (T550 tree)
