@@ -76,26 +76,18 @@ declare module 'fastify' {
  * @param app - The Fastify instance to register on.
  */
 export async function registerRlsPlugin(app: FastifyInstance): Promise<void> {
-  // Decorate request with placeholder factories.  Fastify 5 rejects a raw
-  // reference-type default (object/function) because every request would share
-  // the same instance; the { getter } form produces a fresh value per request.
-  // The onRequest hook below overwrites these placeholders before any handler
-  // sees them, so the getter return values are never actually consumed.
-  app.decorateRequest('rlsContext', {
-    getter() {
-      return { userId: '', role: 'anon' as const } as RlsContext;
-    },
-  });
-  app.decorateRequest('withRls', {
-    getter() {
-      return (() => Promise.resolve(undefined)) as FastifyRequest['withRls'];
-    },
-  });
-  app.decorateRequest('withRlsAdmin', {
-    getter() {
-      return (() => Promise.resolve(undefined)) as FastifyRequest['withRlsAdmin'];
-    },
-  });
+  // Decorate request with `null` placeholders.  Fastify 5 rejects reference
+  // types as defaults (every request would share the same instance) AND
+  // getter-only descriptors (subsequent assignment `request.rlsContext = ...`
+  // throws).  `null` is a primitive that allows later assignment by the
+  // onRequest hook, which overwrites all three properties before any handler
+  // sees them.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  app.decorateRequest('rlsContext', null as any);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  app.decorateRequest('withRls', null as any);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  app.decorateRequest('withRlsAdmin', null as any);
 
   app.addHook('onRequest', async (request: FastifyRequest) => {
     // Resolve user context from the auth middleware output.
