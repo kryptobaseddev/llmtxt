@@ -6,9 +6,16 @@
  *
  * - `OpenAIEmbeddingProvider` — uses `text-embedding-3-small` via the OpenAI
  *   REST API (primary, requires `OPENAI_API_KEY`).
- * - `LocalEmbeddingProvider` — deterministic TF-IDF vectorizer (fallback for
- *   dev/test environments where no API key is configured).
+ * - `LocalOnnxEmbeddingProvider` — sentence-transformers/all-MiniLM-L6-v2
+ *   via ONNX runtime (no external API, 384-dim contextual embeddings).
+ * - `LocalEmbeddingProvider` — deterministic TF-IDF vectorizer (last-resort
+ *   fallback when onnxruntime-node is not installed).
  * - `createEmbeddingProvider()` — factory that selects the right provider.
+ *
+ * Provider selection order (highest quality first):
+ *   1. OpenAI (OPENAI_API_KEY set)
+ *   2. Local ONNX (onnxruntime-node available, SEMANTIC_BACKEND != tfidf)
+ *   3. TF-IDF (always available, no contextual understanding)
  *
  * Embeddings are computed on-demand and NOT persisted. Storage optimisation
  * (caching / pre-computing embeddings) can be added later without changing the
@@ -158,18 +165,61 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// ── ONNX adapter ───────────────────────────────────────────────────────────
+
+/**
+ * Thin adapter that wraps `LocalOnnxEmbeddingProvider` from `llmtxt/embeddings`
+ * to satisfy this module's `EmbeddingProvider` interface (256-vs-384 dim
+ * difference is intentional — ONNX produces 384-dim contextual vectors).
+ *
+ * Loaded lazily so that code paths that never embed (e.g. SQLite dev) don't
+ * pay the import cost.
+ */
+class OnnxEmbeddingAdapter implements EmbeddingProvider {
+  readonly dimensions = 384;
+  readonly model = 'all-MiniLM-L6-v2';
+
+  private _inner: { embed(texts: string[]): Promise<number[][]> } | null = null;
+
+  private async inner() {
+    if (!this._inner) {
+      const { LocalOnnxEmbeddingProvider } = await import('llmtxt/embeddings');
+      this._inner = new LocalOnnxEmbeddingProvider();
+    }
+    return this._inner;
+  }
+
+  async embed(texts: string[]): Promise<number[][]> {
+    return (await this.inner()).embed(texts);
+  }
+}
+
 // ── Factory ────────────────────────────────────────────────────────────────
 
 /**
  * Select the best available embedding provider.
  *
- * - If `OPENAI_API_KEY` is set → `OpenAIEmbeddingProvider` (`text-embedding-3-small`).
- * - Otherwise → `LocalEmbeddingProvider` (TF-IDF, 256-dimensional, no external API).
+ * Selection order (highest quality first):
+ * 1. `OpenAIEmbeddingProvider` — if `OPENAI_API_KEY` is set.
+ * 2. `OnnxEmbeddingAdapter` (all-MiniLM-L6-v2, 384-dim) — default when
+ *    `onnxruntime-node` is installed and `SEMANTIC_BACKEND != "tfidf"`.
+ * 3. `LocalEmbeddingProvider` (TF-IDF, 256-dim) — fallback of last resort.
+ *
+ * Set `SEMANTIC_BACKEND=tfidf` to force TF-IDF (useful in fast unit tests
+ * that don't need neural embeddings).
  */
 export function createEmbeddingProvider(): EmbeddingProvider {
   const apiKey = process.env.OPENAI_API_KEY;
   if (apiKey) {
     return new OpenAIEmbeddingProvider(apiKey);
   }
-  return new LocalEmbeddingProvider();
+
+  // Force TF-IDF via env var (test/debug escape hatch)
+  if (process.env.SEMANTIC_BACKEND === 'tfidf') {
+    return new LocalEmbeddingProvider();
+  }
+
+  // Default: contextual ONNX embeddings (sentence-transformers/all-MiniLM-L6-v2)
+  // Falls back gracefully at embed() time if onnxruntime-node is missing.
+  return new OnnxEmbeddingAdapter();
 }

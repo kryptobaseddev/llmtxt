@@ -65,23 +65,81 @@ psql "$DATABASE_URL" -c "\di section_embeddings_ivfflat*"
 # (1 row)
 ```
 
-## Semantic Search Configuration
+## Embedding Model
 
-### Environment Variables
+### Model: sentence-transformers/all-MiniLM-L6-v2
+
+| Property | Value |
+|---|---|
+| Model name | `all-MiniLM-L6-v2` |
+| Provider identifier | `local-onnx-minilm-l6` |
+| Architecture | 6-layer MiniLM, distilled from MPNet |
+| Output dimensions | **384** |
+| ONNX variant | Xenova/all-MiniLM-L6-v2 (quantized INT8) |
+| File on disk | `model_quantized.onnx` (~23 MB quantized) |
+| Download size | ~23 MB (quantized) + ~3 MB tokenizer files |
+| Docker image delta | < 30 MB (quantized model + onnxruntime-node) |
+| Max sequence length | 512 tokens (capped at 128 in production) |
+| Inference runtime | `onnxruntime-node` >= 1.18.0 |
+
+**Why all-MiniLM-L6-v2?**
+
+- Industry-standard sentence embedding model for semantic search
+- 384 dimensions: compact enough for ANN index, rich enough for contextual understanding
+- Quantized INT8 ONNX variant keeps the model at ~23 MB (vs ~90 MB FP32)
+- No external API calls — inference runs fully local
+- Passes contextual tests: "canines" query correctly ranks "dogs" content above "rocks" content (TF-IDF fails this)
+- No license restrictions; Apache 2.0
+
+### Model Download
+
+The model downloads **lazily on first use** and is cached locally. No manual step required in production.
+
+**Default cache location**: `~/.llmtxt/models/all-MiniLM-L6-v2/`
+
+Override with:
+```bash
+export LLMTXT_MODEL_CACHE_DIR=/app/models  # e.g. in Docker
+```
+
+**Files downloaded on first embed:**
+```
+~/.llmtxt/models/all-MiniLM-L6-v2/
+├── model_quantized.onnx          (~23 MB, SHA-256 verified)
+└── tokenizer/
+    ├── tokenizer.json
+    ├── tokenizer_config.json
+    └── vocab.txt
+```
+
+**Manual pre-download (for Docker build-time caching):**
+
+```bash
+# Pre-download model during Docker build (optional, saves cold-start latency)
+node --input-type=module <<'EOF'
+import { embed } from 'llmtxt/embeddings';
+await embed('warmup');
+console.log('Model cached at', process.env.LLMTXT_MODEL_CACHE_DIR || '~/.llmtxt/models');
+EOF
+```
+
+### Semantic Search Configuration
 
 ```bash
 # .env (production)
-SEMANTIC_BACKEND=pgvector      # Enables pgvector usage
+SEMANTIC_BACKEND=pgvector      # Default — uses ONNX+pgvector
 DATABASE_PROVIDER=postgresql   # PostgreSQL driver
 DATABASE_URL=postgresql://...  # Railway Postgres URL
+
+# Optional overrides:
+LLMTXT_MODEL_CACHE_DIR=/app/models   # Custom model cache path
+# SEMANTIC_BACKEND=tfidf             # Force TF-IDF (dev/test only, no ONNX load)
 ```
 
-### Feature Flag
-
-```env
-# Feature flag for semantic search (optional)
-SEMANTIC_SEARCH_ENABLED=true
-```
+**Provider selection order (runtime):**
+1. OpenAI `text-embedding-3-small` — if `OPENAI_API_KEY` is set (1536-dim)
+2. ONNX `all-MiniLM-L6-v2` — default when `DATABASE_PROVIDER=postgresql` (384-dim)
+3. TF-IDF — fallback if `SEMANTIC_BACKEND=tfidf` or `DATABASE_PROVIDER=sqlite`
 
 ## Activation Steps (Detailed)
 

@@ -25,6 +25,16 @@ COPY --from=build /app/apps/backend/src/db/migrations-pg ./apps/backend/src/db/m
 COPY --from=build /app/apps/backend/drizzle.config.ts ./apps/backend/
 COPY --from=build /app/apps/backend/drizzle-pg.config.ts ./apps/backend/
 COPY --from=build /app/apps/backend/scripts/run-migrations.ts ./apps/backend/scripts/
+COPY --from=build /app/apps/backend/openapi.json ./apps/backend/
+
+# Pre-download the all-MiniLM-L6-v2 ONNX model at build time so the first
+# semantic search request doesn't incur a cold-start download (~23 MB).
+# LLMTXT_MODEL_CACHE_DIR places the model in the image layer; it is baked in.
+# Total image size delta: ~27 MB (model + tokenizer files).
+ENV LLMTXT_MODEL_CACHE_DIR=/app/.llmtxt-models
+RUN node --input-type=module --eval \
+  "import { embed } from './packages/llmtxt/dist/embeddings.js'; \
+   await embed('warmup').then(() => console.log('[docker] ONNX model pre-warmed')).catch(e => { console.warn('[docker] Model pre-warm skipped:', e.message); });"
 
 EXPOSE 8080
 ENV PORT=8080
