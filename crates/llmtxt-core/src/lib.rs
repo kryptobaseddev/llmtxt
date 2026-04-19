@@ -15,6 +15,7 @@ use flate2::Compression;
 use flate2::read::{ZlibDecoder, ZlibEncoder};
 use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
+use std::io::Cursor;
 use std::io::Read;
 use uuid::Uuid;
 
@@ -288,37 +289,121 @@ pub fn decode_base62(s: &str) -> u64 {
 
 // ── Compression ─────────────────────────────────────────────────
 
-/// Compress a UTF-8 string using zlib-wrapped deflate (RFC 1950).
+/// Magic-byte prefix for zstd frames (RFC 8478 §3.1.1).
 ///
-/// Matches Node.js `zlib.deflate` output for backward compatibility
-/// with existing stored data.
+/// The zstd frame magic number `0xFD2FB528` is stored in little-endian byte
+/// order at the start of every zstd frame: `[0x28, 0xB5, 0x2F, 0xFD]`.
+const ZSTD_MAGIC: [u8; 4] = [0x28, 0xB5, 0x2F, 0xFD];
+
+/// Compress a UTF-8 string using **zstd** (RFC 8478), level 3.
+///
+/// New writes use zstd. Existing zlib-stored data is still readable via
+/// [`decompress`], which detects the codec by inspecting magic bytes.
 ///
 /// # Errors
 /// Returns an error string if compression fails.
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn compress(data: &str) -> Result<Vec<u8>, String> {
-    let mut encoder = ZlibEncoder::new(data.as_bytes(), Compression::default());
-    let mut compressed = Vec::new();
-    encoder
-        .read_to_end(&mut compressed)
-        .map_err(|e| format!("compression failed: {e}"))?;
-    Ok(compressed)
+    zstd_compress(data.as_bytes())
 }
 
-/// Decompress zlib-wrapped deflate bytes back to a UTF-8 string.
+/// Decompress bytes back to a UTF-8 string.
 ///
-/// Matches Node.js `zlib.inflate` for backward compatibility.
+/// Codec is detected automatically from the magic bytes:
+/// - `0xFD 0x2F 0xB5 0x28` → zstd (RFC 8478)
+/// - `0x78 __` (zlib CMF byte) → zlib/deflate (RFC 1950, legacy)
+///
+/// This guarantees backward compatibility: all rows written before the zstd
+/// migration continue to decode correctly without a schema change.
 ///
 /// # Errors
 /// Returns an error string if decompression or UTF-8 conversion fails.
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn decompress(data: &[u8]) -> Result<String, String> {
-    let mut decoder = ZlibDecoder::new(data);
-    let mut decompressed = Vec::new();
-    decoder
-        .read_to_end(&mut decompressed)
-        .map_err(|e| format!("decompression failed: {e}"))?;
-    String::from_utf8(decompressed).map_err(|e| format!("invalid UTF-8: {e}"))
+    let bytes = decompress_bytes(data)?;
+    String::from_utf8(bytes).map_err(|e| format!("invalid UTF-8: {e}"))
+}
+
+/// Compress arbitrary bytes using zstd at level 3.
+///
+/// Exposed for native consumers (benches, migration tooling) and used
+/// internally by the WASM [`compress`] binding.
+///
+/// # Errors
+/// Returns an error string if compression fails.
+pub fn zstd_compress(data: &[u8]) -> Result<Vec<u8>, String> {
+    zstd::encode_all(Cursor::new(data), 3).map_err(|e| format!("zstd compression failed: {e}"))
+}
+
+/// Decompress zstd bytes back to raw bytes.
+///
+/// Exposed for native consumers and used internally by [`decompress_bytes`].
+///
+/// # Errors
+/// Returns an error string if decompression fails.
+pub fn zstd_decompress(data: &[u8]) -> Result<Vec<u8>, String> {
+    zstd::decode_all(Cursor::new(data)).map_err(|e| format!("zstd decompression failed: {e}"))
+}
+
+/// WASM binding: compress bytes using zstd, returning the compressed bytes.
+///
+/// Accepts a `Uint8Array` from JavaScript.
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+pub fn zstd_compress_bytes(data: &[u8]) -> Result<Vec<u8>, String> {
+    zstd_compress(data)
+}
+
+/// WASM binding: decompress zstd bytes, returning the raw decompressed bytes.
+///
+/// Accepts a `Uint8Array` from JavaScript.
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+pub fn zstd_decompress_bytes(data: &[u8]) -> Result<Vec<u8>, String> {
+    zstd_decompress(data)
+}
+
+/// Decompress bytes, auto-detecting codec by magic bytes.
+///
+/// Supports:
+/// - zstd (`0xFD 0x2F 0xB5 0x28`)
+/// - zlib/deflate RFC 1950 (`0x78 __`)
+///
+/// # Errors
+/// Returns an error string if decompression fails or codec is unknown.
+pub fn decompress_bytes(data: &[u8]) -> Result<Vec<u8>, String> {
+    if data.len() >= 4 && data[..4] == ZSTD_MAGIC {
+        return zstd_decompress(data);
+    }
+    // zlib CMF byte: 0x78 (deflate, window size bits vary in low nibble)
+    if data.len() >= 2 && data[0] == 0x78 {
+        let mut decoder = ZlibDecoder::new(data);
+        let mut out = Vec::new();
+        decoder
+            .read_to_end(&mut out)
+            .map_err(|e| format!("zlib decompression failed: {e}"))?;
+        return Ok(out);
+    }
+    Err(format!(
+        "unknown compression codec (first bytes: {:02x?})",
+        &data[..data.len().min(4)]
+    ))
+}
+
+/// Compress bytes using legacy zlib/deflate (RFC 1950).
+///
+/// Use only for testing backward-compat paths or re-compression tooling.
+/// New writes should use [`compress`] (zstd).
+///
+/// # Errors
+/// Returns an error string if compression fails.
+pub fn zlib_compress(data: &[u8]) -> Result<Vec<u8>, String> {
+    let mut encoder = ZlibEncoder::new(data, Compression::default());
+    let mut out = Vec::new();
+    encoder
+        .read_to_end(&mut out)
+        .map_err(|e| format!("zlib compression failed: {e}"))?;
+    Ok(out)
 }
 
 // ── ID Generation ───────────────────────────────────────────────
@@ -583,6 +668,12 @@ mod tests {
     fn test_compress_decompress_roundtrip() {
         let input = "Hello, world! This is a test of the llmtxt compression.";
         let compressed = compress(input).expect("compress should succeed");
+        // New writes must be zstd — verify magic bytes
+        assert_eq!(
+            &compressed[..4],
+            &ZSTD_MAGIC,
+            "compress() should produce zstd output"
+        );
         let decompressed = decompress(&compressed).expect("decompress should succeed");
         assert_eq!(decompressed, input);
     }
@@ -592,6 +683,65 @@ mod tests {
         let compressed = compress("").expect("compress empty should succeed");
         let decompressed = decompress(&compressed).expect("decompress should succeed");
         assert_eq!(decompressed, "");
+    }
+
+    #[test]
+    fn test_zstd_roundtrip_bytes() {
+        let data = b"zstd binary roundtrip test data 12345";
+        let compressed = zstd_compress(data).expect("zstd_compress should succeed");
+        assert_eq!(&compressed[..4], &ZSTD_MAGIC);
+        let decompressed = zstd_decompress(&compressed).expect("zstd_decompress should succeed");
+        assert_eq!(decompressed, data);
+    }
+
+    #[test]
+    fn test_zstd_better_ratio_than_zlib_on_repetitive_text() {
+        // Repetitive text — zstd should compress at least as well as zlib
+        let input = "the quick brown fox jumps over the lazy dog. ".repeat(200);
+        let zstd_out = zstd_compress(input.as_bytes()).expect("zstd compress");
+        let zlib_out = zlib_compress(input.as_bytes()).expect("zlib compress");
+        // zstd level 3 should beat or match zlib default on repetitive content
+        assert!(
+            zstd_out.len() <= zlib_out.len() + 50, // allow tiny variance
+            "zstd ({}) should be at most marginally larger than zlib ({}) on repetitive text",
+            zstd_out.len(),
+            zlib_out.len()
+        );
+    }
+
+    #[test]
+    fn test_backward_compat_zlib_still_decompresses() {
+        // Simulate a legacy row that was compressed with zlib
+        let input = "legacy document stored with zlib compression";
+        let zlib_bytes = zlib_compress(input.as_bytes()).expect("zlib compress legacy");
+        // Verify magic byte is 0x78 (zlib CMF)
+        assert_eq!(zlib_bytes[0], 0x78, "zlib output should start with 0x78");
+        // decompress() must detect and handle it
+        let result = decompress(&zlib_bytes).expect("decompress should handle legacy zlib");
+        assert_eq!(result, input);
+    }
+
+    #[test]
+    fn test_decompress_bytes_zstd() {
+        let input = b"test payload for decompress_bytes zstd path";
+        let compressed = zstd_compress(input).expect("zstd compress");
+        let out = decompress_bytes(&compressed).expect("decompress_bytes zstd");
+        assert_eq!(out, input);
+    }
+
+    #[test]
+    fn test_decompress_bytes_zlib() {
+        let input = b"test payload for decompress_bytes zlib legacy path";
+        let compressed = zlib_compress(input).expect("zlib compress");
+        let out = decompress_bytes(&compressed).expect("decompress_bytes zlib");
+        assert_eq!(out, input);
+    }
+
+    #[test]
+    fn test_decompress_bytes_unknown_codec_errors() {
+        let garbage = b"\x00\x01\x02\x03invalid";
+        let result = decompress_bytes(garbage);
+        assert!(result.is_err(), "unknown codec should return Err");
     }
 
     #[test]

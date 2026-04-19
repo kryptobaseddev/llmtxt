@@ -24,6 +24,7 @@ crdt = ["dep:loro"]
 
 [dependencies]
 flate2 = "1"
+zstd = { version = "0.13", default-features = false }
 sha2 = "0.10"
 hmac = "0.12"
 hex = "0.4"
@@ -47,9 +48,21 @@ diffy = "0.4.2"
 # Loro CRDT — replaces yrs (T388). Pin to 1.x; incompatible with Yrs binary format.
 loro = { version = "1.0", optional = true }
 
+[[bench]]
+name = "compression"
+harness = false
+# Bench only targets native — not compiled for wasm32.
+required-features = []
+
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
 ferrous-forge = { version = "1.9", default-features = false }
+
+# criterion is a native-only dev-dep; it pulls in mio which is incompatible
+# with wasm32-unknown-unknown. Gate it behind cfg(not(target_arch="wasm32"))
+# so wasm-pack builds don't try to compile it.
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
 
 [lints.rustdoc]
 broken_intra_doc_links = "warn"
