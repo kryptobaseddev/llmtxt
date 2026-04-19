@@ -101,7 +101,9 @@ async function persistCrdtUpdatePg(
       FROM section_crdt_updates
       WHERE document_id = ${documentId} AND section_id = ${sectionId}
     `);
-    const nextSeq = BigInt((seqResult.rows[0] as { next_seq: string | number }).next_seq);
+    // postgres-js / Drizzle execute() returns the rows directly as an array (not seqResult.rows).
+    const seqRows = seqResult as unknown as Array<{ next_seq: string | number }>;
+    const nextSeq = BigInt(seqRows[0].next_seq);
 
     // 3. Load current state
     const stateRows = await tx
