@@ -2,6 +2,32 @@
 
 All notable changes to the LLMtxt ecosystem (npm `llmtxt`, Rust crate `llmtxt-core`, apps/backend, apps/frontend, apps/docs).
 
+## [Unreleased] — T708 zlib to zstd compression migration
+
+### Added
+
+- **zstd compression** (`crates/llmtxt-core`): `zstd_compress`, `zstd_decompress`, `zstd_compress_bytes`, `zstd_decompress_bytes`, `zlib_compress`, `decompress_bytes` primitives (T752).
+- **Magic-byte codec detection** in `decompress()`: existing zlib rows decode transparently without a schema change (T754).
+- **Accept-Encoding: zstd negotiation** in `apps/backend`: zstd is now the highest-priority response encoding via `@fastify/compress`; falls back to `br`, `gzip`, `deflate`, `identity` (T753).
+- **`zstdCompressBytes` / `zstdDecompressBytes`** in `llmtxt` npm package: raw-binary zstd API for blobs and CRDT snapshots (T752).
+- **Benchmark harness** at `crates/llmtxt-core/benches/compression.rs`: Criterion bench comparing zlib vs zstd on README, synthetic markdown, and repetitive prose corpus (T755).
+- **`docs/api/compression.md`**: complete reference for codec selection, backward compatibility, HTTP negotiation, and benchmark instructions (T756).
+
+### Changed
+
+- `compress()` in `crates/llmtxt-core` and `llmtxt` npm: **now writes zstd** (level 3) instead of zlib. New-to-old compatibility is preserved via magic-byte detection in `decompress()`.
+- `apps/backend/src/lib/compression.ts` (new file): centralises `compressOptions` so `index.ts` and `app.ts` share identical `@fastify/compress` configuration.
+- `apps/backend` HTTP response encoding: zstd is preferred for all responses ≥ 1 KB when the client advertises it.
+
+### Backward Compatibility
+
+Existing rows stored with zlib continue to decode correctly — no migration
+required. The `decompress()` function inspects the first 4 bytes:
+- `0x28 0xB5 0x2F 0xFD` → zstd (new)
+- `0x78 __` → zlib/deflate (legacy)
+
+---
+
 ## [2026.4.9] — 2026-04-18
 
 ### Packages changed
