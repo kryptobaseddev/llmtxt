@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026.4.11] — 2026-04-19
+
+### Fixed — T308 Capability Completions
+
+- **T769 Cap 2**: Observer-bot uses dynamic section discovery + live `section.created` subscription; T308 Capability 2 now PASS (was PARTIAL).
+- **T771 Cap 7**: 3 consensus-bots with distinct Ed25519 identities; BFT 3-quorum reachable; T308 Capability 7 now PASS (was PARTIAL).
+
+### Added — Developer Experience & Ecosystem (T766-T768)
+
+- **T766**: Auto-generated Postman v2.1 collection (93 requests / 31 folders) under `docs/api/postman/`; CI regenerates on `openapi.json` change.
+- **T767**: Error catalog (`docs/api/error-codes.md`) — 113 error codes across 12 HTTP status codes.
+- **T768**: OpenAPI prod fix — `/openapi.json` and `/docs/api` now return 200 on prod (Dockerfile COPY added); 76 paths, 93 operations, 0 validation errors.
+
+### Added — Aggregate Documentation (T770)
+
+- **T770**: Ecosystem polish aggregate doc at `claudedocs/agent-outputs/T765-ecosystem-polish.md`.
+
+### Added — Reference Agents (T772-T775)
+
+- **T772-T775**: Three standalone SDK examples: `examples/writer-agent/`, `examples/reviewer-agent/`, `examples/observer-agent/` with a top-level `examples/README.md`.
+
+### Added — Contextual Embeddings (T776-T779)
+
+- **T776-T779**: Sentence-transformers all-MiniLM-L6-v2 (384-dim) replaces TF-IDF as the semantic default; contextual similarity test (canines→dogs) passes.
+
+### Added — Multi-Pod Production Verification
+
+- `railway.toml` `replicas = 2`; live cross-pod verification documented in `claudedocs/agent-outputs/T765-prod-multipod-verify.md`.
+
 ## [2026.4.10] — 2026-04-19
 
 ### Fixed — Correctness & Reliability (T699-T701)
