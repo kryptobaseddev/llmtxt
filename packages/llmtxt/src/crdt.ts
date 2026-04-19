@@ -187,7 +187,7 @@ export function subscribeSection(
 		.replace(/^http:\/\//, "ws://")
 		.replace(/^https:\/\//, "wss://");
 	const query = token ? `?token=${encodeURIComponent(token)}` : "";
-	const url = `${httpBase}/v1/documents/${encodeURIComponent(slug)}/sections/${encodeURIComponent(sectionId)}/collab${query}`;
+	const url = `${httpBase}/api/v1/documents/${encodeURIComponent(slug)}/sections/${encodeURIComponent(sectionId)}/collab${query}`;
 
 	const state: CrdtSection = {
 		doc: new Loro(),
