@@ -128,19 +128,26 @@ async function main() {
   console.log('[t308] ═══════════════════════════════════════════');
   console.log('');
 
-  // Run all 5 agents in parallel (observer starts first)
-  console.log('[t308] Starting all 5 agents in parallel...\n');
+  // Run all 7 agents in parallel (3 consensus-bots for BFT quorum, Cap 7 fix T771).
+  // Each consensus-bot gets a distinct AGENT_ID so it generates its own Ed25519 keypair
+  // persisted under ~/.llmtxt/demo-agents/<id>.key — 3 distinct signing identities.
+  // CONSENSUS_BFT_F=1 → quorum = 2*1+1 = 3, matching the 3 bots spawned here.
+  console.log('[t308] Starting all 7 agents in parallel (3 consensus-bots for quorum)...\n');
 
   const [
     writerResult,
     reviewerResult,
-    consensusResult,
+    consensus1Result,
+    consensus2Result,
+    consensus3Result,
     summarizerResult,
     observerResult,
   ] = await Promise.all([
     spawnAgent('writer-bot.js'),
     spawnAgent('reviewer-bot.js'),
-    spawnAgent('consensus-bot.js'),
+    spawnAgent('consensus-bot.js', { AGENT_ID: 'consensus-bot-1', CONSENSUS_BFT_F: '1' }),
+    spawnAgent('consensus-bot.js', { AGENT_ID: 'consensus-bot-2', CONSENSUS_BFT_F: '1' }),
+    spawnAgent('consensus-bot.js', { AGENT_ID: 'consensus-bot-3', CONSENSUS_BFT_F: '1' }),
     spawnAgent('summarizer-bot.js'),
     spawnAgent('observer-bot.js'),
   ]);
@@ -198,12 +205,17 @@ async function main() {
   // Both are counted from events that are only produced when the signed _fetch path executes.
   const observerSignedWrites = om.signedWritesObserved ?? 0;
   const totalSignedWrites = observerSignedWrites + metrics.signedWrites;
+  // quorum_reached: 3 consensus bots each submit a BFT approval → server tallies 3
+  // distinct signed approvals and sets quorum_reached=true (f=1, quorum=3).
+  const quorumReached = metrics.approvals >= 3;
   const checks = {
     'signed_writes_ge_20': totalSignedWrites >= 20,
     'bft_approval_ge_1': (metrics.approvals + (om.bftApprovalsObserved ?? 0)) >= 1,
+    'quorum_reached': quorumReached,
     'events_ge_30': (om.eventsTotal ?? 0) >= 10,
     'a2a_messages_ge_3': metrics.a2aMessages >= 1,
     'hash_chain_valid': om.hashChainValid ?? false,
+    'crdt_bytes_nonzero': (om.crdt_bytes ?? 0) > 0,
     'all_agents_completed': Object.values(metrics.agentExitCodes).every(c => c !== -1),
   };
 

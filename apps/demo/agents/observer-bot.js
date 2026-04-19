@@ -26,10 +26,14 @@ const AGENT_ID = 'observerbot-t308';
 const DEMO_DURATION_MS = Number(process.env.DEMO_DURATION_MS ?? 180_000);
 
 /**
- * Section IDs the writer-bot writes to — observer subscribes to all of them
- * via subscribeSection() to measure non-zero crdt_bytes (T381 AC #3).
+ * Section IDs are now discovered dynamically at startup via GET /documents/:slug.
+ * This replaces the prior hardcoded list, which caused a mismatch when writer-bot
+ * wrote to sections not in the observer's static list (Cap 2 fix, T769).
+ *
+ * Populated by _discoverSections() before _initCrdtObservers() is called.
+ * @type {string[]}
  */
-const OBSERVED_SECTION_IDS = ['introduction', 'architecture', 'multi-agent'];
+let OBSERVED_SECTION_IDS = [];
 
 class ObserverBot extends AgentBase {
   constructor() {
@@ -92,6 +96,11 @@ class ObserverBot extends AgentBase {
     const timeoutId = setTimeout(() => ac.abort(), DEMO_DURATION_MS);
 
     try {
+      // Discover sections dynamically from the live document (Cap 2 fix, T769).
+      // This ensures observer subscribes to exactly the sections writer-bot writes to,
+      // regardless of what they are — no hardcoded list.
+      await this._discoverSections();
+
       // Open subscribeSection() connections for CRDT observation (T381)
       this._initCrdtObservers();
 
@@ -109,6 +118,16 @@ class ObserverBot extends AgentBase {
         });
 
         this._categorizeEvent(evt);
+
+        // If a new section is created after observer connects, subscribe to it (T769).
+        if (evt.event_type === 'section.created' || evt.event_type === 'section_created') {
+          const newSectionId = evt.payload?.sectionId ?? evt.payload?.section_id ?? null;
+          if (newSectionId && !OBSERVED_SECTION_IDS.includes(newSectionId)) {
+            this.log(`Discovered new section via SSE: ${newSectionId} — subscribing`);
+            OBSERVED_SECTION_IDS.push(newSectionId);
+            this._subscribeSingleSection(newSectionId);
+          }
+        }
 
         if (this.metrics.eventsTotal % 5 === 0) {
           this.log(`Events: ${this.metrics.eventsTotal} | versions: ${this.seenVersions.size} | crdt_bytes: ${this.metrics.crdt_bytes}`);
@@ -162,7 +181,111 @@ class ObserverBot extends AgentBase {
   }
 
   /**
-   * Open subscribeSection() connections for each known section ID.
+   * Discover the document's sections dynamically via GET /documents/:slug.
+   *
+   * Populates OBSERVED_SECTION_IDS from the live document structure so that
+   * the observer subscribes to the same sections the writer-bot writes to,
+   * regardless of what those sections are named (Cap 2 fix, T769).
+   *
+   * Falls back to an empty list if the document has no sections yet; the
+   * section.created SSE handler will pick them up as they arrive.
+   */
+  async _discoverSections() {
+    try {
+      const doc = await this.getDocument(this.slug);
+      // The document metadata includes a `sections` array (list of section objects
+      // with at least an `id` field) or a `sectionIds` string array.
+      let sectionIds = [];
+      if (Array.isArray(doc.sections) && doc.sections.length > 0) {
+        sectionIds = doc.sections.map((s) => s.id ?? s.sectionId ?? s).filter(Boolean);
+      } else if (Array.isArray(doc.sectionIds)) {
+        sectionIds = doc.sectionIds.filter(Boolean);
+      }
+
+      if (sectionIds.length === 0) {
+        // Document may not have sections exposed in metadata — try fetching section list.
+        try {
+          const sectionsResp = await this._api(`/api/v1/documents/${this.slug}/sections`);
+          const items = Array.isArray(sectionsResp) ? sectionsResp
+            : (sectionsResp.sections ?? sectionsResp.data ?? []);
+          sectionIds = items.map((s) => s.id ?? s.sectionId ?? s).filter(Boolean);
+        } catch (err) {
+          this.log(`Sections endpoint not available (${err.message}) — will discover via SSE`);
+        }
+      }
+
+      if (sectionIds.length > 0) {
+        OBSERVED_SECTION_IDS = sectionIds;
+        this.log(`Discovered ${sectionIds.length} sections: ${sectionIds.join(', ')}`);
+      } else {
+        this.log('No sections found at startup — will subscribe as section.created events arrive');
+        OBSERVED_SECTION_IDS = [];
+      }
+    } catch (err) {
+      this.log(`Section discovery error: ${err.message} — proceeding without initial subscriptions`);
+      OBSERVED_SECTION_IDS = [];
+    }
+  }
+
+  /**
+   * Subscribe to a single section via subscribeSection() and register in tracking maps.
+   * Called both by _initCrdtObservers() (for all sections at startup) and by the
+   * section.created SSE handler (for sections added after observer connects).
+   *
+   * @param {string} sectionId
+   */
+  _subscribeSingleSection(sectionId) {
+    if (this._crdtDeltas.has(sectionId)) {
+      this.log(`CRDT[${sectionId}]: already subscribed, skipping`);
+      return;
+    }
+
+    const options = {
+      baseUrl: this.apiBase,
+      token: this.apiKey,
+      onError: (err) => {
+        this.log(`CRDT subscribeSection error [${sectionId}]: ${err}`);
+        this.metrics.errors++;
+      },
+    };
+
+    this._crdtDeltas.set(sectionId, []);
+    let firstDelta = true;
+
+    const unsub = subscribeSection(
+      this.slug,
+      sectionId,
+      (delta) => {
+        const byteLen = delta.updateBytes.length;
+        this.metrics.crdt_bytes += byteLen;
+        this.metrics.crdt_messages++;
+
+        const deltas = this._crdtDeltas.get(sectionId) ?? [];
+        deltas.push(delta);
+        this._crdtDeltas.set(sectionId, deltas);
+
+        // Cache latest text for convergence check at end of run
+        this._latestSectionText.set(sectionId, delta.text);
+
+        if (firstDelta) {
+          // First delta on connect is the InitialSnapshot (T700/T717):
+          // server sends full CRDT state immediately so late subscribers see non-zero bytes.
+          this.log(`CRDT[${sectionId}]: initial-snapshot received (${byteLen} bytes, text_len=${delta.text.length})`);
+          this.metrics[`crdt_${sectionId}_initial_bytes`] = byteLen;
+          firstDelta = false;
+        } else {
+          this.log(`CRDT[${sectionId}]: delta (${byteLen} bytes, text_len=${delta.text.length})`);
+        }
+      },
+      options,
+    );
+
+    this._crdtUnsubs.push(unsub);
+    this.log(`CRDT[${sectionId}]: subscribeSection() opened (loro-sync-v1)`);
+  }
+
+  /**
+   * Open subscribeSection() connections for each discovered section ID.
    *
    * subscribeSection(slug, sectionId, callback, options) is the SDK's SSoT for
    * CRDT observation (T381). It opens a loro-sync-v1 WebSocket per section,
@@ -175,56 +298,8 @@ class ObserverBot extends AgentBase {
    *   - receivedAt:  wall clock timestamp (ms)
    */
   _initCrdtObservers() {
-    const options = {
-      baseUrl: this.apiBase,
-      token: this.apiKey,
-      onError: (err) => {
-        this.log(`CRDT subscribeSection error: ${err}`);
-        this.metrics.errors++;
-      },
-    };
-
     for (const sectionId of OBSERVED_SECTION_IDS) {
-      this._crdtDeltas.set(sectionId, []);
-
-      /**
-       * Track whether this is the first delta received for this section.
-       * The server now sends an InitialSnapshot (MSG_UPDATE 0x03) immediately
-       * on connect (T700/T717) so late subscribers receive the full state even
-       * if the writer finished before the observer connected.
-       */
-      let firstDelta = true;
-
-      const unsub = subscribeSection(
-        this.slug,
-        sectionId,
-        (delta) => {
-          const byteLen = delta.updateBytes.length;
-          this.metrics.crdt_bytes += byteLen;
-          this.metrics.crdt_messages++;
-
-          const deltas = this._crdtDeltas.get(sectionId) ?? [];
-          deltas.push(delta);
-          this._crdtDeltas.set(sectionId, deltas);
-
-          // Cache latest text for convergence check at end of run
-          this._latestSectionText.set(sectionId, delta.text);
-
-          if (firstDelta) {
-            // First delta on connect is the InitialSnapshot (T700/T717):
-            // server sends full CRDT state immediately so late subscribers see non-zero bytes.
-            this.log(`CRDT[${sectionId}]: initial-snapshot received (${byteLen} bytes, text_len=${delta.text.length})`);
-            this.metrics[`crdt_${sectionId}_initial_bytes`] = byteLen;
-            firstDelta = false;
-          } else {
-            this.log(`CRDT[${sectionId}]: delta (${byteLen} bytes, text_len=${delta.text.length})`);
-          }
-        },
-        options,
-      );
-
-      this._crdtUnsubs.push(unsub);
-      this.log(`CRDT[${sectionId}]: subscribeSection() opened (loro-sync-v1)`);
+      this._subscribeSingleSection(sectionId);
     }
   }
 

@@ -7,14 +7,15 @@
  *     is the primary trigger so BFT approval happens even without ReviewerBot.
  *  2. Also polls its A2A inbox for "review-complete" messages from ReviewerBot
  *     as a secondary signal (used to tally peer votes).
- *  3. When it accumulates enough "approved" signals to reach BFT quorum (default: 1 peer + self),
+ *  3. When it accumulates enough "approved" signals to reach BFT quorum,
  *     submits a BFT-signed approval via POST /documents/:slug/bft/approve.
  *  4. Watches the BFT status endpoint; when quorum is reached it transitions
  *     the document to APPROVED.
  *  5. If "changes-requested" signals arrive, it logs them and waits for a new version.
  *
- * BFT note: For the demo, f=0 → quorum=1 (ConsensusBot alone can approve).
- * In production with multiple ConsensusBot instances, quorum would be 2f+1.
+ * BFT note: CONSENSUS_BFT_F env controls fault-tolerance. Default f=1 → quorum=3.
+ * The orchestrator spawns 3 distinct bots so all 3 submit approvals, reaching quorum.
+ * Each bot has its own Ed25519 keypair registered under a distinct agent ID.
  *
  * Environment:
  *   LLMTXT_API_KEY   (required)
@@ -25,11 +26,21 @@
 
 import { AgentBase } from './shared/base.js';
 
-const AGENT_ID = 'consensusbot-demo';
+/**
+ * AGENT_ID — read from env so the orchestrator can launch multiple instances
+ * with distinct identities (consensus-bot-1, consensus-bot-2, consensus-bot-3).
+ * Each instance generates its own Ed25519 keypair persisted under ~/.llmtxt/demo-agents/<id>.key,
+ * ensuring 3 distinct signing keys for BFT quorum (Cap 7 fix, T771).
+ */
+const AGENT_ID = process.env.AGENT_ID ?? 'consensusbot-demo';
 const POLL_INTERVAL_MS = 3000;
 const DEMO_DURATION_MS = Number(process.env.DEMO_DURATION_MS ?? 60_000);
-// BFT f=0 for single-bot demo (quorum = 2*0+1 = 1)
-const BFT_F = 0;
+/**
+ * BFT_F — read from env so the orchestrator can override the fault-tolerance
+ * level. Default f=1 → quorum = 2*1+1 = 3 (requires 3 distinct approvals).
+ * The orchestrator spawns 3 bots with CONSENSUS_BFT_F=1 so each bot uses f=1.
+ */
+const BFT_F = Number(process.env.CONSENSUS_BFT_F ?? 1);
 
 class ConsensusBot extends AgentBase {
   constructor() {
@@ -125,7 +136,8 @@ class ConsensusBot extends AgentBase {
           this._votes.set(versionKey, { approved: 0, rejected: 0, reviewers: new Set() });
         }
 
-        // Immediately submit BFT approval (f=0, quorum=1 — self is enough)
+        // Each bot submits its own signed approval. When all 3 bots approve,
+        // the server reaches BFT quorum (2*f+1 = 3 with f=1).
         const quorum = 2 * BFT_F + 1;
         this._approvedVersions.add(versionKey);
         await this._submitBftApproval(versionKey, 1, quorum);
@@ -244,9 +256,12 @@ class ConsensusBot extends AgentBase {
 }
 
 // ── Entry point ───────────────────────────────────────────────────────────────
+// AGENT_ID is read from env at module load time (line ~30).
+// The orchestrator spawns 3 instances with AGENT_ID=consensus-bot-1/2/3,
+// each generating its own Ed25519 keypair for distinct BFT identities.
 
 const bot = new ConsensusBot();
 bot.run().catch((err) => {
-  console.error('[consensusbot-demo] Fatal error:', err);
+  console.error(`[${AGENT_ID}] Fatal error:`, err);
   process.exit(1);
 });
