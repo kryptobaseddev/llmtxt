@@ -199,6 +199,7 @@ export async function searchRoutes(fastify: FastifyInstance): Promise<void> {
                 query: q,
                 mode: 'tfidf',
                 fallback: true,
+                embeddingSource: 'tfidf',
                 results,
               });
             }
@@ -211,6 +212,7 @@ export async function searchRoutes(fastify: FastifyInstance): Promise<void> {
         return reply.send({
           query: q,
           mode: effectiveMode,
+          embeddingSource: effectiveMode === 'semantic' ? 'pgvector' : 'tfidf',
           results,
         });
       } catch (err) {
@@ -303,7 +305,7 @@ export async function searchRoutes(fastify: FastifyInstance): Promise<void> {
               mode: 'semantic' as const,
             }));
 
-            return reply.send({ slug, mode: 'semantic', results });
+            return reply.send({ slug, mode: 'semantic', embeddingSource: 'pgvector', results });
           } catch (pgErr) {
             const msg = pgErr instanceof Error ? pgErr.message : String(pgErr);
             fastify.log.warn('[similar] pgvector error, falling back: ' + msg);
@@ -319,7 +321,7 @@ export async function searchRoutes(fastify: FastifyInstance): Promise<void> {
           .limit(1);
 
         if (!docRow[0]?.compressedData) {
-          return reply.send({ slug, mode: 'tfidf', results: [] });
+          return reply.send({ slug, mode: 'tfidf', embeddingSource: 'tfidf', results: [] });
         }
 
         const compressedData = docRow[0].compressedData;
@@ -335,7 +337,7 @@ export async function searchRoutes(fastify: FastifyInstance): Promise<void> {
           .limit(200);
 
         const otherDocs = allDocs.filter((d: { id: string; slug: string }) => d.id !== doc.id);
-        if (otherDocs.length === 0) return reply.send({ slug, mode: 'tfidf', results: [] });
+        if (otherDocs.length === 0) return reply.send({ slug, mode: 'tfidf', embeddingSource: 'tfidf', results: [] });
 
         const texts = [
           sourceContent.slice(0, 2000),
@@ -353,7 +355,7 @@ export async function searchRoutes(fastify: FastifyInstance): Promise<void> {
           .sort((a: SimilarResult, b: SimilarResult) => b.score - a.score)
           .slice(0, limit);
 
-        return reply.send({ slug, mode: 'tfidf', results });
+        return reply.send({ slug, mode: 'tfidf', embeddingSource: 'tfidf', results });
       } catch (err) {
         fastify.log.error(err);
         return reply.status(500).send({ error: 'Similar documents lookup failed' });
