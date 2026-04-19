@@ -47,7 +47,8 @@ import { subscribeCrdtUpdates } from '../realtime/redis-pubsub.js';
 import { eventBus } from '../events/bus.js';
 import { crdt_state_vector } from '../crdt/primitives.js';
 // Wave C: inject presence registry + scratchpad helpers.
-import { presenceRegistry } from '../presence/registry.js';
+// T728: use RedisPresenceRegistry so presence is shared across Railway pods.
+import { redisPresenceRegistry } from '../lib/presence-redis.js';
 import { publishScratchpad, readScratchpad, subscribeScratchpad } from '../lib/scratchpad.js';
 
 declare module 'fastify' {
@@ -112,15 +113,16 @@ export async function registerPostgresBackendPlugin(app: FastifyInstance): Promi
   });
 
   // Wave C: inject presence registry + scratchpad helpers.
+  // T728: redisPresenceRegistry implements PresenceRegistryLike (upsert/expire/getByDoc).
   (backend as unknown as {
     setWaveCDeps: (deps: {
-      presenceRegistry: typeof presenceRegistry;
+      presenceRegistry: typeof redisPresenceRegistry;
       scratchpadPublish: typeof publishScratchpad;
       scratchpadRead: typeof readScratchpad;
       scratchpadSubscribe: typeof subscribeScratchpad;
     }) => void;
   }).setWaveCDeps({
-    presenceRegistry,
+    presenceRegistry: redisPresenceRegistry,
     scratchpadPublish: publishScratchpad,
     scratchpadRead: readScratchpad,
     scratchpadSubscribe: subscribeScratchpad,
