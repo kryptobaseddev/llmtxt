@@ -231,12 +231,17 @@ export async function apiRoutes(fastify: FastifyInstance) {
       const tokenCount = countTokens(content);
       const compressionRatio = calculateCompressionRatio(originalSize, compressedSize);
 
-      // Get optional user from session for ownership
+      // Require authentication: compress creates an owned document.
+      // Unauthenticated requests are rejected with 401 to prevent ownerless doc creation
+      // (T699 RLS bypass fix — every document MUST have an owner per the T166 invariant).
       const user = await getOptionalUser(request);
+      if (!user?.id) {
+        return reply.status(401).send({ error: 'Authentication required to compress documents' });
+      }
 
       // Resolve effective author: body-supplied createdBy wins, then agentId alias,
       // then session user ID.
-      const effectiveCreatedBy = bodyCreatedBy || bodyAgentId || user?.id || null;
+      const effectiveCreatedBy = bodyCreatedBy || bodyAgentId || user.id;
 
       // Delegate document creation + version 1 + contributor + role to PostgresBackend.
       // All content-derived fields are pre-computed above.
@@ -244,7 +249,7 @@ export async function apiRoutes(fastify: FastifyInstance) {
       await request.server.backendCore.createDocument({
         // Type-cast: CreateDocumentParams extended for compress flow.
         title: slug,
-        createdBy: effectiveCreatedBy ?? '',
+        createdBy: effectiveCreatedBy,
         // Extended fields consumed by PostgresBackend.createDocument:
         id,
         slug,
@@ -254,15 +259,19 @@ export async function apiRoutes(fastify: FastifyInstance) {
         originalSize,
         compressedSize,
         tokenCount,
-        ownerId: user?.id ?? null,
-        isAnonymous: user ? ((user as Record<string, unknown>).isAnonymous === true) : false,
+        // T699: always set ownerId and visibility to enforce the T166 RLS invariant.
+        // Ownerless documents are a security issue — they become globally readable
+        // via the visibility='public' default while having no owner for RLS enforcement.
+        ownerId: user.id,
+        visibility: 'private',
+        isAnonymous: (user as Record<string, unknown>).isAnonymous === true,
         // bftF: optional; undefined lets schema default (1) apply
         ...(bodyBftF !== undefined ? { bftF: bodyBftF } : {}),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 
-      // Increment document created counter (visibility defaults to 'public')
-      documentCreatedTotal.inc({ visibility: 'public' });
+      // Increment document created counter
+      documentCreatedTotal.inc({ visibility: 'private' });
 
       // Increment version created counter (source: 'compress' for initial version in compress endpoint)
       versionCreatedTotal.inc({ source: 'compress' });

@@ -204,8 +204,14 @@ export const documents = pgTable(
     state: text('state').notNull().default('DRAFT'),
 
     // ── Ownership ──
-    /** FK to users.id. Null for legacy/system documents. */
-    ownerId: text('owner_id').references(() => users.id, { onDelete: 'set null' }),
+    /**
+     * FK to users.id. NOT NULL (enforced via DB constraint in 20260419100000_compress_owner_backfill).
+     * T699: All documents MUST have an owner — ownerless docs bypass RLS and expose data publicly.
+     * ON DELETE RESTRICT prevents deleting a user while they own documents; application MUST
+     * re-assign or soft-delete a user's documents before account deletion.
+     * Legacy null-owner rows were backfilled to sentinel '00000000-0000-0000-0000-000000000001'.
+     */
+    ownerId: text('owner_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
     /** True when created by an anonymous user (24hr TTL auto-purge). */
     isAnonymous: boolean('is_anonymous').notNull().default(false),
 

@@ -20,7 +20,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { db } from '../db/index.js';
 import { documentEvents } from '../db/schema-pg.js';
-import { gt, asc, eq } from 'drizzle-orm';
+import { gt, asc, desc, eq } from 'drizzle-orm';
 import { eventBus } from '../events/bus.js';
 import type { DocumentEvent as BusDocumentEvent } from '../events/bus.js';
 import { matchPath } from '../subscriptions/path-matcher.js';
@@ -206,7 +206,8 @@ export async function subscribeRoutes(app: FastifyInstance): Promise<void> {
 
         if (!matchPath(pathPattern, canonicalPath)) return;
 
-        // Fetch the latest event row from DB to get seq for SSE id field
+        // Fetch the latest event row from DB to get seq for SSE id field.
+        // Must use desc() to get the NEWEST row, not the oldest.
         db.select({
           seq: documentEvents.seq,
           id: documentEvents.id,
@@ -217,7 +218,7 @@ export async function subscribeRoutes(app: FastifyInstance): Promise<void> {
         })
           .from(documentEvents)
           .where(eq(documentEvents.documentId, slug))
-          .orderBy(documentEvents.seq)
+          .orderBy(desc(documentEvents.seq))
           .limit(1)
           .then(async (rows: Array<{
             seq: bigint;

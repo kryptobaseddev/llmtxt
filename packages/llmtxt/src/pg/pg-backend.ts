@@ -539,6 +539,10 @@ export class PostgresBackend implements Backend {
     const createdBy = (p.createdBy as string | null) ?? null;
     const ownerId = (p.ownerId as string | null) ?? null;
     const isAnonymous = (p.isAnonymous as boolean) ?? false;
+    // visibility: T699 — callers MUST supply 'private' or 'public'.
+    // Default falls back to 'public' only for backward-compat callers that omit the field;
+    // the compress route now always supplies 'private' for authenticated users.
+    const visibility = (p.visibility as string) ?? 'public';
     // bftF: extended field passed from compress route for demo/test documents.
     // Default 1 matches the schema column default; pass 0 for single-bot demos.
     const bftF = typeof p.bftF === 'number' ? p.bftF : undefined;
@@ -562,6 +566,8 @@ export class PostgresBackend implements Backend {
         currentVersion: 1,
         ownerId,
         isAnonymous,
+        // T699: persist the caller-supplied visibility so ownerless-doc bypass is impossible.
+        visibility,
         // Only include bftF when explicitly supplied; let schema default handle omitted case.
         ...(bftF !== undefined ? { bftF } : {}),
       });

@@ -98,6 +98,7 @@ class ConsensusBot extends AgentBase {
         const t = evt.event_type;
         const isVersionCreated =
           t === 'version_created' ||
+          t === 'version.created' ||
           t === 'version.published' ||
           t === 'document_updated' ||
           t === 'document.updated';

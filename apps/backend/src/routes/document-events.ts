@@ -20,6 +20,9 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { canRead } from '../middleware/rbac.js';
 import { shutdownCoordinator } from '../lib/shutdown.js';
+import { db } from '../db/index.js';
+import { documentEvents } from '../db/schema-pg.js';
+import { eq, desc } from 'drizzle-orm';
 
 // ── Active SSE response registry for graceful shutdown (T092) ────────────────
 
@@ -196,6 +199,7 @@ export async function documentEventRoutes(fastify: FastifyInstance): Promise<voi
       const heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
 
       let streamClosed = false;
+      const seenEventIds = new Set<string>();
 
       // Register this stream for graceful shutdown (T092 AC4)
       const streamEntry = { writeRetryAndClose };
@@ -207,21 +211,70 @@ export async function documentEventRoutes(fastify: FastifyInstance): Promise<voi
         _activeSseStreams.delete(streamEntry);
       });
 
-      // Consume the async iterable from subscribeStream
+      // Consume the async iterable from subscribeStream.
+      // subscribeStream yields events with id:'' because the in-process bus
+      // does not carry the DB-assigned row UUID or seq. We resolve the latest
+      // DB row for the slug (by seq DESC) on each bus event to get the real
+      // id and seq for the SSE id: field and for deduplication. (T722 fix)
       const stream = request.server.backendCore.subscribeStream(slug);
       try {
         for await (const event of stream) {
           if (streamClosed) break;
-          // Deduplicate: only forward events we haven't seen in catch-up
-          if (event.id && event.id <= highWatermark) continue;
-          highWatermark = event.id || highWatermark;
 
-          sendSseEvent(event.id || event.agentId, event.type, {
-            id: event.id,
-            event_type: event.type,
-            actor_id: event.agentId,
-            payload: event.payload,
-            created_at: new Date(event.createdAt).toISOString(),
+          // Resolve the latest DB row for this document — this is the event
+          // that triggered the bus notification, since the bus is emitted
+          // after the DB write (persist-then-emit pattern in versions.ts).
+          let resolvedId = event.id;
+          let resolvedType = event.type;
+          let resolvedActorId = event.agentId;
+          let resolvedPayload = event.payload;
+          let resolvedCreatedAt = new Date(event.createdAt).toISOString();
+
+          if (!resolvedId) {
+            // subscribeStream does not provide a DB row id — query for it.
+            try {
+              const rows = await db
+                .select({
+                  id: documentEvents.id,
+                  seq: documentEvents.seq,
+                  eventType: documentEvents.eventType,
+                  payloadJson: documentEvents.payloadJson,
+                  actorId: documentEvents.actorId,
+                  createdAt: documentEvents.createdAt,
+                })
+                .from(documentEvents)
+                .where(eq(documentEvents.documentId, slug))
+                .orderBy(desc(documentEvents.seq))
+                .limit(1);
+
+              if (rows.length > 0) {
+                const row = rows[0];
+                resolvedId = row.id as string;
+                resolvedType = row.eventType as string;
+                resolvedActorId = row.actorId as string;
+                resolvedPayload = row.payloadJson as Record<string, unknown>;
+                resolvedCreatedAt = (row.createdAt as Date).toISOString();
+              }
+            } catch {
+              // Non-fatal: fall back to bus data
+            }
+          }
+
+          // Deduplicate: skip if we already delivered this event in catch-up
+          // or in a prior iteration of the live fan-out loop.
+          if (resolvedId && seenEventIds.has(resolvedId)) continue;
+          if (resolvedId && resolvedId <= highWatermark) continue;
+          if (resolvedId) {
+            seenEventIds.add(resolvedId);
+            highWatermark = resolvedId;
+          }
+
+          sendSseEvent(resolvedId || event.agentId, resolvedType, {
+            id: resolvedId,
+            event_type: resolvedType,
+            actor_id: resolvedActorId,
+            payload: resolvedPayload,
+            created_at: resolvedCreatedAt,
           });
         }
       } catch {

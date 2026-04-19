@@ -20,12 +20,20 @@ global:
     cluster: llmtxt
     env: production
 
-# Alertmanager configuration (not deployed — placeholder)
+# Alertmanager configuration
+# Currently configured but not deployed — can be enabled when Alertmanager service is ready
 alerting:
   alertmanagers: []
+  # TODO(ops): Uncomment when Alertmanager is deployed to Railway
+  # alertmanagers:
+  #   - static_configs:
+  #       - targets: ['alertmanager.railway.internal:9093']
 
-# Rule files
-rule_files: []
+# Rule files for SLO alerting and SLI recording rules
+# Rules are evaluated every evaluation_interval (15s)
+rule_files:
+  - /etc/prometheus/rules/sli.yml
+  - /etc/prometheus/alerts/slo.yml
 
 scrape_configs:
   # Prometheus self-scrape

@@ -14,6 +14,16 @@
  *     503 if section not yet initialized.
  *     Idempotent: replaying the same update produces the same state (Yrs guarantee).
  *
+ *   When STRICT_LEASES=1 env var is set (T704):
+ *     - PUT /sections/:sid checks section_leases for any active non-expired lease.
+ *     - If a lease is held by a different agent, returns 409 Conflict with
+ *       { error: 'lease_held', holder: '<agentId>', expiresAt: '<iso>' }.
+ *     - Lease-holder MAY include If-Match: <leaseId> header; if present, the
+ *       server validates the token matches the stored lease id. Mismatch → 409.
+ *     - Without STRICT_LEASES, behaviour is unchanged (advisory-only, no gating).
+ *     - Lease tokens are NEVER logged in plain text; only the holder agentId is
+ *       included in error responses.
+ *
  * Wave B (T353.5): Refactored to use fastify.backendCore.getCrdtState and
  * fastify.backendCore.applyCrdtUpdate instead of direct CRDT helper calls.
  *
@@ -96,6 +106,47 @@ export async function crdtRoutes(app: FastifyInstance): Promise<void> {
       if (!isOwner) {
         return reply.status(403).send({ error: 'Forbidden', message: 'Editor role required' });
       }
+
+      // ── T704: STRICT_LEASES enforcement ─────────────────────────────────────
+      // When STRICT_LEASES=1, block writes if another agent holds an active lease
+      // on this section. This converts advisory leases into enforced conditional
+      // writes without breaking existing clients that do not set the env var.
+      if (process.env.STRICT_LEASES === '1') {
+        const resource = `${slug}:${sid}`;
+        const agentId = request.user!.id;
+        const activeLease = await request.server.backendCore.getLease(resource);
+
+        if (activeLease !== null && activeLease.holder !== agentId) {
+          // Another agent holds an active, non-expired lease on this section.
+          // NOTE: lease token (activeLease.id) is NOT included in the response
+          // to prevent token harvesting. Only the holder identity and expiry are
+          // disclosed — enough for clients to implement retry-after-expiry logic.
+          return reply.status(409).send({
+            error: 'lease_held',
+            holder: activeLease.holder,
+            expiresAt: new Date(activeLease.expiresAt).toISOString(),
+          });
+        }
+
+        // If-Match validation: when the caller supplies an If-Match header, the
+        // server verifies the token matches the stored lease id for the resource.
+        // This lets the lease-holder assert exclusive ownership and detect races
+        // where their lease was stolen and re-acquired mid-flight.
+        const ifMatch = (request.headers as Record<string, string | undefined>)['if-match'];
+        if (ifMatch !== undefined && activeLease !== null) {
+          // Constant-time string compare is not critical here (lease ids are
+          // already public once acquired), but we keep the comparison simple and
+          // reject on any mismatch.
+          if (ifMatch !== activeLease.id) {
+            return reply.status(409).send({
+              error: 'lease_token_mismatch',
+              holder: activeLease.holder,
+              expiresAt: new Date(activeLease.expiresAt).toISOString(),
+            });
+          }
+        }
+      }
+      // ── End T704 ─────────────────────────────────────────────────────────────
 
       const updateBlob = Buffer.from(updateBase64, 'base64');
       if (updateBlob.length === 0) {

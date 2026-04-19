@@ -187,6 +187,14 @@ class ObserverBot extends AgentBase {
     for (const sectionId of OBSERVED_SECTION_IDS) {
       this._crdtDeltas.set(sectionId, []);
 
+      /**
+       * Track whether this is the first delta received for this section.
+       * The server now sends an InitialSnapshot (MSG_UPDATE 0x03) immediately
+       * on connect (T700/T717) so late subscribers receive the full state even
+       * if the writer finished before the observer connected.
+       */
+      let firstDelta = true;
+
       const unsub = subscribeSection(
         this.slug,
         sectionId,
@@ -202,7 +210,15 @@ class ObserverBot extends AgentBase {
           // Cache latest text for convergence check at end of run
           this._latestSectionText.set(sectionId, delta.text);
 
-          this.log(`CRDT[${sectionId}]: delta (${byteLen} bytes, text_len=${delta.text.length})`);
+          if (firstDelta) {
+            // First delta on connect is the InitialSnapshot (T700/T717):
+            // server sends full CRDT state immediately so late subscribers see non-zero bytes.
+            this.log(`CRDT[${sectionId}]: initial-snapshot received (${byteLen} bytes, text_len=${delta.text.length})`);
+            this.metrics[`crdt_${sectionId}_initial_bytes`] = byteLen;
+            firstDelta = false;
+          } else {
+            this.log(`CRDT[${sectionId}]: delta (${byteLen} bytes, text_len=${delta.text.length})`);
+          }
         },
         options,
       );

@@ -62,6 +62,7 @@ import { loadPendingUpdates } from "../crdt/persistence.js";
 import {
 	crdt_apply_update,
 	crdt_diff_update,
+	crdt_encode_state_as_update,
 	crdt_state_vector,
 } from "../crdt/primitives.js";
 import { resolveApiKeyUserId } from "../middleware/auth.js";
@@ -408,6 +409,27 @@ export async function wsCrdtRoutes(app: FastifyInstance): Promise<void> {
 					}
 				},
 			);
+
+			// ── InitialSnapshot: send full state to late subscribers (T700/T717) ────
+			// Late subscribers only receive LIVE delta updates via the pubsub fanout.
+			// If writer finished before observer connects, no live MSG_UPDATE frames
+			// are queued — the observer would see 0 bytes unless we send the full
+			// current state immediately on connect.
+			//
+			// Strategy: send the full persisted state as MSG_UPDATE (0x03) immediately
+			// after the session is registered, before SyncStep1. Loro import is
+			// idempotent — clients that already have this state simply apply a no-op.
+			// This mirrors how y-websocket provides initial sync to late joiners.
+			if (serverState.length > 0) {
+				const snapshot = crdt_encode_state_as_update(serverState);
+				if (snapshot.length > 0) {
+					try {
+						socket.send(framed(MSG_UPDATE, snapshot));
+					} catch {
+						// Socket closed before we could send — cleanup follows on 'close'
+					}
+				}
+			}
 
 			// ── Send SyncStep1: server's Loro VersionVector ────────────────────────
 			// Per spec P1 §3.2: on connect, server sends 0x01 | VersionVector bytes.

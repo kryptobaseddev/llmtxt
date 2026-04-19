@@ -1,0 +1,97 @@
+name: TSA Freshness Check (T705)
+
+on:
+  schedule:
+    - cron: '30 0 * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/backend/src/lib/rfc3161.ts'
+      - 'apps/backend/src/routes/audit-verify.ts'
+      - 'apps/backend/src/jobs/audit-checkpoint.ts'
+      - '.github/workflows/tsa-freshness-check.yml'
+  workflow_dispatch:
+
+jobs:
+  tsa-freshness:
+    name: Verify TSA anchor freshness in production
+    runs-on: ubuntu-latest
+
+    env:
+      PROD_API_URL: https://api.llmtxt.my
+      FRESHNESS_THRESHOLD_HOURS: 48
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check prod TSA status endpoint
+        env:
+          PROD_API_KEY: ${{ secrets.PROD_API_KEY }}
+        run: |
+          set -e
+
+          # Call the /api/v1/audit/tsa/status endpoint
+          response=$(curl -s -w "\n%{http_code}" \
+            -H "Authorization: Bearer ${PROD_API_KEY}" \
+            "${PROD_API_URL}/api/v1/audit/tsa/status")
+
+          # Split response and HTTP code
+          http_code=$(echo "${response}" | tail -n 1)
+          body=$(echo "${response}" | head -n -1)
+
+          echo "HTTP Status: ${http_code}"
+          echo "Response body:"
+          echo "${body}" | jq . || echo "${body}"
+
+          # Verify we got 200
+          if [ "${http_code}" != "200" ]; then
+            echo "FAILED: TSA status endpoint returned HTTP ${http_code} (expected 200)"
+            exit 1
+          fi
+
+          # Extract fields
+          last_anchor=$(echo "${body}" | jq -r '.lastAnchor')
+          token_valid=$(echo "${body}" | jq -r '.tokenValid')
+          tsa_endpoint=$(echo "${body}" | jq -r '.tsaEndpoint')
+
+          echo ""
+          echo "=== TSA Status ==="
+          echo "Last anchor: ${last_anchor}"
+          echo "Token valid: ${token_valid}"
+          echo "TSA endpoint: ${tsa_endpoint}"
+
+          # Check endpoint configuration
+          if echo "${tsa_endpoint}" | grep -q "freetsa.org"; then
+            echo "INFO: Using default FreeTSA endpoint"
+          else
+            echo "INFO: Using explicit TSA endpoint configuration"
+          fi
+
+          # Verify token is valid
+          if [ "${token_valid}" != "true" ]; then
+            echo "FAILED: TSA token is not valid"
+            exit 1
+          fi
+
+          # Verify anchor exists
+          if [ -z "${last_anchor}" ] || [ "${last_anchor}" = "null" ]; then
+            echo "FAILED: No TSA anchor found"
+            exit 1
+          fi
+
+          # Parse timestamp and check freshness
+          last_anchor_epoch=$(date -d "${last_anchor}" +%s)
+          now_epoch=$(date +%s)
+          age_seconds=$((now_epoch - last_anchor_epoch))
+          age_hours=$((age_seconds / 3600))
+
+          echo "Anchor age: ${age_hours} hours"
+
+          # Fail if anchor is stale
+          max_age_seconds=$((FRESHNESS_THRESHOLD_HOURS * 3600))
+          if [ "${age_seconds}" -gt "${max_age_seconds}" ]; then
+            echo "FAILED: TSA anchor is stale (${age_hours}h old, threshold ${FRESHNESS_THRESHOLD_HOURS}h)"
+            exit 1
+          fi
+
+          echo "PASS: TSA anchor is fresh (${age_hours}h old)"

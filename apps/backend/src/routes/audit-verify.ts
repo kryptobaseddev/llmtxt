@@ -18,6 +18,7 @@ import { db } from "../db/index.js";
 import { auditCheckpoints, auditLogs } from "../db/schema-pg.js";
 import { computeMerkleRoot } from "../jobs/audit-checkpoint.js";
 import { requireAuth } from "../middleware/auth.js";
+import { getTsaEndpoint } from "../lib/rfc3161.js";
 
 // ── Hash verification helpers ────────────────────────────────────────────────
 
@@ -309,6 +310,44 @@ export async function auditVerifyRoutes(app: FastifyInstance): Promise<void> {
 				claimed_root: claimed_root.toLowerCase(),
 				event_count: rows.length,
 				first_invalid_at: firstInvalidAt,
+			});
+		},
+	);
+
+	// ── T705: GET /audit/tsa/status ───────────────────────────────────────────
+
+	app.get(
+		"/audit/tsa/status",
+		{ preHandler: [requireAuth] },
+		async (_request, reply) => {
+			// Fetch the most recent checkpoint to get the last anchor timestamp.
+			const lastCheckpointRows = await db
+				.select({
+					createdAt: auditCheckpoints.createdAt,
+					tsrToken: auditCheckpoints.tsrToken,
+				})
+				.from(auditCheckpoints)
+				.orderBy(desc(auditCheckpoints.createdAt))
+				.limit(1);
+
+			const lastCheckpoint = lastCheckpointRows[0] ?? null;
+			const lastAnchorTimestamp = lastCheckpoint?.createdAt?.toISOString() ?? null;
+			const tokenValid = lastCheckpoint?.tsrToken != null;
+
+			// Get total checkpoint count.
+			const countRows = await db
+				.select({ count: auditCheckpoints.id })
+				.from(auditCheckpoints);
+			const totalCheckpoints = countRows.length;
+
+			// Get TSA endpoint being used (may be default or explicit env var).
+			const tsaEndpoint = getTsaEndpoint();
+
+			return reply.send({
+				lastAnchor: lastAnchorTimestamp,
+				tokenValid,
+				tsaEndpoint,
+				totalCheckpoints,
 			});
 		},
 	);

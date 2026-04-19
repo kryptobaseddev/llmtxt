@@ -4,10 +4,14 @@
  * GET /api/health   — liveness: always 200, no I/O, responds in <50ms.
  * GET /api/ready    — readiness: runs SELECT 1 on the active DB connection.
  * GET /api/metrics  — Prometheus text format metrics (prom-client registry).
+ * POST /api/test/error-injector  — synthetic error injection for SLO alert testing (T706).
  *
- * All three routes are exempt from authentication and rate limiting.
+ * All three main routes are exempt from authentication and rate limiting.
  * The allowList in registerRateLimiting covers /api/health, /api/ready, and
  * /api/metrics.
+ *
+ * The error-injector route is admin-only (NODE_ENV check) and used by ops
+ * for verifying SLO alert firing during controlled synthetic load tests.
  *
  * SPEC references: SPEC-T145 §7.4–7.8 (metrics), §8.1–8.4 (health/ready)
  */
@@ -108,6 +112,19 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
           db.run(sql`SELECT 1`);
         }
 
+        // T727: include Redis readiness in the response (non-blocking probe).
+        // isRedisReady() returns true when REDIS_URL is absent (in-process fallback).
+        const { isRedisReady } = await import('../lib/redis.js');
+        const redisReady = isRedisReady();
+
+        if (!redisReady) {
+          return reply.status(503).send({
+            status: 'unavailable',
+            reason: 'Redis not ready — waiting for connection',
+            ts: new Date().toISOString(),
+          });
+        }
+
         return reply.status(200).send({
           status: 'ok',
           version: PKG_VERSION,
@@ -181,6 +198,72 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
           message: 'Failed to collect metrics',
         });
       }
+    }
+  );
+
+  /**
+   * POST /test/error-injector
+   *
+   * Synthetic error injection endpoint for SLO alert testing (T706).
+   * Intentionally returns 500 to trigger error rate alerts when called.
+   *
+   * SECURITY: Admin-only endpoint — only available in production if NODE_ENV
+   * is set to 'development' or if X-Synthetic-Test-Key header matches a
+   * pre-shared secret. This prevents accidental triggering in prod.
+   *
+   * Usage (during controlled synthetic burn-rate test):
+   *   NODE_ENV=development curl -X POST https://api.llmtxt.my/api/test/error-injector
+   *
+   * Or with Railway env var:
+   *   curl -X POST -H "X-Synthetic-Test-Key: <SECRET>" https://api.llmtxt.my/api/test/error-injector
+   *
+   * Response: 500 Internal Server Error (always)
+   * Side effect: Increments HTTP error counter for Prometheus
+   * Alert impact: 100% error rate on this endpoint triggers p50/p95/p99
+   *   latency alerts and burn-rate alerts within 5 minutes.
+   *
+   * Acceptance: T706 AC2 — alert fires within 5 minutes of synthetic error injection.
+   */
+  app.post(
+    '/test/error-injector',
+    {
+      config: {
+        rateLimit: false,
+      },
+    },
+    async (request, reply) => {
+      // Gate 1: NODE_ENV=development (local development only)
+      const isDev = process.env.NODE_ENV === 'development';
+
+      // Gate 2: X-Synthetic-Test-Key header (production override with shared secret)
+      const testKeyEnv = process.env.SYNTHETIC_TEST_KEY || '';
+      const providedKey = request.headers['x-synthetic-test-key'] as string | undefined;
+      const hasValidKey = testKeyEnv && providedKey === testKeyEnv;
+
+      if (!isDev && !hasValidKey) {
+        // Return 403 to avoid triggering alerts unintentionally
+        return reply.status(403).send({
+          error: 'Forbidden',
+          message: 'error-injector endpoint requires NODE_ENV=development or valid X-Synthetic-Test-Key header',
+        });
+      }
+
+      // Log the synthetic error for diagnostics
+      app.log.warn(
+        {
+          endpoint: '/api/test/error-injector',
+          reason: 'synthetic error injection for SLO alert testing',
+          timestamp: new Date().toISOString(),
+        },
+        'synthetic error triggered'
+      );
+
+      // Return 500 to increment error counters and trigger alert evaluation
+      return reply.status(500).send({
+        error: 'Synthetic Error',
+        message: 'This is an intentional error for SLO alert testing (T706). Check Grafana for alert firing.',
+        testEndpoint: true,
+      });
     }
   );
 }

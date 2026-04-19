@@ -29,7 +29,26 @@
  * Reference: https://datatracker.ietf.org/doc/html/rfc3161#section-2.4.1
  */
 
-const FREETSA_URL = 'https://freetsa.org/tsr';
+/**
+ * TSA endpoint — reads from environment variable with fallback to freetsa.org.
+ * Set TSA_ENDPOINT env var to override (e.g., for testing or alternative TSA).
+ * If TSA_ENDPOINT is not set, defaults to the public FreeTSA service.
+ *
+ * T705: Prod wiring verification — must be explicitly set in Railway to ensure
+ * tokens are actually issued to the external service (not silently disabled).
+ */
+export function getTsaEndpoint(): string {
+	const endpoint = process.env.TSA_ENDPOINT;
+	if (!endpoint) {
+		console.warn(
+			'[rfc3161] TSA_ENDPOINT not set — using default FreeTSA. ' +
+			'Set TSA_ENDPOINT in environment for explicit TSA configuration.',
+		);
+		return 'https://freetsa.org/tsr';
+	}
+	return endpoint;
+}
+
 const REQUEST_TIMEOUT_MS = 15_000; // 15 second timeout
 
 // SHA-256 OID: 2.16.840.1.101.3.4.2.1
@@ -158,13 +177,14 @@ export async function requestRfc3161Timestamp(merkleRootHex: string): Promise<st
 
   const reqDer = buildTimestampRequest(dataHash, nonce);
 
-  // Send to FreeTSA with a timeout.
+  // Send to TSA endpoint with a timeout.
+  const tsaUrl = getTsaEndpoint();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   let response: Response;
   try {
-    response = await fetch(FREETSA_URL, {
+    response = await fetch(tsaUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/timestamp-query' },
       // Convert Buffer to Uint8Array for fetch BodyInit compatibility.

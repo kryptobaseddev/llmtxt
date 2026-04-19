@@ -73,6 +73,7 @@ import { runAuditRetentionJob } from './jobs/audit-retention.js';
 import { CONTENT_LIMITS } from './middleware/content-limits.js';
 import { shutdownCoordinator } from './lib/shutdown.js';
 import { validateSigningSecret } from './lib/signing-secret-validator.js';
+import { validateRedisUrl } from './lib/redis-config-validator.js';
 
 // S-01: Fail-fast before the server accepts any connections when
 // SIGNING_SECRET is missing or set to a well-known insecure default in
@@ -81,6 +82,20 @@ import { validateSigningSecret } from './lib/signing-secret-validator.js';
 try {
   validateSigningSecret(
     process.env.SIGNING_SECRET ?? '',
+    process.env.NODE_ENV ?? '',
+  );
+} catch (err) {
+  // eslint-disable-next-line no-console
+  console.error((err as Error).message);
+  process.exit(1);
+}
+
+// R-01: Fail-fast when REDIS_URL is unset in production.  Multi-pod Railway
+// deployments need a shared Redis so that presence registry and CRDT pub/sub
+// produce a unified view across replicas.  [T726]
+try {
+  validateRedisUrl(
+    process.env.REDIS_URL ?? '',
     process.env.NODE_ENV ?? '',
   );
 } catch (err) {
