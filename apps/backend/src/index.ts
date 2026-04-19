@@ -72,9 +72,11 @@ import { billingRoutes } from './routes/billing.js';
 import { startUsageRollupJob } from './jobs/usage-rollup.js';
 import { runAuditRetentionJob } from './jobs/audit-retention.js';
 import { CONTENT_LIMITS } from './middleware/content-limits.js';
+import { compressOptions } from './lib/compression.js';
 import { shutdownCoordinator } from './lib/shutdown.js';
 import { validateSigningSecret } from './lib/signing-secret-validator.js';
 import { validateRedisUrl } from './lib/redis-config-validator.js';
+import { validateScratchpadConfig } from './lib/scratchpad-config-validator.js';
 
 // S-01: Fail-fast before the server accepts any connections when
 // SIGNING_SECRET is missing or set to a well-known insecure default in
@@ -96,6 +98,21 @@ try {
 // produce a unified view across replicas.  [T726]
 try {
   validateRedisUrl(
+    process.env.REDIS_URL ?? '',
+    process.env.NODE_ENV ?? '',
+  );
+} catch (err) {
+  // eslint-disable-next-line no-console
+  console.error((err as Error).message);
+  process.exit(1);
+}
+
+// R-02: Fail-fast when REDIS_URL is unset in production for scratchpad
+// durability.  Scratchpad messages are stored in Redis Streams with a
+// consumer group for at-least-once delivery across pod restarts.  Without
+// Redis, messages are lost on every restart — a Guiding Star violation.  [T734]
+try {
+  validateScratchpadConfig(
     process.env.REDIS_URL ?? '',
     process.env.NODE_ENV ?? '',
   );
@@ -202,8 +219,8 @@ async function main() {
     // normal routing takes over.
     await app.register(websocket);
 
-    // Register compression plugin
-    await app.register(compress);
+    // Register compression plugin — T753: zstd-first encoding preference
+    await app.register(compress, compressOptions);
 
     // Register rate limiting (after CORS and compression, before routes)
     await registerRateLimiting(app);
