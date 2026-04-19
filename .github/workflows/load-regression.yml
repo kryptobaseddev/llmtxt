@@ -1,0 +1,165 @@
+name: Load Regression Test
+
+on:
+  schedule:
+    # Run weekly on Monday at 02:00 UTC
+    - cron: '0 2 * * 1'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  load-test:
+    name: Run Load Test & Check Regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gpg curl
+
+          # Add Grafana k6 repository
+          mkdir -p /etc/apt/keyrings
+          curl https://dl.k6.io/key.gpg | sudo tee /etc/apt/keyrings/k6-archive-keyring.gpg > /dev/null
+          echo "deb [signed-by=/etc/apt/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | \
+            sudo tee /etc/apt/sources.list.d/k6-stable.list
+
+          sudo apt-get update
+          sudo apt-get install -y k6
+
+      - name: Run baseline against staging
+        env:
+          BASE_URL: ${{ secrets.K6_STAGING_URL || 'https://staging-api.llmtxt.my' }}
+        run: |
+          mkdir -p /tmp/k6-results
+
+          # Run with lower VU count for staging (10 VUs, 1 min duration)
+          k6 run ops/load/baseline.k6.js \
+            --vus 10 \
+            --duration 60s \
+            --out json=/tmp/k6-results/baseline.json \
+            -e BASE_URL="$BASE_URL" \
+            || LOAD_TEST_EXIT=$?
+
+          echo "K6 exit code: ${LOAD_TEST_EXIT:-0}"
+          exit ${LOAD_TEST_EXIT:-0}
+
+      - name: Parse and check regression
+        id: regression_check
+        run: |
+          set -e
+
+          # Parse baseline thresholds from ops/load-baseline.md
+          read_p95_baseline=1521  # From baseline results
+          write_p95_baseline=3847 # From baseline results
+          error_rate_baseline=0.0026
+
+          # Calculate 20% regression tolerance
+          read_p95_threshold=$(echo "$read_p95_baseline * 1.2" | bc)
+          write_p95_threshold=$(echo "$write_p95_baseline * 1.2" | bc)
+          error_rate_threshold=$(echo "$error_rate_baseline * 1.2" | bc)
+
+          echo "Read p95 baseline: ${read_p95_baseline}ms (regression threshold: ${read_p95_threshold}ms)"
+          echo "Write p95 baseline: ${write_p95_baseline}ms (regression threshold: ${write_p95_threshold}ms)"
+          echo "Error rate baseline: ${error_rate_baseline} (regression threshold: ${error_rate_threshold})"
+
+          # Extract metrics from k6 JSON output
+          if [ ! -f /tmp/k6-results/baseline.json ]; then
+            echo "error=K6 results file not found" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          # Using jq to extract metrics
+          read_p95=$(jq -r '.metrics."http_req_duration{scenarioName:read}".values."p(95)" // 0' /tmp/k6-results/baseline.json)
+          write_p95=$(jq -r '.metrics."http_req_duration{scenarioName:write}".values."p(95)" // 0' /tmp/k6-results/baseline.json)
+          error_rate=$(jq -r '.metrics.http_req_failed.values.rate // 0' /tmp/k6-results/baseline.json)
+
+          echo "Measured read p95: ${read_p95}ms"
+          echo "Measured write p95: ${write_p95}ms"
+          echo "Measured error rate: ${error_rate}"
+
+          # Check thresholds
+          read_fail=$([ $(echo "$read_p95 > $read_p95_threshold" | bc) -eq 1 ] && echo "true" || echo "false")
+          write_fail=$([ $(echo "$write_p95 > $write_p95_threshold" | bc) -eq 1 ] && echo "true" || echo "false")
+          error_fail=$([ $(echo "$error_rate > $error_rate_threshold" | bc) -eq 1 ] && echo "true" || echo "false")
+
+          echo "read_p95=$read_p95" >> "$GITHUB_OUTPUT"
+          echo "write_p95=$write_p95" >> "$GITHUB_OUTPUT"
+          echo "error_rate=$error_rate" >> "$GITHUB_OUTPUT"
+          echo "read_fail=$read_fail" >> "$GITHUB_OUTPUT"
+          echo "write_fail=$write_fail" >> "$GITHUB_OUTPUT"
+          echo "error_fail=$error_fail" >> "$GITHUB_OUTPUT"
+
+          # Exit non-zero if any threshold exceeded
+          if [ "$read_fail" = "true" ] || [ "$write_fail" = "true" ] || [ "$error_fail" = "true" ]; then
+            exit 1
+          fi
+
+      - name: Report results
+        if: always()
+        env:
+          READ_P95: ${{ steps.regression_check.outputs.read_p95 }}
+          WRITE_P95: ${{ steps.regression_check.outputs.write_p95 }}
+          ERROR_RATE: ${{ steps.regression_check.outputs.error_rate }}
+          READ_FAIL: ${{ steps.regression_check.outputs.read_fail }}
+          WRITE_FAIL: ${{ steps.regression_check.outputs.write_fail }}
+          ERROR_FAIL: ${{ steps.regression_check.outputs.error_fail }}
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          ## Load Test Results
+
+          ### Read Operations (p95)
+          - Baseline: 1,521 ms
+          - Threshold: 1,825 ms (20% regression)
+          - Measured: ${{ env.READ_P95 }} ms
+          - Status: ${{ env.READ_FAIL == 'true' && '❌ REGRESSION' || '✅ PASS' }}
+
+          ### Write Operations (p95)
+          - Baseline: 3,847 ms
+          - Threshold: 4,616 ms (20% regression)
+          - Measured: ${{ env.WRITE_P95 }} ms
+          - Status: ${{ env.WRITE_FAIL == 'true' && '❌ REGRESSION' || '✅ PASS' }}
+
+          ### Error Rate
+          - Baseline: 0.26%
+          - Threshold: 0.31% (20% regression)
+          - Measured: ${{ env.ERROR_RATE }} %
+          - Status: ${{ env.ERROR_FAIL == 'true' && '❌ REGRESSION' || '✅ PASS' }}
+          EOF
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-results
+          path: /tmp/k6-results/
+          retention-days: 30
+
+      - name: Fail on regression
+        if: steps.regression_check.outcome == 'failure'
+        run: |
+          echo "Load test regression detected"
+          echo "One or more performance thresholds were exceeded"
+          exit 1
+
+  notify:
+    name: Notify on Failure
+    runs-on: ubuntu-latest
+    needs: load-test
+    if: failure()
+
+    steps:
+      - name: Create issue for regression
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '[ALERT] Load test regression detected',
+              body: 'Performance regression detected in weekly load test. See run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} for details.',
+              labels: ['performance', 'regression'],
+            })
