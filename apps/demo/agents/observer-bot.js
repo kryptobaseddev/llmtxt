@@ -104,6 +104,26 @@ class ObserverBot extends AgentBase {
       // Open subscribeSection() connections for CRDT observation (T381)
       this._initCrdtObservers();
 
+      // Retry CRDT subscriptions every 15s for sections that have received 0 bytes —
+      // writer-bot may not have initialized the CRDT section yet when observer first connects.
+      const crdtRetryInterval = setInterval(() => {
+        for (const sectionId of OBSERVED_SECTION_IDS) {
+          const deltas = this._crdtDeltas.get(sectionId);
+          if (!deltas || deltas.length === 0) {
+            // No data received yet — resubscribe (T769 Cap 2 retry).
+            this.log(`CRDT[${sectionId}]: no data received yet — retrying subscription`);
+            // Close old unsub if it exists, then re-subscribe.
+            const idx = OBSERVED_SECTION_IDS.indexOf(sectionId);
+            if (idx >= 0 && this._crdtUnsubs[idx]) {
+              try { this._crdtUnsubs[idx](); } catch { /* ignore */ }
+              this._crdtUnsubs[idx] = null;
+            }
+            this._crdtDeltas.delete(sectionId);
+            this._subscribeSingleSection(sectionId);
+          }
+        }
+      }, 15_000);
+
       // Poll for presence updates (proxy via doc access count)
       const presenceInterval = setInterval(() => this._pollPresence(), 5000);
 
@@ -134,6 +154,7 @@ class ObserverBot extends AgentBase {
         }
       }
 
+      clearInterval(crdtRetryInterval);
       clearInterval(presenceInterval);
     } catch (err) {
       if (err.name !== 'AbortError') {
@@ -191,39 +212,35 @@ class ObserverBot extends AgentBase {
    * section.created SSE handler will pick them up as they arrive.
    */
   async _discoverSections() {
+    // CRDT section IDs are set explicitly by writer-bot (introduction, architecture,
+    // multi-agent, getting-started). These are different from the parsed text sections
+    // returned by GET /documents/:slug/sections (which uses heading-derived slugs).
+    // We probe the crdt-state endpoint for each known CRDT section ID to confirm
+    // which ones exist, then subscribe to those. If none exist yet (writer-bot hasn't
+    // started), we still subscribe and let subscribeSection wait for the WS handshake.
+    const HARNESS_SECTION_IDS = ['introduction', 'architecture', 'multi-agent', 'getting-started'];
+
     try {
-      const doc = await this.getDocument(this.slug);
-      // The document metadata includes a `sections` array (list of section objects
-      // with at least an `id` field) or a `sectionIds` string array.
-      let sectionIds = [];
-      if (Array.isArray(doc.sections) && doc.sections.length > 0) {
-        sectionIds = doc.sections.map((s) => s.id ?? s.sectionId ?? s.slug ?? (typeof s === 'string' ? s : null)).filter(Boolean);
-      } else if (Array.isArray(doc.sectionIds)) {
-        sectionIds = doc.sectionIds.filter(Boolean);
-      }
+      // Check which CRDT sections are already initialized (writer-bot may have started).
+      const probeResults = await Promise.allSettled(
+        HARNESS_SECTION_IDS.map(async (sid) => {
+          const resp = await this._api(`/api/v1/documents/${this.slug}/sections/${sid}/crdt-state`);
+          return { sid, initialized: !resp.error };
+        }),
+      );
 
-      if (sectionIds.length === 0) {
-        // Document may not have sections exposed in metadata — try fetching section list.
-        try {
-          const sectionsResp = await this._api(`/api/v1/documents/${this.slug}/sections`);
-          const items = Array.isArray(sectionsResp) ? sectionsResp
-            : (sectionsResp.sections ?? sectionsResp.data ?? []);
-          sectionIds = items.map((s) => s.id ?? s.sectionId ?? s.slug ?? (typeof s === 'string' ? s : null)).filter(Boolean);
-        } catch (err) {
-          this.log(`Sections endpoint not available (${err.message}) — will discover via SSE`);
-        }
-      }
+      const initialized = probeResults
+        .filter((r) => r.status === 'fulfilled' && r.value.initialized)
+        .map((r) => r.value.sid);
 
-      if (sectionIds.length > 0) {
-        OBSERVED_SECTION_IDS = sectionIds;
-        this.log(`Discovered ${sectionIds.length} sections: ${sectionIds.join(', ')}`);
-      } else {
-        this.log('No sections found at startup — will subscribe as section.created events arrive');
-        OBSERVED_SECTION_IDS = [];
-      }
+      // Use initialized sections if any; otherwise subscribe to all and let WS handle it.
+      OBSERVED_SECTION_IDS = initialized.length > 0 ? initialized : HARNESS_SECTION_IDS;
+      this.log(
+        `Discovered ${OBSERVED_SECTION_IDS.length} CRDT sections (${initialized.length} initialized): ${OBSERVED_SECTION_IDS.join(', ')}`,
+      );
     } catch (err) {
-      this.log(`Section discovery error: ${err.message} — proceeding without initial subscriptions`);
-      OBSERVED_SECTION_IDS = [];
+      this.log(`Section discovery error: ${err.message} — using harness defaults`);
+      OBSERVED_SECTION_IDS = HARNESS_SECTION_IDS;
     }
   }
 
