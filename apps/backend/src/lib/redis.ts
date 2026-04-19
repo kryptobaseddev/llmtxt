@@ -11,23 +11,27 @@
  *                      are always required.
  *
  * Both clients use exponential-backoff reconnection via ioredis's built-in
- * retryStrategy. The health check is exposed via isRedisReady() which is
+ * retryStrategy. The readiness state is exposed via isRedisReady() which is
  * consumed by the /api/ready endpoint.
  *
- * When REDIS_URL is absent the module exports null clients and a WARN is
- * emitted once. In non-production environments this is acceptable (the
- * CRDT pub/sub and presence registry fall back to in-process mode). In
- * production the fail-fast check in index.ts will have already terminated
- * the process before this module is evaluated.
+ * When REDIS_URL is absent the module exports null clients and emits a single
+ * WARN. In non-production environments this is acceptable (CRDT pub/sub and
+ * presence registry fall back to in-process mode). In production the fail-fast
+ * check in index.ts will have already terminated the process before this module
+ * is evaluated.
  *
  * Usage:
  *   import { redisPublisher, redisSubscriber, isRedisReady } from './redis.js';
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-import Redis from 'ioredis';
+import { createRequire } from 'node:module';
 
-// ── Connection options ───────────────────────────────────────────────────────
+// ── Type aliases (avoids "namespace-as-type" TS error in strict NodeNext mode) ─
+
+type IORedisClient = import('ioredis').Redis;
+type IORedisOptions = import('ioredis').RedisOptions;
+
+// ── Connection options ────────────────────────────────────────────────────────
 
 /** Maximum reconnect delay in milliseconds (caps exponential back-off). */
 const MAX_RECONNECT_DELAY_MS = 30_000;
@@ -45,30 +49,48 @@ function retryStrategy(attempt: number): number {
   return Math.min(RECONNECT_BASE_DELAY_MS * 2 ** (attempt - 1), MAX_RECONNECT_DELAY_MS);
 }
 
-// ── Shared client creation ───────────────────────────────────────────────────
+// ── Client factory ────────────────────────────────────────────────────────────
+
+/**
+ * Synchronously create an ioredis client using createRequire (CJS interop).
+ *
+ * We use createRequire instead of dynamic import so that the two shared clients
+ * are available synchronously at module load time. The existing redis-pubsub.ts
+ * uses `await import('ioredis') as any` inside an async init() — we cannot do
+ * that here because this module initialises synchronously as a side effect.
+ */
+function createRedisClient(url: string): IORedisClient {
+  const _require = createRequire(import.meta.url);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ioredis = _require('ioredis') as any;
+  const RedisConstructor = ioredis.default ?? ioredis.Redis ?? ioredis;
+
+  const options: IORedisOptions = {
+    maxRetriesPerRequest: null,
+    enableReadyCheck: true,
+    lazyConnect: false,
+    retryStrategy,
+    reconnectOnError: (err: Error) => err.message.startsWith('READONLY'),
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return
+  return new RedisConstructor(url, options) as IORedisClient;
+}
+
+// ── Shared client creation ────────────────────────────────────────────────────
 
 const REDIS_URL = process.env.REDIS_URL;
 
-let _publisher: Redis | null = null;
-let _subscriber: Redis | null = null;
+let _publisher: IORedisClient | null = null;
+let _subscriber: IORedisClient | null = null;
 
 /** Whether at least one successful Redis connection has been established. */
 let _publisherReady = false;
 let _subscriberReady = false;
 
 if (REDIS_URL) {
-  _publisher = new Redis(REDIS_URL, {
-    // maxRetriesPerRequest null → retry indefinitely for blocking ops.
-    maxRetriesPerRequest: null,
-    enableReadyCheck: true,
-    lazyConnect: false,
-    retryStrategy,
-    // Prevent ioredis from flooding logs on connection errors — we handle them.
-    reconnectOnError: (err) => {
-      // Reconnect on READONLY errors (Redis Sentinel / Cluster failover).
-      return err.message.startsWith('READONLY');
-    },
-  });
+  _publisher = createRedisClient(REDIS_URL);
+  _subscriber = createRedisClient(REDIS_URL);
 
   _publisher.on('ready', () => {
     _publisherReady = true;
@@ -84,14 +106,6 @@ if (REDIS_URL) {
 
   _publisher.on('close', () => {
     _publisherReady = false;
-  });
-
-  _subscriber = new Redis(REDIS_URL, {
-    maxRetriesPerRequest: null,
-    enableReadyCheck: true,
-    lazyConnect: false,
-    retryStrategy,
-    reconnectOnError: (err) => err.message.startsWith('READONLY'),
   });
 
   _subscriber.on('ready', () => {
@@ -118,7 +132,7 @@ if (REDIS_URL) {
   );
 }
 
-// ── Exports ──────────────────────────────────────────────────────────────────
+// ── Exports ───────────────────────────────────────────────────────────────────
 
 /**
  * ioredis client for PUBLISH, HSET, EXPIRE, and all regular commands.
@@ -127,7 +141,7 @@ if (REDIS_URL) {
  * Production startup fails before this module is evaluated when REDIS_URL
  * is absent (see validateRedisUrl in lib/redis-config-validator.ts).
  */
-export const redisPublisher: Redis | null = _publisher;
+export const redisPublisher: IORedisClient | null = _publisher;
 
 /**
  * ioredis client dedicated to SUBSCRIBE / PSUBSCRIBE.
@@ -137,7 +151,7 @@ export const redisPublisher: Redis | null = _publisher;
  *
  * Null when REDIS_URL is not configured.
  */
-export const redisSubscriber: Redis | null = _subscriber;
+export const redisSubscriber: IORedisClient | null = _subscriber;
 
 /**
  * Return true when both Redis clients are connected and ready.
