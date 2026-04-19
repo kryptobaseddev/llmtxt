@@ -24,6 +24,7 @@ import compress from "@fastify/compress";
 import cors from "@fastify/cors";
 import websocket from "@fastify/websocket";
 import Fastify, { type FastifyInstance } from "fastify";
+import { compressOptions } from "./lib/compression.js";
 import { registerPostgresBackendPlugin } from "./plugins/postgres-backend-plugin.js";
 import { apiRoutes } from "./routes/api.js";
 import { documentEventRoutes } from "./routes/document-events.js";
@@ -55,7 +56,8 @@ export async function buildFastifyApp(
 
 	// Standard plugins
 	await app.register(cors, { origin: true });
-	await app.register(compress);
+	// T753: register with zstd-first encoding preference
+	await app.register(compress, compressOptions);
 	await app.register(websocket);
 
 	// Register the routes that the SSE integration test exercises.
