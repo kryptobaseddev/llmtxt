@@ -58,8 +58,9 @@ import { runAnonSessionCleanup } from './jobs/anon-session-cleanup.js';
 import { registerMetrics } from './middleware/metrics.js';
 import { wellKnownAgentsRoutes } from './routes/well-known-agents.js';
 import { startNonceCleanup } from './middleware/verify-agent-signature.js';
-import { presenceRegistry } from './presence/registry.js';
 import { presenceRoutes } from './routes/presence.js';
+import { redisPresenceRegistry } from './lib/presence-redis.js';
+import { disconnectRedis } from './lib/redis.js';
 import { startLeaseExpiryJob } from './leases/expiry-job.js';
 import { logger as pinoLogger } from './lib/logger.js';
 import { registerObservabilityHooks } from './middleware/observability.js';
@@ -655,9 +656,11 @@ async function main() {
       });
     }, 5_000);
 
-    // ── Presence registry expiry sweep (T258) ─────────────────────────────────
+    // ── Presence registry expiry sweep (T258 / T728) ──────────────────────────
     // Sweep every 10 seconds; entries older than 30s are removed.
-    const presenceExpiryTimer = setInterval(() => presenceRegistry.expire(), 10_000);
+    // T728: RedisPresenceRegistry is used here — it prunes the local cache and
+    // issues best-effort HDEL to Redis for stale entries.
+    const presenceExpiryTimer = setInterval(() => redisPresenceRegistry.expire(), 10_000);
     // Ensure the timer does not prevent process exit
     presenceExpiryTimer.unref?.();
 
@@ -832,6 +835,7 @@ async function main() {
         try {
           await shutdownCoordinator.drain();
           await app.close();
+          await disconnectRedis(); // T727: graceful Redis disconnect
         } catch (err) {
           console.error('[shutdown] error during graceful shutdown:', err);
         } finally {
@@ -847,6 +851,7 @@ async function main() {
         try {
           await shutdownCoordinator.drain();
           await app.close();
+          await disconnectRedis(); // T727: graceful Redis disconnect
         } catch (err) {
           console.error('[shutdown] error during graceful shutdown:', err);
         } finally {
