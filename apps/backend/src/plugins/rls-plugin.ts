@@ -76,18 +76,21 @@ declare module 'fastify' {
  * @param app - The Fastify instance to register on.
  */
 export async function registerRlsPlugin(app: FastifyInstance): Promise<void> {
-  // Decorate request with `null` placeholders.  Fastify 5 rejects reference
-  // types as defaults (every request would share the same instance) AND
-  // getter-only descriptors (subsequent assignment `request.rlsContext = ...`
-  // throws).  `null` is a primitive that allows later assignment by the
-  // onRequest hook, which overwrites all three properties before any handler
-  // sees them.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  app.decorateRequest('rlsContext', null as any);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  app.decorateRequest('withRls', null as any);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  app.decorateRequest('withRlsAdmin', null as any);
+  // Deliberately NOT using `app.decorateRequest(...)` for rlsContext, withRls,
+  // withRlsAdmin.  Fastify 5 rejects reference-type defaults outright, and its
+  // `{ getter, setter }` alternative requires private backing slots (Symbol
+  // or WeakMap) that duplicate the state we're already storing on the request
+  // via this onRequest hook.
+  //
+  // The documented Fastify 5 pattern for hook-populated request properties is:
+  //   1. Declare the property via `declare module 'fastify'` augmentation
+  //      (see above — rlsContext, withRls, withRlsAdmin).
+  //   2. Assign it in an `onRequest` hook that runs before any route handler.
+  //
+  // This keeps the TypeScript non-nullable contract honest (the hook runs for
+  // every request, so any handler reaching a route sees populated values) and
+  // avoids placeholder casts like `null as any` which would lie to the type
+  // system.
 
   app.addHook('onRequest', async (request: FastifyRequest) => {
     // Resolve user context from the auth middleware output.
