@@ -355,19 +355,11 @@ export async function wsCrdtRoutes(app: FastifyInstance): Promise<void> {
 			const isOwner = docRaw.ownerId === user.id;
 			const canWrite = isOwner;
 
-			if (wantsWrite && !canWrite) {
-				socket.send(
-					Buffer.from(
-						JSON.stringify({
-							type: "error",
-							code: 4403,
-							message: "Editor role required for CRDT write access",
-						}),
-					),
-				);
-				socket.close(4403, "Forbidden");
-				return;
-			}
+			// Note: we allow loro-sync-v1 (wantsWrite) connections from non-owners for
+			// read-only CRDT observation (Cap 2 — T769). Non-owners that attempt to send
+			// MSG_UPDATE frames are rejected per-frame at the MSG_UPDATE handler below.
+			// This allows observer-bot and reviewer-bot to subscribe to CRDT sections
+			// they don't own and receive live delta updates via the fanout mechanism.
 
 			// ── Load section state via backendCore ────────────────────────────────
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
