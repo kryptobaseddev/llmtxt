@@ -76,21 +76,29 @@ declare module 'fastify' {
  * @param app - The Fastify instance to register on.
  */
 export async function registerRlsPlugin(app: FastifyInstance): Promise<void> {
-  // Deliberately NOT using `app.decorateRequest(...)` for rlsContext, withRls,
-  // withRlsAdmin.  Fastify 5 rejects reference-type defaults outright, and its
-  // `{ getter, setter }` alternative requires private backing slots (Symbol
-  // or WeakMap) that duplicate the state we're already storing on the request
-  // via this onRequest hook.
+  // Canonical Fastify 5 pattern for hook-populated request properties (see
+  // docs/Guides/Migration-Guide-V5.md "Handle Decorator Reference Types"):
   //
-  // The documented Fastify 5 pattern for hook-populated request properties is:
-  //   1. Declare the property via `declare module 'fastify'` augmentation
-  //      (see above — rlsContext, withRls, withRlsAdmin).
-  //   2. Assign it in an `onRequest` hook that runs before any route handler.
+  //   1. Call `decorateRequest(name)` with NO default value — this declares
+  //      the slot on the Request prototype, which:
+  //        • preserves V8 hidden-class monomorphism on the hot path,
+  //        • lets other plugins verify the decorator exists via
+  //          `app.hasRequestDecorator(name)`,
+  //        • avoids the Fastify 5 prohibition on reference-type defaults
+  //          (objects/functions/arrays would be shared across all requests →
+  //          state leakage / CVE class of bugs).
+  //   2. Fill the slot in an `onRequest` hook so every request gets its own
+  //      instance. `onRequest` is the first hook in the request lifecycle,
+  //      so any handler that runs sees populated values — matching the
+  //      non-null `RlsContext` type declared via module augmentation above.
   //
-  // This keeps the TypeScript non-nullable contract honest (the hook runs for
-  // every request, so any handler reaching a route sees populated values) and
-  // avoids placeholder casts like `null as any` which would lie to the type
-  // system.
+  // References:
+  //   https://fastify.dev/docs/latest/Guides/Migration-Guide-V5/#handle-decorator-reference-types-in-fastify
+  //   https://fastify.dev/docs/latest/Reference/Decorators/#decoraterequest
+
+  app.decorateRequest('rlsContext');
+  app.decorateRequest('withRls');
+  app.decorateRequest('withRlsAdmin');
 
   app.addHook('onRequest', async (request: FastifyRequest) => {
     // Resolve user context from the auth middleware output.
