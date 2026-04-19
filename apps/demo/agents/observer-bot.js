@@ -197,7 +197,7 @@ class ObserverBot extends AgentBase {
       // with at least an `id` field) or a `sectionIds` string array.
       let sectionIds = [];
       if (Array.isArray(doc.sections) && doc.sections.length > 0) {
-        sectionIds = doc.sections.map((s) => s.id ?? s.sectionId ?? s).filter(Boolean);
+        sectionIds = doc.sections.map((s) => s.id ?? s.sectionId ?? s.slug ?? (typeof s === 'string' ? s : null)).filter(Boolean);
       } else if (Array.isArray(doc.sectionIds)) {
         sectionIds = doc.sectionIds.filter(Boolean);
       }
@@ -208,7 +208,7 @@ class ObserverBot extends AgentBase {
           const sectionsResp = await this._api(`/api/v1/documents/${this.slug}/sections`);
           const items = Array.isArray(sectionsResp) ? sectionsResp
             : (sectionsResp.sections ?? sectionsResp.data ?? []);
-          sectionIds = items.map((s) => s.id ?? s.sectionId ?? s).filter(Boolean);
+          sectionIds = items.map((s) => s.id ?? s.sectionId ?? s.slug ?? (typeof s === 'string' ? s : null)).filter(Boolean);
         } catch (err) {
           this.log(`Sections endpoint not available (${err.message}) — will discover via SSE`);
         }
