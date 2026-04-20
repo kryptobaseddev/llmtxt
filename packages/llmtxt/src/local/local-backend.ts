@@ -642,6 +642,14 @@ export class LocalBackend implements Backend {
       .where(eq(documents.id, params.documentId))
       .run();
 
+    // Auto-index for semantic search. Fire-and-forget — embedding failures
+    // (e.g. onnxruntime-node missing) are swallowed inside indexDocument.
+    // Eventual consistency: a search() call immediately after publishVersion
+    // may miss the doc until indexing completes (usually <500 ms).
+    void this.indexDocument(params.documentId, params.content).catch(() => {
+      // Already swallowed inside indexDocument; belt-and-suspenders.
+    });
+
     return {
       versionNumber,
       patchText: params.patchText,
