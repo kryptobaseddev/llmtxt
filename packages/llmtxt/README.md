@@ -249,6 +249,19 @@ const merged = cherryPickMerge(
 );
 ```
 
+## Choosing the Right Similarity Metric
+
+LLMtxt provides two distinct families of similarity metrics for different use cases:
+
+| Use case | APIs | How it works | When to use |
+|---|---|---|---|
+| **Near-duplicate detection, chunk dedup, exact text matching** | `contentSimilarity`, `jaccardSimilarity`, `fingerprintSimilarity`, `textSimilarity`, `minHashFingerprint`, `rankBySimilarity` | Character or word n-gram Jaccard distance. Fast, no embeddings required. High scores only when texts share surface strings. | Finding duplicate chunks, dedup within a document version, or ranked search of exact text variants. |
+| **Cross-document semantic comparison, consensus merging, topic-level similarity** | `semanticConsensus`, `semanticDiff`, `cosineSimilarity` | Embedding-based (requires `embed()` pass first). Catches paraphrase and reordering. Slower but understands intent. | Finding "two docs about the same thing, worded differently" or evaluating consensus across reviews with different wording. |
+
+**Rule of thumb**: If you want to find duplicate chunks of text or rank candidates by surface similarity, use `contentSimilarity`. If you want to compare documents that may be reworded or paraphrased but cover the same topics, use embeddings + `cosineSimilarity` or `semanticConsensus`.
+
+**Example**: Two versions of an auth spec worded differently will score ~0.03 with `contentSimilarity` (correct — they don't share surface strings) but should score ~0.80+ with `semanticConsensus` (correct — they discuss the same topic).
+
 ## Shared Primitives (v2026.4.9 Subpath Contract)
 
 Seven stable subpaths are now exported under a formal contract with semver-guarded
