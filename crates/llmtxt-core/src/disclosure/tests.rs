@@ -42,6 +42,77 @@ fn byte_identity_vec3_text() {
     assert_eq!(detect_document_format("Plain text document."), "text");
 }
 
+// ── detect_document_format: markdown threshold (T815) ─────────────
+
+#[test]
+fn test_detect_markdown_threshold_heading_only() {
+    // Heading-only with body — single heading signal must short-circuit
+    assert_eq!(
+        detect_document_format("# Title\n## Subtitle\nbody text"),
+        "markdown"
+    );
+}
+
+#[test]
+fn test_detect_markdown_threshold_heading_and_code_fence() {
+    // Heading + code fence → markdown (heading short-circuit fires)
+    assert_eq!(
+        detect_document_format("# H\n```rust\nfn main() {}\n```"),
+        "markdown"
+    );
+}
+
+#[test]
+fn test_detect_markdown_threshold_heading_and_bullet_list() {
+    // Heading + bullet list → markdown
+    assert_eq!(
+        detect_document_format("# Section\n- item one\n- item two"),
+        "markdown"
+    );
+}
+
+#[test]
+fn test_detect_markdown_threshold_link_and_bullet_no_heading() {
+    // No heading — link + bullet satisfies old 2-of-5 count path
+    assert_eq!(
+        detect_document_format("- bullet\n[foo](https://example.com)"),
+        "markdown"
+    );
+}
+
+#[test]
+fn test_detect_markdown_threshold_json_unchanged() {
+    // JSON still detected before markdown signals are checked
+    assert_eq!(detect_document_format(r#"{"key":"value"}"#), "json");
+}
+
+#[test]
+fn test_detect_markdown_threshold_code_unchanged() {
+    // Code detected after markdown — ensure no regression
+    assert_eq!(
+        detect_document_format("const x = 1;\nif (x) { return x; }"),
+        "code"
+    );
+}
+
+#[test]
+fn test_detect_markdown_threshold_plain_text_unchanged() {
+    // Plain text with no signals → text
+    assert_eq!(detect_document_format("just a paragraph"), "text");
+}
+
+#[test]
+fn test_detect_markdown_threshold_empty_string() {
+    // Empty string → text
+    assert_eq!(detect_document_format(""), "text");
+}
+
+#[test]
+fn test_detect_markdown_threshold_single_char() {
+    // Single character → text
+    assert_eq!(detect_document_format("a"), "text");
+}
+
 // ── get_line_range ─────────────────────────────────────────────────
 
 #[test]
