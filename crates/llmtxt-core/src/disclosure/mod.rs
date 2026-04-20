@@ -79,6 +79,11 @@ pub fn detect_document_format(content: &str) -> &'static str {
         content.contains("```"),
         has_markdown_link(content),
     ];
+    // A heading is strong unambiguous evidence of markdown.
+    // Short-circuit before the 2-of-5 count so heading-only docs classify correctly.
+    if markdown_signals[0] {
+        return "markdown";
+    }
     if markdown_signals.iter().filter(|&&b| b).count() >= 2 {
         return "markdown";
     }
