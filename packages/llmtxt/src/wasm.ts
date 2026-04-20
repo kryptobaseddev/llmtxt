@@ -280,14 +280,16 @@ export interface MultiDiffResult {
 }
 
 /**
- * Compute a multi-way diff across a base version and up to 4 additional versions.
+ * Compute per-line diff variants across N versions of a document.
  *
- * @param base - Base version content (typically v1).
- * @param versionsJson - JSON array of strings, one per additional version.
+ * @param base - Base version content.
+ * @param versions - Either an array of version strings (preferred) OR a
+ *   JSON-encoded array of strings (legacy, still supported for back-compat).
  * @returns Parsed MultiDiffResult.
  * @throws Error if the Rust core returns an error object.
  */
-export function multiWayDiff(base: string, versionsJson: string): MultiDiffResult {
+export function multiWayDiff(base: string, versions: string | string[]): MultiDiffResult {
+  const versionsJson = Array.isArray(versions) ? JSON.stringify(versions) : versions;
   const json = wasmModule.multi_way_diff_wasm(base, versionsJson);
   const parsed = JSON.parse(json) as MultiDiffResult & { error?: string };
   if (parsed.error) {
@@ -552,6 +554,10 @@ export interface SemanticDiffResult {
  * @param sectionsBJson - JSON array of `{ title, content, embedding: number[] }` for version B.
  * @returns Parsed SemanticDiffResult.
  * @throws Error if the Rust core returns an error object.
+ * @remarks Embedding-based comparison for section-level changes across document versions.
+ * Use when comparing two versions of a document to find which sections changed semantically,
+ * even if reworded. Requires sections to be pre-embedded (e.g. with LocalEmbeddingProvider).
+ * @see semanticConsensus
  */
 export function semanticDiff(sectionsAJson: string, sectionsBJson: string): SemanticDiffResult {
   const json = wasmModule.semantic_diff_wasm(sectionsAJson, sectionsBJson);
@@ -632,6 +638,19 @@ export interface SemanticConsensusResult {
  * @param threshold - Cosine similarity threshold for clustering (e.g. 0.80).
  * @returns Parsed SemanticConsensusResult.
  * @throws Error if the Rust core returns an error object.
+ * @example
+ * ```ts
+ * // Embed reviews first (e.g. with LocalEmbeddingProvider)
+ * const reviews = [
+ *   { reviewerId: 'agent-1', content: 'This API is well-designed.', embedding: [...] },
+ *   { reviewerId: 'agent-2', content: 'The API design is excellent.', embedding: [...] },
+ * ];
+ *
+ * const result = semanticConsensus(JSON.stringify(reviews), 0.80);
+ * if (result.consensus) {
+ *   console.log('Agreement found:', result.agreementScore);
+ * }
+ * ```
  */
 export function semanticConsensus(
   reviewsJson: string,
@@ -655,6 +674,11 @@ export function semanticConsensus(
  * @param a - First text.
  * @param b - Second text.
  * @returns Jaccard similarity of word bigrams, 0.0 to 1.0.
+ * @remarks This is a character n-gram Jaccard metric for **surface** similarity only.
+ * Returns low scores (e.g., ~0.03) for semantically-near docs that are reworded or paraphrased,
+ * because the texts don't share surface strings. For semantic comparison across rewritten/paraphrased
+ * content, use `semanticConsensus` with embeddings instead. See the README's "Choosing the right
+ * similarity metric" section for guidance.
  */
 export function contentSimilarity(a: string, b: string): number {
   return wasmModule.content_similarity_wasm(a, b);
@@ -752,6 +776,9 @@ export function findOverlongLine(content: string, maxChars: number): number {
  * @param a - Fingerprint array (from minHashFingerprint).
  * @param b - Fingerprint array (from minHashFingerprint).
  * @returns Approximate Jaccard similarity, 0.0 to 1.0.
+ * @remarks Surface similarity via fingerprinting. Use for fast approximate matching.
+ * For semantic comparison, use `semanticConsensus` with embeddings.
+ * @see semanticConsensus
  */
 export function fingerprintSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length || a.length === 0) return 0;
@@ -870,6 +897,9 @@ export function topAgents(graph: KnowledgeGraph, limit = 10): Array<{ agent: str
  * @param a - First text.
  * @param b - Second text.
  * @returns Jaccard similarity with n=3, 0.0 to 1.0.
+ * @remarks Surface similarity for near-duplicate detection and text dedup.
+ * For semantic comparison across paraphrased content, use `semanticConsensus` with embeddings.
+ * @see semanticConsensus
  */
 export function jaccardSimilarity(a: string, b: string): number {
   return wasmModule.jaccard_similarity_wasm(a, b);
@@ -1064,6 +1094,10 @@ export function tfidfEmbedBatch(texts: string[], dim = 256): number[][] {
  * @param numHashes - Number of hash functions (default 64).
  * @param ngramSize - N-gram size (default 3).
  * @returns Array of minimum hash values.
+ * @remarks Surface-level fingerprinting for fast approximate matching. Compare with
+ * `fingerprintSimilarity`. For semantic matching, use embeddings + `cosineSimilarity`.
+ * @see fingerprintSimilarity
+ * @see cosineSimilarity
  */
 export function minHashFingerprint(text: string, numHashes = 64, ngramSize = 3): number[] {
   return JSON.parse(wasmModule.min_hash_fingerprint_wasm(text, numHashes, ngramSize)) as number[];
@@ -1084,6 +1118,9 @@ export interface SimilarityRankResult {
  * @param candidates - Array of candidate strings.
  * @param options - `{ method?: "ngram" | "shingle", threshold?: number }`.
  * @returns Array of `{ index, score }` sorted by descending score.
+ * @remarks Surface-level ranking for text variants and near-duplicate candidates.
+ * For semantic ranking across paraphrased content, embed first and use `cosineSimilarity`.
+ * @see cosineSimilarity
  */
 export function rankBySimilarity(
   query: string,
