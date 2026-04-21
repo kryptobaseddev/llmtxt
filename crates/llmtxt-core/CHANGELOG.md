@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026.4.12] - 2026-04-21
+
+### Fixed
+- `detect_document_format`: heading-only markdown documents were misclassified as "text" because the 2-of-5 markdown signal threshold required more than one signal type. Add a short-circuit: any heading is strong evidence of markdown. Cascading fix for `generate_overview` which now correctly produces sections for heading-only docs. (T814/T815)
+
+## [2026.4.11] - 2026-04-18
+
+### Backfill note
+Historical entry reconstructed for Ferrous Forge MISSINGCHANGELOGENTRY compliance. Full release notes were not authored at the time of the original 2026.4.11 release. For authoritative change detail, see the git commit range `core-v2026.4.10..core-v2026.4.11`. Principal changes (summarized from git log):
+- zstd compress/decompress primitives (T752)
+- Loro 1.0 API migration complete (T384/T385 series)
+- Audit Merkle chain and RFC 3161 anchoring (T107/T164)
+- RetentionPolicy DSL (T168.2)
+- RLS context helper for postgres-js (T533)
+
+Note: 2026.4.6 through 2026.4.10 also lack CHANGELOG entries; those backfills are tracked as separate technical-debt work.
+
 ## [2026.4.6] - 2026-04-17
 
 ### Added
@@ -142,7 +159,9 @@ All 22 violations from `docs/SSOT-AUDIT.md` resolved. This release consolidates 
 - `is_expired` off-by-one on boundary timestamps (signaldock-core-agent review)
 - WASM feature flag gating — native consumers no longer pull wasm-bindgen
 
-[Unreleased]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.5...HEAD
+[Unreleased]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.12...HEAD
+[2026.4.12]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.11...llmtxt-core-v2026.4.12
+[2026.4.11]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.10...llmtxt-core-v2026.4.11
 [2026.4.5]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.4...llmtxt-core-v2026.4.5
 [2026.4.4]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.3...llmtxt-core-v2026.4.4
 [2026.4.3]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.2...llmtxt-core-v2026.4.3

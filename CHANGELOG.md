@@ -28,6 +28,22 @@ required. The `decompress()` function inspects the first 4 bytes:
 
 ---
 
+## [2026.4.12] - 2026-04-21
+
+### Packages changed
+- `llmtxt` (npm) — Wave-1 correctness fixes + documentation
+- `llmtxt-core` (crates.io) — heading classification fix
+
+### Fixed
+- **`detect_document_format`** (`llmtxt-core`): heading-only markdown documents were misclassified as "text". Short-circuit: any heading now classifies as markdown. `generate_overview` cascading fix included. (T814/T815)
+- **`multiWayDiff`** (`llmtxt`): accepts `string[]` directly in addition to JSON-encoded string. Back-compat preserved. (T816/T817)
+- **`LocalBackend.publishVersion`** (`llmtxt`): awaits `indexDocument` so CLI `llmtxt search` returns hits immediately after `llmtxt push-version`. (T818/T819/T845)
+
+### Documentation
+- README: new "Choosing the Right Similarity Metric" section disambiguating `contentSimilarity` (n-gram Jaccard) from `semanticConsensus` (embeddings). (T820)
+
+---
+
 ## [2026.4.9] — 2026-04-18
 
 ### Packages changed

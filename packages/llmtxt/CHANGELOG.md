@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026.4.12] - 2026-04-21
+
+### Fixed
+- `multiWayDiff(base, versions)`: now accepts `string[]` in addition to a JSON-encoded string. Callers no longer need to `JSON.stringify` arrays themselves. Back-compat with JSON-string input preserved. (T816/T817)
+- `LocalBackend.publishVersion` now awaits `indexDocument` so semantic search returns hits without manual sleeps. Latency impact: ~500ms warm / ~1s cold start. (T818/T819/T845)
+- CLI `llmtxt search` returns results immediately after `llmtxt push-version` (was returning 0 results because fire-and-forget indexing was orphaned by process exit).
+
+### Documentation
+- README: new "Choosing the Right Similarity Metric" section disambiguating `contentSimilarity` (character n-gram Jaccard — use for dedup/near-duplicates) from `semanticConsensus` (embedding-based — use for cross-document semantic comparison). JSDoc `@remarks` and `@example` updates on related APIs. (T820)
+
 ## [2026.4.11] — 2026-04-19
 
 ### Fixed — T308 Capability Completions
