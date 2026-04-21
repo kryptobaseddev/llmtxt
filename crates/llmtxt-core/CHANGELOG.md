@@ -25,7 +25,63 @@ Historical entry reconstructed for Ferrous Forge MISSINGCHANGELOGENTRY complianc
 - RetentionPolicy DSL (T168.2)
 - RLS context helper for postgres-js (T533)
 
-Note: 2026.4.6 through 2026.4.10 also lack CHANGELOG entries; those backfills are tracked as separate technical-debt work.
+Note: 2026.4.7 through 2026.4.10 are backfilled below. 2026.4.6 has a full entry below.
+
+## [2026.4.10] - 2026-04-18
+
+### Backfill note
+Historical entry reconstructed from git log (`core-v2026.4.9..core-v2026.4.10`).
+Principal changes summarized from commit messages:
+
+- **`zstd` compress/decompress** (T752): `zstd_compress` and `zstd_decompress` primitives added to crate; WASM-exported via `llmtxt/wasm`. Magic-byte auto-detection in decompress path.
+- **Redis-backed scratchpad durability** (T703): Redis Streams consumer-group pattern with fail-fast startup validation; replaces in-process scratchpad ephemeral store.
+- **pgvector semantic search metadata** (T707): semantic search result rows now include document metadata fields; integration-tested with pg16.
+- **RLS plugin fixes** (T166): Fastify 5 `decorateRequest` getter form required; null-placeholder startup fix; `audit_logs` legal-hold column migration.
+- **SSE live event drop fix** (T701): monotonic sequence counter replaces UUID watermark string comparison; prevents event deduplication false-positives.
+- **Redis presence multi-pod** (T702, T726-T729): shared Redis publisher/subscriber client, write-through presence registry, pub/sub merge, 2-pod integration test.
+- **CI/ops** (T705, T706, T709, T710): k6 load-test baseline, SLO alert wiring, TSA token prod verification, SOC 2 audit engagement prep docs.
+
+Full authoritative change detail available via `git log core-v2026.4.9..core-v2026.4.10`.
+
+## [2026.4.9] - 2026-04-18
+
+### Backfill note
+Historical entry reconstructed from git log (`core-v2026.4.8..core-v2026.4.9`).
+Principal changes summarized from commit messages:
+
+- **`RetentionPolicy` DSL** (T168.2): `RetentionPolicy` struct with DSL parser added to `crates/llmtxt-core`; controls data-retention rules for GDPR/compliance workflows.
+- **Audit hash chain** (T107/T528): `hash_audit_entry`, `verify_audit_chain`, `sign_merkle_root` in `merkle.rs`; tamper-evident chain verification at the Rust primitive layer.
+- **Ed25519 key rotation** (T086/T090): per-agent key rotation primitives; secret rotation/KMS integration.
+- **SDK subpath exports** (T607-T611): `llmtxt/blob`, `llmtxt/events`, `llmtxt/identity`, `llmtxt/crdt`, `llmtxt/similarity` subpath exports stabilized; contract tests added.
+- **GDPR deep erase** (T168): PII inventory, retention job, deep-erase flow, SAR endpoint.
+- **Stability policy** (T612): `STABILITY.md` + CI guard for deprecation policy; `--no-verify` use formalized with justification gate.
+- **Security hardening** (T162/T163, T467-T476): CSP/HSTS/COEP headers, XSS sanitization (56 OWASP payloads), body-limit enforcement, 1 KB search-query cap, graph expansion cap (500 nodes), CSRF cookie hardening, webhook signing validation.
+
+Full authoritative change detail available via `git log core-v2026.4.8..core-v2026.4.9`.
+
+## [2026.4.8] - 2026-04-17
+
+### Backfill note
+Historical entry reconstructed from git log (`core-v2026.4.7..core-v2026.4.8`).
+This is a single-commit patch release.
+
+### Fixed
+- **Lazy-load `LocalBackend`/`RemoteBackend`** (v2026.4.7 regression): `import('llmtxt')` failed at load time with `ERR_MODULE_NOT_FOUND: Cannot find package 'better-sqlite3'` for consumers that only wanted utility functions. Root cause: top-level static imports in `backend/factory.ts` pulled `better-sqlite3` into the load-time resolution chain even when `createBackend` was never called. Fix: type-only imports at module top + runtime `await import(...)` inside each matching `createBackend` branch.
+
+Full authoritative change detail available via `git log core-v2026.4.7..core-v2026.4.8`.
+
+## [2026.4.7] - 2026-04-17
+
+### Backfill note
+Historical entry reconstructed from git log (`core-v2026.4.6..core-v2026.4.7`).
+Principal changes summarized from commit messages:
+
+- **Bundler compatibility for `onnxruntime-node`** (T69a1910): dynamic import in `embeddings.ts` uses runtime-constructed specifier with `/* @vite-ignore */` and `/* webpackIgnore: true */` hints; esbuild, webpack, vite, and rollup no longer try to inline the `.node` native addon.
+- **Peer-dep reclassification** (T69a1910): `better-sqlite3`, `drizzle-orm`, `postgres` moved from `optionalDependencies` to `peerDependencies` + `peerDependenciesMeta.optional: true`; consumers must opt in per topology.
+- **PG stub CRDT state tracking fix** (c4012f5): test PG stub now correctly tracks CRDT state across `applyCrdtUpdate`/`getCrdtState` call sequences.
+- **Migration recovery** (b15c990): additive-only migration guard restored after v2026.4.6 deploy; `check-migrations.sh` shell-quoting bug fixed.
+
+Full authoritative change detail available via `git log core-v2026.4.6..core-v2026.4.7`.
 
 ## [2026.4.6] - 2026-04-17
 
@@ -165,6 +221,11 @@ All 22 violations from `docs/SSOT-AUDIT.md` resolved. This release consolidates 
 [Unreleased]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.12...HEAD
 [2026.4.12]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.11...llmtxt-core-v2026.4.12
 [2026.4.11]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.10...llmtxt-core-v2026.4.11
+[2026.4.10]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.9...llmtxt-core-v2026.4.10
+[2026.4.9]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.8...llmtxt-core-v2026.4.9
+[2026.4.8]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.7...llmtxt-core-v2026.4.8
+[2026.4.7]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.6...llmtxt-core-v2026.4.7
+[2026.4.6]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.5...llmtxt-core-v2026.4.6
 [2026.4.5]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.4...llmtxt-core-v2026.4.5
 [2026.4.4]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.3...llmtxt-core-v2026.4.4
 [2026.4.3]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.2...llmtxt-core-v2026.4.3

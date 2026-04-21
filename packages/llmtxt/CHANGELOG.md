@@ -188,6 +188,24 @@ All subpaths are tree-shakeable and covered by a dedicated contract test suite.
 - `better-sqlite3`, `drizzle-orm`, `postgres` moved from `optionalDependencies` to `peerDependencies` + `peerDependenciesMeta.optional: true`. pnpm no longer auto-installs them — consumers must opt in per topology. Matches treatment of `onnxruntime-node` and `@vlcn.io/crsqlite`.
 - README adds install matrix + esbuild/webpack/vite externalize list.
 
+## [2026.4.6] - 2026-04-17
+
+### Backfill note
+Historical entry reconstructed from git log (`core-v2026.4.5..core-v2026.4.6`).
+Principal changes summarized from commit messages:
+
+- **Loro CRDT swap** (T384/T388/T389): Yrs CRDT backend replaced by `loro 1.0`. Six CRDT primitives rewritten — `crdt_new_doc`, `crdt_apply_update`, `crdt_encode_state_vector`, `crdt_merge`, `crdt_encode_update_v1`, `crdt_as_bytes`. Wire framing uses opcodes `0x01`–`0x04`; `y-sync` protocol removed.
+- **cr-sqlite CRR integration** (T385/T401/T403): `@vlcn.io/crsqlite` optional peer dep; `LocalBackend` loads native extension when available; CRR column strategy documented.
+- **P2P mesh + Ed25519 mutual handshake** (T386/T414/T415/T417-T420): peer discovery, transport, mesh sync engine, presence over mesh, A2A routing over mesh. `llmtxt mesh` CLI commands (`start`/`stop`/`status`/`peers`/`sync`).
+- **AgentSession state machine** (T426/T431-T434/T437): `open`/`close`/`contribute` with `ContributionReceipt`; crash-recovery contract; 50-worker swarm integration test.
+- **Export/import SSoT** (T427/T447/T450/T451/T454): `exportDocument`/`exportAll`/`importDocument` on Backend interface + HTTP routes; formatters for markdown, json, txt, llmtxt; determinism test.
+- **Blob attachments** (T428/T460-T465): `attachBlob`/`getBlob`/`listBlobs`/`detachBlob`/`fetchBlobByHash`; HTTP routes with security; PostgresBackend S3/R2 + PG-LO adapter; hash-verify-on-read.
+- **Hub-spoke topology** (T429/T465): 5-agent hub-spoke blob integration test; topology tests + mesh stub + failure modes (T443/T446/T449/T452).
+- **`canonical_frontmatter`, `hash_blob`, `blob_name_validate`** (T435/T453): new WASM-exported Rust primitives exposed via `packages/llmtxt`.
+- **`llmtxt session` CLI** (T445): `session start`/`session end` commands added to CLI.
+
+Full authoritative change detail available via `git log core-v2026.4.5..core-v2026.4.6`.
+
 ## [2026.4.5] - 2026-04-16
 
 This release ships the full Round 1+2+3 multi-agent foundation: CRDT/Yrs, signed Ed25519 identity, append-only event log, real-time presence/leases/diff-subscriptions (W1+W2), BFT consensus, agent scratchpad, A2A envelope routing (W3), a self-hosted observability stack (Grafana / Loki / Tempo / Prometheus / OTel collector / GlitchTip on Railway), OpenAPI schema generation with forge-ts integration, local semantic embeddings via pgvector + ONNX, four reference agents plus a `/demo` page, and a fully portable SDK offering `LocalBackend`, `RemoteBackend`, and `llmtxt` CLI — including a complete CLEO integration example. Also upgrades drizzle-orm/kit to `1.0.0-beta.21` and zod to `^4`.
@@ -378,7 +396,14 @@ T112 (NAPI-RS native bindings) deferred 2026-04-15 pending production benchmark 
 - **cache**: generic LRU cache with configurable TTL, max size, and hit/miss statistics
 - **signed-url**: HMAC-SHA256 signed URL generation and verification -- conversation-scoped, time-limited, with timing-safe comparison
 
-[Unreleased]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.5...HEAD
+[Unreleased]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.12...HEAD
+[2026.4.12]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.11...core-v2026.4.12
+[2026.4.11]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.10...core-v2026.4.11
+[2026.4.10]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.9...core-v2026.4.10
+[2026.4.9]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.8...core-v2026.4.9
+[2026.4.8]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.7...core-v2026.4.8
+[2026.4.7]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.6...core-v2026.4.7
+[2026.4.6]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.5...core-v2026.4.6
 [2026.4.5]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.4...core-v2026.4.5
 [2026.4.4]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.3...core-v2026.4.4
 [2026.4.3]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.2...core-v2026.4.3
