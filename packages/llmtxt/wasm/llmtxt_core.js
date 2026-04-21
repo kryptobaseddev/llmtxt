@@ -361,6 +361,42 @@ function cherry_pick_merge_wasm(base, versions_json, selection_json) {
 exports.cherry_pick_merge_wasm = cherry_pick_merge_wasm;
 
 /**
+ * WASM binding for [`classify::classify_content`].
+ *
+ * Takes a byte slice (marshalled from JS as `Uint8Array` via
+ * wasm-bindgen) and returns a JSON-serialised [`ClassificationResult`]
+ * string. JS consumers parse the string back into an object.
+ *
+ * Error handling: serialization failure returns `{"error":"..."}` —
+ * callers should check for the `error` key before consuming.
+ *
+ * # Examples
+ * From JavaScript:
+ * ```js
+ * import { classify_content_wasm } from 'llmtxt';
+ * const json = classify_content_wasm(new Uint8Array([0x25, 0x50, 0x44, 0x46]));
+ * // json = '{"mimeType":"application/pdf","category":"binary","format":"pdf",...}'
+ * ```
+ * @param {Uint8Array} bytes
+ * @returns {string}
+ */
+function classify_content_wasm(bytes) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.classify_content_wasm(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+exports.classify_content_wasm = classify_content_wasm;
+
+/**
  * Compress a UTF-8 string using **zstd** (RFC 8478), level 3.
  *
  * New writes use zstd. Existing zlib-stored data is still readable via

@@ -146,6 +146,26 @@ export function canonicalFrontmatter(meta_json: string): string;
 export function cherry_pick_merge_wasm(base: string, versions_json: string, selection_json: string): string;
 
 /**
+ * WASM binding for [`classify::classify_content`].
+ *
+ * Takes a byte slice (marshalled from JS as `Uint8Array` via
+ * wasm-bindgen) and returns a JSON-serialised [`ClassificationResult`]
+ * string. JS consumers parse the string back into an object.
+ *
+ * Error handling: serialization failure returns `{"error":"..."}` —
+ * callers should check for the `error` key before consuming.
+ *
+ * # Examples
+ * From JavaScript:
+ * ```js
+ * import { classify_content_wasm } from 'llmtxt';
+ * const json = classify_content_wasm(new Uint8Array([0x25, 0x50, 0x44, 0x46]));
+ * // json = '{"mimeType":"application/pdf","category":"binary","format":"pdf",...}'
+ * ```
+ */
+export function classify_content_wasm(bytes: Uint8Array): string;
+
+/**
  * Compress a UTF-8 string using **zstd** (RFC 8478), level 3.
  *
  * New writes use zstd. Existing zlib-stored data is still readable via

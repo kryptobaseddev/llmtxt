@@ -8,6 +8,7 @@
 
 use wasm_bindgen::prelude::*;
 
+use crate::classify;
 use crate::{
     cherry_pick_merge, multi_way_diff, semantic_consensus, semantic_diff, three_way_merge,
 };
@@ -118,4 +119,31 @@ pub fn text_similarity(a: &str, b: &str) -> f64 {
 #[wasm_bindgen]
 pub fn text_similarity_ngram(a: &str, b: &str, n: usize) -> f64 {
     crate::similarity::text_similarity_jaccard(a, b, n)
+}
+
+// ── Classify (Wave-2: T826) ──────────────────────────────────────
+
+/// WASM binding for [`classify::classify_content`].
+///
+/// Takes a byte slice (marshalled from JS as `Uint8Array` via
+/// wasm-bindgen) and returns a JSON-serialised [`ClassificationResult`]
+/// string. JS consumers parse the string back into an object.
+///
+/// Error handling: serialization failure returns `{"error":"..."}` —
+/// callers should check for the `error` key before consuming.
+///
+/// # Examples
+/// From JavaScript:
+/// ```js
+/// import { classify_content_wasm } from 'llmtxt';
+/// const json = classify_content_wasm(new Uint8Array([0x25, 0x50, 0x44, 0x46]));
+/// // json = '{"mimeType":"application/pdf","category":"binary","format":"pdf",...}'
+/// ```
+#[wasm_bindgen]
+pub fn classify_content_wasm(bytes: &[u8]) -> String {
+    let result = classify::classify_content(bytes);
+    match serde_json::to_string(&result) {
+        Ok(s) => s,
+        Err(e) => format!("{{\"error\":\"serialize failed: {}\"}}", e),
+    }
 }
