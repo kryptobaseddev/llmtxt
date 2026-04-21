@@ -22,3 +22,7 @@ crates/*/target/
 # Rust build artifacts in examples
 examples/audit-verifier/target/
 examples/*/tarpaulin-report.json
+
+# Tarpaulin coverage reports (generated artifacts)
+crates/*/tarpaulin-report.json
+tarpaulin-report.json
