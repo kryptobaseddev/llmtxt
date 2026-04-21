@@ -37,6 +37,10 @@ rand_core = { version = "0.6", features = ["getrandom"] }
 getrandom = { version = "0.2", features = ["js"] }
 # Constant-time comparison for secret comparison (T108.7, crypto.rs)
 subtle = "2"
+# Layer 1: magic-byte content type detection (T821, Wave-2 classify module)
+infer = { version = "0.19", default-features = false, features = ["alloc"] }
+# Layer 2: text/binary gate via byte-frequency analysis (T821, Wave-2 classify module)
+content_inspector = "0.2.4"
 
 # WASM-only deps — not pulled in by native Cargo consumers
 wasm-bindgen = { version = "0.2", optional = true }

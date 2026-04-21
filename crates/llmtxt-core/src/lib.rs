@@ -121,7 +121,7 @@ pub use disclosure::{
     DocumentOverview, JsonKey, LineRangeResult, SearchResult, Section, TocEntry,
     detect_document_format, generate_overview, get_line_range, get_section, query_json_path,
 };
-
+pub mod classify; // Wave-2: multi-modal document classification (T821)
 pub mod tfidf;
 pub use tfidf::{fnv1a_hash, tfidf_embed};
 
