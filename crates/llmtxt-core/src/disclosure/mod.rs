@@ -40,112 +40,36 @@ use text::parse_text_sections;
 
 /// Detect the structural format of a document.
 ///
-/// Precedence: JSON (valid parse) → markdown (2+ signals) → code (2+ signals) → text.
-/// Matches the TypeScript `detectDocumentFormat` in `disclosure.ts`.
+/// # Back-compat shim (T828 — Wave-2 reroute)
+///
+/// Prior to Wave-2, this function owned the detection logic inline
+/// (heading / bullet / link / code signal counting). As of T828 it
+/// delegates to [`crate::classify::classify_content`] and maps the
+/// richer [`ContentFormat`](crate::classify::ContentFormat) back to
+/// the four legacy string values for `generate_overview` and any
+/// external callers.
+///
+/// Returned values: `"json"`, `"markdown"`, `"code"`, `"text"`.
+/// Binary inputs (PDF, PNG, etc.) map to `"text"` — matching the
+/// pre-Wave-2 behavior where the string-only `&str` API had no way
+/// to represent binary content.
+///
+/// The Wave-1 T814 heading short-circuit fix is preserved via
+/// `classify::heuristic::classify_text`.
 pub fn detect_document_format(content: &str) -> &'static str {
-    let trimmed = content.trim();
-
-    if trimmed.starts_with('{') || trimmed.starts_with('[') {
-        if serde_json::from_str::<serde_json::Value>(trimmed).is_ok() {
-            return "json";
-        }
-        // Looks like JSON but has parse errors — check for JSON signals
-        let json_signals = [
-            content.contains("\":"),
-            trimmed.starts_with('{') || trimmed.starts_with('['),
-            trimmed.ends_with('}') || trimmed.ends_with(']'),
-        ];
-        if json_signals.iter().filter(|&&b| b).count() >= 2 {
-            return "json";
-        }
+    use crate::classify::{ContentFormat, classify_content};
+    match classify_content(content.as_bytes()).format {
+        ContentFormat::Json => "json",
+        ContentFormat::Markdown => "markdown",
+        ContentFormat::JavaScript
+        | ContentFormat::TypeScript
+        | ContentFormat::Python
+        | ContentFormat::Rust
+        | ContentFormat::Go => "code",
+        // PlainText, Unknown, and any binary format map to "text"
+        // (back-compat with pre-Wave-2 behavior).
+        _ => "text",
     }
-
-    let markdown_signals: [bool; 5] = [
-        content.lines().any(|l| {
-            let t = l.trim_start_matches(' ');
-            t.starts_with("# ")
-                || t.starts_with("## ")
-                || t.starts_with("### ")
-                || t.starts_with("#### ")
-                || t.starts_with("##### ")
-                || t.starts_with("###### ")
-        }),
-        content
-            .lines()
-            .any(|l| l.trim_start().starts_with("- ") || l.trim_start().starts_with("* ")),
-        content
-            .lines()
-            .any(|l| l.trim_start().starts_with(|c: char| c.is_ascii_digit()) && l.contains(". ")),
-        content.contains("```"),
-        has_markdown_link(content),
-    ];
-    // A heading is strong unambiguous evidence of markdown.
-    // Short-circuit before the 2-of-5 count so heading-only docs classify correctly.
-    if markdown_signals[0] {
-        return "markdown";
-    }
-    if markdown_signals.iter().filter(|&&b| b).count() >= 2 {
-        return "markdown";
-    }
-
-    let code_signals: [bool; 5] = [
-        content.lines().any(|l| {
-            let t = l.trim_start();
-            t.starts_with("import ")
-                || t.starts_with("export ")
-                || t.starts_with("const ")
-                || t.starts_with("let ")
-                || t.starts_with("var ")
-                || t.starts_with("function ")
-                || t.starts_with("class ")
-                || t.starts_with("def ")
-                || t.starts_with("fn ")
-                || t.starts_with("pub ")
-                || t.starts_with("use ")
-        }),
-        content.lines().any(|l| {
-            l.trim_end().ends_with('{')
-                || l.trim_end().ends_with(';')
-                || l.trim_end().ends_with('}')
-        }),
-        content.lines().any(|l| {
-            let t = l.trim_start();
-            t.starts_with("if ")
-                || t.starts_with("for ")
-                || t.starts_with("while ")
-                || t.starts_with("return ")
-                || t.starts_with("switch ")
-        }),
-        content.contains("=>"),
-        content.contains(": string")
-            || content.contains(": number")
-            || content.contains(": boolean")
-            || content.contains(": int")
-            || content.contains(": void")
-            || content.contains(": any"),
-    ];
-    if code_signals.iter().filter(|&&b| b).count() >= 2 {
-        return "code";
-    }
-
-    "text"
-}
-
-fn has_markdown_link(s: &str) -> bool {
-    let bytes = s.as_bytes();
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'['
-            && let Some(cb) = bytes[i..].iter().position(|&b| b == b']')
-        {
-            let j = i + cb;
-            if j + 1 < bytes.len() && bytes[j + 1] == b'(' && bytes[j + 1..].contains(&b')') {
-                return true;
-            }
-        }
-        i += 1;
-    }
-    false
 }
 
 // ── Line Range Access ──────────────────────────────────────────────
