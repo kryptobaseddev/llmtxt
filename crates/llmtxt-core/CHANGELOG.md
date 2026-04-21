@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `detect_document_format`: heading-only markdown documents were misclassified as "text" because the 2-of-5 markdown signal threshold required more than one signal type. Add a short-circuit: any heading is strong evidence of markdown. Cascading fix for `generate_overview` which now correctly produces sections for heading-only docs. (T814/T815)
 
+### Changed
+- Internal refactor: WASM binding wrappers extracted from `lib.rs` into `wasm_bindings.rs` submodule. No public API change; no behavior change. Satisfies Ferrous Forge FILETOOLARGE constraint (lib.rs was 916 lines, now 800). (T780 — commit `264fad0`)
+
 ## [2026.4.11] - 2026-04-18
 
 ### Backfill note
