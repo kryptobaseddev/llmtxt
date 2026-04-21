@@ -53,44 +53,8 @@ pub use three_way_merge::{
     Conflict, MergeStats, ThreeWayMergeResult, three_way_merge, three_way_merge_native,
 };
 
-// ── 3-Way Merge (WASM) ──────────────────────────────────────────
-
-/// WASM binding for the 3-way merge algorithm.
-///
-/// Takes `base`, `ours`, and `theirs` content strings.
-/// Returns a JSON-serialised [`ThreeWayMergeResult`] on success, or
-/// `{"error": "<message>"}` on serialization failure.
-#[cfg_attr(feature = "wasm", wasm_bindgen)]
-pub fn three_way_merge_wasm(base: &str, ours: &str, theirs: &str) -> String {
-    three_way_merge(base, ours, theirs)
-}
-
-// ── Multi-way Diff (WASM) ────────────────────────────────────────
-
-/// WASM binding for [`multi_way_diff`].
-///
-/// Takes base content and a JSON array of version strings.
-/// Returns a JSON-serialised `MultiDiffResult` on success, or
-/// `{"error": "<message>"}` on failure.
-#[cfg_attr(feature = "wasm", wasm_bindgen)]
-pub fn multi_way_diff_wasm(base: &str, versions_json: &str) -> String {
-    multi_way_diff(base, versions_json)
-}
-
-// ── Cherry-Pick Merge (WASM) ─────────────────────────────────────
-
-/// WASM binding for [`cherry_pick_merge`].
-///
-/// Takes base content, a JSON versions map, and a JSON selection spec.
-/// Returns a JSON-serialised `CherryPickResult` on success, or
-/// `{"error": "<message>"}` on failure.
-#[cfg_attr(feature = "wasm", wasm_bindgen)]
-pub fn cherry_pick_merge_wasm(base: &str, versions_json: &str, selection_json: &str) -> String {
-    match cherry_pick_merge(base, versions_json, selection_json) {
-        Ok(json) => json,
-        Err(e) => format!(r#"{{"error":{}}}"#, serde_json::json!(e)),
-    }
-}
+#[cfg(feature = "wasm")]
+pub mod wasm_bindings;
 
 mod lifecycle;
 pub use lifecycle::{
@@ -200,56 +164,13 @@ pub use export_archive::{
     serialize_export_archive, serialize_retention_policy,
 };
 
-/// Retention policy DSL — T168.2.
-///
-/// Defines [`retention::RetentionPolicy`] (richer DSL struct with per-table tier,
-/// lawful basis, and action) and [`retention::apply_retention`] which computes
-/// the eviction set for a batch of timestamped rows.  WASM-exported as
-/// `retention_apply_wasm`.
-///
-/// Note: this is distinct from `export_archive::RetentionPolicy` (the simpler
-/// TTL config for the export archive format).
+/// Retention policy DSL — T168.2 (richer than `export_archive::RetentionPolicy`).
 pub mod retention;
 pub use retention::{
     EvictionSet, LawfulBasis, RetentionAction, RetentionRow, RetentionTier, apply_retention,
     canonical_policies,
 };
-// Re-export the WASM binding at crate level when feature is active.
-#[cfg(feature = "wasm")]
-pub use retention::retention_apply_wasm;
-
-#[cfg(feature = "wasm")]
-pub use export_archive::{deserialize_export_archive_wasm, serialize_export_archive_wasm};
-
-#[cfg(feature = "wasm")]
-pub use merkle::{merkle_root_wasm, verify_merkle_proof_wasm};
-
-// ── Semantic Diff (WASM) ─────────────────────────────────────────
-
-/// WASM binding for [`semantic_diff`].
-///
-/// `sections_a_json` and `sections_b_json` are JSON arrays of
-/// `{ title, content, embedding: number[] }`.
-/// Returns a JSON-serialised `SemanticDiffResult`, or `{"error":"..."}`.
-#[cfg_attr(feature = "wasm", wasm_bindgen)]
-pub fn semantic_diff_wasm(sections_a_json: &str, sections_b_json: &str) -> String {
-    semantic_diff(sections_a_json, sections_b_json)
-}
-
-// ── Semantic Consensus (WASM) ────────────────────────────────────
-
-/// WASM binding for [`semantic_consensus`].
-///
-/// `reviews_json` is a JSON array of `{ reviewerId, content, embedding: number[] }`.
-/// `threshold` is the minimum cosine similarity for two reviews to agree (e.g. 0.80).
-/// Returns a JSON-serialised `SemanticConsensusResult`, or `{"error":"..."}`.
-#[cfg_attr(feature = "wasm", wasm_bindgen)]
-pub fn semantic_consensus_wasm(reviews_json: &str, threshold: f64) -> String {
-    semantic_consensus(reviews_json, threshold)
-}
-
 type HmacSha256 = Hmac<Sha256>;
-
 const BASE62: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 // ── Base62 ──────────────────────────────────────────────────────
@@ -343,24 +264,6 @@ pub fn zstd_compress(data: &[u8]) -> Result<Vec<u8>, String> {
 /// Returns an error string if decompression fails.
 pub fn zstd_decompress(data: &[u8]) -> Result<Vec<u8>, String> {
     zstd::decode_all(Cursor::new(data)).map_err(|e| format!("zstd decompression failed: {e}"))
-}
-
-/// WASM binding: compress bytes using zstd, returning the compressed bytes.
-///
-/// Accepts a `Uint8Array` from JavaScript.
-#[cfg(feature = "wasm")]
-#[wasm_bindgen]
-pub fn zstd_compress_bytes(data: &[u8]) -> Result<Vec<u8>, String> {
-    zstd_compress(data)
-}
-
-/// WASM binding: decompress zstd bytes, returning the raw decompressed bytes.
-///
-/// Accepts a `Uint8Array` from JavaScript.
-#[cfg(feature = "wasm")]
-#[wasm_bindgen]
-pub fn zstd_decompress_bytes(data: &[u8]) -> Result<Vec<u8>, String> {
-    zstd_decompress(data)
 }
 
 /// Decompress bytes, auto-detecting codec by magic bytes.
@@ -582,25 +485,6 @@ fn current_time_ms() -> f64 {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as f64)
         .unwrap_or(0.0)
-}
-
-// ── Similarity (WASM shims — delegate to similarity module) ────────
-
-/// Compute character-level n-gram Jaccard similarity between two texts.
-/// Returns 0.0 (no overlap) to 1.0 (identical). Default n=3.
-///
-/// WASM shim — delegates to [`similarity::text_similarity_jaccard`].
-#[cfg_attr(feature = "wasm", wasm_bindgen)]
-pub fn text_similarity(a: &str, b: &str) -> f64 {
-    similarity::text_similarity_jaccard(a, b, 3)
-}
-
-/// Compute n-gram Jaccard similarity with configurable gram size.
-///
-/// WASM shim — delegates to [`similarity::text_similarity_jaccard`].
-#[cfg_attr(feature = "wasm", wasm_bindgen)]
-pub fn text_similarity_ngram(a: &str, b: &str, n: usize) -> f64 {
-    similarity::text_similarity_jaccard(a, b, n)
 }
 
 #[cfg(test)]
