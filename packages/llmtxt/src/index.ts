@@ -260,6 +260,13 @@ export {
   findOverlongLine,
 } from './wasm.js';
 
+// ── Multi-modal Classifier (Wave-2, T827) ──────────────────────
+export {
+  classifyContent,
+  detectFormatFromClassification,
+} from './classify.js';
+export type { ClassificationResult } from './classify.js';
+
 // ── TF-IDF Embeddings (WASM-backed, T125) ──────────────────────
 export { fnv1aHash, tfidfEmbed, tfidfEmbedBatch } from './wasm.js';
 
