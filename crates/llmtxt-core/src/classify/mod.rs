@@ -23,9 +23,12 @@ mod types;
 pub use types::{ClassificationResult, ContentCategory, ContentFormat};
 
 // Layer implementations — each pending a dedicated implement task:
-// mod magic;         // T822 — infer-based magic-byte layer
-// mod text_gate;     // T823 — content_inspector text/binary gate
-// mod heuristic;     // T824 — markdown/JSON/code heuristic layer
+mod magic;
+pub use magic::detect_magic;
+mod text_gate; // T823 — content_inspector text/binary gate
+pub use text_gate::{TextGateResult, inspect_text};
+mod heuristic; // T824 — markdown/JSON/code heuristic layer
+pub use heuristic::classify_text;
 
 // Top-level integration — T825 task:
 // pub fn classify_content(bytes: &[u8]) -> ClassificationResult { ... }
