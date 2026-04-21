@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026.4.13] - 2026-04-21
+
+### Added
+- `classifyContent(input: string | Uint8Array | Buffer): ClassificationResult` — high-level multi-modal classifier covering 20+ formats (PDF, PNG, JPEG, WebP, AVIF, SVG, GIF, MP4, WebM, MP3, WAV, OGG, ZIP + markdown, JSON, JavaScript, TypeScript, Python, Rust, Go, plain text). UTF-8/UTF-16 BOM handling. Confidence-scored result. (T827)
+- New exported types: `ClassificationResult`, `ContentCategory`, `ContentFormat`.
+
+### Changed
+- `detectDocumentFormat` (TS wrapper) now dispatches through the new `classify_content` Rust pipeline via the WASM binding, preserving the four legacy return strings. (T828)
+
 ## [2026.4.12] - 2026-04-21
 
 ### Fixed
@@ -396,7 +405,8 @@ T112 (NAPI-RS native bindings) deferred 2026-04-15 pending production benchmark 
 - **cache**: generic LRU cache with configurable TTL, max size, and hit/miss statistics
 - **signed-url**: HMAC-SHA256 signed URL generation and verification -- conversation-scoped, time-limited, with timing-safe comparison
 
-[Unreleased]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.12...HEAD
+[Unreleased]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.13...HEAD
+[2026.4.13]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.12...core-v2026.4.13
 [2026.4.12]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.11...core-v2026.4.12
 [2026.4.11]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.10...core-v2026.4.11
 [2026.4.10]: https://github.com/kryptobaseddev/llmtxt/compare/core-v2026.4.9...core-v2026.4.10

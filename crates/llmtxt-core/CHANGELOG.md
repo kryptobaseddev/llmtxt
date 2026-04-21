@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2026.4.13] - 2026-04-21
+
+### Added
+- Multi-modal document classification via `classify_content(bytes: &[u8])` returning a `ClassificationResult { mimeType, category, format, confidence, isExtractable }`. Layered detection: magic-byte (13 binary formats via `infer`) → text gate (UTF-8/UTF-16 BOM handling via `content_inspector`) → heuristic (JSON, markdown, 5 code languages). Covers 20+ formats total. (T821/T822/T823/T824/T825)
+- `classify_content_wasm` exported via wasm-bindgen for JS consumers. (T826)
+- New crate dependencies: `infer = 0.19` (magic-byte detection, no_std+alloc, MIT) and `content_inspector = 0.2.4` (text/binary gate, MIT).
+
+### Changed
+- `detect_document_format` now delegates to `classify_content` and maps the richer `ContentFormat` enum back to the four legacy strings (`"json"`, `"markdown"`, `"code"`, `"text"`). Back-compat preserved. T814 heading short-circuit fix lives in `classify/heuristic.rs` as single source of truth. disclosure/mod.rs shrinks from 231 to ~155 lines. (T828)
+- `classify/heuristic.rs` internal refactor: functions split into smaller helpers and char-literal braces replaced with byte comparison to avoid Ferrous Forge parser quirk.
+
+### Internal
+- `crates/llmtxt-core/src/classify/` new module (SPEC.md, mod.rs, types.rs, magic.rs, text_gate.rs, heuristic.rs).
+
 ## [2026.4.12] - 2026-04-21
 
 ### Fixed
@@ -218,7 +232,8 @@ All 22 violations from `docs/SSOT-AUDIT.md` resolved. This release consolidates 
 - `is_expired` off-by-one on boundary timestamps (signaldock-core-agent review)
 - WASM feature flag gating — native consumers no longer pull wasm-bindgen
 
-[Unreleased]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.12...HEAD
+[Unreleased]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.13...HEAD
+[2026.4.13]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.12...llmtxt-core-v2026.4.13
 [2026.4.12]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.11...llmtxt-core-v2026.4.12
 [2026.4.11]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.10...llmtxt-core-v2026.4.11
 [2026.4.10]: https://github.com/kryptobaseddev/llmtxt/compare/llmtxt-core-v2026.4.9...llmtxt-core-v2026.4.10
