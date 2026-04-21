@@ -249,6 +249,62 @@ const merged = cherryPickMerge(
 );
 ```
 
+## Multi-Modal Document Classification (v2026.4.13+)
+
+`classifyContent` detects 20+ document formats across binary media (PDF, PNG, JPEG, WebP, AVIF, SVG, GIF, MP4, WebM, MP3, WAV, OGG, ZIP) and text (markdown, JSON, JavaScript, TypeScript, Python, Rust, Go, plain text).
+
+### Usage
+
+```ts
+import { classifyContent } from 'llmtxt';
+
+// From a file (Node)
+const pdfBytes = await fs.readFile('doc.pdf');
+const r = classifyContent(pdfBytes);
+// → { mimeType: 'application/pdf', category: 'binary', format: 'pdf', confidence: 1.0, isExtractable: true }
+
+// From a string
+classifyContent('# Title\n\nbody');
+// → { mimeType: 'text/markdown', category: 'text', format: 'markdown', confidence: 0.9, isExtractable: true }
+
+classifyContent('{"key": 1}');
+// → { mimeType: 'application/json', category: 'structured', format: 'json', confidence: 1.0, isExtractable: true }
+```
+
+### Architecture
+
+Layered detection:
+
+1. **Magic-byte layer** (via [infer](https://crates.io/crates/infer)) — recognizes 13 binary formats by file signature. Confidence 1.0 on match.
+2. **Text gate** (via [content_inspector](https://crates.io/crates/content_inspector)) — handles UTF-8 / UTF-16 BOMs; separates text from unidentified binary.
+3. **Heuristic layer** — parses text for JSON (via `serde_json`), markdown signals (headings, bullets, links, fenced code), and programming-language markers.
+
+All detection logic lives in Rust (`crates/llmtxt-core/src/classify/`) and runs via WASM from both browsers and Node. The legacy `detectDocumentFormat` string API is preserved — it now delegates to `classifyContent` and maps the richer enum back to `"json" | "markdown" | "code" | "text"` for backward compatibility.
+
+### Confidence semantics
+
+| Confidence | Meaning |
+|---|---|
+| `1.0` | Magic-byte match (binary) or valid JSON parse |
+| `0.8–0.9` | Strong heuristic signal (e.g. markdown heading) |
+| `0.5–0.7` | Weak heuristic signal |
+| `0.2` | Unknown binary (no magic match, not text) |
+| `0.0` | Empty input |
+
+### API reference
+
+```ts
+function classifyContent(input: string | Uint8Array | Buffer): ClassificationResult;
+
+interface ClassificationResult {
+  mimeType: string;                     // e.g. 'application/pdf'
+  category: 'binary' | 'text' | 'structured' | 'unknown';
+  format: ContentFormat;                // see type export
+  confidence: number;                   // 0.0 – 1.0
+  isExtractable: boolean;               // true for text formats
+}
+```
+
 ## Choosing the Right Similarity Metric
 
 LLMtxt provides two distinct families of similarity metrics for different use cases:

@@ -120,6 +120,7 @@ docs/
 - **AgentSession lifecycle**: Explicit open/contribute/close with ContributionReceipt; crash recovery via TTLs
 - **Document export/import**: 4 formats (markdown, json, txt, llmtxt); deterministic, hash-stable, signed export
 - **Binary blob attachments**: Content-addressed SHA-256 blobs per document; hash-verify-on-read mandatory
+- **Multi-modal classification**: Detect 20+ document formats (PDF, PNG, JPEG, JSON, markdown, code) via magic-byte + text gate + heuristic pipeline
 - **Topology factory**: One `createBackend()` call selects standalone, hub-spoke, or mesh deployment
 - **cr-sqlite LocalBackend**: Optional changeset-based sync between agents (single-tenant, production-validated)
 - **P2P mesh**: Serverless agent collaboration; Ed25519 mutual handshake; no external coordinator
