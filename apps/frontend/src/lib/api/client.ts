@@ -1,23 +1,101 @@
 /**
  * API client for the llmtxt Fastify backend.
  */
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.llmtxt.my';
+// API_BASE is sourced from Vite at build time, with a Node-safe fallback so
+// the module can be imported under node:test without `import.meta.env` being
+// defined. Order: Vite env > Node env > production default.
+const API_BASE: string =
+  (typeof import.meta !== 'undefined' &&
+    (import.meta as ImportMeta & { env?: { VITE_API_BASE?: string } }).env
+      ?.VITE_API_BASE) ||
+  (typeof process !== 'undefined' && process.env?.VITE_API_BASE) ||
+  'https://api.llmtxt.my';
+
+const STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+// CSRF token cache. The backend (@fastify/csrf-protection) sets an httpOnly
+// secret cookie when GET /api/csrf-token is hit, and returns the matching
+// token in the body. We must echo that token in the `x-csrf-token` header on
+// every cookie-authenticated state-changing request, otherwise the backend
+// rejects with FST_CSRF_MISSING_SECRET.
+let csrfToken: string | null = null;
+let csrfTokenInflight: Promise<string> | null = null;
+
+/** Test-only: clears the cached CSRF token. Not exported from the package barrel. */
+export function __resetCsrfCacheForTesting(): void {
+  csrfToken = null;
+  csrfTokenInflight = null;
+}
+
+async function fetchCsrfToken(): Promise<string> {
+  const res = await fetch(`${API_BASE}/api/csrf-token`, { credentials: 'include' });
+  if (!res.ok) throw new Error(`CSRF token fetch failed: ${res.status}`);
+  const data = (await res.json()) as { csrfToken: string };
+  return data.csrfToken;
+}
+
+async function getCsrfToken(): Promise<string> {
+  if (csrfToken) return csrfToken;
+  if (!csrfTokenInflight) {
+    csrfTokenInflight = fetchCsrfToken()
+      .then((t) => {
+        csrfToken = t;
+        return t;
+      })
+      .finally(() => {
+        csrfTokenInflight = null;
+      });
+  }
+  return csrfTokenInflight;
+}
+
+function isCsrfError(status: number, body: { code?: string; message?: string } | null): boolean {
+  if (status !== 403) return false;
+  if (body?.code && body.code.startsWith('FST_CSRF')) return true;
+  return /csrf/i.test(body?.message ?? '');
+}
 
 async function request<T>(path: string, options?: RequestInit, responseType: 'json' | 'text' = 'json'): Promise<T> {
-  const headers: Record<string, string> = { ...options?.headers as Record<string, string> };
-  if (options?.body) {
-    headers['Content-Type'] ??= 'application/json';
+  const method = (options?.method ?? 'GET').toUpperCase();
+  const needsCsrf = STATE_CHANGING_METHODS.has(method) && !path.startsWith('/auth/');
+
+  const buildHeaders = async (): Promise<Record<string, string>> => {
+    const h: Record<string, string> = { ...(options?.headers as Record<string, string>) };
+    if (options?.body) h['Content-Type'] ??= 'application/json';
+    if (needsCsrf) {
+      try {
+        h['x-csrf-token'] ??= await getCsrfToken();
+      } catch {
+        // fall through — backend will respond 403 if it really required it,
+        // and we'll surface that error normally.
+      }
+    }
+    return h;
+  };
+
+  const send = async (headers: Record<string, string>) =>
+    fetch(`${API_BASE}${path}`, { credentials: 'include', headers, ...options });
+
+  let res = await send(await buildHeaders());
+
+  // If CSRF rejected (e.g., backend rotated the secret or our cache is stale),
+  // drop the cached token, fetch a fresh one, and retry exactly once.
+  if (needsCsrf && res.status === 403) {
+    const errBody = await res.clone().json().catch(() => null);
+    if (isCsrfError(res.status, errBody)) {
+      csrfToken = null;
+      const retryHeaders = await buildHeaders();
+      if (retryHeaders['x-csrf-token']) {
+        res = await send(retryHeaders);
+      }
+    }
   }
-  const res = await fetch(`${API_BASE}${path}`, {
-    credentials: 'include',
-    headers,
-    ...options,
-  });
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.message || err.error || `${res.status} ${res.statusText}`);
   }
-  return responseType === 'text' ? res.text() as Promise<T> : res.json();
+  return responseType === 'text' ? (res.text() as Promise<T>) : res.json();
 }
 
 // Merge types

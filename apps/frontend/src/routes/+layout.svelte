@@ -39,12 +39,6 @@
 	});
 </script>
 
-<svelte:head>
-	<link rel="preconnect" href="https://fonts.googleapis.com" />
-	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
-	<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
-</svelte:head>
-
 <div class="min-h-screen bg-base-100 flex flex-col" data-theme="night">
 	<!-- Minimal header -->
 	<header class="flex items-center justify-between px-6 py-4">

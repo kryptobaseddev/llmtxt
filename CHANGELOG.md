@@ -28,6 +28,63 @@ required. The `decompress()` function inspects the first 4 bytes:
 
 ---
 
+## [2026.4.14] — 2026-04-21 — T850 frontend hotfix (CSRF + Google Fonts CSP)
+
+### Packages changed
+- `apps/frontend` — version bump `0.0.1` → `2026.4.14` (Railway deploy only; not published to npm)
+- `apps/backend` — unchanged
+- `crates/llmtxt-core` — unchanged (remains at 2026.4.13 on crates.io)
+- `packages/llmtxt` — unchanged (remains at 2026.4.13 on npm)
+
+### Fixed
+- **CSRF on every state-changing request** (`apps/frontend/src/lib/api/client.ts`): the
+  client now lazily fetches `GET /api/csrf-token` on the first POST/PUT/PATCH/DELETE,
+  caches the token across the session under a single-flight promise, attaches it as
+  `x-csrf-token` on every subsequent state-changing call, and retries once with a fresh
+  token on a CSRF-shaped 403. Skips `/auth/*` (better-auth manages its own CSRF). Before
+  this fix, anonymous users hit `403 FST_CSRF_MISSING_SECRET` on document save because
+  the `better-auth.session_token` cookie tripped the backend CSRF guard but no token was
+  ever being sent. (T850)
+- **Google Fonts blocked by CSP** (`apps/frontend/src/hooks.server.ts`): `style-src`
+  now allows `https://fonts.googleapis.com` and `font-src` now allows
+  `https://fonts.gstatic.com`. The `app.html` `<link>` to Inter / JetBrains Mono was
+  previously blocked, downgrading the UI to system fonts. (T850)
+
+### Changed
+- Removed the duplicate Google Fonts preload from `apps/frontend/src/routes/+layout.svelte`.
+  `app.html` is now the single source of truth for font links — the duplicate requested
+  a strict subset of weights, so removing it is safe.
+- `apps/frontend/src/lib/api/client.ts` `API_BASE` resolution is now Node-safe
+  (`import.meta.env` → `process.env` → production default), allowing the client module
+  to be imported under `node:test` for unit testing without a Vite environment.
+
+### Tests
+- `apps/frontend/src/__tests__/csrf-client.test.ts` — 13 tests covering token attach
+  on state-changing methods, single-flight cache, retry on stale token, non-CSRF 403
+  passthrough, network failure resilience, and `/auth/*` exemption.
+- `apps/frontend/src/__tests__/csp-headers.test.ts` — 10 tests covering Google Fonts
+  allowance, per-request nonce uniqueness, and defense-in-depth header preservation
+  (frame-ancestors, COEP, COOP, CORP, X-Content-Type-Options, etc.).
+- Combined frontend suite: 56/56 tests pass (was 33/33 prior to this hot fix).
+
+### Documentation
+- `docs/security/headers.md` updated to reflect the new `style-src` / `font-src`
+  policies, list the new test files, and document the CSRF client architecture
+  (token cache, single-flight, retry semantics).
+
+### Verification
+- `pnpm test` (apps/frontend) — 56/56 pass
+- `pnpm exec svelte-check` — 0 errors (12 pre-existing a11y warnings unrelated)
+- `pnpm build` (apps/frontend) — production bundle builds clean
+- `node --test src/__tests__/csrf.test.ts` (apps/backend) — 6/6 pass; "POST with
+  session cookie and no CSRF token receives 403" reproduces the exact original
+  symptom and confirms the fix path.
+- Live verification: Railway llmtxt-frontend deploy to https://www.llmtxt.my,
+  Chrome DevTools confirms zero CSP / CSRF console errors and a successful
+  document save.
+
+---
+
 ## [2026.4.12] - 2026-04-21
 
 ### Packages changed

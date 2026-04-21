@@ -1,7 +1,7 @@
 # LLMtxt Security Headers Reference
 
-**Last updated**: 2026-04-18  
-**Implemented by**: T162 (CSP/HSTS/COEP), T471/T108.5 (CSP nonce)
+**Last updated**: 2026-04-21  
+**Implemented by**: T162 (CSP/HSTS/COEP), T471/T108.5 (CSP nonce), T850 (Google Fonts allowance + CSRF client)
 
 ---
 
@@ -20,8 +20,10 @@ Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-<random>';
 
 **www.llmtxt.my (frontend)**:
 ```
-Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-<random>'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://api.qrserver.com; font-src 'self'; connect-src 'self' https://api.llmtxt.my wss://api.llmtxt.my; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests
+Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-<random>'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https://api.qrserver.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.llmtxt.my wss://api.llmtxt.my; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests
 ```
+
+> **T850 (2026-04-21)** — `style-src` and `font-src` were broadened to allow Google Fonts (`fonts.googleapis.com` for the CSS, `fonts.gstatic.com` for the woff2 files). The frontend's `app.html` links the Inter / JetBrains Mono stylesheet at page load. The previous policy blocked it, downgrading the UI to system fonts. The duplicate font preload that lived in `+layout.svelte` was also removed in the same change — `app.html` is now the single source of truth for the font link tags.
 
 **docs.llmtxt.my (docs)**:
 ```
@@ -146,6 +148,25 @@ Disabled per OWASP guidance. The built-in XSS filter in older IE/Chrome browsers
 |------|---------|
 | `apps/backend/src/__tests__/security-headers.test.ts` | 13 header assertion tests |
 | `apps/backend/src/__tests__/security.test.ts` | 7 CSP nonce-specific tests (T471) |
+| `apps/backend/src/__tests__/csrf.test.ts` | 6 CSRF enforcement tests (T474) |
+| `apps/frontend/src/__tests__/csp-headers.test.ts` | 10 CSP tests including Google Fonts allowance (T850) |
+| `apps/frontend/src/__tests__/csrf-client.test.ts` | 13 CSRF client tests — token attach, single-flight cache, retry on stale (T850) |
+
+## CSRF Client Architecture
+
+The frontend's `apps/frontend/src/lib/api/client.ts` enforces the CSRF
+double-submit pattern that the backend (`@fastify/csrf-protection`) requires:
+
+1. The first state-changing request (`POST` / `PUT` / `PATCH` / `DELETE`)
+   triggers a single-flight `GET /api/csrf-token`, which sets the httpOnly
+   secret cookie and returns the matching token in the body.
+2. The token is cached in module scope and attached as the `x-csrf-token`
+   header on every subsequent state-changing request.
+3. `/auth/*` paths are skipped — better-auth manages its own CSRF.
+4. On a `403` whose body identifies as `FST_CSRF_*` ("Missing csrf secret",
+   "Invalid csrf token"), the cache is dropped, a fresh token is fetched,
+   and the request is retried exactly once. Non-CSRF 403s (e.g.
+   permission denials) surface immediately without a retry.
 
 ## CSP Nonce Architecture
 

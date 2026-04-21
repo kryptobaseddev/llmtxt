@@ -8,6 +8,9 @@
  * CSP notes:
  * - `unsafe-inline` in style-src is necessary because SvelteKit injects
  *   component styles as inline <style> blocks at runtime (Vite/SSR).
+ * - `fonts.googleapis.com` is permitted for the Inter / JetBrains Mono
+ *   stylesheet linked from app.html. `fonts.gstatic.com` is permitted in
+ *   font-src for the actual font files those stylesheets reference.
  * - script-src 'self' covers the SvelteKit JS bundle (no inline scripts).
  * - connect-src must include the API origin and any WebSocket endpoints.
  * - img-src includes api.qrserver.com for QR code generation used in the
@@ -43,10 +46,12 @@ function buildCsp(nonce: string): string {
     // nonce fallback is included for any SSR-injected inline script tags.
     `script-src 'self' 'nonce-${nonce}'`,
     // SvelteKit uses inline style blocks for component CSS.
-    "style-src 'self' 'unsafe-inline'",
+    // fonts.googleapis.com hosts the Inter / JetBrains Mono CSS linked from app.html.
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     // QR code images from the external service + data: for any base64 images.
     "img-src 'self' data: https://api.qrserver.com",
-    "font-src 'self'",
+    // fonts.gstatic.com serves the actual woff2 files for Google Fonts.
+    "font-src 'self' https://fonts.gstatic.com",
     // API calls to the backend + WebSocket for CRDT sync.
     "connect-src 'self' https://api.llmtxt.my wss://api.llmtxt.my",
     // Prevent embedding this UI in iframes anywhere.
