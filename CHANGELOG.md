@@ -28,11 +28,11 @@ required. The `decompress()` function inspects the first 4 bytes:
 
 ---
 
-## [2026.4.14] — 2026-04-21 — T850 frontend hotfix (CSRF + Google Fonts CSP)
+## [2026.4.14] — 2026-04-21 — T850 frontend hotfix (CSRF + Google Fonts CSP + CORS allowlist)
 
 ### Packages changed
 - `apps/frontend` — version bump `0.0.1` → `2026.4.14` (Railway deploy only; not published to npm)
-- `apps/backend` — unchanged
+- `apps/backend` — CORS allowlist change (no version bump; Railway deploy only)
 - `crates/llmtxt-core` — unchanged (remains at 2026.4.13 on crates.io)
 - `packages/llmtxt` — unchanged (remains at 2026.4.13 on npm)
 
@@ -45,6 +45,12 @@ required. The `decompress()` function inspects the first 4 bytes:
   this fix, anonymous users hit `403 FST_CSRF_MISSING_SECRET` on document save because
   the `better-auth.session_token` cookie tripped the backend CSRF guard but no token was
   ever being sent. (T850)
+- **CORS preflight blocked `X-CSRF-Token`** (`apps/backend/src/index.ts`):
+  `@fastify/cors` `allowedHeaders` didn't include `X-CSRF-Token`, so the browser's
+  preflight for every cross-origin POST from `www.llmtxt.my` to `api.llmtxt.my`
+  failed with _"Request header field x-csrf-token is not allowed by
+  Access-Control-Allow-Headers in preflight response"_. Added `X-CSRF-Token` to
+  `allowedHeaders` and added `PATCH` to `methods` for future-proofing. (T850)
 - **Google Fonts blocked by CSP** (`apps/frontend/src/hooks.server.ts`): `style-src`
   now allows `https://fonts.googleapis.com` and `font-src` now allows
   `https://fonts.gstatic.com`. The `app.html` `<link>` to Inter / JetBrains Mono was
@@ -65,7 +71,12 @@ required. The `decompress()` function inspects the first 4 bytes:
 - `apps/frontend/src/__tests__/csp-headers.test.ts` — 10 tests covering Google Fonts
   allowance, per-request nonce uniqueness, and defense-in-depth header preservation
   (frame-ancestors, COEP, COOP, CORP, X-Content-Type-Options, etc.).
+- `apps/backend/src/__tests__/cors-preflight.test.ts` — 4 tests asserting CORS
+  preflight with `x-csrf-token` is permitted from `www.llmtxt.my`, PATCH is allowed,
+  unknown origins are rejected, and every custom header the frontend sends is
+  present in the backend `allowedHeaders` invariant.
 - Combined frontend suite: 56/56 tests pass (was 33/33 prior to this hot fix).
+- Backend adds 4 new tests (703 total passing).
 
 ### Documentation
 - `docs/security/headers.md` updated to reflect the new `style-src` / `font-src`

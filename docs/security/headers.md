@@ -151,6 +151,27 @@ Disabled per OWASP guidance. The built-in XSS filter in older IE/Chrome browsers
 | `apps/backend/src/__tests__/csrf.test.ts` | 6 CSRF enforcement tests (T474) |
 | `apps/frontend/src/__tests__/csp-headers.test.ts` | 10 CSP tests including Google Fonts allowance (T850) |
 | `apps/frontend/src/__tests__/csrf-client.test.ts` | 13 CSRF client tests — token attach, single-flight cache, retry on stale (T850) |
+| `apps/backend/src/__tests__/cors-preflight.test.ts` | 4 CORS preflight tests — X-CSRF-Token allowed, PATCH allowed, unknown origin rejected, frontend/backend header invariant (T850) |
+
+## CORS Allowlist (T850)
+
+`apps/backend/src/index.ts` registers `@fastify/cors` with an explicit
+`allowedHeaders` list. Every custom header the frontend sends on a cross-origin
+request MUST be in this list, otherwise the browser's CORS preflight fails
+**before** the real request is sent, manifesting as "Failed to fetch" in the UI.
+
+Current allowlist:
+- `Content-Type`, `Authorization`, `Cookie` — standard browser auth
+- `X-API-Version` — API versioning header
+- `X-Agent-Pubkey-Id`, `X-Agent-Signature`, `X-Agent-Nonce`, `X-Agent-Timestamp`
+  — Ed25519 agent signatures (T221)
+- `Idempotency-Key` — idempotent POST retries (T308)
+- **`X-CSRF-Token`** — CSRF double-submit token from cookie-auth clients (T850)
+
+`methods` permits `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`. `PATCH`
+was added in T850 for future-proofing (the client's `STATE_CHANGING_METHODS`
+set already included it, so a future `PATCH` route would otherwise have been
+silently blocked at preflight).
 
 ## CSRF Client Architecture
 

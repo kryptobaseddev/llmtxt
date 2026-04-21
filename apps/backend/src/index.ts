@@ -185,7 +185,7 @@ async function main() {
     const corsOrigin = process.env.CORS_ORIGIN || 'https://www.llmtxt.my';
     await app.register(cors, {
       origin: corsOrigin.split(',').map(o => o.trim()),
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: [
         'Content-Type',
         'Authorization',
@@ -198,6 +198,11 @@ async function main() {
         'X-Agent-Timestamp',
         // Idempotency key (T308)
         'Idempotency-Key',
+        // CSRF double-submit token from frontend cookie-auth clients (T850).
+        // Without this, the browser's CORS preflight blocks every cross-origin
+        // state-changing request with "x-csrf-token is not allowed by
+        // Access-Control-Allow-Headers".
+        'X-CSRF-Token',
       ],
       // Expose X-Server-Receipt so JS clients can read the HMAC proof (T308-a)
       exposedHeaders: [
