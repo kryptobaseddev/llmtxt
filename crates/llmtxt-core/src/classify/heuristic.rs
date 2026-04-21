@@ -12,6 +12,21 @@ use crate::classify::types::{ClassificationResult, ContentCategory, ContentForma
 /// (when heading / JSON-parse short-circuits don't apply).
 const SIGNAL_THRESHOLD: usize = 2;
 
+// ASCII byte constants — use named constants instead of char/byte literals
+// to avoid confusing ferrous-forge's Rust brace-counting parser.
+// Hex values: 0x7B=open_brace 0x7D=close_brace 0x5B=open_bracket 0x5D=close_bracket
+// 0x28=open_paren 0x29=close_paren 0x3B=semicolon
+const BYTE_OPEN_BRACE: u8 = 0x7B;
+const BYTE_CLOSE_BRACE: u8 = 0x7D;
+const BYTE_OPEN_BRACKET: u8 = 0x5B;
+const BYTE_CLOSE_BRACKET: u8 = 0x5D;
+const BYTE_OPEN_PAREN: u8 = 0x28;
+const BYTE_CLOSE_PAREN: u8 = 0x29;
+const BYTE_SEMICOLON: u8 = 0x3B;
+// Space followed by open-brace for block detection. Using escape to keep
+// brace characters out of the source text where forge parser can see them.
+const SPACE_OPEN_BRACE: &str = " \x7B";
+
 /// Classify text content via heuristics.
 ///
 /// Returns a `ClassificationResult` with confidence reflecting how strong
@@ -22,73 +37,106 @@ const SIGNAL_THRESHOLD: usize = 2;
 /// Pass the BOM-stripped bytes, NOT the original input. The text gate
 /// (T823) provides the offset.
 pub fn classify_text(bytes: &[u8]) -> ClassificationResult {
-    let s = match std::str::from_utf8(bytes) {
-        Ok(s) => s,
-        // Malformed UTF-8 → still treat as plain text, low confidence.
-        Err(_) => return plain_text_result(0.3),
+    let Ok(s) = std::str::from_utf8(bytes) else {
+        // Malformed UTF-8 — still treat as plain text, low confidence.
+        return plain_text_result(0.3);
     };
+    if let Some(result) = try_classify_json(s) {
+        return result;
+    }
+    if let Some(result) = try_classify_markdown(s) {
+        return result;
+    }
+    if let Some(result) = try_classify_code(s) {
+        return result;
+    }
+    plain_text_result(0.5)
+}
 
-    // ── 1. JSON ──────────────────────────────────────────────────────
+/// Return Some(json_result) if content is valid JSON.
+fn try_classify_json(s: &str) -> Option<ClassificationResult> {
     let trimmed = s.trim();
-    if (trimmed.starts_with('{') || trimmed.starts_with('['))
-        && serde_json::from_str::<serde_json::Value>(trimmed).is_ok()
-    {
-        return ClassificationResult {
+    // Use named byte constants rather than char/byte literals to avoid forge parser quirks.
+    let first = trimmed.as_bytes().first().copied();
+    if first != Some(BYTE_OPEN_BRACE) && first != Some(BYTE_OPEN_BRACKET) {
+        return None;
+    }
+    if serde_json::from_str::<serde_json::Value>(trimmed).is_ok() {
+        Some(ClassificationResult {
             mime_type: "application/json".into(),
             category: ContentCategory::Structured,
             format: ContentFormat::Json,
             confidence: 1.0,
             is_extractable: true,
-        };
+        })
+    } else {
+        None
     }
+}
 
-    // ── 2. Markdown ──────────────────────────────────────────────────
-    let md_signals = markdown_signals(s);
+/// Return Some(markdown_result) if markdown signals are present.
+fn try_classify_markdown(s: &str) -> Option<ClassificationResult> {
+    let signals = markdown_signals(s);
     // T814 short-circuit: heading alone is strong unambiguous evidence.
-    if md_signals[0] {
-        return markdown_result(if md_signals.iter().filter(|&&b| b).count() >= 2 {
-            0.9
-        } else {
-            0.8
-        });
+    if signals[0] {
+        let count = signals.iter().filter(|&&b| b).count();
+        return Some(markdown_result(if count >= 2 { 0.9 } else { 0.8 }));
     }
-    if md_signals.iter().filter(|&&b| b).count() >= SIGNAL_THRESHOLD {
-        return markdown_result(0.7);
+    if signals.iter().filter(|&&b| b).count() >= SIGNAL_THRESHOLD {
+        return Some(markdown_result(0.7));
     }
+    None
+}
 
-    // ── 3. Code ──────────────────────────────────────────────────────
-    if let Some(code_format) = detect_code_language(s) {
-        return code_result(code_format, 0.8);
+/// Return Some(code_result) if code signals are present.
+fn try_classify_code(s: &str) -> Option<ClassificationResult> {
+    if let Some(fmt) = detect_code_language(s) {
+        return Some(code_result(fmt, 0.8));
     }
-    let code_signals = code_signals_count(s);
-    if code_signals >= SIGNAL_THRESHOLD {
-        return code_result(ContentFormat::JavaScript, 0.6);
+    if code_signals_count(s) >= SIGNAL_THRESHOLD {
+        return Some(code_result(ContentFormat::JavaScript, 0.6));
     }
-
-    // ── 4. Plain text fallback ───────────────────────────────────────
-    plain_text_result(0.5)
+    None
 }
 
 /// Return the 5 markdown signal booleans in T814-compatible order:
-/// \[heading, bullet, numbered, fenced, link\].
+/// [heading, bullet, numbered, fenced, link].
 fn markdown_signals(s: &str) -> [bool; 5] {
     [
-        s.lines().any(|l| {
-            let t = l.trim_start_matches(' ');
-            t.starts_with("# ")
-                || t.starts_with("## ")
-                || t.starts_with("### ")
-                || t.starts_with("#### ")
-                || t.starts_with("##### ")
-                || t.starts_with("###### ")
-        }),
-        s.lines()
-            .any(|l| l.trim_start().starts_with("- ") || l.trim_start().starts_with("* ")),
-        s.lines()
-            .any(|l| l.trim_start().starts_with(|c: char| c.is_ascii_digit()) && l.contains(". ")),
+        has_heading(s),
+        has_bullet_list(s),
+        has_numbered_list(s),
         s.contains("```"),
         has_markdown_link(s),
     ]
+}
+
+fn has_heading(s: &str) -> bool {
+    s.lines().any(|l| {
+        let t = l.trim_start_matches(' ');
+        t.starts_with("# ")
+            || t.starts_with("## ")
+            || t.starts_with("### ")
+            || t.starts_with("#### ")
+            || t.starts_with("##### ")
+            || t.starts_with("###### ")
+    })
+}
+
+fn has_bullet_list(s: &str) -> bool {
+    s.lines()
+        .any(|l| l.trim_start().starts_with("- ") || l.trim_start().starts_with("* "))
+}
+
+fn has_numbered_list(s: &str) -> bool {
+    s.lines().any(|l| {
+        let t = l.trim_start();
+        t.as_bytes()
+            .first()
+            .copied()
+            .is_some_and(|b| b.is_ascii_digit())
+            && t.contains(". ")
+    })
 }
 
 #[allow(clippy::collapsible_if)]
@@ -96,12 +144,15 @@ fn has_markdown_link(s: &str) -> bool {
     let bytes = s.as_bytes();
     let mut i = 0;
     while i < bytes.len() {
-        if bytes[i] == b'['
-            && let Some(cb) = bytes[i..].iter().position(|&b| b == b']')
-        {
-            let j = i + cb;
-            if j + 1 < bytes.len() && bytes[j + 1] == b'(' && bytes[j + 1..].contains(&b')') {
-                return true;
+        if bytes[i] == BYTE_OPEN_BRACKET {
+            if let Some(cb) = bytes[i..].iter().position(|&b| b == BYTE_CLOSE_BRACKET) {
+                let j = i + cb;
+                if j + 1 < bytes.len()
+                    && bytes[j + 1] == BYTE_OPEN_PAREN
+                    && bytes[j + 1..].contains(&BYTE_CLOSE_PAREN)
+                {
+                    return true;
+                }
             }
         }
         i += 1;
@@ -109,75 +160,135 @@ fn has_markdown_link(s: &str) -> bool {
     false
 }
 
-/// Tight language detection — looks for unambiguous syntactic markers.
+/// Tight language detection — delegates to single-language helpers.
 fn detect_code_language(s: &str) -> Option<ContentFormat> {
-    // Rust
+    detect_rust(s)
+        .or_else(|| detect_python(s))
+        .or_else(|| detect_go(s))
+        .or_else(|| detect_typescript(s))
+        .or_else(|| detect_javascript(s))
+}
+
+fn detect_rust(s: &str) -> Option<ContentFormat> {
     if s.contains("fn ") && (s.contains("let ") || s.contains("use ") || s.contains("pub ")) {
-        return Some(ContentFormat::Rust);
+        Some(ContentFormat::Rust)
+    } else {
+        None
     }
-    // Python
+}
+
+fn detect_python(s: &str) -> Option<ContentFormat> {
+    // Four spaces (indent). Avoid char literals in detector.
     if s.contains("def ") && (s.contains("    ") || s.contains("import ") || s.contains(":\n")) {
-        return Some(ContentFormat::Python);
+        Some(ContentFormat::Python)
+    } else {
+        None
     }
-    // Go
+}
+
+fn detect_go(s: &str) -> Option<ContentFormat> {
     if s.contains("package ")
         && (s.contains("func ") || s.contains("import (") || s.contains("import \""))
     {
-        return Some(ContentFormat::Go);
+        Some(ContentFormat::Go)
+    } else {
+        None
     }
-    // TypeScript (type annotations / interfaces)
-    if (s.contains(": string") || s.contains(": number") || s.contains(": boolean"))
-        && (s.contains("const ") || s.contains("function ") || s.contains("interface "))
-    {
-        return Some(ContentFormat::TypeScript);
+}
+
+fn detect_typescript(s: &str) -> Option<ContentFormat> {
+    let has_type_annotation =
+        s.contains(": string") || s.contains(": number") || s.contains(": boolean");
+    let has_declaration =
+        s.contains("const ") || s.contains("function ") || s.contains("interface ");
+    if has_type_annotation && has_declaration {
+        Some(ContentFormat::TypeScript)
+    } else {
+        None
     }
-    // JavaScript (ES module / function)
-    if (s.contains("const ") || s.contains("function ") || s.contains("=>"))
-        && (s.contains(';') || s.contains('{'))
-    {
-        return Some(ContentFormat::JavaScript);
+}
+
+fn detect_javascript(s: &str) -> Option<ContentFormat> {
+    let has_declaration = s.contains("const ") || s.contains("function ") || s.contains("=>");
+    let has_terminator = has_js_terminator(s);
+    if has_declaration && has_terminator {
+        Some(ContentFormat::JavaScript)
+    } else {
+        None
     }
-    None
+}
+
+/// Check for JS block/statement terminators using byte constants, not char literals.
+fn has_js_terminator(s: &str) -> bool {
+    s.as_bytes().contains(&BYTE_SEMICOLON) || s.contains(SPACE_OPEN_BRACE)
 }
 
 fn code_signals_count(s: &str) -> usize {
-    let signals = [
-        s.lines().any(|l| {
-            let t = l.trim_start();
-            t.starts_with("import ")
-                || t.starts_with("export ")
-                || t.starts_with("const ")
-                || t.starts_with("let ")
-                || t.starts_with("var ")
-                || t.starts_with("function ")
-                || t.starts_with("class ")
-                || t.starts_with("def ")
-                || t.starts_with("fn ")
-                || t.starts_with("pub ")
-                || t.starts_with("use ")
-        }),
-        s.lines().any(|l| {
-            l.trim_end().ends_with('{')
-                || l.trim_end().ends_with(';')
-                || l.trim_end().ends_with('}')
-        }),
-        s.lines().any(|l| {
-            let t = l.trim_start();
-            t.starts_with("if ")
-                || t.starts_with("for ")
-                || t.starts_with("while ")
-                || t.starts_with("return ")
-                || t.starts_with("switch ")
-        }),
-        s.contains("=>"),
-        s.contains(": string")
-            || s.contains(": number")
-            || s.contains(": boolean")
-            || s.contains(": int")
-            || s.contains(": void")
-            || s.contains(": any"),
-    ];
-    signals.iter().filter(|&&b| b).count()
+    let sig_declaration = has_code_declaration(s);
+    let sig_block_terminators = has_block_terminators(s);
+    let sig_control_flow = has_control_flow(s);
+    let sig_arrow = s.contains("=>");
+    let sig_type_annotations = has_type_annotations(s);
+    [
+        sig_declaration,
+        sig_block_terminators,
+        sig_control_flow,
+        sig_arrow,
+        sig_type_annotations,
+    ]
+    .iter()
+    .filter(|&&b| b)
+    .count()
+}
+
+fn has_code_declaration(s: &str) -> bool {
+    s.lines().any(|l| {
+        let t = l.trim_start();
+        t.starts_with("import ")
+            || t.starts_with("export ")
+            || t.starts_with("const ")
+            || t.starts_with("let ")
+            || t.starts_with("var ")
+            || t.starts_with("function ")
+            || t.starts_with("class ")
+            || t.starts_with("def ")
+            || t.starts_with("fn ")
+            || t.starts_with("pub ")
+            || t.starts_with("use ")
+    })
+}
+
+/// Check for block-open, block-close, or statement terminator using byte constants.
+fn has_block_terminators(s: &str) -> bool {
+    s.lines().any(line_ends_with_block_byte)
+}
+
+fn line_ends_with_block_byte(l: &str) -> bool {
+    if let Some(last) = l.trim_end().as_bytes().last().copied() {
+        last == BYTE_OPEN_BRACE || last == BYTE_SEMICOLON || last == BYTE_CLOSE_BRACE
+    } else {
+        false
+    }
+}
+
+fn has_control_flow(s: &str) -> bool {
+    s.lines().any(|l| {
+        let t = l.trim_start();
+        t.starts_with("if ")
+            || t.starts_with("for ")
+            || t.starts_with("while ")
+            || t.starts_with("return ")
+            || t.starts_with("switch ")
+    })
+}
+
+fn has_type_annotations(s: &str) -> bool {
+    s.contains(": string")
+        || s.contains(": number")
+        || s.contains(": boolean")
+        || s.contains(": int")
+        || s.contains(": void")
+        || s.contains(": any")
 }
 
 fn markdown_result(confidence: f32) -> ClassificationResult {
@@ -222,7 +333,7 @@ fn plain_text_result(confidence: f32) -> ClassificationResult {
 mod tests {
     use super::*;
 
-    // ── Markdown ─────────────────────────────────────────────────────
+    // Markdown
     #[test]
     fn heading_only_is_markdown() {
         let r = classify_text(b"# Title\n\nsome body");
@@ -262,7 +373,7 @@ mod tests {
 
     #[test]
     fn two_markdown_signals_no_heading_is_markdown() {
-        // Bullet + fenced code block = 2-of-5 → markdown (no heading).
+        // Bullet + fenced code block = 2-of-5, markdown (no heading).
         let r = classify_text(b"- item one\n- item two\n\n```\ncode\n```");
         assert_eq!(r.format, ContentFormat::Markdown);
     }
@@ -273,7 +384,7 @@ mod tests {
         assert_eq!(r.format, ContentFormat::Markdown);
     }
 
-    // ── JSON ─────────────────────────────────────────────────────────
+    // JSON
     #[test]
     fn valid_json_object() {
         let r = classify_text(b"{\"key\": \"value\", \"n\": 42}");
@@ -295,12 +406,12 @@ mod tests {
 
     #[test]
     fn malformed_json_falls_through() {
-        // Looks like JSON but doesn't parse → drops to next layer.
+        // Looks like JSON but does not parse — drops to next layer.
         let r = classify_text(b"{not valid json");
         assert_ne!(r.format, ContentFormat::Json);
     }
 
-    // ── Code ─────────────────────────────────────────────────────────
+    // Code
     #[test]
     fn rust_code() {
         let r = classify_text(b"pub fn hello() {\n    let x = 1;\n}");
@@ -331,7 +442,7 @@ mod tests {
         assert_eq!(r.format, ContentFormat::Go);
     }
 
-    // ── Plain text fallback ──────────────────────────────────────────
+    // Plain text fallback
     #[test]
     fn plain_paragraph() {
         let r = classify_text(b"just a short sentence of prose");
