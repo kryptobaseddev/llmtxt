@@ -26,3 +26,6 @@ examples/*/tarpaulin-report.json
 # Tarpaulin coverage reports (generated artifacts)
 crates/*/tarpaulin-report.json
 tarpaulin-report.json
+
+# legacy path (pre-2026-04-21) — agent outputs now live in .cleo/agent-outputs/
+claudedocs/
