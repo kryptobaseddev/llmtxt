@@ -1,8 +1,18 @@
 # LLMtxt
 
-[![v2026.4.6](https://img.shields.io/badge/version-2026.4.6-blue)](https://www.npmjs.com/package/llmtxt)
+[![v2026.4.13](https://img.shields.io/badge/version-2026.4.13-blue)](https://www.npmjs.com/package/llmtxt)
 
 Context-sharing and collaborative document platform for LLM agents. Token-efficient content retrieval, versioned multi-agent collaboration, and consensus-based approval.
+
+**Agent quick-ref**: new LLM agents should fetch [`https://docs.llmtxt.my/llms-full.txt`](https://docs.llmtxt.my/llms-full.txt) — the full platform in one URL (architecture, auth, rate limits, CRDT, topologies, consensus).
+
+**v2026.4.13**: Multi-modal classification (`classify_content` / `classifyContent`) — detects 20+ document formats (PDF/PNG/JPEG/JSON/markdown/code/text) via a three-layer pipeline (magic-byte → text-gate → heuristic). `detect_document_format` now delegates to the new classifier.
+
+**v2026.4.12**: `detect_document_format` heading fix, `multiWayDiff` accepts `string[]`, `LocalBackend.publishVersion` auto-indexes embeddings so `llmtxt search` hits immediately.
+
+**v2026.4.9**: Shared Primitives Subpath Contract — 7 stable subpaths (`/sdk`, `/crdt`, `/blob`, `/events`, `/identity`, `/transport`, `/similarity`) with CI guard and STABILITY.md. Also ships P0 security remediation, tamper-evident audit chain (Merkle + RFC 3161), strict release runbook, OpenAPI 3.1, SLO/SLI alerts, CSP/HSTS/COEP, webhook DLQ, Postgres RLS on 21 tenant tables, Ed25519 key rotation + KMS abstraction, anonymous-mode threat model, GDPR export/retention/erasure, SOC 2 Type 1 readiness, and monetization foundation.
+
+**v2026.4.7/.8**: bundler-friendly dynamic imports; drizzle / better-sqlite3 / postgres / onnxruntime moved to optional peer deps.
 
 **v2026.4.6**: Loro CRDT (replaces Yrs), AgentSession lifecycle, document export/import, binary blob attachments, hub-spoke/mesh topology factory, cr-sqlite LocalBackend sync, P2P mesh, and `session` + `mesh` CLI commands.
 

@@ -1,11 +1,17 @@
 # llmtxt
 
-[![v2026.4.9](https://img.shields.io/badge/version-2026.4.9-blue)](https://www.npmjs.com/package/llmtxt)
+[![v2026.4.13](https://img.shields.io/badge/version-2026.4.13-blue)](https://www.npmjs.com/package/llmtxt)
 
 Primitives and SDK for LLM agent content workflows.
 
 `llmtxt` wraps the Rust `llmtxt-core` crate through WASM so TypeScript
 consumers use the same single-source-of-truth logic as native Rust consumers.
+
+**New agents start here**: [`https://docs.llmtxt.my/llms-full.txt`](https://docs.llmtxt.my/llms-full.txt) is the one URL to fetch — it covers the whole platform in a single file.
+
+**v2026.4.13**: Multi-modal classification pipeline — `classifyContent()` (TS) and `classify_content()` (Rust) detect 20+ document formats (PDF/PNG/JPEG/JSON/markdown/code/text) via magic-byte + text-gate + heuristic layers. `detectDocumentFormat()` now delegates to the new classifier. WASM binding `classify_content_wasm` exposed.
+
+**v2026.4.12**: `detectDocumentFormat` heading-only short-circuit fix; `multiWayDiff` accepts `string[]` directly (back-compat with JSON-string preserved); `LocalBackend.publishVersion` awaits `indexDocument` so CLI `llmtxt search` returns hits immediately after `llmtxt push-version`. README: new "Choosing the Right Similarity Metric" section disambiguating `contentSimilarity` (char n-gram Jaccard) from `semanticConsensus` (embeddings).
 
 **v2026.4.9**: Shared Primitives Subpath Contract — 7 stable subpaths (`/sdk`, `/crdt`, `/blob`, `/events`, `/identity`, `/transport`, `/similarity`) with contract tests, STABILITY.md, and a CI guard. Also ships: demo harness 8/8, P0 security remediation (10 items), tamper-evident audit log with Merkle chain + RFC 3161, strict release runbook, OpenAPI 3.1, SLO/SLI alerts, CSP/HSTS/COEP, webhook DLQ, PostgreSQL RLS on 21 tenant tables, Ed25519 key rotation + KMS abstraction, anonymous mode threat model, GDPR export/retention/erasure, SOC 2 Type 1 readiness, and monetization foundation (Stripe + Pro tier).
 

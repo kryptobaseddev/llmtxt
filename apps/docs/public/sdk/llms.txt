@@ -1,6 +1,6 @@
 # llmtxt
 > Primitives and SDK for LLM agent content workflows: compression, patching, progressive disclosure, signed URLs, collaborative document lifecycle, and retrieval planning
-> Version: 2026.4.2
+> Version: 2026.4.13
 
 ## Install
 
@@ -16,14 +16,22 @@ npm install -D llmtxt
 ## Packages
 
 ### main
-87 functions, 80 types, 2 classes, 13 variables
+173 functions, 282 types
 
-- compress() — 
-- decompress() — 
+- setLocalAwarenessState() — Set the local agent's awareness state on a WebSocket connection. Encodes the state and sends it to the server (which relays to peers).
+- onAwarenessChange() — Subscribe to awareness state changes on a WebSocket connection. The callback is invoked with the full current state map whenever a peer's awareness changes.
+- getAwarenessStates() — Get the current awareness states for all known clients on a connection.
+- classifyContent() — Classify the content of `input` using a three-layer pipeline: magic-byte detection → text/binary gate → heuristic text analysis.  All classification logic runs in Rust WASM (SSoT: `crates/llmtxt-core/src/classify/`). This function is a thin adapter that normalises inputs and maps enum variants.
+- detectFormatFromClassification() — Map a `ClassificationResult` to the legacy four-value format string.  Used internally by the `detectDocumentFormat` back-compat reroute (T828). External callers should use `classifyContent` directly for new code.
+- compress() — Compress a UTF-8 string using zstd (RFC 8478), level 3.  New writes use zstd. Existing zlib-compressed rows are still readable via `decompress`, which detects the codec by magic bytes.  Delegates to crates/llmtxt-core::compress (Rust WASM).
+- decompress() — Decompress bytes back to a UTF-8 string.  Auto-detects codec by magic bytes: - `0xFD 0x2F 0xB5 0x28` → zstd (new writes) - `0x78 __` → zlib/deflate (legacy rows — backward compatible)  Delegates to crates/llmtxt-core::decompress (Rust WASM).
+- zstdCompressBytes() — Compress raw bytes using zstd, returning compressed bytes.  Use this for binary payloads (blobs, CRDT snapshots) where the input is not a UTF-8 string. Delegates to crates/llmtxt-core::zstd_compress_bytes.
+- zstdDecompressBytes() — Decompress raw zstd bytes back to raw bytes.  Delegates to crates/llmtxt-core::zstd_decompress_bytes.
 - encodeBase62() — 
 - decodeBase62() — 
 - generateId() — 
 - hashContent() — 
+- hashBlob() — Compute SHA-256 hash of raw binary data. Returns a lowercase hex string (64 characters).  Use this for blob content-addressing — mirrors crates/llmtxt-core::hash_blob. Prefer this over node:crypto createHash (SSOT rule — see docs/SSOT.md).
 - calculateTokens() — 
 - calculateCompressionRatio() — 
 - computeSignature() — 
@@ -40,21 +48,68 @@ npm install -D llmtxt
 - isExpired() — 
 - computeDiff() — 
 - structuredDiff() — Compute a structured line-level diff between two texts via the Rust LCS algorithm.
-- multiWayDiff() — Compute a multi-way diff across a base version and up to 4 additional versions.
+- multiWayDiff() — Compute per-line diff variants across N versions of a document.
 - cherryPickMerge() — Assemble document content from line ranges and sections across multiple versions.
+- threeWayMerge() — Perform a 3-way merge of `base`, `ours`, and `theirs`.  Regions modified by only one side are auto-merged.  Regions modified by both sides produce conflict markers in the output:
+- l2Normalize() — L2-normalize a vector of numbers to unit length.  Delegates to crates/llmtxt-core::normalize::l2_normalize via WASM.
+- signWebhookPayload() — Compute the HMAC-SHA256 webhook signature for a payload.  Returns `"sha256=<hex>"` — the canonical format for the `X-LLMtxt-Signature` request header.  Delegates to crates/llmtxt-core::crypto::sign_webhook_payload.
+- constantTimeEqHex() — Compare two hex-encoded digest strings in constant time.  Use this whenever you need to compare API key hashes, HMAC signatures, or any other secret-derived values. JavaScript `===` on strings is NOT timing-safe and MUST NOT be used for secrets.  Delegates to `crates/llmtxt-core::crypto::constant_time_eq_hex` which uses the `subtle` crate for guaranteed constant-time byte comparison.
+- verifyContentHash() — Verify that `content` matches an expected SHA-256 hex hash.  T-02: Client-side content integrity helper for the SDK.  Computes the SHA-256 hash of the provided content using the Rust WASM primitive and then performs a constant-time comparison against the expected digest.  Typical usage: after downloading a document version, call this with the `content_hash` field from the server response to detect tampering in transit.
+- cosineSimilarity() — Compute cosine similarity between two embedding vectors.  Delegates to crates/llmtxt-core::semantic::cosine_similarity_wasm.
+- semanticDiff() — Compute a semantic diff between two sets of pre-embedded document sections.
+- rolePermissions() — Return the permissions for a document role as a JSON array of strings.  Delegates to crates/llmtxt-core::rbac::role_permissions via WASM.
+- roleHasPermission() — Check whether a document role has a specific permission.  Delegates to crates/llmtxt-core::rbac::role_has_permission via WASM.
+- slugify() — Convert a collection or document name to a URL-safe slug.  Delegates to crates/llmtxt-core::slugify::slugify via WASM.
+- semanticConsensus() — Evaluate semantic consensus across a set of pre-embedded reviews.
+- contentSimilarity() — Compute similarity between two texts using word shingles.  Delegates to crates/llmtxt-core::similarity::content_similarity_wasm.
+- detectFormat() — Auto-detect whether a string is JSON, markdown, or plain text.  Delegates to crates/llmtxt-core::validation::detect_format.
+- containsBinaryContent() — Check for binary content (control chars 0x00–0x08) in the first 8 KB.  Delegates to crates/llmtxt-core::validation::contains_binary_content.
+- extractMentions() — Extract  from message content. Returns unique names (excluding all).  Delegates to crates/llmtxt-core::graph::extract_mentions_wasm.
+- extractNgrams() — Extract character-level n-grams from text.  Delegates to crates/llmtxt-core::similarity::extract_ngrams_wasm.
+- extractTags() — Extract #tags from message content. Returns unique tag names.  Delegates to crates/llmtxt-core::graph::extract_tags_wasm.
+- extractDirectives() — Extract /directives from message content. Returns unique directive keywords.  Delegates to crates/llmtxt-core::graph::extract_directives_wasm.
+- extractWordShingles() — Extract word-level n-gram shingles from text.  Delegates to crates/llmtxt-core::similarity::extract_word_shingles_wasm.
+- findOverlongLine() — Find the 1-based line number of the first line exceeding max_chars. Returns 0 if no overlong line exists.  Delegates to crates/llmtxt-core::validation::find_overlong_line.
+- fingerprintSimilarity() — Estimate similarity between two MinHash fingerprints.
+- buildGraph() — Build a knowledge graph from an array of messages.  Delegates to crates/llmtxt-core::graph::build_graph_wasm.
+- topTopics() — Find the most connected topics in the graph.  Delegates to crates/llmtxt-core::graph::top_topics_wasm.
+- topAgents() — Find the most active agents in the graph.  Delegates to crates/llmtxt-core::graph::top_agents_wasm.
+- jaccardSimilarity() — Compute Jaccard similarity between two texts using character n-grams.  Delegates to crates/llmtxt-core::similarity::jaccard_similarity_wasm.
+- detectDocumentFormat() — Detect the structural format of a document.  Returns `"json"`, `"markdown"`, `"code"`, or `"text"`. Extends crates/llmtxt-core::validation::detect_format with "code" detection.  Delegates to crates/llmtxt-core::disclosure::detect_document_format_wasm.
+- generateOverview() — Generate a structural overview of a document.  Delegates to crates/llmtxt-core::disclosure::generate_overview_wasm.
+- getLineRange() — Extract a line range from a document.  Delegates to crates/llmtxt-core::disclosure::get_line_range_wasm.
+- searchContent() — Search document content for lines matching a query.  Delegates to crates/llmtxt-core::disclosure::search_content_wasm.
+- queryJsonPath() — Execute a JSONPath-style query against JSON content.  Delegates to crates/llmtxt-core::disclosure::query_json_path_wasm.
+- getSection() — Extract a named section from a document.  Delegates to crates/llmtxt-core::disclosure::get_section_wasm.
+- fnv1aHash() — FNV-1a hash of a string (32-bit unsigned integer).  Identical to the TS `fnv1aHash()` function in embeddings.ts. Delegates to crates/llmtxt-core::tfidf::fnv1a_hash_wasm.
+- tfidfEmbed() — Embed a single text using TF-IDF into a float vector.  Delegates to crates/llmtxt-core::tfidf::tfidf_embed_wasm.
+- tfidfEmbedBatch() — Embed a batch of texts using TF-IDF with shared IDF weighting.  This matches the `LocalEmbeddingProvider.embed()` TypeScript implementation exactly — IDF is computed across the entire batch, not per-document.  Delegates to crates/llmtxt-core::tfidf::tfidf_embed_batch_wasm.
+- minHashFingerprint() — Generate a MinHash fingerprint for content.  Delegates to crates/llmtxt-core::similarity::min_hash_fingerprint_wasm.
+- rankBySimilarity() — Rank a list of texts by similarity to a query.  Delegates to crates/llmtxt-core::similarity::rank_by_similarity_wasm.
 - createClient() — 
-- getLineRange() — Extract a range of lines from a document, returning content and token statistics.
-- searchContent() — Search document content for lines matching a query string or regex.
-- detectDocumentFormat() — Detect the structural format of a document using content heuristics.
-- generateOverview() — Generate a structural overview of a document for progressive disclosure.
-- queryJsonPath() — Execute a JSONPath-style query against JSON content.
-- getSection() — Extract a named section from a document by title.
-- extractMentions() — Extract  from message content.
-- extractTags() — Extract #tags from message content.
-- extractDirectives() — Extract /directives from message content.
-- buildGraph() — Build a knowledge graph from an array of messages.  Nodes: agents (from fromAgentId + mentions), topics (#tags), decisions (/decision messages) Edges: mentions (agent→agent), discusses (agent→topic), decides (agent→decision), participates (agent→agent in same conversation)
-- topTopics() — Find the most connected topics in the graph. Returns topics sorted by number of discussing agents.
-- topAgents() — Find the most active agents in the graph. Returns agents sorted by total edge weight (mentions + discussions + decisions).
+- crdt_new_doc() — Create an empty Loro Doc and return its initial snapshot bytes.  NOTE: Unlike the previous Yrs implementation, this returns a full Loro snapshot blob — NOT a Y.js state vector. The returned bytes are an opaque Loro state blob. Callers MUST treat the return value as a state blob and pass it to crdt_state_vector() to get the VersionVector bytes for SyncStep1.  The magic header bytes are 0x6c 0x6f 0x72 0x6f ("loro").
+- crdt_encode_state_as_update() — Encode the full doc state as a Loro snapshot blob.  Used to bootstrap a new client: send them the full state so they can import it locally and arrive at the current document content.  In Loro, a snapshot serves as the bootstrap update — there is no separate "state-as-update" format; snapshot == full state transfer.
+- crdt_apply_update() — Apply a Loro update or snapshot to a state snapshot, returning the new state.  Core persistence operation: called before writing to section_crdt_states. Loro import is idempotent — applying the same update twice yields the same result (CRDT property).
+- crdt_merge_updates() — Merge multiple Loro update blobs into a single consolidated snapshot.  Used by the compaction job to fold section_crdt_updates into section_crdt_states. Convergence is guaranteed by CRDT invariants.  The WASM function expects a packed buffer: `[len1:u32le][bytes1][len2:u32le]...`
+- crdt_state_vector() — Extract the Loro VersionVector from a state snapshot.  Sent as SyncStep1 (0x01 prefix) so the remote can compute the diff update.  IMPORTANT: The returned bytes are Loro VersionVector bytes encoded via VersionVector::encode() — they are NOT Y.js state vector bytes and are bitwise INCOMPATIBLE with lib0 v1 state vector encoding. Remote peers MUST call VersionVector::decode() (or the equivalent) on received SyncStep1 payloads — they MUST NOT pass these bytes to any Yrs / lib0 decoder.
+- crdt_diff_update() — Compute the diff update between server state and a remote Loro VersionVector.  SyncStep2: returns only the Loro operations the remote is missing.
+- crdt_get_text() — Extract the plain text string from a Loro state snapshot.  Used by HTTP fallback endpoints and tests. Delegates to the loro-crdt npm package (crdt_get_text is not available in the WASM build — it is marked #[cfg(not(target_arch = "wasm32"))] in Rust).
+- crdt_make_state() — Create a new Loro Doc, insert `content` into the "content" LoroText root, and return its full state as a Loro snapshot Buffer.  This helper exists so that test files can construct seed states without importing `loro-crdt` directly.
+- crdt_make_incremental_update() — Append `content` to an existing Loro Doc represented as a state Buffer, then return an incremental update Buffer (the delta only, not a full state).  Useful in tests to generate realistic incremental updates.
+- crdt_apply_to_local_doc() — Apply a Loro update directly to a local Loro Doc and return the resulting full state. Used by tests that need to simulate a client-side doc receiving a server diff.
+- subscribeSection() — Subscribe to real-time CRDT delta events for a single section.  Opens a WebSocket connection using the `loro-sync-v1` subprotocol and performs the Loro sync protocol (SyncStep1 → SyncStep2 exchange). Subsequent updates from other agents are imported into the local Loro Doc and emitted as `SectionDelta` events to `callback`.  Wire protocol (spec P1 §3.2):  1. On open: encode local VersionVector → send as 0x01 SyncStep1.  2. On receive 0x02 (SyncStep2): import Loro update blob (full diff from server).  3. On receive 0x03 (Update): import incremental Loro update blob from peer.  4. On receive 0x04 (AwarenessRelay): pass to options.onAwareness if set.  5. Stray 0x00 frames (legacy Yjs SyncStep1) are dropped and never sent.
+- getSectionText() — Fetch the current plain-text content of a section via the HTTP fallback.  Does not require WebSocket support. Returns the text extracted from the consolidated Loro CRDT state. Returns null if the section has not been initialized (HTTP 503).  The server returns a base64-encoded Loro snapshot blob. This function:  1. Decodes the base64 → Loro binary bytes.  2. Creates a local Loro Doc and imports the bytes.  3. Reads the "content" LoroText root and returns its string value.  Wire-format note: the stateBase64 field contains Loro binary (magic header 0x6c 0x6f 0x72 0x6f "loro"). Do NOT pass these bytes to any Y.js / lib0 decoder — they are bitwise incompatible.
+- loadCrSqliteExtensionPath() — Attempts to dynamically import vlcn.io/crsqlite and resolve the native SQLite extension path.
+- embed() — Embed a single text string into a 384-dimensional Float32Array.  Model is loaded lazily on first call (~1-2s cold start, instant thereafter). No external API calls are made — inference runs locally via onnxruntime-node.
+- embedBatch() — Embed a batch of texts in a single ONNX session run.  For large batches, texts are split into chunks of 32 to avoid OOM.
+- bodyHashHex() — SHA-256 body hash returned as lowercase hex (64 chars).  Matches what the backend `computeBodyHash` function computes: `hashContent(body.toString('utf8'))` → SHA-256 of the UTF-8 string. This in turn matches the Rust `identity_body_hash_hex(body)` WASM export.
+- buildCanonicalPayload() — Build the canonical payload bytes (UTF-8 encoded).  Format (newline-separated, same as Rust `canonical_payload()`):
+- randomNonceHex() — Generate 16 cryptographically-random bytes as lowercase hex (32 chars).
+- createIdentity() — Generate a fresh `AgentIdentity` and persist it. Convenience wrapper around `AgentIdentity.generate()`.
+- loadIdentity() — Load the persisted `AgentIdentity`. Returns `null` if no identity has been persisted yet. Convenience wrapper around `AgentIdentity.load()`.
+- identityFromSeed() — Construct an `AgentIdentity` from a raw 32-byte seed. Does NOT persist. Useful for tests and CLI scenarios. Convenience wrapper around `AgentIdentity.fromSeed()`.
+- signRequest() — Build X-Agent-* signature headers for a mutating HTTP request.  Convenience function equivalent to `identity.buildSignatureHeaders(…)`.
+- verifySignature() — Verify an Ed25519 signature over the given canonical payload bytes.
 - isPredefinedSchema() — Type-guard that checks whether a string is a registered predefined schema name.
 - getPredefinedSchema() — Retrieve a predefined Zod schema by name.
 - validateJson() — Validate content as JSON, optionally against a predefined schema.
@@ -78,14 +133,7 @@ npm install -D llmtxt
 - compressSessionData() — Compress a session snapshot object directly. Serializes to JSON, then compresses.
 - decompressSessionData() — Decompress and parse a snapshot back to an object.
 - snapshotSummary() — Generate a human-readable summary of a snapshot for handoff messages. Useful for agents posting session summaries to ClawMsgr.
-- extractNgrams() — Extract character-level n-grams from text. Normalizes whitespace and lowercases before extraction.
-- extractWordShingles() — Extract word-level n-grams (shingles) from text. Better for longer content where word order matters.
-- jaccardSimilarity() — Jaccard similarity: |A ∩ B| / |A ∪ B|. Returns 0.0 (no overlap) to 1.0 (identical).
-- textSimilarity() — Compute similarity between two texts using character n-grams. Returns 0.0 to 1.0.
-- contentSimilarity() — Compute similarity using word shingles. Better for comparing messages or documents where word choice matters more than character patterns.
-- minHashFingerprint() — Generate a compact fingerprint for content using MinHash. The fingerprint is an array of hash values that can be compared for approximate similarity without storing the full n-gram set.  Two fingerprints with many matching values indicate similar content.
-- fingerprintSimilarity() — Estimate similarity between two MinHash fingerprints. Returns approximate Jaccard similarity (0.0 to 1.0).
-- rankBySimilarity() — Rank a list of texts by similarity to a query. Returns indices sorted by descending similarity, with scores.
+- watchDocument() — Watch a document's event stream.
 - isValidTransition() — Check whether a state transition is allowed.
 - validateTransition() — Validate a proposed state transition with a detailed result.
 - isEditable() — Check whether a document state allows content modifications.
@@ -105,12 +153,56 @@ npm install -D llmtxt
 - buildContributorSummary() — Build aggregated contributor summaries from version attributions.
 - planRetrieval() — Plan which sections to retrieve given a token budget.  When a query is provided, sections are ranked by text similarity to the query and packed greedily by descending score. Without a query, sections are packed in document order.
 - estimateRetrievalCost() — Estimate the token cost of fetching specific sections.
+- subscribe() — Open a differential SSE subscription.  Compatible with both browser (EventSource) and Node.js (via the `eventsource` npm polyfill, automatically detected).
+- fetchSectionDelta() — Fetch a section delta since a given sequence number.  Calls GET /api/v1/documents/:slug/sections/:name?since= and returns a typed SectionDeltaResponse. Store currentSeq and pass it as `since` on the next poll to achieve incremental updates.
+- validateTopologyConfig() — Validate an unknown value as a `TopologyConfig`.  Throws `TopologyConfigError` with exact messages from ARCH-T429 spec §3.3 on any validation failure.
+- canonicalFrontmatter() — Produce the canonical YAML frontmatter block for a document export.  Delegates to the WASM `canonicalFrontmatter` binding when available (post wasm-pack rebuild). Falls back to the pure-TS implementation that is byte-identical to the Rust function.  Output:
+- formatMarkdown() — Serialize a document snapshot to the Markdown export format.
+- formatJson() — Serialize a document snapshot to the JSON export format.  The `opts` parameter is accepted for API consistency but is not used by this formatter — JSON export always includes all metadata fields.
+- formatTxt() — Serialize the body of a document snapshot to plain text.  This formatter intentionally ignores all metadata. The `opts` parameter is not accepted because plain-text format has no configurable behaviour.
+- formatLlmtxt() — Serialize a document snapshot to the native `.llmtxt` format.
+- serializeDocument() — Serialize a DocumentExportState to a string using the requested format.
+- sha256Hex() — Compute SHA-256 hex of a UTF-8 string's bytes.
+- contentHashHex() — Compute SHA-256 hex of the body content (used as content_hash in frontmatter).
+- writeExportFile() — Write a DocumentExportState to disk and return an ExportDocumentResult.  This is the canonical implementation shared by all Backend variants. Backends build the `state` from their storage layer, then call this.
+- exportAllFilePath() — Build the output file path for an exportAll() call.  File name is `<slug>.<ext>` inside `outputDir`.
+- parseImportFile() — Parse an import file and return a ParsedImport.
+- validateBlobName() — Validate a blob attachment name using the Rust WASM primitive.  Throws `BlobNameInvalidError` when any of the following are true:   - name is empty or exceeds 255 bytes (UTF-8)   - name contains path traversal sequences (`..`)   - name contains path separators (`/` or `\`)   - name contains null bytes (`\0`)   - name has leading or trailing whitespace  Delegates to crates/llmtxt-core::blob_name_validate via WASM.
+- createBackend() — Create a Backend instance appropriate for the given topology config.  This is the primary entry point for all agent code that needs a Backend. Prefer this over constructing LocalBackend or RemoteBackend directly.  Validation (ARCH-T429 §3.3) runs before any backend is constructed: - `hub-spoke` without `hubUrl` → throws `TopologyConfigError` - `hub-spoke` with `persistLocally=true` without `storagePath` → throws `TopologyConfigError` - `mesh` without `storagePath` → throws `TopologyConfigError` - Unknown `topology` value → throws `TopologyConfigError`  The returned backend must have `open()` called before use.
+- sanitizeHtmlAsync() — Sanitize an HTML string (async, works in both Node.js and browser).  Prefer `sanitizeHtmlSync` in browser contexts where DOMPurify is available on the global window. Use this async version in server-side (Node.js) contexts where JSDOM must be initialized.
+- sanitizeHtmlSync() — Sanitize an HTML string synchronously (browser-only).  This function requires `window.DOMPurify` or a pre-loaded DOMPurify instance. In a browser it uses the native DOM parser. In Node.js, call `sanitizeHtmlAsync` instead.
+- isSafeUri() — Check whether a URI is safe according to the platform allowlist.  Useful for validating href/src attributes before inserting them into the DOM without going through a full sanitization pass.
+- createPgBackend() — Create an isolated PostgresBackend instance backed by a temporary Postgres schema.  Applies all migrations (except pgvector), injects schema + stubs, and returns a cleanup callback to drop the schema after the test suite.  Throws if DATABASE_URL_PG is not set.
+- buildBlobChangeset() — Collect BlobRef entries for all active blobs modified since `sinceMs`.  The sync layer calls this after `getChangesSince` to augment the binary changeset with blob manifest metadata. The caller passes the combined BlobChangeset to the receiving peer.  `sinceMs = 0` returns refs for all active blobs on the document.
+- incomingWinsLWW() — Returns true if `incoming` wins over `existing` under the LWW rule.  LWW rule per ARCH-T428 §3.4:   - newer uploadedAt wins   - tie-break: higher uploadedBy lexicographically (deterministic)   - same (uploadedAt, uploadedBy) = same record, no-op
+- applyBlobChangeset() — Apply incoming BlobRef entries from a received changeset.  For each ref:   1. Query the local manifest for (docSlug, blobName).   2. Apply LWW: incoming wins if uploadedAt is newer or tie-breaks higher.   3. If incoming wins: soft-delete local record (if any), insert new record.   4. If the winner's hash is NOT on disk, schedule a lazy fetch.
+- makeEventStream() — Create an `AsyncIterable<T>` backed by `emitter` channel `channel`.
+- createMeshChangesetHandler() — Create a framework-agnostic handler for the POST /mesh/changeset endpoint.  Intended usage in apps/backend (Hono):
+- buildA2AMessage() — Build and sign an A2A message.  The payload is JSON-serialized and base64-encoded. The signature covers the canonical bytes (matches Rust A2AMessage::canonical_bytes()).
+- sendToInbox() — Send an A2A message to an agent's HTTP inbox.
+- pollInbox() — Poll an agent's inbox for messages.
+- onDirectMessage() — Subscribe to direct messages via polling loop.  Polls every `pollIntervalMs` milliseconds (default 5000ms). Returns a `stop()` function.
+- bftQuorum() — Compute BFT quorum for given fault tolerance f. Formula: 2f + 1.
+- buildApprovalCanonicalPayload() — Build the canonical approval payload string (to be signed).  Format: `documentSlug\nreviewerId\nstatus\natVersion\ntimestamp`
+- signApproval() — Sign an approval with the given AgentIdentity.  Returns a `SignedApprovalEnvelope` ready for POST to /bft/approve.
+- submitSignedApproval() — Submit a signed approval to the backend.
+- getBFTStatus() — Get current BFT quorum status for a document.
+- verifyApprovalChain() — Verify the tamper-evident approval chain for a document.
+- sendScratchpad() — Publish a message to a document's scratchpad.  If `identity` and `agentId` are provided, the message will be signed with Ed25519 using the canonical format.
+- readScratchpad() — Read scratchpad messages (poll).
+- onScratchpadMessage() — Subscribe to live scratchpad messages via Server-Sent Events.  Returns a `stop()` function to close the SSE connection.
 
-- LRUCache — Generic least-recently-used (LRU) cache with time-to-live support.
-- LlmtxtDocument — High-level document orchestration object.  Each instance wraps a single document slug and delegates all persistence to the provided StorageAdapter. All computation (diffing, hashing, disclosure, consensus) uses the pure SDK functions.
-
+- AwarenessState — Presence state for a single agent.
+- AwarenessEventType — Events emitted when awareness state changes.
+- AwarenessEvent — 
+- Unsubscribe — Unsubscribe function returned by onAwarenessChange.
 - CacheStats — Snapshot of cache performance statistics.
 - LRUCacheOptions — Configuration options for constructing an `LRUCache` instance.
+- ClassificationResult — Result of `classifyContent`.  Mirrors `ClassificationResult` from `crates/llmtxt-core/src/classify/types.rs`.
+- Section — A logical section identified within a document.
+- DocumentOverview — High-level structural overview of a document.
+- SearchResult — A single match returned by `searchContent`.
+- LineRangeResult — Result of extracting a line range from a document via `getLineRange`.
 - DiffResult — 
 - StructuredDiffLine — A single line in a structured diff with type annotation and line numbers.
 - StructuredDiffResult — Full structured diff result with interleaved lines and summary counts.
@@ -121,6 +213,24 @@ npm install -D llmtxt
 - CherryPickProvenance — A single provenance entry in the cherry-pick merged output.
 - CherryPickStats — Statistics for a cherry-pick merge operation.
 - CherryPickResult — Return value of a cherry-pick merge operation.
+- Conflict — A single conflict region from a 3-way merge.
+- MergeStats — Statistics for a 3-way merge operation.
+- ThreeWayMergeResult — Full result of a 3-way merge operation.
+- SectionAlignment — How a section from version A maps to version B.
+- SectionSimilarity — Per-section similarity record produced by semantic diff.
+- SemanticChange — A semantic change annotation for a matched/renamed section pair.
+- SemanticDiffResult — Full result of a semantic diff between two document versions.
+- ReviewCluster — A cluster of reviewers whose embeddings are mutually similar.
+- SemanticConsensusResult — Result of semantic consensus evaluation across a set of reviews.
+- GraphNode — A node in the knowledge graph.
+- GraphEdge — An edge in the knowledge graph.
+- GraphStats — Statistics for a knowledge graph.
+- KnowledgeGraph — A knowledge graph containing nodes, edges, and statistics.
+- MessageInput — Input message for graph construction.
+- SimilarityRankResult — Result entry from rankBySimilarity.
+- AuditAction — Action type for audit logging. Represents the type of operation that occurred.
+- ApiVersionInfo — Metadata for a specific API version.
+- LinkType — Type for a cross-document link relationship.
 - ContentFormat — Supported content formats.
 - DocumentMode — Lifecycle state for collaborative documents.
 - DocumentMeta — Metadata for a stored document.
@@ -133,20 +243,23 @@ npm install -D llmtxt
 - AttachmentSharingMode — Share state persisted by the API layer for an attachment.
 - AttachmentReshareOptions — Options for re-sharing an existing attachment.
 - AttachmentVersionOptions — Options for appending a version to an existing attachment slug.
+- Permission — Fine-grained permission on a document. Canonical definition; mirrors crates/llmtxt-core::rbac::Permission.
+- DocumentRole — Role a user holds on a specific document. Canonical definition; mirrors crates/llmtxt-core::rbac::DocumentRole.
+- OrgRole — Role a user holds within an organisation. Canonical definition; mirrors crates/llmtxt-core::rbac::OrgRole.
+- DocumentEventType — Discriminant for document lifecycle events emitted by the event bus.  Consumers should use this type when subscribing to the bus or when filtering events in webhook handlers.
+- DocumentEvent — Payload for a document lifecycle event.  Emitted by the in-process event bus after a successful database write. Consumers include WebSocket/SSE streams and webhook delivery workers.
 - LlmtxtClientConfig — 
 - UploadResult — 
 - FetchResult — 
 - ReshareResult — 
 - ResignResult — Backward-compatible alias. Prefer `ReshareResult`.
 - AttachmentVersionResult — 
-- Section — A logical section identified within a document.
-- DocumentOverview — High-level structural overview of a document.
-- SearchResult — A single match returned by `searchContent`.
-- LineRangeResult — Result of extracting a line range from a document via `getLineRange`.
-- GraphNode — 
-- GraphEdge — 
-- KnowledgeGraph — 
-- MessageInput — 
+- SectionDelta — A delta event emitted when the CRDT state for a section changes.
+- Unsubscribe — Function to call to unsubscribe and close the WebSocket connection.
+- SubscribeSectionOptions — Options for `subscribeSection`.
+- EmbeddingProvider — Standard embedding provider interface — matches apps/backend/src/utils/embeddings.ts. Implemented by both the local ONNX provider and the TF-IDF fallback.
+- SignatureHeaders — HTTP headers produced by `AgentIdentity.buildSignatureHeaders` / `signRequest`.
+- CanonicalPayloadOptions — Options for `buildCanonicalPayload`.  All fields map directly to the Rust `canonical_payload()` parameters in `crates/llmtxt-core/src/identity.rs`.
 - PredefinedSchemaName — Union of all registered predefined schema name strings.
 - JsonFormat — Inferred TypeScript type for any valid JSON value (object, array, primitive).
 - TextFormat — Inferred TypeScript type for plain text content.
@@ -166,6 +279,8 @@ npm install -D llmtxt
 - SnapshotMeta — 
 - CompressedSnapshot — 
 - SnapshotOptions — 
+- DocumentEventLogEntry — A single event row from the document event log.
+- WatchDocumentOptions — 
 - DocumentState — Lifecycle state of a collaborative document.
 - StateTransition — Record of a lifecycle state change.
 - TransitionResult — Result of attempting a state transition.
@@ -189,17 +304,173 @@ npm install -D llmtxt
 - RetrievalOptions — Options for retrieval planning.
 - CreateVersionOptions — Options for creating a new version.
 - LlmtxtDocumentOptions — Options for constructing an LlmtxtDocument.
-
-- jsonFormatSchema — Schema that accepts any valid JSON value.
-- textFormatSchema — Schema that accepts any string value (plain text or markdown).
-- markdownFormatSchema — Schema for markdown content, stored as a plain string.
-- promptMessageSchema — Schema for a single message within an LLM prompt conversation.
-- promptV1Schema — Schema for the standard LLM prompt format (OpenAI / Anthropic style).
-- predefinedSchemas — Registry of predefined content schemas keyed by name.
-- compressRequestSchema — Schema for incoming content compression requests.
-- decompressRequestSchema — Schema for incoming content decompression requests.
-- searchRequestSchema — Schema for incoming content search requests.
-- DEFAULT_MAX_CONTENT_BYTES — Default maximum content size in bytes (5 MB).
-- DEFAULT_MAX_LINE_BYTES — Default maximum line length in bytes (64 KB).
-- DOCUMENT_STATES — All valid document states in lifecycle order.
-- DEFAULT_APPROVAL_POLICY — Default approval policy: 1 approval, no timeout.
+- Lease — 
+- LeaseOptions — 
+- SectionDelta — Section-level delta returned by fetchSectionDelta and included in diff-mode SSE payloads.
+- SectionDeltaResponse — 
+- SubscribeOptions — 
+- SubscriptionEvent — 
+- Unsubscribe — Call to close the SSE subscription.
+- TopologyMode — The three supported deployment topologies.  - `standalone` — one agent, one local .db file, zero network dependency. - `hub-spoke` — N ephemeral or persistent spokes connected to a central hub. - `mesh` — N persistent peers syncing via P2P transport (T386).
+- StandaloneConfig — Config for standalone topology.  One agent, one local `.db` file, zero network dependency. Use for single developer or single agent, offline-first operation, local testing.
+- HubSpokeConfig — Config for hub-and-spoke topology.  One hub (PostgresBackend or a designated LocalBackend) is the Single Source of Truth. N spokes are RemoteBackend clients that write to and read from the hub. Ephemeral swarm workers are spokes with no local `.db` file.
+- MeshConfig — Config for mesh topology.  N persistent peers, each with their own cr-sqlite LocalBackend. No central hub is required. Peers sync directly with each other via the P2P transport defined in T386. Use for offline-first P2P collaboration, air-gapped environments, or small teams of persistent agents (≤10 peers).
+- TopologyConfig — Discriminated union of all topology configs, keyed on the `topology` field.
+- BackendConfig — Configuration for a Backend instance.  BackendConfig is passed to the backend constructor. LocalBackend uses storagePath + identityPath; RemoteBackend uses baseUrl + apiKey.
+- Document — A stored document record.
+- CreateDocumentParams — Parameters for creating a document.
+- ListDocumentsParams — Parameters for listing documents.
+- ListResult — Paginated list result.
+- PublishVersionParams — Parameters for publishing a new version.
+- TransitionParams — Parameters for transitioning a document's lifecycle state.
+- DocumentEvent — A single document event entry.
+- AppendEventParams — Parameters for appending an event.
+- QueryEventsParams — Parameters for querying events.
+- CrdtUpdate — A CRDT update payload for a document section.
+- CrdtState — Current CRDT state for a section.
+- Lease — A distributed lock / lease record.
+- AcquireLeaseParams — Parameters for acquiring a lease.
+- PresenceEntry — A presence record for an agent viewing a document.
+- ScratchpadMessage — A scratchpad message entry.
+- SendScratchpadParams — Parameters for sending a scratchpad message.
+- A2AMessage — An A2A (Agent-to-Agent) inbox message.
+- SearchResult — A single semantic search result.
+- SearchParams — Parameters for semantic search.
+- AgentPubkeyRecord — A registered agent public key record.
+- AttachBlobParams — Parameters for attaching a blob to a document.
+- BlobAttachment — A stored blob attachment record.
+- BlobData — Result of fetching a blob.
+- BlobRef — Changeset blob reference (bytes omitted — lazy pull).
+- BlobOps — Blob storage and retrieval operations.
+- DocumentOps — Document CRUD operations.
+- VersionOps — Version stack operations.
+- ApprovalOps — BFT approval operations.
+- EventOps — Document event log operations.
+- CrdtOps — CRDT section operations.
+- LeaseOps — Distributed lease operations.
+- PresenceOps — Presence (real-time who-is-viewing) operations.
+- ScratchpadOps — Scratchpad ephemeral message operations.
+- A2AOps — A2A (Agent-to-Agent) inbox operations.
+- SearchOps — Semantic search operations.
+- IdentityOps — Agent identity and pubkey registry operations.
+- ContributorRecord — A contributor record tracking per-agent token attribution.
+- Collection — A named collection of documents.
+- CreateCollectionParams — Parameters for creating a collection.
+- ListCollectionsParams — Parameters for listing collections.
+- CollectionExport — Export format for a collection.
+- DocumentLink — A directed link between two documents.
+- CreateDocLinkParams — Parameters for creating a document link.
+- GraphResult — Global knowledge graph result.
+- Webhook — A webhook registration.
+- CreateWebhookParams — Parameters for creating a webhook.
+- WebhookTestResult — Result of a webhook test delivery.
+- SignedUrl — A time-limited signed access token for a document.
+- CreateSignedUrlParams — Parameters for creating a signed URL.
+- DocumentVisibility — Document visibility level.
+- RoleGrant — A role grant entry.
+- AccessControlList — The full access control list for a document.
+- GrantAccessParams — Parameters for granting access.
+- Organization — An organization grouping users and documents.
+- CreateOrgParams — Parameters for creating an organization.
+- ApiKey — An API key record (secret never returned after creation).
+- CreateApiKeyParams — Parameters for creating an API key.
+- ApiKeyWithSecret — Full API key including secret — only returned at creation time.
+- ApprovalChainEntry — An entry in the tamper-evident approval chain.
+- ApprovalChainResult — Result of verifying the approval chain for a document.
+- ContributorOps — Contributor attribution operations.
+- BftOps — BFT consensus chain operations.
+- CollectionOps — Collection CRUD and membership operations.
+- CrossDocOps — Cross-document link and graph operations.
+- WebhookOps — Webhook registration and delivery operations.
+- SignedUrlOps — Signed URL (time-limited access token) operations.
+- AccessControlOps — Document access control operations.
+- OrganizationOps — Organization management operations.
+- ApiKeyOps — API key management operations.
+- Backend — Backend — the complete LLMtxt persistence and coordination interface.  Implementations MUST satisfy all sub-interfaces. Consumers of this interface SHOULD NOT depend on any implementation-specific methods.  Both LocalBackend (packages/llmtxt/src/local/) and RemoteBackend (packages/llmtxt/src/remote/) implement this interface.
+- ExportErrorCode — Error codes for the document export subsystem.
+- ExportFormat — Supported document export formats.
+- ExportDocumentParams — Parameters for exporting a single document.
+- ExportDocumentResult — Result returned by exportDocument().
+- ExportAllParams — Parameters for exporting all documents to a directory.
+- ExportAllResult — Result returned by exportAll().
+- ImportDocumentParams — Parameters for importing a document from a file.
+- ImportDocumentResult — Result returned by importDocument().
+- ExportOps — Document export operations.
+- FrontmatterMeta — Structured input for `canonicalFrontmatter`.  Mirrors `FrontmatterMeta` in `crates/llmtxt-core/src/canonical.rs`. Contributors are sorted inside this function — callers MUST NOT pre-sort.
+- DocumentExportState — Self-contained document snapshot passed to all format serializers.  All fields required by the canonical frontmatter schema are present at the top level; additional fields feed the JSON format.
+- ExportOpts — Options controlling format serializer behaviour.  All fields are optional. Formatters use sensible defaults when absent.
+- ParsedImport — 
+- Document — 
+- NewDocument — 
+- Version — 
+- NewVersion — 
+- StateTransition — 
+- NewStateTransition — 
+- Approval — 
+- NewApproval — 
+- SectionCrdtState — 
+- NewSectionCrdtState — 
+- SectionCrdtUpdate — 
+- NewSectionCrdtUpdate — 
+- DocumentEvent — 
+- NewDocumentEvent — 
+- AgentPubkey — 
+- NewAgentPubkey — 
+- AgentSignatureNonce — 
+- NewAgentSignatureNonce — 
+- SectionLease — 
+- NewSectionLease — 
+- AgentInboxMessage — 
+- NewAgentInboxMessage — 
+- ScratchpadEntry — 
+- NewScratchpadEntry — 
+- SectionEmbedding — 
+- NewSectionEmbedding — 
+- BlobAttachment — 
+- NewBlobAttachment — 
+- InsertDocument — 
+- SelectDocument — 
+- PeerTransport — PeerTransport — transport abstraction for P2P mesh (P3 spec §4.1).  Implementations MUST complete Ed25519 mutual handshake before any changeset data is exchanged. Unauthenticated peers MUST be rejected.
+- TransportIdentity — Local identity used by the transport layer for handshakes.
+- PeerInfo — 
+- PeerRegistry — 
+- PeerSyncState — In-memory peer sync state. Persisted externally via llmtxt_mesh_state table.
+- SyncEngineOptions — 
+- A2AEnvelope — A2A message envelope. Spec §7.1:    type, from, to, payload, sig, sentAt   sig = base64-encoded Ed25519 signature over canonical JSON of        type, from, to, payload, sentAt  (fields alphabetically sorted,       no trailing whitespace).
+- MeshMessengerOptions — 
+- PostgresBackendConfig — Extended config for PostgresBackend.
+- PgBackendHandle — 
+- BlobChangeset — Extended changeset type carrying optional blob references.  This wraps the existing cr-sqlite binary changeset (Uint8Array) with a separate `blobs` array that carries manifest metadata — never raw bytes. The blob bytes are pulled lazily on first `getBlob(includeData=true)` call.
+- ApplyBlobChangesetResult — Result of applying a BlobChangeset.
+- BlobRefWithDocSlug — Extended BlobRef used internally in the sync layer. docSlug is required for manifest writes but is omitted from the public BlobRef spec interface (which is scoped to a document context by the caller).
+- PeerRegistration — Raw format of a `.peer` file written by a running agent (P3 spec §3.2).  All fields are required. Peer files missing any field are rejected.
+- PeerInfo — A validated peer — returned from `discover()` and `loadStaticConfig()`. All entries here have been security-checked.
+- EventPublisher — An object that can publish typed events onto a named channel.  Implementations MUST be synchronous-safe — callers do not await publish().
+- EventSubscriber — An object that can return an async iterable of typed events from a channel.  The iterable MUST yield events in the order they were published. Calling `return()` on the iterator MUST unsubscribe from the channel.
+- EventStream — A bidirectional event stream that can both publish and subscribe.
+- EmitterLike — Minimal EventEmitter surface required by makeEventStream.
+- DocumentEventBusLike — Shape of the document event bus used by PostgresBackend (injected from apps/backend realtime layer).  Uses a single `'document'` channel and emits objects shaped as `{ type, slug, documentId, timestamp, actor, data }`.
+- PresenceEntry — Presence state broadcast by an agent to all connected peers. Matches the JSON structure in spec §6.1.
+- PresenceManagerOptions — 
+- AgentSessionState — Session state machine: Idle - Open - Active - Closing - Closed  - Idle: Initial state, waiting for open() - Open: Backend initialization in progress (transient; transitions to Active) - Active: Ready for contributions via contribute() - Closing: Teardown in progress (mutex-protected) - Closed: Teardown complete, receipt emitted
+- ContributionReceipt — Contribution Receipt: auditable proof of work performed during a session.  RFC 2119 requirement: All fields are mandatory except signature (which is mandatory only for RemoteBackend).
+- CloseStepError — Error raised when one or more close() teardown steps fail while the session still reaches the Closed state. Callers can inspect `errors` for details and `receipt` for the partial receipt.
+- AgentSessionOptions — AgentSessionOptions: constructor configuration.
+- PostgresRowChange — A single row-level change captured from Postgres.  In a full implementation this would be populated via Postgres LISTEN/NOTIFY on a changes table, or via logical decoding (pg_logical_emit_message).
+- PostgresChangeset — Wire format for a PostgresChangeset batch.  TODO: Align with the binary format produced by LocalBackend.getChangesSince() once the cr-sqlite changeset schema is stabilised in P2.6.
+- PostgresChangesetAdapterOptions — Options for constructing a PostgresChangesetAdapter.
+- MeshChangesetRouteOptions — Options for the POST /mesh/changeset route handler.
+- MeshChangesetResult — Generic POST /mesh/changeset handler result.  The route handler is framework-agnostic: the caller (Hono/Express/etc.) provides the request body and receives a structured result to render.
+- A2AEnvelope — Canonical A2A message envelope (matches crates/llmtxt-core/src/a2a.rs).
+- BuildA2AOptions — Options for building an A2A message.
+- InboxDeliveryResponse — Response from POST /agents/:id/inbox.
+- InboxMessage — Message in agent inbox response.
+- InboxPollResponse — Response from GET /agents/:id/inbox.
+- BFTApprovalStatus — BFT approval status.
+- SignedApprovalEnvelope — Signed approval envelope ready to POST to /bft/approve.
+- BFTApprovalResponse — Response from POST /documents/:slug/bft/approve.
+- BFTStatusResponse — Response from GET /documents/:slug/bft/status.
+- ChainVerificationResponse — Response from GET /documents/:slug/chain.
+- ScratchpadMessage — A scratchpad message as returned by the API.
+- SendScratchpadOptions — Options for sending a scratchpad message.
+- ReadScratchpadOptions — Options for reading scratchpad messages.

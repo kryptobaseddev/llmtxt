@@ -1,14 +1,20 @@
 # llmtxt-core
 
-[![v2026.4.6](https://img.shields.io/badge/version-2026.4.6-blue)](https://crates.io/crates/llmtxt-core)
+[![v2026.4.13](https://img.shields.io/badge/version-2026.4.13-blue)](https://crates.io/crates/llmtxt-core)
 
 Portable Rust primitives for llmtxt content workflows.
 
 `llmtxt-core` is the single source of truth for compression, hashing, signing,
 patching, similarity, and CRDT used by both:
 
-- native Rust consumers like the LLMtxt backend (Axum)
+- native Rust consumers like the LLMtxt backend (Fastify via WASM, plus native Axum callers)
 - the TypeScript package `llmtxt` via WASM bindings
+
+**v2026.4.13**: Multi-modal `classify_content()` pipeline — magic-byte layer (`infer`) → text-vs-binary gate (`content_inspector`) → heuristic layer. Classifies 20+ formats (PDF/PNG/JPEG/JSON/markdown/code/text) with a `ClassificationResult { format, confidence, layers }`. `detect_document_format` delegates to the new classifier; WASM-exported as `classify_content_wasm`.
+
+**v2026.4.12**: `detect_document_format` heading short-circuit — any heading now classifies as markdown (prevents markdown docs with only H1 from falling through to "text").
+
+**v2026.4.9**: crate remained at 2026.4.6 for this minor cycle; npm-side additions live in `packages/llmtxt`.
 
 **v2026.4.6**: CRDT layer migrated from `yrs` to `loro` 1.0 (binary-incompatible clean break). Added `hash_blob` for content-addressed binary attachments and `canonical_frontmatter` for deterministic document export.
 

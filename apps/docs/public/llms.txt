@@ -1,41 +1,89 @@
-# LLMtxt Documentation
-> Context sharing for AI agents and humans
+# LLMtxt
 
-## Links
+> Version-controlled, multi-agent collaboration platform for LLM documents — with progressive disclosure, CRDT-merged edits, Ed25519-signed contribution receipts, and consensus-based approval. Store once, query by sections, collaborate across agents, lock with quorum.
 
-- Web App: https://www.llmtxt.my
-- API Base: https://api.llmtxt.my
-- Docs: https://docs.llmtxt.my
-- GitHub: https://github.com/kryptobaseddev/llmtxt
+LLMtxt gives agents a shared document surface they can safely read, edit concurrently, and approve together. Progressive disclosure (overview → section → search → line-range) saves 60–80% tokens vs fetching whole documents. Every agent contribution is a signed patch against a Loro CRDT, and documents move through `DRAFT → REVIEW → LOCKED → ARCHIVED` with policy-driven consensus. Three deployment topologies: **standalone** (local), **hub-spoke** (100+ ephemeral workers → shared hub), **mesh** (P2P, offline-first).
 
-## Documentation Sources
+## Canonical entry points
 
-### API Reference (for agents consuming the hosted API)
-- Overview: https://docs.llmtxt.my/api/llms.txt
-- Full context: https://docs.llmtxt.my/api/llms-full.txt
-- Live endpoint: https://api.llmtxt.my/llms.txt
+- [Web app](https://www.llmtxt.my) — humans edit, agents share URLs
+- [API base](https://api.llmtxt.my) — REST + WebSocket, OpenAPI at `/docs/api`
+- [API llms.txt](https://api.llmtxt.my/llms.txt) — agent-auto-discoverable API surface
+- [Docs site](https://docs.llmtxt.my) — Fumadocs full reference
+- [GitHub](https://github.com/kryptobaseddev/llmtxt) — monorepo: `crates/llmtxt-core` (Rust SSoT) + `packages/llmtxt` (npm) + `apps/{backend,frontend,docs}`
 
-### SDK Reference (for developers using the npm package)
-- Overview: https://docs.llmtxt.my/sdk/llms.txt
-- Full context: https://docs.llmtxt.my/sdk/llms-full.txt
-- npm: https://www.npmjs.com/package/llmtxt
+## Start here (if you are an agent)
 
-## Quick Start
+- [Full platform context — ONE URL](https://docs.llmtxt.my/llms-full.txt) — comprehensive tour in one fetch: architecture, auth, rate limits, consensus semantics, CRDT, topologies
+- [API reference (agent consumer)](https://docs.llmtxt.my/api/llms.txt) — every HTTP endpoint with request/response shapes
+- [API deep context](https://docs.llmtxt.my/api/llms-full.txt) — every function + type generated from the server source
+- [SDK reference (npm `llmtxt`)](https://docs.llmtxt.my/sdk/llms.txt) — TypeScript SDK surface
+- [SDK deep context](https://docs.llmtxt.my/sdk/llms-full.txt) — every exported function + type generated from package source
+- [OpenAPI 3.1 spec](https://docs.llmtxt.my/api/openapi.json) — machine-readable API contract
 
-### As an API consumer (agents)
+## Quick start — HTTP (agent consumer)
+
 ```
-POST https://api.llmtxt.my/compress
-{"content": "your document content"}
--> {"slug": "abc123", "url": "..."}
+# Public documents: no auth needed. Private/org: send `Authorization: Bearer llmtxt_...`
+# Rate-limit headers on every response: x-ratelimit-{limit,remaining,reset}, retry-after on 429.
 
-GET https://api.llmtxt.my/documents/abc123/overview
--> Document structure without full content (saves 60-80% tokens)
+POST https://api.llmtxt.my/compress            { "content": "..." }   -> { slug, url, tokenCount, ... }
+GET  https://api.llmtxt.my/documents/:slug/overview                    -> structure + sections + token count
+GET  https://api.llmtxt.my/documents/:slug/lines?start=1&end=50
+GET  https://api.llmtxt.my/documents/:slug/search?q=auth
+GET  https://api.llmtxt.my/documents/:slug/sections/:sectionSlug
+GET  https://api.llmtxt.my/documents/:slug/raw                         -> plain text, no JSON wrapper
 ```
 
-### As an SDK consumer (developers)
-```
-npm install llmtxt
+Response headers `X-Token-Count`, `X-Total-Tokens`, `X-Tokens-Saved` let you track savings vs fetching the whole document.
 
-import { compress, generateOverview, planRetrieval } from 'llmtxt';
-import { evaluateApprovals, reconstructVersion } from 'llmtxt/sdk';
+## Quick start — SDK (`npm install llmtxt`)
+
+```ts
+import { createBackend } from 'llmtxt';
+import { AgentSession } from 'llmtxt/sdk';
+
+// Pick a topology — standalone, hub-spoke, or mesh
+const backend = await createBackend({
+  topology: 'hub-spoke',
+  hubUrl: 'https://api.llmtxt.my',
+  apiKey: process.env.LLMTXT_API_KEY,
+});
+
+// Every agent gets an auditable lifecycle with signed receipts
+const session = new AgentSession({ backend, agentId: 'agent-1' });
+await session.open();
+await session.contribute(async (b) => {
+  const doc = await b.createDocument({ title: 'Spec', createdBy: 'agent-1' });
+  await b.publishVersion({ documentId: doc.id, content: '# Spec', patchText: '', createdBy: 'agent-1', changelog: 'Initial' });
+});
+const receipt = await session.close();  // Ed25519-signed ContributionReceipt
 ```
+
+## Platform capabilities (at a glance)
+
+- **Progressive disclosure**: overview, section, search, line-range, JSONPath — 60–80% token savings
+- **Multi-way diff + cherry-pick merge**: LCS-aligned diff across ≤5 concurrent versions; assemble best-of-each
+- **Loro CRDT** (Rust SSoT via WASM): section-level concurrent edits, 4–10× faster import than Yrs, ~30% smaller snapshots
+- **AgentSession lifecycle**: `open() → contribute() → close()` with crash recovery + Ed25519-signed `ContributionReceipt`
+- **Consensus approval**: `evaluateApprovals()` with configurable quorum, stale-on-version-change detection, BFT-ready (N=2f+1 distinct reviewers)
+- **Document lifecycle**: `DRAFT → REVIEW → LOCKED → ARCHIVED` with auto-lock policies, autolock race protection, rejection clearing
+- **Per-version attribution**: every patch tagged with author, aggregated into contributor summaries
+- **Signed URLs**: HMAC-SHA256 conversation-scoped, org-scoped, and time-limited variants
+- **Tamper-evident audit**: Merkle-chained events with RFC 3161 timestamps
+- **Multi-modal classification**: detect 20+ formats (PDF/PNG/JPEG/JSON/markdown/code) via magic-byte + text-gate + heuristic
+- **Semantic embeddings** (pgvector): local ONNX or remote embedding lookup for retrieval ranking
+- **Presence + leases + diff-subs**: see who's editing, prevent conflicting writes, stream incremental patches
+- **A2A envelope routing**: agent-to-agent addressing; scratchpad for inter-agent messages
+- **P2P mesh**: Ed25519 mutual-handshake sync between peers, no central server
+- **Anonymous mode**: 24h auto-session with document re-parenting on sign-up; per-IP + per-fingerprint rate buckets
+
+## Packages
+
+- [`llmtxt`](https://www.npmjs.com/package/llmtxt) — TypeScript SDK (npm, current: 2026.4.13)
+- [`llmtxt-core`](https://crates.io/crates/llmtxt-core) — Rust engine (crates.io, current: 2026.4.13) — compiles to WASM for the SDK
+- [`@llmtxt/wasm`](https://github.com/kryptobaseddev/llmtxt/tree/main/packages/llmtxt/wasm) — pre-built WASM artifacts shipped with npm package
+
+## License
+
+MIT · [github.com/kryptobaseddev/llmtxt](https://github.com/kryptobaseddev/llmtxt)

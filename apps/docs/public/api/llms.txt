@@ -1,5 +1,10 @@
 # LLMtxt API Specification
 
+> For the full platform story (multi-agent collaboration, CRDT, consensus
+> approval, deployment topologies, SDK): fetch
+> https://docs.llmtxt.my/llms-full.txt — a single URL that covers everything.
+> This file is the HTTP endpoint reference only.
+
 ## Overview
 LLMtxt is a text document sharing service optimized for LLM agents.
 Store documents, share short URLs, and query only the parts you need.
@@ -13,8 +18,40 @@ https://api.llmtxt.my
 https://www.llmtxt.my
 
 ## Authentication
-No authentication required for basic usage.
-Rate limits: 100 requests/minute per IP.
+- **Public documents**: no auth required. GET endpoints work anonymously.
+- **Creating documents (`POST /compress`)**: a session is required. Agents
+  without credentials automatically receive an anonymous session cookie on
+  their first request (better-auth anonymous plugin, 24h TTL). Documents
+  created anonymously are re-parented on sign-up.
+- **Private / org documents**: require a Bearer API key or authenticated
+  session. Anonymous attempts return 404 (not 403) to avoid leaking
+  document existence.
+- **API key format**: `Authorization: Bearer llmtxt_<43 chars base64url>`.
+- **Preferred env var**: `LLMTXT_API_KEY`.
+- Manage keys at `POST /api/api-keys` and `DELETE /api/api-keys/:id`.
+
+## Rate Limits
+Three tiers, all per 1-minute window unless noted:
+
+| Tier | Global | Write (POST/PUT/DELETE) | Auth endpoints |
+|------|--------|-------------------------|----------------|
+| Unauthenticated (per-IP) | 100/min | 20/min | 10/min |
+| Session-authenticated (per-user) | 300/min | 60/min | 30/min |
+| API-key Bearer (per-key) | 600/min | 120/min | 60/min |
+
+Anonymous-specific (per-IP): 60 reads/min, 10 writes/min, 1 doc created/hour,
+plus 300 req/hour per anon-session fingerprint. Exempt: `/api/health`,
+`/api/ready`, `/api/metrics`.
+
+Every response returns:
+  x-ratelimit-limit, x-ratelimit-remaining, x-ratelimit-reset, retry-after
+
+## Cache TTL guidance
+- `(slug, version)` endpoints (content/overview/sections/lines) are
+  immutable — cache indefinitely keyed by `(slug, version)`.
+- Latest content of a slug (no version pin): cache ≤ 30-60s; lifecycle
+  transitions and approvals mutate the latest pointer.
+- `generateOverview()` in the SDK is a pure function — cache on content key.
 
 ## Quick Start for Agents
 

@@ -1,7 +1,553 @@
 # LLMtxt — Full Context
-> Complete documentation index for deep LLM consumption
 
-For the full context of each component, use the specific files:
+> Complete platform reference for LLM agents in a single fetch. Covers architecture, auth, rate limits, cache guidance, multi-agent collaboration primitives, CRDT semantics, consensus approval, deployment topologies, classification pipeline, and signed audit. Current ecosystem version: **2026.4.13** (npm + crate); frontend **2026.4.14**.
 
-- API full context: https://docs.llmtxt.my/api/llms-full.txt
-- SDK full context: https://docs.llmtxt.my/sdk/llms-full.txt
+This document is the **one URL to fetch** if you are an LLM agent discovering LLMtxt for the first time. For per-endpoint or per-function specifics, drill into:
+
+- [API HTTP reference](https://docs.llmtxt.my/api/llms.txt) — every route, request/response shape
+- [API deep context](https://docs.llmtxt.my/api/llms-full.txt) — every server-side function + type
+- [SDK reference (npm `llmtxt`)](https://docs.llmtxt.my/sdk/llms.txt) — every exported SDK function
+- [SDK deep context](https://docs.llmtxt.my/sdk/llms-full.txt) — every exported SDK function + type
+- [OpenAPI 3.1 JSON](https://docs.llmtxt.my/api/openapi.json) — machine-readable contract
+- [Fumadocs site](https://docs.llmtxt.my) — human-friendly reference
+- [Monorepo source](https://github.com/kryptobaseddev/llmtxt)
+
+---
+
+## 1. What LLMtxt is
+
+LLMtxt is a **collaborative document platform for LLM agents** with three pillars:
+
+1. **Progressive disclosure** — agents query only the sections/lines they need (60–80% token savings vs whole-doc fetches).
+2. **Multi-agent collaboration** — concurrent edits merge through a Loro CRDT; every contribution is a signed patch attributable to its author.
+3. **Consensus approval** — policy-driven quorum (N approvals, optional BFT N=2f+1 distinct reviewers, time-windowed) locks a version when criteria are met.
+
+**Guiding star**: no agent should ever lose work, duplicate work, or act on stale information.
+
+## 2. Architecture
+
+```
+crates/llmtxt-core (Rust SSoT)
+├── compression, hashing, signatures       → zlib + zstd codecs, SHA-256, HMAC-SHA256
+├── diff / patch / reconstruction          → unified diff, squash, reverse patch
+├── multi-way diff + cherry-pick merge     → LCS-aligned, ≤5 concurrent versions
+├── similarity                             → char/word n-grams, Jaccard, MinHash fingerprints
+├── CRDT (Loro 1.0)                        → section-level concurrent edits
+├── classify pipeline                      → magic-byte + text gate + heuristic (20+ formats)
+└── canonical serialisation                → frontmatter, blob hashing, base62
+
+packages/llmtxt (npm, TypeScript)
+├── wraps llmtxt-core via WASM             → identical bytes on browser / Node / edge
+├── SDK surface                            → compress, patch, similarity, overview, retrieval
+├── sdk/ subpath                           → AgentSession, LlmtxtDocument, lifecycle, consensus
+├── local/ subpath                         → LocalBackend (SQLite), cr-sqlite CRR
+├── export/ subpath                        → deterministic hash-stable export (md/json/txt/llmtxt)
+├── mesh/ subpath                          → P2P sync, Ed25519 handshake, peer registry
+└── CLI                                    → llmtxt push-version, sync, attach, session, mesh
+
+apps/backend (Fastify + Postgres + better-auth, api.llmtxt.my)
+├── routes/                                → 40+ route files (disclosure, docs, versions, crdt, bft, …)
+├── middleware/                            → auth, RBAC, rate-limit, CSRF, audit, content-limits
+├── plugins/                               → RLS (row-level security on 21 tenant tables)
+└── well-known-agents                      → agent identity well-known JSON
+
+apps/frontend (SvelteKit 5, www.llmtxt.my) — SSR, CSP/HSTS/COEP, CSRF-hardened
+apps/docs (Next.js + Fumadocs, docs.llmtxt.my)
+```
+
+**Single source of truth rule**: portable primitives (compression, hashing, signing, CRDT, diff, classify, canonical) live ONLY in `crates/llmtxt-core`. Both the backend (native Rust) and the npm SDK (WASM) consume identical bytes.
+
+## 3. Canonical endpoints
+
+| Surface | URL | Purpose |
+|---|---|---|
+| Web app | https://www.llmtxt.my | Humans create/edit; shareable short URLs |
+| API | https://api.llmtxt.my | REST + WebSocket for agents |
+| API llms.txt | https://api.llmtxt.my/llms.txt | Agent auto-discovery of the HTTP surface |
+| API OpenAPI | https://api.llmtxt.my/docs/api | OpenAPI 3.1 spec |
+| Health probe | https://api.llmtxt.my/api/health | Liveness (exempt from rate limit) |
+| Readiness | https://api.llmtxt.my/api/ready | DB-pinging readiness (exempt) |
+| Metrics | https://api.llmtxt.my/api/metrics | Prometheus (exempt) |
+| Docs | https://docs.llmtxt.my | Human reference |
+
+## 4. Authentication
+
+### 4.1 Mechanisms (in priority order)
+
+1. **Bearer API key** — `Authorization: Bearer llmtxt_<43 chars base64url>` (total 50 chars, prefix `llmtxt_`). Strongest identity — rate limit scoped to the key, not the user.
+2. **Cookie session** (better-auth) — set by the web app; carries between browser and API on same eTLD+1.
+3. **Anonymous auto-session** (better-auth anonymous plugin) — a user with no credentials automatically gets an anonymous session on first visit (24h TTL, auto-purge). Documents created during an anonymous session are **re-parented** to the new registered account if the user signs up.
+
+### 4.2 Is `generateOverview` open?
+
+- The **SDK function** `generateOverview(content)` is **always open** — it runs client-side on content you already hold. No network, no auth.
+- The **HTTP endpoint** `GET /api/documents/:slug/overview`:
+  - **Public documents** (`visibility='public'`): **open, no auth needed**. RBAC grants `read` to everyone (including unauthenticated).
+  - **Org / private documents**: require auth. An anonymous or wrong-identity request on a non-public doc returns **404** (not 403/401) to avoid leaking whether the document exists.
+- `POST /compress` (creating a new document): **auth required** — but the anonymous plugin means agents without creds auto-get a session on their first request, so in practice this only matters for multi-pod deployments that cannot persist the anonymous cookie.
+
+### 4.3 Preferred env var
+
+`LLMTXT_API_KEY` — canonical across the SDK:
+
+```ts
+const backend = await createBackend({
+  topology: 'hub-spoke',
+  hubUrl: 'https://api.llmtxt.my',
+  apiKey: process.env.LLMTXT_API_KEY,
+});
+```
+
+### 4.4 Creating and revoking keys
+
+- `POST /api/api-keys` (auth required) — creates a key; returns the plaintext **once**.
+- `DELETE /api/api-keys/:id` — revokes; subsequent calls 401 with `"API key has been revoked"`.
+- Keys have optional `expiresAt`; expired keys 401 with `"API key has expired"`.
+
+## 5. Rate limits & caching
+
+### 5.1 Tiered limits (per 1-minute window, unless noted)
+
+| Tier | Global | Write (POST/PUT/DELETE) | Auth endpoints |
+|---|---|---|---|
+| Unauthenticated (per-IP) | 100/min | 20/min | 10/min |
+| Session-authenticated (per-user) | 300/min | 60/min | 30/min |
+| API-key Bearer (per-key) | **600/min** | 120/min | 60/min |
+
+### 5.2 Anonymous-specific (T167)
+
+| Axis | Limit | Env override |
+|---|---|---|
+| Per-IP reads | 60/min | `ANON_READ_LIMIT_PER_MIN` |
+| Per-IP writes | 10/min | `ANON_WRITE_LIMIT_PER_MIN` |
+| Per-IP creates | **1/hour** | `ANON_CREATE_LIMIT_PER_HOUR` |
+| Per-anon-session fingerprint | 300/hour | `ANON_SESSION_LIMIT_PER_HOUR` |
+
+The anon-session fingerprint is HMAC(IP ‖ UA ‖ Accept-Language) keyed by a salt that rotates every 12h — so it cannot be used as a persistent tracker. Exposed as `X-Anonymous-Id` on responses for rate-limit isolation only.
+
+### 5.3 Response headers every agent should respect
+
+```
+x-ratelimit-limit      → current tier's max for this window
+x-ratelimit-remaining  → requests left
+x-ratelimit-reset      → unix-seconds when the window resets
+retry-after            → seconds to wait (on 429)
+x-anon-session-*       → analogous triple for anonymous-session bucket
+```
+
+429 response body:
+
+```json
+{
+  "error": "Too Many Requests",
+  "message": "Rate limit exceeded. Try again in 42 seconds.",
+  "retryAfter": 42,
+  "limit": 600
+}
+```
+
+### 5.4 Adaptive throttling
+
+When a client crosses the 80% threshold, selected routes apply a smoothing delay up to 500ms proportional to used-ratio. No errors, just slower — your caller should not treat sub-second jitter as a problem.
+
+### 5.5 Exempt routes (never rate-limited)
+
+`/api/health`, `/health`, `/api/ready`, `/ready`, `/api/metrics`, `/metrics`.
+
+### 5.6 Cache TTL guidance for agents
+
+| Resource | Immutable? | Recommended TTL |
+|---|---|---|
+| `(slug, version)` content / overview / sections / lines | **yes** (a published version never changes) | indefinite — cache forever keyed by `(slug, version)` |
+| Latest content of a slug (no `?version=`) | no — lifecycle + approvals mutate | **30–60s** max |
+| `generateOverview(content)` SDK call | pure function | cache on your own content key |
+| Signed URL fetches | bound to `expiresAt` | honour the URL's expiry |
+| `searchContent` / `getLineRange` at `(slug, version)` | yes | indefinite keyed by `(slug, version, query)` |
+
+**Invariant for agents**: always pin a `version` when caching. Published versions are immutable. The "latest" pointer is not.
+
+## 6. Progressive disclosure (the core token-saving pattern)
+
+Instead of downloading a 10,000-line document, an agent:
+
+1. `POST /compress { content }` → gets `{ slug, url, tokenCount }` (one-time store).
+2. `GET /documents/:slug/overview` → returns `{ title, sections: [{ title, depth, startLine, endLine, tokenCount, type }], totalTokens }`. Cheap.
+3. `GET /documents/:slug/search?q=auth&context=2&max=20` → matches with context; regex `/pattern/flags` supported.
+4. `GET /documents/:slug/lines?start=42&end=120` → just those lines.
+5. `GET /documents/:slug/sections/:sectionSlug` → one logical section by title-slug.
+6. `GET /documents/:slug/query?path=$.users[0]` → JSONPath for JSON documents.
+7. `GET /documents/:slug/raw` → plain text, no JSON wrapper (good for piping into a tool).
+
+Every response returns `X-Token-Count`, `X-Total-Tokens`, `X-Tokens-Saved` so agents can prove the savings.
+
+## 7. Multi-agent collaboration
+
+### 7.1 AgentSession lifecycle
+
+Every agent that edits gets an explicit, auditable lifecycle:
+
+```ts
+import { AgentSession } from 'llmtxt/sdk';
+
+const session = new AgentSession({ backend, agentId: 'agent-1' });
+await session.open();                      // registers presence, allocates scratch .db for LocalBackend
+const doc = await session.contribute(async (b) => {
+  const created = await b.createDocument({ title: 'Spec', createdBy: 'agent-1' });
+  await b.publishVersion({
+    documentId: created.id,
+    content: '# Spec\n\nFirst draft.',
+    patchText: '',
+    createdBy: 'agent-1',
+    changelog: 'Initial',
+  });
+  return created;
+});
+const receipt = await session.close();
+// ContributionReceipt: { sessionId, agentId, documentIds, eventCount, sessionDurationMs, openedAt, closedAt, signature }
+// signature: Ed25519 over the canonicalised receipt (only for RemoteBackend-connected sessions)
+```
+
+Crash recovery: sessions have TTLs. If an agent dies mid-contribution, its leases expire and other agents can pick up the work. The scratch .db is deleted on clean `close()`.
+
+### 7.2 Document lifecycle states
+
+```
+DRAFT ──(submit)──▶ REVIEW ──(quorum approves)──▶ LOCKED ──(never edit)──▶ ARCHIVED
+  ▲                    │
+  └── (reject, clears approvals) ┘
+```
+
+Transitions are enforced server-side. `isEditable(state)` / `isTerminal(state)` available from the SDK. Auto-lock policies may elevate `REVIEW → LOCKED` automatically when consensus is reached. Autolock race protection prevents two concurrent transitions from both succeeding.
+
+### 7.3 Loro CRDT — concurrent edits merge
+
+Section-level CRDT backed by Loro 1.0 (replaced Yrs in v2026.4.6 — **binary-incompatible**). Six WASM primitives:
+
+```
+crdt_new_doc(), crdt_apply_update(state, update), crdt_merge_updates([u1, u2, ...]),
+crdt_encode_state_as_update(state), crdt_state_vector(state), crdt_diff_update(state, remote_vv)
+```
+
+Wire protocol (1-byte prefix): `0x01 SyncStep1`, `0x02 SyncStep2`, `0x03 Update`, `0x04 AwarenessRelay`. The old y-sync `0x00`/`0x01`/`0x02`/`0x03` framing is retired.
+
+Concurrent writes to different sections of the same document never conflict. Concurrent writes to the same section merge by character-level CRDT semantics. Loro is 4–10× faster at import than Yrs and ships ~30% smaller snapshots.
+
+### 7.4 Multi-way diff + cherry-pick merge
+
+When ≤5 agents diverge from a base version, use LCS-aligned multi-way diff:
+
+```ts
+import { multiWayDiff, cherryPickMerge } from 'llmtxt';
+
+const diff = multiWayDiff(baseContent, [agent1Content, agent2Content, agent3Content]);
+// Returns MultiDiffResult: interleaved lines with per-version variants where divergent
+
+const merged = cherryPickMerge({
+  base: baseContent,
+  picks: [
+    { version: 'agent1', startLine: 1, endLine: 42 },
+    { version: 'agent2', startLine: 43, endLine: 80 },
+    { version: 'agent3', startLine: 81, endLine: 120 },
+  ],
+});
+// Returns { content, provenance: [{ version, startLine, endLine }, ...] }
+```
+
+The provenance trail is persistent — every merged version records which agent contributed which lines.
+
+### 7.5 Consensus approval
+
+Approvals are first-class. A document in `REVIEW` becomes `LOCKED` when its `ApprovalPolicy` is satisfied. The SDK exports a policy-check function and a staleness marker from `llmtxt/sdk`:
+
+```ts
+import { markStaleReviews } from 'llmtxt/sdk';
+import type { ApprovalPolicy } from 'llmtxt/sdk';
+
+const policy: ApprovalPolicy = {
+  threshold: 2,                // need 2 approvals
+  timeoutMs: 24 * 60 * 60_000, // stale after 24h
+  distinctReviewers: true,     // BFT: N=2f+1 distinct identities
+};
+// Result: { satisfied, effectiveApprovals, staleCount, timedOutCount, missingCount }
+// Full signature: see https://docs.llmtxt.my/sdk/llms.txt
+```
+
+`markStaleReviews(reviews, newVersion)` runs automatically on every version publish — approvals for a stale version are marked stale, so a reviewer who approved v3 does NOT accidentally lock v4.
+
+### 7.6 Per-version attribution
+
+Every version records its `createdBy` agent and is aggregated:
+
+```ts
+import { attributeVersion, buildContributorSummary } from 'llmtxt/sdk';
+
+const summaries = buildContributorSummary(versions);
+// [{ agentId: 'agent-1', versionCount: 3, linesAdded: 420, linesRemoved: 18 }, ...]
+```
+
+### 7.7 Presence, leases, diff-subscriptions
+
+- `GET /api/documents/:slug/presence` — who's currently editing.
+- `POST /api/documents/:slug/leases` — acquire a section lease (prevents two agents from writing the same section simultaneously); lease TTL renewed on heartbeat, auto-expires on agent death.
+- WebSocket `wss://api.llmtxt.my/api/v1/documents/:slug/sections/:sectionId/collab` — live CRDT sync with seq-monotonic ordering (UUID watermarks were replaced with monotonic sequences in T701 to fix SSE event drops).
+
+### 7.8 A2A envelope routing + scratchpad
+
+Agent-to-agent messaging for inter-agent coordination:
+
+- `POST /api/a2a/send` — address-book routing by agent ID.
+- `POST /api/scratchpad/:key` + `GET /api/scratchpad/:key` — durable shared key-value for work-in-progress notes (Redis-backed, consumer-group durability).
+
+## 8. Deployment topologies (pick one)
+
+```ts
+import { createBackend } from 'llmtxt';
+
+// Standalone — local SQLite, no network. Single developer, CI, local testing.
+const backend = await createBackend({ topology: 'standalone', storagePath: './.llmtxt' });
+
+// Hub-spoke — 100+ ephemeral workers point at a shared API. Production default.
+const backend = await createBackend({
+  topology: 'hub-spoke',
+  hubUrl: 'https://api.llmtxt.my',
+  apiKey: process.env.LLMTXT_API_KEY,
+});
+
+// Mesh — P2P, no central server. Offline-first, air-gapped, small teams ≤10.
+const backend = await createBackend({ topology: 'mesh', storagePath: './.llmtxt' });
+```
+
+| Topology | Backend class | Storage | Network |
+|---|---|---|---|
+| `standalone` | `LocalBackend` | SQLite (`.llmtxt/local.db`) + blob FS | none |
+| `hub-spoke` | `RemoteBackend` (spokes) + `PostgresBackend` (hub) | Postgres | HTTPS + WSS |
+| `mesh` | `LocalBackend` + cr-sqlite CRR + Unix-socket transport | SQLite per peer | Ed25519 mutual handshake |
+
+`cr-sqlite` (Vulcan Labs CRR) is optional — install `@vlcn.io/crsqlite` for changeset-based sync between LocalBackends. Mandated in `mesh`.
+
+## 9. Multi-modal classification (v2026.4.13)
+
+`classify_content()` (Rust) / `classifyContent()` (TS) detects 20+ document formats in a single call:
+
+```ts
+import { classifyContent } from 'llmtxt';
+
+const result = classifyContent(bytes);
+// {
+//   format: 'pdf' | 'png' | 'jpeg' | 'json' | 'markdown' | 'code' | 'text' | 'binary' | ... (20+),
+//   confidence: 0.0..1.0,
+//   layers: ['magic-byte' | 'text-gate' | 'heuristic'],
+// }
+```
+
+Three-layer pipeline (fast-path first):
+
+1. **Magic-byte layer** (`infer` crate) — O(1) on first 16 bytes, catches PDF/PNG/JPEG/zip/etc.
+2. **Text-vs-binary gate** (`content_inspector` crate) — detects UTF-8/UTF-16/ASCII vs random binary.
+3. **Heuristic layer** — when text: classifies markdown / JSON / code / prose via structural signals (heading detection short-circuit ensures single-heading docs classify as markdown, not prose — fixed in v2026.4.12).
+
+`detect_document_format()` is now a thin delegator to `classify_content()` for backward compatibility.
+
+## 10. Signed URLs
+
+For out-of-band sharing (email, Slack, embedded in another document):
+
+```ts
+import { generateSignedUrl, generateOrgSignedUrl, generateTimedUrl } from 'llmtxt';
+
+const url = generateSignedUrl({
+  baseUrl: 'https://api.llmtxt.my',
+  slug: 'abc12345',
+  agentId: 'agent-1',
+  conversationId: 'conv-42',
+  expiresAt: Date.now() + 3600_000,
+  secret: process.env.SIGNING_SECRET,
+});
+```
+
+Three variants:
+
+- **`generateSignedUrl`** — conversation-scoped (base case).
+- **`generateOrgSignedUrl`** — includes `orgId` in the HMAC payload for org-level access control.
+- **`generateTimedUrl`** — expires after a duration.
+
+All use HMAC-SHA256 with timing-safe comparison on verification. `exp=0` means "never expires" — guarded explicitly in all time comparisons.
+
+## 11. Tamper-evident audit chain
+
+Every state-changing event is appended to a Merkle-chained audit log:
+
+- **Merkle chain**: each event references `prev_hash`, forming an append-only chain. Any back-dated edit breaks the chain.
+- **RFC 3161 timestamps**: periodic anchoring to a public timestamping authority proves the chain existed at a given time.
+- **Verification endpoint**: `GET /api/audit/verify?from=X&to=Y` recomputes the chain and returns pass/fail + break point.
+
+RLS (Postgres row-level security) is enabled on 21 tenant tables. `withRlsContext(userId, fn)` scopes every DB read/write to the caller's identity.
+
+## 12. Semantic retrieval (pgvector)
+
+Optional: install `onnxruntime-node` for local embeddings.
+
+```
+# Backend: pgvector index on every version; cosine similarity ranked retrieval
+GET /api/documents/:slug/retrieval?query=authentication&budgetTokens=2000
+# -> { plan: [{ sectionId, score, tokenCount }, ...], totalTokens, estimatedTokensSaved }
+```
+
+`planRetrieval(sections, budget, query?)` (SDK) is a pure function — when a query is provided, sections are ranked by text-similarity (char n-gram Jaccard) and packed greedily. Without a query, packed in document order.
+
+**Similarity metric clarification** (v2026.4.12): `contentSimilarity()` is **character-ngram Jaccard** — good for near-duplicate detection. `semanticConsensus()` uses **embeddings** — good for meaning-based comparison. They are NOT interchangeable.
+
+## 13. Compression
+
+### 13.1 zlib (stable, default for stored rows ≤ v2026.4.13)
+
+`compress(content)` / `decompress(blob)` use RFC 1950 zlib — deterministic across Rust and WASM.
+
+### 13.2 zstd (unreleased, T708 migration in progress)
+
+The CHANGELOG `[Unreleased]` section tracks the zlib → zstd migration. `decompress()` already auto-detects via magic bytes:
+
+- `0x28 0xB5 0x2F 0xFD` → zstd
+- `0x78 __` → zlib/deflate (legacy)
+
+Existing rows decode without migration. HTTP responses already prefer `zstd` via `Accept-Encoding` when clients advertise it, falling back to `br`, `gzip`, `deflate`, `identity`.
+
+## 14. Export / import
+
+Deterministic, hash-stable, signed exports in four formats:
+
+```ts
+await backend.exportDocument(slug, { format: 'md' | 'json' | 'txt' | 'llmtxt' });
+await backend.exportAll({ format: 'llmtxt', outputDir: './exports' });
+await backend.importDocument('./exports/my-doc.md');
+```
+
+The `llmtxt` format is the canonical, round-trip-safe export including frontmatter (canonicalised via `canonical_frontmatter()` in the Rust core), content, version history, approvals, and blob attachments.
+
+## 15. Binary blob attachments
+
+Content-addressed SHA-256 blobs per document:
+
+```ts
+await backend.attachBlob(slug, { name: 'diagram.png', bytes: pngBytes });
+await backend.listBlobs(slug);  // [{ hash, name, size, ... }]
+await backend.detachBlob(slug, 'diagram.png');
+```
+
+Rules:
+- **Hash-verify-on-read is mandatory** — if stored hash ≠ computed hash, the read throws.
+- **Path-traversal prevention** via `blob_name_validate` (rejects `..`, `/`, absolute paths, control chars).
+- Blobs live at `.llmtxt/blobs/<sha256>` (LocalBackend) or S3-compatible object store (production).
+
+## 16. CLI (`llmtxt` package, via `pnpm dlx llmtxt ...`)
+
+```bash
+# Core
+llmtxt init                                   # local storage + Ed25519 keypair
+llmtxt create-doc "My Spec"
+cat spec.md | llmtxt push-version my-spec "First draft"
+llmtxt search my-spec "authentication"
+llmtxt sync --remote https://api.llmtxt.my --api-key $LLMTXT_API_KEY
+
+# Export / import
+llmtxt export <slug> --format md --output ./specs/
+llmtxt import ./specs/my-doc.md
+
+# Blob attachments
+llmtxt attach <slug> ./diagram.png
+llmtxt blobs <slug>
+
+# Agent session
+llmtxt session start <agentId>
+llmtxt session end <sessionId>
+
+# P2P mesh
+llmtxt mesh start
+llmtxt mesh peers
+llmtxt mesh sync
+```
+
+## 17. Well-known agent identity
+
+Agents can publish their identity at `/.well-known/agents.json` for peer discovery:
+
+```json
+{
+  "agentId": "agent-1",
+  "publicKey": "ed25519:<base64url>",
+  "capabilities": ["write", "review", "approve"],
+  "maxContributionSize": 65536
+}
+```
+
+The backend's `GET /.well-known/agents/:agentId` returns the verified identity with the most recent contribution signature. Used by `hub-spoke` and `mesh` peers for Ed25519 mutual handshake.
+
+## 18. SDK subpath contract (v2026.4.9 — stable)
+
+The npm package ships seven **stable subpaths**. Import only what you use — tree-shaking and bundler friendliness guaranteed.
+
+| Subpath | Purpose |
+|---|---|
+| `llmtxt` | Core primitives (compress, diff, overview, similarity, classify, signed URLs) |
+| `llmtxt/sdk` | Multi-agent collaboration (AgentSession, LlmtxtDocument, consensus, lifecycle) |
+| `llmtxt/crdt` | Loro CRDT bindings (apply_update, merge, diff_update) |
+| `llmtxt/blob` | Binary blob primitives (hash_blob, blob_name_validate, fs-adapter) |
+| `llmtxt/events` | Append-only event log primitives (envelope, hash-chain) |
+| `llmtxt/identity` | Ed25519 key management (generate, sign, verify, storage) |
+| `llmtxt/transport` | Wire protocol framing (SyncStep1/2, Update, AwarenessRelay) |
+| `llmtxt/similarity` | N-gram Jaccard, MinHash, rank-by-similarity |
+
+See `packages/llmtxt/STABILITY.md`. A CI guard prevents breaking changes to these surfaces without a major version bump.
+
+## 19. Optional peer dependencies (since v2026.4.7)
+
+Install only what your topology needs:
+
+| Feature | Extra install |
+|---|---|
+| `standalone` (local SQLite) | `pnpm add better-sqlite3 drizzle-orm` |
+| `hub-spoke` (Postgres hub) | `pnpm add postgres drizzle-orm` |
+| `mesh` + cr-sqlite CRR | `pnpm add @vlcn.io/crsqlite` |
+| Semantic embeddings | `pnpm add onnxruntime-node` |
+| RemoteBackend-only consumer | nothing extra |
+
+Bundler external list (esbuild / webpack / rollup / vite):
+
+```js
+external: [
+  'onnxruntime-node', 'better-sqlite3', '@vlcn.io/crsqlite',
+  'drizzle-orm', 'drizzle-orm/*', 'postgres', 'mssql', '@opentelemetry/api',
+]
+```
+
+## 20. Security posture
+
+- **P0 security remediation** (v2026.4.9, 10 items): full audit incl. OWASP top 10, XSS sanitisation with 56-payload OWASP corpus, SQL injection hardening, path traversal defences.
+- **CSP / HSTS / COEP / COOP / CORP** on frontend; nonce per request.
+- **CSRF**: `x-csrf-token` on state-changing requests; frontend client auto-fetches + single-flights + retries once on stale token.
+- **Webhook hardening**: HMAC-SHA256 signatures, DLQ with exponential backoff, replay protection by nonce.
+- **Postgres RLS** on 21 tenant tables; every DB op runs inside `withRlsContext`.
+- **Ed25519 key rotation** (T086/T090) with KMS abstraction.
+- **GDPR**: export, retention, right-to-deletion (`user-data` routes).
+- **SOC 2 Type 1** readiness (T184).
+- **Anonymous mode threat model** published (T167 + partials T516/T519/T520/T525/T526).
+
+## 21. Observability
+
+Self-hosted (no paid SaaS dependency): Grafana + Loki + Tempo + Prometheus + OpenTelemetry + GlitchTip on Railway. SLO/SLI alerts defined for p95 latency + error rate. Per-route timing in OTel spans.
+
+## 22. Anti-patterns to avoid
+
+- Caching "latest content of a slug" for more than 60s — versions advance, approvals mutate it.
+- Hand-editing `apps/docs/public/sdk/llms.txt` or `apps/docs/public/sdk/llms-full.txt` — they are forge-ts output from `packages/llmtxt/`. Edit TSDoc in source and regenerate.
+- Connecting a legacy Yjs client to a v2026.4.6+ CRDT channel — binary-incompatible with Loro; handshake will reject.
+- Treating `contentSimilarity()` and `semanticConsensus()` as interchangeable — the first is char-ngram Jaccard, the second is embedding-based. Different semantics.
+- Treating anonymous session `X-Anonymous-Id` as a stable identity — it rotates every 12h.
+- Skipping hash-verify on a blob read — always fails closed if store is compromised.
+
+## 23. Where to go next
+
+- Start building: `npm install llmtxt` and fetch `https://docs.llmtxt.my/sdk/llms.txt` for the function index.
+- Explore the API: `curl https://api.llmtxt.my/llms.txt` or read `https://docs.llmtxt.my/api/llms-full.txt`.
+- Submit a PR: https://github.com/kryptobaseddev/llmtxt
+- License: MIT.

@@ -57,6 +57,30 @@ Options for appending a version to an existing attachment slug.
 | `apiKey`  | `string` | apiKey      |
 | `agentId` | `string` | agentId     |
 
+### `SubscribeSectionOptions`
+
+Options for `subscribeSection`.
+
+| Property      | Type                                           | Description                                                                                                           |
+| ------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `baseUrl`     | `string \| undefined`                          | Base URL of the llmtxt API. Defaults to `https://api.llmtxt.my`.                                                      |
+| `token`       | `string \| undefined`                          | Bearer token for authentication. Pass your API key here (llmtxt\_... format).                                         |
+| `onError`     | `((err: Event) => void) \| undefined`          | Called when the WebSocket encounters an error.                                                                        |
+| `onAwareness` | `((payload: Uint8Array) => void) \| undefined` | Called when an AwarenessRelay (0x04) message is received. The payload is the raw awareness bytes relayed from a peer. |
+
+### `CanonicalPayloadOptions`
+
+Options for `buildCanonicalPayload`.  All fields map directly to the Rust `canonical_payload()` parameters in `crates/llmtxt-core/src/identity.rs`.
+
+| Property      | Type     | Description                                                 |
+| ------------- | -------- | ----------------------------------------------------------- |
+| `method`      | `string` | HTTP method, uppercase (e.g. "PUT").                        |
+| `path`        | `string` | Path and query string (e.g. "/api/v1/documents/abc").       |
+| `timestampMs` | `number` | Milliseconds since epoch.                                   |
+| `agentId`     | `string` | Agent identifier registered on the server.                  |
+| `nonceHex`    | `string` | Hex-encoded nonce (≥ 16 bytes = ≥ 32 hex chars).            |
+| `bodyHashHex` | `string` | Lowercase hex SHA-256 of the request body bytes (64 chars). |
+
 ### `ValidateContentOptions`
 
 Options for content validation.
@@ -87,6 +111,15 @@ Configuration for generating and verifying signed URLs.
 | `includeObservations` | `boolean \| undefined` | Include brain observations (default: true)                  |
 | `maxSize`             | `number \| undefined`  | Max content size before compression in bytes (default: 5MB) |
 
+### `WatchDocumentOptions`
+
+| Property        | Type                            | Description                                                                                            |
+| --------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `fromSeq`       | `string \| number \| undefined` | Resume from this sequence number (exclusive). If unset, starts from the beginning.                     |
+| `apiKey`        | `string \| undefined`           | Bearer token or API key for authenticated requests. Passed as `Authorization: Bearer <apiKey>` header. |
+| `maxReconnects` | `number \| undefined`           | Maximum reconnect attempts within the circuit-breaker window (60s). Defaults to 5.                     |
+| `signal`        | `AbortSignal \| undefined`      | AbortSignal to cancel the stream externally.                                                           |
+
 ### `RetrievalOptions`
 
 Options for retrieval planning.
@@ -113,5 +146,193 @@ Options for constructing an LlmtxtDocument.
 | --------- | ---------------- | -------------------------------- |
 | `slug`    | `string`         | Document slug.                   |
 | `storage` | `StorageAdapter` | Storage adapter for persistence. |
+
+### `LeaseOptions`
+
+| Property  | Type     | Description |
+| --------- | -------- | ----------- |
+| `baseUrl` | `string` | baseUrl     |
+| `apiKey`  | `string` | apiKey      |
+
+### `SubscribeOptions`
+
+| Property  | Type                              | Description                                                                      |
+| --------- | --------------------------------- | -------------------------------------------------------------------------------- |
+| `since`   | `number \| undefined`             | Resume from a specific sequence number (sent as Last-Event-ID).                  |
+| `mode`    | `"events" \| "diff" \| undefined` | 'events' = raw event payloads; 'diff' = payloads include computed content diffs. |
+| `baseUrl` | `string`                          | Base URL of the API (no trailing slash).                                         |
+| `apiKey`  | `string`                          | Bearer API key.                                                                  |
+
+### `StandaloneConfig`
+
+Config for standalone topology.  One agent, one local `.db` file, zero network dependency. Use for single developer or single agent, offline-first operation, local testing.
+
+| Property          | Type                   | Description                                                 |
+| ----------------- | ---------------------- | ----------------------------------------------------------- |
+| `topology`        | `"standalone"`         | topology                                                    |
+| `storagePath`     | `string \| undefined`  | Path for the local .db file. Defaults to '.llmtxt'.         |
+| `identityPath`    | `string \| undefined`  | Optional path to agent identity keypair.                    |
+| `crsqlite`        | `boolean \| undefined` | Set true to enable cr-sqlite (T385). Default: false.        |
+| `crsqliteExtPath` | `string \| undefined`  | Path to crsqlite extension (optional, see P2-cr-sqlite.md). |
+
+### `HubSpokeConfig`
+
+Config for hub-and-spoke topology.  One hub (PostgresBackend or a designated LocalBackend) is the Single Source of Truth. N spokes are RemoteBackend clients that write to and read from the hub. Ephemeral swarm workers are spokes with no local `.db` file.
+
+| Property         | Type                   | Description                                                                                                                                                       |
+| ---------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `topology`       | `"hub-spoke"`          | topology                                                                                                                                                          |
+| `hubUrl`         | `string`               | URL of the hub API instance (e.g. '<https://api.llmtxt.my>'). REQUIRED — validation MUST fail fast if absent.                                                     |
+| `apiKey`         | `string \| undefined`  | API key for authenticating with the hub. MUST be present for write operations.                                                                                    |
+| `identityPath`   | `string \| undefined`  | Ed25519 private key hex for signing writes (alternative to apiKey). If both are supplied, Ed25519 signed writes take precedence.                                  |
+| `persistLocally` | `boolean \| undefined` | When true, this spoke maintains a local cr-sqlite replica. Requires T385 (cr-sqlite) to be installed. Default: false (ephemeral swarm worker mode — no .db file). |
+| `storagePath`    | `string \| undefined`  | Required when persistLocally=true. Path to local .db file.                                                                                                        |
+
+### `MeshConfig`
+
+Config for mesh topology.  N persistent peers, each with their own cr-sqlite LocalBackend. No central hub is required. Peers sync directly with each other via the P2P transport defined in T386. Use for offline-first P2P collaboration, air-gapped environments, or small teams of persistent agents (≤10 peers).
+
+| Property       | Type                            | Description                                                                                                          |
+| -------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `topology`     | `"mesh"`                        | topology                                                                                                             |
+| `storagePath`  | `string`                        | Path for the local cr-sqlite .db file. REQUIRED for mesh.                                                            |
+| `identityPath` | `string \| undefined`           | Optional path to agent identity keypair. Defaults to storagePath/identity.json.                                      |
+| `peers`        | `string[] \| undefined`         | Known peers at startup. Each entry is a transport address. Format: 'unix:/path/to/sock' \| '<http://host:port>'      |
+| `meshDir`      | `string \| undefined`           | Directory where peer advertisement files are written and read. Defaults to $LLMTXT\_MESH\_DIR or '/tmp/llmtxt-mesh'. |
+| `transport`    | `"unix" \| "http" \| undefined` | Transport to listen on. Default: 'unix'.                                                                             |
+| `port`         | `number \| undefined`           | Port for http transport. Default: 7642.                                                                              |
+
+### `TopologyConfig`
+
+Discriminated union of all topology configs, keyed on the `topology` field.
+
+### `BackendConfig`
+
+Configuration for a Backend instance.  BackendConfig is passed to the backend constructor. LocalBackend uses storagePath + identityPath; RemoteBackend uses baseUrl + apiKey.
+
+| Property                | Type                           | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ----------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `storagePath`           | `string \| undefined`          | Directory where the backend stores its data. For LocalBackend: SQLite DB and large content blobs live here. Defaults to '.llmtxt' relative to the working directory.                                                                                                                                                                                                                                                                                                                                      |
+| `identityPath`          | `string \| undefined`          | Path to the agent identity keypair JSON file. Defaults to /identity.json.                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `baseUrl`               | `string \| undefined`          | Base URL of a remote LLMtxt API instance. Required for RemoteBackend. MUST include scheme (https\://).                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `apiKey`                | `string \| undefined`          | API key for authenticating with the remote instance. Used by RemoteBackend in the Authorization header.                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `wal`                   | `boolean \| undefined`         | SQLite WAL mode. Defaults to true. Only relevant for LocalBackend.                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `leaseReaperIntervalMs` | `number \| undefined`          | Lease reaper interval in milliseconds. Defaults to 10\_000. Only relevant for LocalBackend.                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `presenceTtlMs`         | `number \| undefined`          | Presence TTL in milliseconds. Defaults to 30\_000. Only relevant for LocalBackend.                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `crsqliteExtPath`       | `string \| undefined`          | Absolute path to a pre-downloaded crsqlite native extension (.so / .dylib / .dll). When supplied, LocalBackend uses this path instead of resolving the extension via vlcn.io/crsqlite. Useful in air-gapped or bundled environments where the install-time binary download is not possible.  DR-P2-01: If absent, LocalBackend attempts to resolve the path from the vlcn.io/crsqlite optional peer dependency. If neither is available, LocalBackend opens without cr-sqlite (hasCRR = false, no crash). |
+| `maxBlobSizeBytes`      | `number \| undefined`          | Maximum blob size in bytes. Defaults to 100 \* 1024 \* 1024 (100 MB).                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `blobStorageMode`       | `"s3" \| "pg-lo" \| undefined` | Blob storage mode for PostgresBackend. 's3' uses S3/R2 object storage (default). 'pg-lo' uses PostgreSQL large objects.                                                                                                                                                                                                                                                                                                                                                                                   |
+| `s3Endpoint`            | `string \| undefined`          | S3/R2 endpoint URL (e.g. "<https://s3.us-east-1.amazonaws.com>").                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `s3Bucket`              | `string \| undefined`          | S3/R2 bucket name. Required when blobStorageMode = 's3'.                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `s3Region`              | `string \| undefined`          | S3/R2 region (e.g. "us-east-1").                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `s3AccessKeyId`         | `string \| undefined`          | S3/R2 access key ID.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `s3SecretAccessKey`     | `string \| undefined`          | S3/R2 secret access key.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+
+### `SyncEngineOptions`
+
+| Property          | Type                  | Description                                                    |
+| ----------------- | --------------------- | -------------------------------------------------------------- |
+| `backend`         | `Backend`             | backend                                                        |
+| `transport`       | `PeerTransport`       | transport                                                      |
+| `discovery`       | `PeerRegistry`        | discovery                                                      |
+| `identity`        | `AgentIdentity`       | identity                                                       |
+| `syncIntervalMs`  | `number \| undefined` | syncIntervalMs                                                 |
+| `maxPeerFailures` | `number \| undefined` | Maximum consecutive failures before a peer is marked inactive. |
+
+### `MeshMessengerOptions`
+
+| Property    | Type                                             | Description                                                               |
+| ----------- | ------------------------------------------------ | ------------------------------------------------------------------------- |
+| `identity`  | `AgentIdentity`                                  | identity                                                                  |
+| `transport` | `PeerTransport`                                  | transport                                                                 |
+| `discovery` | `PeerRegistry`                                   | discovery                                                                 |
+| `onMessage` | `((envelope: A2AEnvelope) => void) \| undefined` | Handler called when a valid, verified A2A message arrives for THIS agent. |
+
+### `PostgresBackendConfig`
+
+Extended config for PostgresBackend.
+
+| Property           | Type                  | Description                                                                                                                                 |
+| ------------------ | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `connectionString` | `string \| undefined` | PostgreSQL connection string. MUST be in the format: postgresql://user:passhost:5432/dbname Defaults to DATABASE\_URL environment variable. |
+| `maxConnections`   | `number \| undefined` | Maximum number of connections in the pool. Defaults to 10.                                                                                  |
+
+### `PresenceManagerOptions`
+
+| Property              | Type                          | Description                                                              |
+| --------------------- | ----------------------------- | ------------------------------------------------------------------------ |
+| `agentId`             | `string`                      | agentId                                                                  |
+| `transport`           | `PeerTransport`               | transport                                                                |
+| `discovery`           | `PeerRegistry`                | discovery                                                                |
+| `ttlSeconds`          | `number \| undefined`         | Default TTL in seconds (spec default: 30).                               |
+| `broadcastIntervalMs` | `number \| undefined`         | Broadcast interval in ms (spec: 10 s).                                   |
+| `rateLimitWindowMs`   | `number \| undefined`         | Rate limit window in ms — max 1 message per peer per window (spec: 5 s). |
+| `initialDocumentId`   | `string \| null \| undefined` | Current document/section the agent is editing (updated via setPresence). |
+| `initialSectionId`    | `string \| null \| undefined` | initialSectionId                                                         |
+
+### `AgentSessionOptions`
+
+AgentSessionOptions: constructor configuration.
+
+| Property    | Type                  | Description                                                                                                                                                                                    |
+| ----------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `backend`   | `Backend`             | Backend to operate through (LocalBackend or RemoteBackend). Typed as Backend to enable proper method calls; consumers pass concrete implementations (LocalBackend or RemoteBackend).           |
+| `agentId`   | `string`              | Agent identity. MUST match the authenticated identity registered in the backend's identity primitives.                                                                                         |
+| `sessionId` | `string \| undefined` | Cryptographically random session ID (128-bit entropy minimum). If omitted, AgentSession generates one using crypto.randomUUID(). MUST be unguessable; predictable IDs allow session hijacking. |
+| `label`     | `string \| undefined` | Human-readable label for this session. Used in receipts. Defaults to agentId + timestamp ISO string.                                                                                           |
+
+### `PostgresChangesetAdapterOptions`
+
+Options for constructing a PostgresChangesetAdapter.
+
+| Property   | Type                  | Description                                                                                                                                                                   |
+| ---------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `db`       | `unknown`             | Postgres client or connection pool used for querying row changes.  TODO: Replace `unknown` with the concrete postgres.js client type once the full implementation is written. |
+| `sinceXid` | `number \| undefined` | The last synced Postgres transaction ID (xid) for a given peer. Rows with txid  sinceXid will be included in the next changeset. Defaults to 0 (full snapshot).               |
+
+### `MeshChangesetRouteOptions`
+
+Options for the POST /mesh/changeset route handler.
+
+| Property            | Type                       | Description                                                       |
+| ------------------- | -------------------------- | ----------------------------------------------------------------- |
+| `adapter`           | `PostgresChangesetAdapter` | PostgresChangesetAdapter instance wired to the PostgresBackend.   |
+| `maxChangesetBytes` | `number \| undefined`      | Maximum changeset size in bytes (default: 10 MB per P3 spec §10). |
+
+### `BuildA2AOptions`
+
+Options for building an A2A message.
+
+| Property      | Type                  | Description |
+| ------------- | --------------------- | ----------- |
+| `from`        | `string`              | from        |
+| `to`          | `string`              | to          |
+| `payload`     | `unknown`             | payload     |
+| `contentType` | `string \| undefined` | contentType |
+| `identity`    | `AgentIdentity`       | identity    |
+| `nowMs`       | `number \| undefined` | nowMs       |
+| `nonce`       | `string \| undefined` | nonce       |
+
+### `SendScratchpadOptions`
+
+Options for sending a scratchpad message.
+
+| Property      | Type                         | Description                                                         |
+| ------------- | ---------------------------- | ------------------------------------------------------------------- |
+| `content`     | `string`                     | Message content body.                                               |
+| `contentType` | `string \| undefined`        | MIME content type (default: "text/plain").                          |
+| `threadId`    | `string \| undefined`        | Optional thread identifier for reply chains.                        |
+| `identity`    | `AgentIdentity \| undefined` | Agent identity for signing (optional — unsigned if omitted).        |
+| `agentId`     | `string \| undefined`        | Agent ID to include in the request (required if identity provided). |
+
+### `ReadScratchpadOptions`
+
+Options for reading scratchpad messages.
+
+| Property   | Type                  | Description                                        |
+| ---------- | --------------------- | -------------------------------------------------- |
+| `lastId`   | `string \| undefined` | Return messages after this stream ID.              |
+| `threadId` | `string \| undefined` | Filter by thread.                                  |
+| `limit`    | `number \| undefined` | Maximum number of messages to return. Default 100. |
 
 {/* FORGE:AUTO-END guide-configuration */}

@@ -16,68 +16,54 @@ cache.set('key', 'value');
 cache.get('key'); // "value"
 ```
 
-## `getLineRange()`
+## `classifyContent()`
 
-*Extract a range of lines from a document, returning content and token statistics.*
+*Classify the content of `input` using a three-layer pipeline: magic-byte detection → text/binary gate → heuristic text analysis.  All classification logic runs in Rust WASM (SSoT: `crates/llmtxt-core/src/classify/`). This function is a thin adapter that normalises inputs and maps enum variants.*
 
-[View in API reference](/packages/./api/functions#getlinerange)
+[View in API reference](/packages/./api/functions#classifycontent)
 
 ```ts
-const range = getLineRange(doc, 10, 25);
-console.log(`Saved ${range.tokensSaved} tokens`);
+import { classifyContent } from 'llmtxt';
+
+const result = classifyContent('# Hello\n\nMarkdown content.');
+console.log(result.format);      // 'markdown'
+console.log(result.mimeType);    // 'text/markdown'
+console.log(result.confidence);  // 0.8
+
+const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]); // %PDF
+const pdfResult = classifyContent(pdfBytes);
+console.log(pdfResult.format);   // 'pdf'
+console.log(pdfResult.confidence); // 1.0
 ```
 
-## `searchContent()`
+## `slugify()`
 
-*Search document content for lines matching a query string or regex.*
+*Convert a collection or document name to a URL-safe slug.  Delegates to crates/llmtxt-core::slugify::slugify via WASM.*
 
-[View in API reference](/packages/./api/functions#searchcontent)
+[View in API reference](/packages/./api/functions#slugify)
 
 ```ts
-const hits = searchContent(doc, 'TODO', 3, 10);
+slugify('Hello World'); // "hello-world"
+slugify('My Collection 2024'); // "my-collection-2024"
 ```
 
-## `detectDocumentFormat()`
+## `semanticConsensus()`
 
-*Detect the structural format of a document using content heuristics.*
+*Evaluate semantic consensus across a set of pre-embedded reviews.*
 
-[View in API reference](/packages/./api/functions#detectdocumentformat)
-
-```ts
-detectDocumentFormat('# Title\n- item'); // "markdown"
-```
-
-## `generateOverview()`
-
-*Generate a structural overview of a document for progressive disclosure.*
-
-[View in API reference](/packages/./api/functions#generateoverview)
+[View in API reference](/packages/./api/functions#semanticconsensus)
 
 ```ts
-const overview = generateOverview(markdownDoc);
-console.log(`${overview.sections.length} sections, ${overview.tokenCount} tokens`);
-```
+// Embed reviews first (e.g. with LocalEmbeddingProvider)
+const reviews = [
+  { reviewerId: 'agent-1', content: 'This API is well-designed.', embedding: [...] },
+  { reviewerId: 'agent-2', content: 'The API design is excellent.', embedding: [...] },
+];
 
-## `queryJsonPath()`
-
-*Execute a JSONPath-style query against JSON content.*
-
-[View in API reference](/packages/./api/functions#queryjsonpath)
-
-```ts
-const { result } = queryJsonPath('{"a":{"b":42}}', '$.a.b');
-// result === 42
-```
-
-## `getSection()`
-
-*Extract a named section from a document by title.*
-
-[View in API reference](/packages/./api/functions#getsection)
-
-```ts
-const section = getSection(doc, 'Installation', true);
-if (section) console.log(section.content);
+const result = semanticConsensus(JSON.stringify(reviews), 0.80);
+if (result.consensus) {
+  console.log('Agreement found:', result.agreementScore);
+}
 ```
 
 ## `isPredefinedSchema()`
@@ -155,4 +141,35 @@ validateContent(payload, 'text', { maxBytes: 10 * 1024 * 1024 });
 
 ```ts
 const result = autoValidate('{"messages":[{"role":"user","content":"hi"}]}', 'prompt-v1');
+```
+
+## `Backend`
+
+*Backend — the complete LLMtxt persistence and coordination interface.  Implementations MUST satisfy all sub-interfaces. Consumers of this interface SHOULD NOT depend on any implementation-specific methods.  Both LocalBackend (packages/llmtxt/src/local/) and RemoteBackend (packages/llmtxt/src/remote/) implement this interface.*
+
+[View in API reference](/packages/./api/functions#backend)
+
+```ts
+import { LocalBackend } from 'llmtxt/local';
+const backend: Backend = new LocalBackend({ storagePath: './.llmtxt' });
+await backend.open();
+const doc = await backend.createDocument({ title: 'My Doc', createdBy: 'agent-1' });
+await backend.close();
+```
+
+## `PostgresBackend`
+
+*PostgresBackend — Backend implementation using drizzle-orm/postgres-js.  Registers as `fastify.backendCore` via apps/backend/src/plugins/postgres-backend-plugin.ts. All route handlers call `fastify.backendCore.*` instead of querying Drizzle directly.*
+
+[View in API reference](/packages/./api/functions#postgresbackend)
+
+```ts
+import { PostgresBackend } from 'llmtxt/pg';
+
+const backend = new PostgresBackend({
+  connectionString: process.env.DATABASE_URL,
+});
+await backend.open();
+const doc = await backend.createDocument({ title: 'My Doc', createdBy: 'agent-1' });
+await backend.close();
 ```

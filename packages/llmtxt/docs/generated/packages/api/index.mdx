@@ -6,220 +6,707 @@ API reference for the `.` package.
 
 ## Functions & Classes
 
-| Symbol                                                                                       | Kind     | Description                                                                          |
-| -------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------ |
-| [`LRUCache`](/packages/./api/functions#lrucache)                                             | class    | Generic least-recently-used (LRU) cache with time-to-live support.                   |
-| [`compress()`](/packages/./api/functions#compress)                                           | function |                                                                                      |
-| [`decompress()`](/packages/./api/functions#decompress)                                       | function |                                                                                      |
-| [`encodeBase62()`](/packages/./api/functions#encodebase62)                                   | function |                                                                                      |
-| [`decodeBase62()`](/packages/./api/functions#decodebase62)                                   | function |                                                                                      |
-| [`generateId()`](/packages/./api/functions#generateid)                                       | function |                                                                                      |
-| [`hashContent()`](/packages/./api/functions#hashcontent)                                     | function |                                                                                      |
-| [`calculateTokens()`](/packages/./api/functions#calculatetokens)                             | function |                                                                                      |
-| [`calculateCompressionRatio()`](/packages/./api/functions#calculatecompressionratio)         | function |                                                                                      |
-| [`computeSignature()`](/packages/./api/functions#computesignature)                           | function |                                                                                      |
-| [`computeSignatureWithLength()`](/packages/./api/functions#computesignaturewithlength)       | function |                                                                                      |
-| [`computeOrgSignature()`](/packages/./api/functions#computeorgsignature)                     | function |                                                                                      |
-| [`computeOrgSignatureWithLength()`](/packages/./api/functions#computeorgsignaturewithlength) | function |                                                                                      |
-| [`deriveSigningKey()`](/packages/./api/functions#derivesigningkey)                           | function |                                                                                      |
-| [`createPatch()`](/packages/./api/functions#createpatch)                                     | function |                                                                                      |
-| [`applyPatch()`](/packages/./api/functions#applypatch)                                       | function |                                                                                      |
-| [`reconstructVersion()`](/packages/./api/functions#reconstructversion)                       | function |                                                                                      |
-| [`squashPatchesWasm()`](/packages/./api/functions#squashpatcheswasm)                         | function |                                                                                      |
-| [`wasmTextSimilarity()`](/packages/./api/functions#wasmtextsimilarity)                       | function |                                                                                      |
-| [`wasmTextSimilarityNgram()`](/packages/./api/functions#wasmtextsimilarityngram)             | function |                                                                                      |
-| [`isExpired()`](/packages/./api/functions#isexpired)                                         | function |                                                                                      |
-| [`computeDiff()`](/packages/./api/functions#computediff)                                     | function |                                                                                      |
-| [`structuredDiff()`](/packages/./api/functions#structureddiff)                               | function | Compute a structured line-level diff between two texts via the Rust LCS algor...     |
-| [`multiWayDiff()`](/packages/./api/functions#multiwaydiff)                                   | function | Compute a multi-way diff across a base version and up to 4 additional versions.      |
-| [`cherryPickMerge()`](/packages/./api/functions#cherrypickmerge)                             | function | Assemble document content from line ranges and sections across multiple versi...     |
-| [`createClient()`](/packages/./api/functions#createclient)                                   | function |                                                                                      |
-| [`getLineRange()`](/packages/./api/functions#getlinerange)                                   | function | Extract a range of lines from a document, returning content and token statist...     |
-| [`searchContent()`](/packages/./api/functions#searchcontent)                                 | function | Search document content for lines matching a query string or regex.                  |
-| [`detectDocumentFormat()`](/packages/./api/functions#detectdocumentformat)                   | function | Detect the structural format of a document using content heuristics.                 |
-| [`generateOverview()`](/packages/./api/functions#generateoverview)                           | function | Generate a structural overview of a document for progressive disclosure.             |
-| [`queryJsonPath()`](/packages/./api/functions#queryjsonpath)                                 | function | Execute a JSONPath-style query against JSON content.                                 |
-| [`getSection()`](/packages/./api/functions#getsection)                                       | function | Extract a named section from a document by title.                                    |
-| [`extractMentions()`](/packages/./api/functions#extractmentions)                             | function | Extract  from message content.                                                       |
-| [`extractTags()`](/packages/./api/functions#extracttags)                                     | function | Extract #tags from message content.                                                  |
-| [`extractDirectives()`](/packages/./api/functions#extractdirectives)                         | function | Extract /directives from message content.                                            |
-| [`buildGraph()`](/packages/./api/functions#buildgraph)                                       | function | Build a knowledge graph from an array of messages.  Nodes: agents (from fromA...     |
-| [`topTopics()`](/packages/./api/functions#toptopics)                                         | function | Find the most connected topics in the graph. Returns topics sorted by number...      |
-| [`topAgents()`](/packages/./api/functions#topagents)                                         | function | Find the most active agents in the graph. Returns agents sorted by total edge...     |
-| [`isPredefinedSchema()`](/packages/./api/functions#ispredefinedschema)                       | function | Type-guard that checks whether a string is a registered predefined schema name.      |
-| [`getPredefinedSchema()`](/packages/./api/functions#getpredefinedschema)                     | function | Retrieve a predefined Zod schema by name.                                            |
-| [`validateJson()`](/packages/./api/functions#validatejson)                                   | function | Validate content as JSON, optionally against a predefined schema.                    |
-| [`validateText()`](/packages/./api/functions#validatetext)                                   | function | Validate content as plain text or markdown.                                          |
-| [`detectFormat()`](/packages/./api/functions#detectformat)                                   | function | Auto-detect whether a string is JSON, markdown, or plain text.                       |
-| [`validateContent()`](/packages/./api/functions#validatecontent)                             | function | Validate content for a given format, with optional schema enforcement and con...     |
-| [`autoValidate()`](/packages/./api/functions#autovalidate)                                   | function | Auto-detect the content format and then validate accordingly.                        |
-| [`computeSignature()`](/packages/./api/functions#computesignature)                           | function | Compute the HMAC-SHA256 signature for signed URL parameters. Delegates to the...     |
-| [`computeSignatureWithLength()`](/packages/./api/functions#computesignaturewithlength)       | function | Compute signature with configurable length. Use 16 for short-lived URLs (defa...     |
-| [`generateSignedUrl()`](/packages/./api/functions#generatesignedurl)                         | function | Generate a signed URL for accessing a document.                                      |
-| [`verifySignedUrl()`](/packages/./api/functions#verifysignedurl)                             | function | Verify a signed URL's signature and expiration. Uses timing-safe comparison t...     |
-| [`computeOrgSignature()`](/packages/./api/functions#computeorgsignature)                     | function | Compute the HMAC-SHA256 signature for org-scoped signed URL parameters. Inclu...     |
-| [`computeOrgSignatureWithLength()`](/packages/./api/functions#computeorgsignaturewithlength) | function | Compute org-scoped signature with configurable length.                               |
-| [`generateOrgSignedUrl()`](/packages/./api/functions#generateorgsignedurl)                   | function | Generate an org-scoped signed URL for accessing a document. The URL includes...      |
-| [`verifyOrgSignedUrl()`](/packages/./api/functions#verifyorgsignedurl)                       | function | Verify an org-scoped signed URL's signature and expiration.                          |
-| [`generateTimedUrl()`](/packages/./api/functions#generatetimedurl)                           | function | Generate a signed URL that expires after the given duration.                         |
-| [`deriveSigningKey()`](/packages/./api/functions#derivesigningkey)                           | function | Derive a per-agent signing key from their API key. Delegates to the Rust WASM...     |
-| [`isExpired()`](/packages/./api/functions#isexpired)                                         | function | Check whether a timestamp has expired. Returns false for null/undefined (no e...     |
-| [`compressSnapshot()`](/packages/./api/functions#compresssnapshot)                           | function | Compress a session snapshot JSON string. Returns compressed data + metadata f...     |
-| [`decompressSnapshot()`](/packages/./api/functions#decompresssnapshot)                       | function | Decompress a snapshot back to JSON string. Verifies integrity via content has...     |
-| [`compressSessionData()`](/packages/./api/functions#compresssessiondata)                     | function | Compress a session snapshot object directly. Serializes to JSON, then compres...     |
-| [`decompressSessionData()`](/packages/./api/functions#decompresssessiondata)                 | function | Decompress and parse a snapshot back to an object.                                   |
-| [`snapshotSummary()`](/packages/./api/functions#snapshotsummary)                             | function | Generate a human-readable summary of a snapshot for handoff messages. Useful...      |
-| [`extractNgrams()`](/packages/./api/functions#extractngrams)                                 | function | Extract character-level n-grams from text. Normalizes whitespace and lowercas...     |
-| [`extractWordShingles()`](/packages/./api/functions#extractwordshingles)                     | function | Extract word-level n-grams (shingles) from text. Better for longer content wh...     |
-| [`jaccardSimilarity()`](/packages/./api/functions#jaccardsimilarity)                         | function | Jaccard similarity: \|A ∩ B\| / \|A ∪ B\|. Returns 0.0 (no overlap) to 1.0 (ident... |
-| [`textSimilarity()`](/packages/./api/functions#textsimilarity)                               | function | Compute similarity between two texts using character n-grams. Returns 0.0 to...      |
-| [`contentSimilarity()`](/packages/./api/functions#contentsimilarity)                         | function | Compute similarity using word shingles. Better for comparing messages or docu...     |
-| [`minHashFingerprint()`](/packages/./api/functions#minhashfingerprint)                       | function | Generate a compact fingerprint for content using MinHash. The fingerprint is...      |
-| [`fingerprintSimilarity()`](/packages/./api/functions#fingerprintsimilarity)                 | function | Estimate similarity between two MinHash fingerprints. Returns approximate Jac...     |
-| [`rankBySimilarity()`](/packages/./api/functions#rankbysimilarity)                           | function | Rank a list of texts by similarity to a query. Returns indices sorted by desc...     |
-| [`isValidTransition()`](/packages/./api/functions#isvalidtransition)                         | function | Check whether a state transition is allowed.                                         |
-| [`validateTransition()`](/packages/./api/functions#validatetransition)                       | function | Validate a proposed state transition with a detailed result.                         |
-| [`isEditable()`](/packages/./api/functions#iseditable)                                       | function | Check whether a document state allows content modifications.                         |
-| [`isTerminal()`](/packages/./api/functions#isterminal)                                       | function | Check whether a document state is terminal (no further transitions).                 |
-| [`reconstructVersion()`](/packages/./api/functions#reconstructversion)                       | function | Reconstruct a document at a specific version by applying patches sequentially...     |
-| [`validatePatchApplies()`](/packages/./api/functions#validatepatchapplies)                   | function | Check whether a patch applies cleanly to the given content.                          |
-| [`squashPatches()`](/packages/./api/functions#squashpatches)                                 | function | Squash a sequence of patches into a single unified diff.  Applies all patches...     |
-| [`computeReversePatch()`](/packages/./api/functions#computereversepatch)                     | function | Compute a reverse patch that undoes a version's changes.                             |
-| [`diffVersions()`](/packages/./api/functions#diffversions)                                   | function | Compute a diff summary between two versions of a document.                           |
-| [`evaluateApprovals()`](/packages/./api/functions#evaluateapprovals)                         | function | Evaluate reviews against an approval policy.  Filters out stale and timed-out...     |
-| [`markStaleReviews()`](/packages/./api/functions#markstalereviews)                           | function | Mark reviews as stale when a document version changes.  Returns a new array w\...    |
-| [`inlineRef()`](/packages/./api/functions#inlineref)                                         | function | Create a content reference for inline storage.                                       |
-| [`objectStoreRef()`](/packages/./api/functions#objectstoreref)                               | function | Create a content reference for object-store storage.                                 |
-| [`versionStorageKey()`](/packages/./api/functions#versionstoragekey)                         | function | Generate a storage key for a document version.  Convention:...                       |
-| [`shouldUseObjectStore()`](/packages/./api/functions#shoulduseobjectstore)                   | function | Determine whether content should be stored in object-store vs inline.  Thresh...     |
-| [`attributeVersion()`](/packages/./api/functions#attributeversion)                           | function | Compute attribution data for a single version change.                                |
-| [`buildContributorSummary()`](/packages/./api/functions#buildcontributorsummary)             | function | Build aggregated contributor summaries from version attributions.                    |
-| [`planRetrieval()`](/packages/./api/functions#planretrieval)                                 | function | Plan which sections to retrieve given a token budget.  When a query is provid...     |
-| [`estimateRetrievalCost()`](/packages/./api/functions#estimateretrievalcost)                 | function | Estimate the token cost of fetching specific sections.                               |
-| [`LlmtxtDocument`](/packages/./api/functions#llmtxtdocument)                                 | class    | High-level document orchestration object.  Each instance wraps a single docum...     |
+| Symbol                                                                                         | Kind     | Description                                                                       |
+| ---------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------- |
+| [`setLocalAwarenessState()`](/packages/./api/functions#setlocalawarenessstate)                 | function | Set the local agent's awareness state on a WebSocket connection. Encodes the...   |
+| [`onAwarenessChange()`](/packages/./api/functions#onawarenesschange)                           | function | Subscribe to awareness state changes on a WebSocket connection. The callback...   |
+| [`getAwarenessStates()`](/packages/./api/functions#getawarenessstates)                         | function | Get the current awareness states for all known clients on a connection.           |
+| [`LRUCache`](/packages/./api/functions#lrucache)                                               | class    | Generic least-recently-used (LRU) cache with time-to-live support.                |
+| [`classifyContent()`](/packages/./api/functions#classifycontent)                               | function | Classify the content of `input` using a three-layer pipeline: magic-byte dete...  |
+| [`detectFormatFromClassification()`](/packages/./api/functions#detectformatfromclassification) | function | Map a `ClassificationResult` to the legacy four-value format string.  Used in...  |
+| [`compress()`](/packages/./api/functions#compress)                                             | function | Compress a UTF-8 string using zstd (RFC 8478), level 3.  New writes use zstd....  |
+| [`decompress()`](/packages/./api/functions#decompress)                                         | function | Decompress bytes back to a UTF-8 string.  Auto-detects codec by magic bytes:...   |
+| [`zstdCompressBytes()`](/packages/./api/functions#zstdcompressbytes)                           | function | Compress raw bytes using zstd, returning compressed bytes.  Use this for bina...  |
+| [`zstdDecompressBytes()`](/packages/./api/functions#zstddecompressbytes)                       | function | Decompress raw zstd bytes back to raw bytes.  Delegates to crates/llmtxt-core...  |
+| [`encodeBase62()`](/packages/./api/functions#encodebase62)                                     | function |                                                                                   |
+| [`decodeBase62()`](/packages/./api/functions#decodebase62)                                     | function |                                                                                   |
+| [`generateId()`](/packages/./api/functions#generateid)                                         | function |                                                                                   |
+| [`hashContent()`](/packages/./api/functions#hashcontent)                                       | function |                                                                                   |
+| [`hashBlob()`](/packages/./api/functions#hashblob)                                             | function | Compute SHA-256 hash of raw binary data. Returns a lowercase hex string (64 c...  |
+| [`calculateTokens()`](/packages/./api/functions#calculatetokens)                               | function |                                                                                   |
+| [`calculateCompressionRatio()`](/packages/./api/functions#calculatecompressionratio)           | function |                                                                                   |
+| [`computeSignature()`](/packages/./api/functions#computesignature)                             | function |                                                                                   |
+| [`computeSignatureWithLength()`](/packages/./api/functions#computesignaturewithlength)         | function |                                                                                   |
+| [`computeOrgSignature()`](/packages/./api/functions#computeorgsignature)                       | function |                                                                                   |
+| [`computeOrgSignatureWithLength()`](/packages/./api/functions#computeorgsignaturewithlength)   | function |                                                                                   |
+| [`deriveSigningKey()`](/packages/./api/functions#derivesigningkey)                             | function |                                                                                   |
+| [`createPatch()`](/packages/./api/functions#createpatch)                                       | function |                                                                                   |
+| [`applyPatch()`](/packages/./api/functions#applypatch)                                         | function |                                                                                   |
+| [`reconstructVersion()`](/packages/./api/functions#reconstructversion)                         | function |                                                                                   |
+| [`squashPatchesWasm()`](/packages/./api/functions#squashpatcheswasm)                           | function |                                                                                   |
+| [`wasmTextSimilarity()`](/packages/./api/functions#wasmtextsimilarity)                         | function |                                                                                   |
+| [`wasmTextSimilarityNgram()`](/packages/./api/functions#wasmtextsimilarityngram)               | function |                                                                                   |
+| [`isExpired()`](/packages/./api/functions#isexpired)                                           | function |                                                                                   |
+| [`computeDiff()`](/packages/./api/functions#computediff)                                       | function |                                                                                   |
+| [`structuredDiff()`](/packages/./api/functions#structureddiff)                                 | function | Compute a structured line-level diff between two texts via the Rust LCS algor...  |
+| [`multiWayDiff()`](/packages/./api/functions#multiwaydiff)                                     | function | Compute per-line diff variants across N versions of a document.                   |
+| [`cherryPickMerge()`](/packages/./api/functions#cherrypickmerge)                               | function | Assemble document content from line ranges and sections across multiple versi...  |
+| [`threeWayMerge()`](/packages/./api/functions#threewaymerge)                                   | function | Perform a 3-way merge of `base`, `ours`, and `theirs`.  Regions modified by o...  |
+| [`l2Normalize()`](/packages/./api/functions#l2normalize)                                       | function | L2-normalize a vector of numbers to unit length.  Delegates to crates/llmtxt-...  |
+| [`signWebhookPayload()`](/packages/./api/functions#signwebhookpayload)                         | function | Compute the HMAC-SHA256 webhook signature for a payload.  Returns...              |
+| [`constantTimeEqHex()`](/packages/./api/functions#constanttimeeqhex)                           | function | Compare two hex-encoded digest strings in constant time.  Use this whenever y...  |
+| [`verifyContentHash()`](/packages/./api/functions#verifycontenthash)                           | function | Verify that `content` matches an expected SHA-256 hex hash.  T-02: Client-sid...  |
+| [`cosineSimilarity()`](/packages/./api/functions#cosinesimilarity)                             | function | Compute cosine similarity between two embedding vectors.  Delegates to crates...  |
+| [`semanticDiff()`](/packages/./api/functions#semanticdiff)                                     | function | Compute a semantic diff between two sets of pre-embedded document sections.       |
+| [`rolePermissions()`](/packages/./api/functions#rolepermissions)                               | function | Return the permissions for a document role as a JSON array of strings.  Deleg...  |
+| [`roleHasPermission()`](/packages/./api/functions#rolehaspermission)                           | function | Check whether a document role has a specific permission.  Delegates to crates...  |
+| [`slugify()`](/packages/./api/functions#slugify)                                               | function | Convert a collection or document name to a URL-safe slug.  Delegates to crate...  |
+| [`semanticConsensus()`](/packages/./api/functions#semanticconsensus)                           | function | Evaluate semantic consensus across a set of pre-embedded reviews.                 |
+| [`contentSimilarity()`](/packages/./api/functions#contentsimilarity)                           | function | Compute similarity between two texts using word shingles.  Delegates to crate...  |
+| [`detectFormat()`](/packages/./api/functions#detectformat)                                     | function | Auto-detect whether a string is JSON, markdown, or plain text.  Delegates to...   |
+| [`containsBinaryContent()`](/packages/./api/functions#containsbinarycontent)                   | function | Check for binary content (control chars 0x00–0x08) in the first 8 KB.  Delega...  |
+| [`extractMentions()`](/packages/./api/functions#extractmentions)                               | function | Extract  from message content. Returns unique names (excluding all).  Delegat...  |
+| [`extractNgrams()`](/packages/./api/functions#extractngrams)                                   | function | Extract character-level n-grams from text.  Delegates to crates/llmtxt-core::...  |
+| [`extractTags()`](/packages/./api/functions#extracttags)                                       | function | Extract #tags from message content. Returns unique tag names.  Delegates to c...  |
+| [`extractDirectives()`](/packages/./api/functions#extractdirectives)                           | function | Extract /directives from message content. Returns unique directive keywords....   |
+| [`extractWordShingles()`](/packages/./api/functions#extractwordshingles)                       | function | Extract word-level n-gram shingles from text.  Delegates to crates/llmtxt-cor...  |
+| [`findOverlongLine()`](/packages/./api/functions#findoverlongline)                             | function | Find the 1-based line number of the first line exceeding max\_chars. Returns 0... |
+| [`fingerprintSimilarity()`](/packages/./api/functions#fingerprintsimilarity)                   | function | Estimate similarity between two MinHash fingerprints.                             |
+| [`buildGraph()`](/packages/./api/functions#buildgraph)                                         | function | Build a knowledge graph from an array of messages.  Delegates to crates/llmtx...  |
+| [`topTopics()`](/packages/./api/functions#toptopics)                                           | function | Find the most connected topics in the graph.  Delegates to crates/llmtxt-core...  |
+| [`topAgents()`](/packages/./api/functions#topagents)                                           | function | Find the most active agents in the graph.  Delegates to crates/llmtxt-core::g...  |
+| [`jaccardSimilarity()`](/packages/./api/functions#jaccardsimilarity)                           | function | Compute Jaccard similarity between two texts using character n-grams.  Delega...  |
+| [`detectDocumentFormat()`](/packages/./api/functions#detectdocumentformat)                     | function | Detect the structural format of a document.  Returns `"json"`, `"markdown"`,...   |
+| [`generateOverview()`](/packages/./api/functions#generateoverview)                             | function | Generate a structural overview of a document.  Delegates to crates/llmtxt-cor...  |
+| [`getLineRange()`](/packages/./api/functions#getlinerange)                                     | function | Extract a line range from a document.  Delegates to crates/llmtxt-core::discl...  |
+| [`searchContent()`](/packages/./api/functions#searchcontent)                                   | function | Search document content for lines matching a query.  Delegates to crates/llmt...  |
+| [`queryJsonPath()`](/packages/./api/functions#queryjsonpath)                                   | function | Execute a JSONPath-style query against JSON content.  Delegates to crates/llm...  |
+| [`getSection()`](/packages/./api/functions#getsection)                                         | function | Extract a named section from a document.  Delegates to crates/llmtxt-core::di...  |
+| [`fnv1aHash()`](/packages/./api/functions#fnv1ahash)                                           | function | FNV-1a hash of a string (32-bit unsigned integer).  Identical to the TS...        |
+| [`tfidfEmbed()`](/packages/./api/functions#tfidfembed)                                         | function | Embed a single text using TF-IDF into a float vector.  Delegates to crates/ll...  |
+| [`tfidfEmbedBatch()`](/packages/./api/functions#tfidfembedbatch)                               | function | Embed a batch of texts using TF-IDF with shared IDF weighting.  This matches...   |
+| [`minHashFingerprint()`](/packages/./api/functions#minhashfingerprint)                         | function | Generate a MinHash fingerprint for content.  Delegates to crates/llmtxt-core:...  |
+| [`rankBySimilarity()`](/packages/./api/functions#rankbysimilarity)                             | function | Rank a list of texts by similarity to a query.  Delegates to crates/llmtxt-co...  |
+| [`createClient()`](/packages/./api/functions#createclient)                                     | function |                                                                                   |
+| [`crdt_new_doc()`](/packages/./api/functions#crdtnewdoc)                                       | function | Create an empty Loro Doc and return its initial snapshot bytes.  NOTE: Unlike...  |
+| [`crdt_encode_state_as_update()`](/packages/./api/functions#crdtencodestateasupdate)           | function | Encode the full doc state as a Loro snapshot blob.  Used to bootstrap a new c...  |
+| [`crdt_apply_update()`](/packages/./api/functions#crdtapplyupdate)                             | function | Apply a Loro update or snapshot to a state snapshot, returning the new state....  |
+| [`crdt_merge_updates()`](/packages/./api/functions#crdtmergeupdates)                           | function | Merge multiple Loro update blobs into a single consolidated snapshot.  Used b...  |
+| [`crdt_state_vector()`](/packages/./api/functions#crdtstatevector)                             | function | Extract the Loro VersionVector from a state snapshot.  Sent as SyncStep1 (0x0...  |
+| [`crdt_diff_update()`](/packages/./api/functions#crdtdiffupdate)                               | function | Compute the diff update between server state and a remote Loro VersionVector....  |
+| [`crdt_get_text()`](/packages/./api/functions#crdtgettext)                                     | function | Extract the plain text string from a Loro state snapshot.  Used by HTTP fallb...  |
+| [`crdt_make_state()`](/packages/./api/functions#crdtmakestate)                                 | function | Create a new Loro Doc, insert `content` into the "content" LoroText root, and...  |
+| [`crdt_make_incremental_update()`](/packages/./api/functions#crdtmakeincrementalupdate)        | function | Append `content` to an existing Loro Doc represented as a state Buffer, then...   |
+| [`crdt_apply_to_local_doc()`](/packages/./api/functions#crdtapplytolocaldoc)                   | function | Apply a Loro update directly to a local Loro Doc and return the resulting ful...  |
+| [`subscribeSection()`](/packages/./api/functions#subscribesection)                             | function | Subscribe to real-time CRDT delta events for a single section.  Opens a WebSo...  |
+| [`getSectionText()`](/packages/./api/functions#getsectiontext)                                 | function | Fetch the current plain-text content of a section via the HTTP fallback.  Doe...  |
+| [`CrSqliteNotLoadedError`](/packages/./api/functions#crsqlitenotloadederror)                   | class    | Typed error thrown by LocalBackend when cr-sqlite support is requested but th...  |
+| [`loadCrSqliteExtensionPath()`](/packages/./api/functions#loadcrsqliteextensionpath)           | function | Attempts to dynamically import vlcn.io/crsqlite and resolve the native SQLite...  |
+| [`embed()`](/packages/./api/functions#embed)                                                   | function | Embed a single text string into a 384-dimensional Float32Array.  Model is loa...  |
+| [`embedBatch()`](/packages/./api/functions#embedbatch)                                         | function | Embed a batch of texts in a single ONNX session run.  For large batches, text...  |
+| [`LocalOnnxEmbeddingProvider`](/packages/./api/functions#localonnxembeddingprovider)           | class    | Local ONNX embedding provider — wraps `embedBatch` to conform to the...           |
+| [`bodyHashHex()`](/packages/./api/functions#bodyhashhex)                                       | function | SHA-256 body hash returned as lowercase hex (64 chars).  Matches what the bac...  |
+| [`buildCanonicalPayload()`](/packages/./api/functions#buildcanonicalpayload)                   | function | Build the canonical payload bytes (UTF-8 encoded).  Format (newline-separated...  |
+| [`randomNonceHex()`](/packages/./api/functions#randomnoncehex)                                 | function | Generate 16 cryptographically-random bytes as lowercase hex (32 chars).           |
+| [`AgentIdentity`](/packages/./api/functions#agentidentity)                                     | class    | Ed25519 agent identity — keypair management, signing, and header generation....   |
+| [`createIdentity()`](/packages/./api/functions#createidentity)                                 | function | Generate a fresh `AgentIdentity` and persist it. Convenience wrapper around...    |
+| [`loadIdentity()`](/packages/./api/functions#loadidentity)                                     | function | Load the persisted `AgentIdentity`. Returns `null` if no identity has been pe...  |
+| [`identityFromSeed()`](/packages/./api/functions#identityfromseed)                             | function | Construct an `AgentIdentity` from a raw 32-byte seed. Does NOT persist. Usefu...  |
+| [`signRequest()`](/packages/./api/functions#signrequest)                                       | function | Build X-Agent-\* signature headers for a mutating HTTP request.  Convenience f... |
+| [`verifySignature()`](/packages/./api/functions#verifysignature)                               | function | Verify an Ed25519 signature over the given canonical payload bytes.               |
+| [`isPredefinedSchema()`](/packages/./api/functions#ispredefinedschema)                         | function | Type-guard that checks whether a string is a registered predefined schema name.   |
+| [`getPredefinedSchema()`](/packages/./api/functions#getpredefinedschema)                       | function | Retrieve a predefined Zod schema by name.                                         |
+| [`validateJson()`](/packages/./api/functions#validatejson)                                     | function | Validate content as JSON, optionally against a predefined schema.                 |
+| [`validateText()`](/packages/./api/functions#validatetext)                                     | function | Validate content as plain text or markdown.                                       |
+| [`detectFormat()`](/packages/./api/functions#detectformat)                                     | function | Auto-detect whether a string is JSON, markdown, or plain text.                    |
+| [`validateContent()`](/packages/./api/functions#validatecontent)                               | function | Validate content for a given format, with optional schema enforcement and con...  |
+| [`autoValidate()`](/packages/./api/functions#autovalidate)                                     | function | Auto-detect the content format and then validate accordingly.                     |
+| [`computeSignature()`](/packages/./api/functions#computesignature)                             | function | Compute the HMAC-SHA256 signature for signed URL parameters. Delegates to the...  |
+| [`computeSignatureWithLength()`](/packages/./api/functions#computesignaturewithlength)         | function | Compute signature with configurable length. Use 16 for short-lived URLs (defa...  |
+| [`generateSignedUrl()`](/packages/./api/functions#generatesignedurl)                           | function | Generate a signed URL for accessing a document.                                   |
+| [`verifySignedUrl()`](/packages/./api/functions#verifysignedurl)                               | function | Verify a signed URL's signature and expiration. Uses timing-safe comparison t...  |
+| [`computeOrgSignature()`](/packages/./api/functions#computeorgsignature)                       | function | Compute the HMAC-SHA256 signature for org-scoped signed URL parameters. Inclu...  |
+| [`computeOrgSignatureWithLength()`](/packages/./api/functions#computeorgsignaturewithlength)   | function | Compute org-scoped signature with configurable length.                            |
+| [`generateOrgSignedUrl()`](/packages/./api/functions#generateorgsignedurl)                     | function | Generate an org-scoped signed URL for accessing a document. The URL includes...   |
+| [`verifyOrgSignedUrl()`](/packages/./api/functions#verifyorgsignedurl)                         | function | Verify an org-scoped signed URL's signature and expiration.                       |
+| [`generateTimedUrl()`](/packages/./api/functions#generatetimedurl)                             | function | Generate a signed URL that expires after the given duration.                      |
+| [`deriveSigningKey()`](/packages/./api/functions#derivesigningkey)                             | function | Derive a per-agent signing key from their API key. Delegates to the Rust WASM...  |
+| [`isExpired()`](/packages/./api/functions#isexpired)                                           | function | Check whether a timestamp has expired. Returns false for null/undefined (no e...  |
+| [`compressSnapshot()`](/packages/./api/functions#compresssnapshot)                             | function | Compress a session snapshot JSON string. Returns compressed data + metadata f...  |
+| [`decompressSnapshot()`](/packages/./api/functions#decompresssnapshot)                         | function | Decompress a snapshot back to JSON string. Verifies integrity via content has...  |
+| [`compressSessionData()`](/packages/./api/functions#compresssessiondata)                       | function | Compress a session snapshot object directly. Serializes to JSON, then compres...  |
+| [`decompressSessionData()`](/packages/./api/functions#decompresssessiondata)                   | function | Decompress and parse a snapshot back to an object.                                |
+| [`snapshotSummary()`](/packages/./api/functions#snapshotsummary)                               | function | Generate a human-readable summary of a snapshot for handoff messages. Useful...   |
+| [`watchDocument()`](/packages/./api/functions#watchdocument)                                   | function | Watch a document's event stream.                                                  |
+| [`isValidTransition()`](/packages/./api/functions#isvalidtransition)                           | function | Check whether a state transition is allowed.                                      |
+| [`validateTransition()`](/packages/./api/functions#validatetransition)                         | function | Validate a proposed state transition with a detailed result.                      |
+| [`isEditable()`](/packages/./api/functions#iseditable)                                         | function | Check whether a document state allows content modifications.                      |
+| [`isTerminal()`](/packages/./api/functions#isterminal)                                         | function | Check whether a document state is terminal (no further transitions).              |
+| [`reconstructVersion()`](/packages/./api/functions#reconstructversion)                         | function | Reconstruct a document at a specific version by applying patches sequentially...  |
+| [`validatePatchApplies()`](/packages/./api/functions#validatepatchapplies)                     | function | Check whether a patch applies cleanly to the given content.                       |
+| [`squashPatches()`](/packages/./api/functions#squashpatches)                                   | function | Squash a sequence of patches into a single unified diff.  Applies all patches...  |
+| [`computeReversePatch()`](/packages/./api/functions#computereversepatch)                       | function | Compute a reverse patch that undoes a version's changes.                          |
+| [`diffVersions()`](/packages/./api/functions#diffversions)                                     | function | Compute a diff summary between two versions of a document.                        |
+| [`evaluateApprovals()`](/packages/./api/functions#evaluateapprovals)                           | function | Evaluate reviews against an approval policy.  Filters out stale and timed-out...  |
+| [`markStaleReviews()`](/packages/./api/functions#markstalereviews)                             | function | Mark reviews as stale when a document version changes.  Returns a new array w\... |
+| [`inlineRef()`](/packages/./api/functions#inlineref)                                           | function | Create a content reference for inline storage.                                    |
+| [`objectStoreRef()`](/packages/./api/functions#objectstoreref)                                 | function | Create a content reference for object-store storage.                              |
+| [`versionStorageKey()`](/packages/./api/functions#versionstoragekey)                           | function | Generate a storage key for a document version.  Convention:...                    |
+| [`shouldUseObjectStore()`](/packages/./api/functions#shoulduseobjectstore)                     | function | Determine whether content should be stored in object-store vs inline.  Thresh...  |
+| [`attributeVersion()`](/packages/./api/functions#attributeversion)                             | function | Compute attribution data for a single version change.                             |
+| [`buildContributorSummary()`](/packages/./api/functions#buildcontributorsummary)               | function | Build aggregated contributor summaries from version attributions.                 |
+| [`planRetrieval()`](/packages/./api/functions#planretrieval)                                   | function | Plan which sections to retrieve given a token budget.  When a query is provid...  |
+| [`estimateRetrievalCost()`](/packages/./api/functions#estimateretrievalcost)                   | function | Estimate the token cost of fetching specific sections.                            |
+| [`LlmtxtDocument`](/packages/./api/functions#llmtxtdocument)                                   | class    | High-level document orchestration object.  Each instance wraps a single docum...  |
+| [`LeaseConflictError`](/packages/./api/functions#leaseconflicterror)                           | class    | Thrown by LeaseManager.acquire() when the section is already held.                |
+| [`LeaseManager`](/packages/./api/functions#leasemanager)                                       | class    |                                                                                   |
+| [`subscribe()`](/packages/./api/functions#subscribe)                                           | function | Open a differential SSE subscription.  Compatible with both browser (EventSou...  |
+| [`fetchSectionDelta()`](/packages/./api/functions#fetchsectiondelta)                           | function | Fetch a section delta since a given sequence number.  Calls GET /api/v1/docum...  |
+| [`TopologyConfigError`](/packages/./api/functions#topologyconfigerror)                         | class    | Thrown when a topology config fails validation.                                   |
+| [`validateTopologyConfig()`](/packages/./api/functions#validatetopologyconfig)                 | function | Validate an unknown value as a `TopologyConfig`.  Throws...                       |
+| [`BlobTooLargeError`](/packages/./api/functions#blobtoolargeerror)                             | class    | Thrown when blob size exceeds the configured maximum (default 100 MB).  MUST...   |
+| [`BlobNameInvalidError`](/packages/./api/functions#blobnameinvaliderror)                       | class    | Thrown when a blob attachment name fails validation.  Triggered by any of: pa...  |
+| [`BlobCorruptError`](/packages/./api/functions#blobcorrupterror)                               | class    | Thrown when SHA-256 hash verification fails on a read.  Indicates storage cor...  |
+| [`BlobNotFoundError`](/packages/./api/functions#blobnotfounderror)                             | class    | Thrown when a blob hash is not found in the store.  Used by the lazy sync pul...  |
+| [`BlobAccessDeniedError`](/packages/./api/functions#blobaccessdeniederror)                     | class    | Thrown when the caller lacks the required access to perform a blob operation....  |
+| [`ExportError`](/packages/./api/functions#exporterror)                                         | class    | Typed error for the document export subsystem. Thrown by exportDocument() and...  |
+| [`canonicalFrontmatter()`](/packages/./api/functions#canonicalfrontmatter)                     | function | Produce the canonical YAML frontmatter block for a document export.  Delegate...  |
+| [`formatMarkdown()`](/packages/./api/functions#formatmarkdown)                                 | function | Serialize a document snapshot to the Markdown export format.                      |
+| [`formatJson()`](/packages/./api/functions#formatjson)                                         | function | Serialize a document snapshot to the JSON export format.  The `opts` paramete...  |
+| [`formatTxt()`](/packages/./api/functions#formattxt)                                           | function | Serialize the body of a document snapshot to plain text.  This formatter inte...  |
+| [`formatLlmtxt()`](/packages/./api/functions#formatllmtxt)                                     | function | Serialize a document snapshot to the native `.llmtxt` format.                     |
+| [`serializeDocument()`](/packages/./api/functions#serializedocument)                           | function | Serialize a DocumentExportState to a string using the requested format.           |
+| [`sha256Hex()`](/packages/./api/functions#sha256hex)                                           | function | Compute SHA-256 hex of a UTF-8 string's bytes.                                    |
+| [`contentHashHex()`](/packages/./api/functions#contenthashhex)                                 | function | Compute SHA-256 hex of the body content (used as content\_hash in frontmatter).   |
+| [`writeExportFile()`](/packages/./api/functions#writeexportfile)                               | function | Write a DocumentExportState to disk and return an ExportDocumentResult.  This...  |
+| [`exportAllFilePath()`](/packages/./api/functions#exportallfilepath)                           | function | Build the output file path for an exportAll() call.  File name is...              |
+| [`parseImportFile()`](/packages/./api/functions#parseimportfile)                               | function | Parse an import file and return a ParsedImport.                                   |
+| [`validateBlobName()`](/packages/./api/functions#validateblobname)                             | function | Validate a blob attachment name using the Rust WASM primitive.  Throws...         |
+| [`BlobFsAdapter`](/packages/./api/functions#blobfsadapter)                                     | class    | Filesystem blob adapter.  Stores bytes at `<storagePath>/blobs/<hash>`. Uses...   |
+| [`LocalBackend`](/packages/./api/functions#localbackend)                                       | class    |                                                                                   |
+| [`RemoteBackend`](/packages/./api/functions#remotebackend)                                     | class    |                                                                                   |
+| [`MeshNotImplementedError`](/packages/./api/functions#meshnotimplementederror)                 | class    | Thrown when a mesh-specific sync method is called on `MeshBackend` before the...  |
+| [`HubUnreachableError`](/packages/./api/functions#hubunreachableerror)                         | class    | Thrown when a hub-and-spoke spoke cannot reach the hub for a write operation....  |
+| [`HubWriteQueueFullError`](/packages/./api/functions#hubwritequeuefullerror)                   | class    | Thrown when a persistent spoke's write queue exceeds the 1000-entry limit (AR...  |
+| [`HubSpokeBackend`](/packages/./api/functions#hubspokebackend)                                 | class    | Composite Backend for hub-and-spoke topology with `persistLocally=true`.  Rou...  |
+| [`MeshBackend`](/packages/./api/functions#meshbackend)                                         | class    | Stub Backend for mesh topology.  All standard `Backend` interface methods del...  |
+| [`createBackend()`](/packages/./api/functions#createbackend)                                   | function | Create a Backend instance appropriate for the given topology config.  This is...  |
+| [`sanitizeHtmlAsync()`](/packages/./api/functions#sanitizehtmlasync)                           | function | Sanitize an HTML string (async, works in both Node.js and browser).  Prefer...    |
+| [`sanitizeHtmlSync()`](/packages/./api/functions#sanitizehtmlsync)                             | function | Sanitize an HTML string synchronously (browser-only).  This function requires...  |
+| [`isSafeUri()`](/packages/./api/functions#issafeuri)                                           | function | Check whether a URI is safe according to the platform allowlist.  Useful for...   |
+| [`HandshakeFailedError`](/packages/./api/functions#handshakefailederror)                       | class    | Thrown when the Ed25519 mutual handshake fails.                                   |
+| [`PeerUnreachableError`](/packages/./api/functions#peerunreachableerror)                       | class    | Thrown when a peer is unreachable after max retries.                              |
+| [`ChangesetTooLargeError`](/packages/./api/functions#changesettoolargeerror)                   | class    | Thrown when a changeset exceeds the maximum size.                                 |
+| [`UnixSocketTransport`](/packages/./api/functions#unixsockettransport)                         | class    | UnixSocketTransport — primary transport for same-machine collaboration.  - Li...  |
+| [`HttpTransport`](/packages/./api/functions#httptransport)                                     | class    | HttpTransport — secondary transport for cross-machine collaboration.  - Liste...  |
+| [`SyncEngine`](/packages/./api/functions#syncengine)                                           | class    | SyncEngine — periodic + event-driven peer-to-peer changeset exchange.  Securi...  |
+| [`MeshMessenger`](/packages/./api/functions#meshmessenger)                                     | class    | MeshMessenger — signed agent-to-agent routing over mesh transport.  Security...   |
+| [`PostgresBackend`](/packages/./api/functions#postgresbackend)                                 | class    | PostgresBackend — Backend implementation using drizzle-orm/postgres-js.  Regi...  |
+| [`PgContractAdapter`](/packages/./api/functions#pgcontractadapter)                             | class    | PgContractAdapter wraps PostgresBackend to satisfy the Backend interface expe...  |
+| [`createPgBackend()`](/packages/./api/functions#createpgbackend)                               | function | Create an isolated PostgresBackend instance backed by a temporary Postgres sc...  |
+| [`buildBlobChangeset()`](/packages/./api/functions#buildblobchangeset)                         | function | Collect BlobRef entries for all active blobs modified since `sinceMs`.  The s...  |
+| [`incomingWinsLWW()`](/packages/./api/functions#incomingwinslww)                               | function | Returns true if `incoming` wins over `existing` under the LWW rule.  LWW rule...  |
+| [`applyBlobChangeset()`](/packages/./api/functions#applyblobchangeset)                         | function | Apply incoming BlobRef entries from a received changeset.  For each ref:   1....  |
+| [`PeerRegistry`](/packages/./api/functions#peerregistry)                                       | class    | PeerRegistry manages peer discovery for the P2P mesh.  ## Usage                   |
+| [`makeEventStream()`](/packages/./api/functions#makeeventstream)                               | function | Create an `AsyncIterable<T>` backed by `emitter` channel `channel`.               |
+| [`EventBus`](/packages/./api/functions#eventbus)                                               | class    | In-process EventBus.  Implements `EventStream<unknown>` but callers typically...  |
+| [`ExternalBusAdapter`](/packages/./api/functions#externalbusadapter)                           | class    | Adapts a `DocumentEventBusLike` (single `'document'` channel, slug-filtered)...   |
+| [`PresenceManager`](/packages/./api/functions#presencemanager)                                 | class    | PresenceManager — in-memory, TTL-based presence state across mesh peers.  Thr...  |
+| [`AgentSessionError`](/packages/./api/functions#agentsessionerror)                             | class    | AgentSessionError: custom error for session lifecycle violations.  Code taxon...  |
+| [`AgentSession`](/packages/./api/functions#agentsession)                                       | class    | AgentSession: explicit, auditable lifecycle for ephemeral and persistent agen...  |
+| [`PostgresChangesetAdapter`](/packages/./api/functions#postgreschangesetadapter)               | class    | PostgresChangesetAdapter — bridges PostgresBackend and the cr-sqlite mesh.  T...  |
+| [`createMeshChangesetHandler()`](/packages/./api/functions#createmeshchangesethandler)         | function | Create a framework-agnostic handler for the POST /mesh/changeset endpoint.  I...  |
+| [`A2AMessage`](/packages/./api/functions#a2amessage)                                           | class    | Signed A2A message envelope with builder API.  Construct via...                   |
+| [`buildA2AMessage()`](/packages/./api/functions#builda2amessage)                               | function | Build and sign an A2A message.  The payload is JSON-serialized and base64-enc...  |
+| [`sendToInbox()`](/packages/./api/functions#sendtoinbox)                                       | function | Send an A2A message to an agent's HTTP inbox.                                     |
+| [`pollInbox()`](/packages/./api/functions#pollinbox)                                           | function | Poll an agent's inbox for messages.                                               |
+| [`onDirectMessage()`](/packages/./api/functions#ondirectmessage)                               | function | Subscribe to direct messages via polling loop.  Polls every `pollIntervalMs`...   |
+| [`bftQuorum()`](/packages/./api/functions#bftquorum)                                           | function | Compute BFT quorum for given fault tolerance f. Formula: 2f + 1.                  |
+| [`buildApprovalCanonicalPayload()`](/packages/./api/functions#buildapprovalcanonicalpayload)   | function | Build the canonical approval payload string (to be signed).  Format:...           |
+| [`signApproval()`](/packages/./api/functions#signapproval)                                     | function | Sign an approval with the given AgentIdentity.  Returns a...                      |
+| [`submitSignedApproval()`](/packages/./api/functions#submitsignedapproval)                     | function | Submit a signed approval to the backend.                                          |
+| [`getBFTStatus()`](/packages/./api/functions#getbftstatus)                                     | function | Get current BFT quorum status for a document.                                     |
+| [`verifyApprovalChain()`](/packages/./api/functions#verifyapprovalchain)                       | function | Verify the tamper-evident approval chain for a document.                          |
+| [`sendScratchpad()`](/packages/./api/functions#sendscratchpad)                                 | function | Publish a message to a document's scratchpad.  If `identity` and `agentId` ar...  |
+| [`readScratchpad()`](/packages/./api/functions#readscratchpad)                                 | function | Read scratchpad messages (poll).                                                  |
+| [`onScratchpadMessage()`](/packages/./api/functions#onscratchpadmessage)                       | function | Subscribe to live scratchpad messages via Server-Sent Events.  Returns a...       |
 
 ## Types & Interfaces
 
-| Symbol                                                                       | Kind      | Description                                                                      |
-| ---------------------------------------------------------------------------- | --------- | -------------------------------------------------------------------------------- |
-| [`CacheStats`](/packages/./api/types#cachestats)                             | interface | Snapshot of cache performance statistics.                                        |
-| [`LRUCacheOptions`](/packages/./api/types#lrucacheoptions)                   | interface | Configuration options for constructing an `LRUCache` instance.                   |
-| [`DiffResult`](/packages/./api/types#diffresult)                             | interface |                                                                                  |
-| [`StructuredDiffLine`](/packages/./api/types#structureddiffline)             | interface | A single line in a structured diff with type annotation and line numbers.        |
-| [`StructuredDiffResult`](/packages/./api/types#structureddiffresult)         | interface | Full structured diff result with interleaved lines and summary counts.           |
-| [`MultiDiffVariant`](/packages/./api/types#multidiffvariant)                 | interface | A single version variant at a divergent line position.                           |
-| [`MultiDiffLine`](/packages/./api/types#multidiffline)                       | interface | One line entry in a multi-way diff result.                                       |
-| [`MultiDiffStats`](/packages/./api/types#multidiffstats)                     | interface | Aggregate statistics for a multi-way diff.                                       |
-| [`MultiDiffResult`](/packages/./api/types#multidiffresult)                   | interface | Full result of a multi-way diff.                                                 |
-| [`CherryPickProvenance`](/packages/./api/types#cherrypickprovenance)         | interface | A single provenance entry in the cherry-pick merged output.                      |
-| [`CherryPickStats`](/packages/./api/types#cherrypickstats)                   | interface | Statistics for a cherry-pick merge operation.                                    |
-| [`CherryPickResult`](/packages/./api/types#cherrypickresult)                 | interface | Return value of a cherry-pick merge operation.                                   |
-| [`ContentFormat`](/packages/./api/types#contentformat)                       | type      | Supported content formats.                                                       |
-| [`DocumentMode`](/packages/./api/types#documentmode)                         | type      | Lifecycle state for collaborative documents.                                     |
-| [`DocumentMeta`](/packages/./api/types#documentmeta)                         | interface | Metadata for a stored document.                                                  |
-| [`VersionMeta`](/packages/./api/types#versionmeta)                           | interface | Metadata for a single document version.                                          |
-| [`VersionSummary`](/packages/./api/types#versionsummary)                     | interface | Summary of a version for listing (no content).                                   |
-| [`VersionDiff`](/packages/./api/types#versiondiff)                           | interface | Result of comparing two versions.                                                |
-| [`LlmtxtRef`](/packages/./api/types#llmtxtref)                               | interface | Reference to an llmtxt document shared in a message.                             |
-| [`AttachmentOptions`](/packages/./api/types#attachmentoptions)               | interface | Options for creating an attachment via the bridge.                               |
-| [`AttachmentAccessMode`](/packages/./api/types#attachmentaccessmode)         | type      | Attachment fetch mode supported by the bridge/API layer.                         |
-| [`AttachmentSharingMode`](/packages/./api/types#attachmentsharingmode)       | type      | Share state persisted by the API layer for an attachment.                        |
-| [`AttachmentReshareOptions`](/packages/./api/types#attachmentreshareoptions) | interface | Options for re-sharing an existing attachment.                                   |
-| [`AttachmentVersionOptions`](/packages/./api/types#attachmentversionoptions) | interface | Options for appending a version to an existing attachment slug.                  |
-| [`LlmtxtClientConfig`](/packages/./api/types#llmtxtclientconfig)             | interface |                                                                                  |
-| [`UploadResult`](/packages/./api/types#uploadresult)                         | interface |                                                                                  |
-| [`FetchResult`](/packages/./api/types#fetchresult)                           | interface |                                                                                  |
-| [`ReshareResult`](/packages/./api/types#reshareresult)                       | interface |                                                                                  |
-| [`ResignResult`](/packages/./api/types#resignresult)                         | type      | Backward-compatible alias. Prefer `ReshareResult`.                               |
-| [`AttachmentVersionResult`](/packages/./api/types#attachmentversionresult)   | interface |                                                                                  |
-| [`Section`](/packages/./api/types#section)                                   | interface | A logical section identified within a document.                                  |
-| [`DocumentOverview`](/packages/./api/types#documentoverview)                 | interface | High-level structural overview of a document.                                    |
-| [`SearchResult`](/packages/./api/types#searchresult)                         | interface | A single match returned by `searchContent`.                                      |
-| [`LineRangeResult`](/packages/./api/types#linerangeresult)                   | interface | Result of extracting a line range from a document via `getLineRange`.            |
-| [`GraphNode`](/packages/./api/types#graphnode)                               | interface |                                                                                  |
-| [`GraphEdge`](/packages/./api/types#graphedge)                               | interface |                                                                                  |
-| [`KnowledgeGraph`](/packages/./api/types#knowledgegraph)                     | interface |                                                                                  |
-| [`MessageInput`](/packages/./api/types#messageinput)                         | interface |                                                                                  |
-| [`PredefinedSchemaName`](/packages/./api/types#predefinedschemaname)         | type      | Union of all registered predefined schema name strings.                          |
-| [`JsonFormat`](/packages/./api/types#jsonformat)                             | type      | Inferred TypeScript type for any valid JSON value (object, array, primitive).    |
-| [`TextFormat`](/packages/./api/types#textformat)                             | type      | Inferred TypeScript type for plain text content.                                 |
-| [`MarkdownFormat`](/packages/./api/types#markdownformat)                     | type      | Inferred TypeScript type for markdown content (string alias).                    |
-| [`PromptV1`](/packages/./api/types#promptv1)                                 | type      | Inferred TypeScript type for the standard LLM prompt format.                     |
-| [`PromptMessage`](/packages/./api/types#promptmessage)                       | type      | Inferred TypeScript type for a single prompt message with role and content.      |
-| [`CompressRequest`](/packages/./api/types#compressrequest)                   | type      | Inferred TypeScript type for content compression request payloads.               |
-| [`DecompressRequest`](/packages/./api/types#decompressrequest)               | type      | Inferred TypeScript type for content decompression request payloads.             |
-| [`SearchRequest`](/packages/./api/types#searchrequest)                       | type      | Inferred TypeScript type for content search request payloads.                    |
-| [`ValidationResult`](/packages/./api/types#validationresult)                 | interface | Outcome of a content validation operation.                                       |
-| [`ValidationError`](/packages/./api/types#validationerror)                   | interface | A single validation error with location, message, and error code.                |
-| [`ValidateContentOptions`](/packages/./api/types#validatecontentoptions)     | interface | Options for content validation.                                                  |
-| [`SignedUrlParams`](/packages/./api/types#signedurlparams)                   | interface | Parameters that uniquely identify a signed URL access grant.                     |
-| [`SignedUrlConfig`](/packages/./api/types#signedurlconfig)                   | interface | Configuration for generating and verifying signed URLs.                          |
-| [`VerifyResult`](/packages/./api/types#verifyresult)                         | interface | Outcome of verifying a signed URL.                                               |
-| [`OrgSignedUrlParams`](/packages/./api/types#orgsignedurlparams)             | interface | Parameters for org-scoped signed URLs (Phase 5 enterprise). Extends conversat... |
-| [`SnapshotMeta`](/packages/./api/types#snapshotmeta)                         | interface |                                                                                  |
-| [`CompressedSnapshot`](/packages/./api/types#compressedsnapshot)             | interface |                                                                                  |
-| [`SnapshotOptions`](/packages/./api/types#snapshotoptions)                   | interface |                                                                                  |
-| [`DocumentState`](/packages/./api/types#documentstate)                       | type      | Lifecycle state of a collaborative document.                                     |
-| [`StateTransition`](/packages/./api/types#statetransition)                   | interface | Record of a lifecycle state change.                                              |
-| [`TransitionResult`](/packages/./api/types#transitionresult)                 | interface | Result of attempting a state transition.                                         |
-| [`VersionEntry`](/packages/./api/types#versionentry)                         | interface | A single version entry in a document's patch stack.                              |
-| [`ReconstructionResult`](/packages/./api/types#reconstructionresult)         | interface | Result of reconstructing a document at a specific version.                       |
-| [`PatchValidationResult`](/packages/./api/types#patchvalidationresult)       | interface | Result of validating whether a patch applies cleanly.                            |
-| [`VersionDiffSummary`](/packages/./api/types#versiondiffsummary)             | interface | Summary of changes between two versions.                                         |
-| [`ApprovalStatus`](/packages/./api/types#approvalstatus)                     | type      | Status of an individual review.                                                  |
-| [`Review`](/packages/./api/types#review)                                     | interface | A single review from an agent.                                                   |
-| [`ApprovalPolicy`](/packages/./api/types#approvalpolicy)                     | interface | Policy governing how approvals are evaluated.                                    |
-| [`ApprovalResult`](/packages/./api/types#approvalresult)                     | interface | Result of evaluating reviews against a policy.                                   |
-| [`StorageType`](/packages/./api/types#storagetype)                           | type      | How document content is stored.                                                  |
-| [`CompressionMethod`](/packages/./api/types#compressionmethod)               | type      | Compression method used for stored content.                                      |
-| [`ContentRef`](/packages/./api/types#contentref)                             | interface | Reference to where a document's compressed content lives.  Inline: content is... |
-| [`StorageMetadata`](/packages/./api/types#storagemetadata)                   | interface | Metadata about a stored document blob.                                           |
-| [`StorageAdapter`](/packages/./api/types#storageadapter)                     | interface | Storage adapter that platforms implement.                                        |
-| [`VersionAttribution`](/packages/./api/types#versionattribution)             | interface | Attribution data for a single version.                                           |
-| [`ContributorSummary`](/packages/./api/types#contributorsummary)             | interface | Aggregated contribution summary for a single agent.                              |
-| [`PlannedSection`](/packages/./api/types#plannedsection)                     | interface | A section selected for retrieval.                                                |
-| [`RetrievalPlan`](/packages/./api/types#retrievalplan)                       | interface | The output of retrieval planning.                                                |
-| [`RetrievalOptions`](/packages/./api/types#retrievaloptions)                 | interface | Options for retrieval planning.                                                  |
-| [`CreateVersionOptions`](/packages/./api/types#createversionoptions)         | interface | Options for creating a new version.                                              |
-| [`LlmtxtDocumentOptions`](/packages/./api/types#llmtxtdocumentoptions)       | interface | Options for constructing an LlmtxtDocument.                                      |
+| Symbol                                                                                     | Kind      | Description                                                                      |
+| ------------------------------------------------------------------------------------------ | --------- | -------------------------------------------------------------------------------- |
+| [`AwarenessState`](/packages/./api/types#awarenessstate)                                   | interface | Presence state for a single agent.                                               |
+| [`AwarenessEventType`](/packages/./api/types#awarenesseventtype)                           | type      | Events emitted when awareness state changes.                                     |
+| [`AwarenessEvent`](/packages/./api/types#awarenessevent)                                   | interface |                                                                                  |
+| [`Unsubscribe`](/packages/./api/types#unsubscribe)                                         | type      | Unsubscribe function returned by onAwarenessChange.                              |
+| [`CacheStats`](/packages/./api/types#cachestats)                                           | interface | Snapshot of cache performance statistics.                                        |
+| [`LRUCacheOptions`](/packages/./api/types#lrucacheoptions)                                 | interface | Configuration options for constructing an `LRUCache` instance.                   |
+| [`ClassificationResult`](/packages/./api/types#classificationresult)                       | interface | Result of `classifyContent`.  Mirrors `ClassificationResult` from...             |
+| [`Section`](/packages/./api/types#section)                                                 | interface | A logical section identified within a document.                                  |
+| [`DocumentOverview`](/packages/./api/types#documentoverview)                               | interface | High-level structural overview of a document.                                    |
+| [`SearchResult`](/packages/./api/types#searchresult)                                       | interface | A single match returned by `searchContent`.                                      |
+| [`LineRangeResult`](/packages/./api/types#linerangeresult)                                 | interface | Result of extracting a line range from a document via `getLineRange`.            |
+| [`DiffResult`](/packages/./api/types#diffresult)                                           | interface |                                                                                  |
+| [`StructuredDiffLine`](/packages/./api/types#structureddiffline)                           | interface | A single line in a structured diff with type annotation and line numbers.        |
+| [`StructuredDiffResult`](/packages/./api/types#structureddiffresult)                       | interface | Full structured diff result with interleaved lines and summary counts.           |
+| [`MultiDiffVariant`](/packages/./api/types#multidiffvariant)                               | interface | A single version variant at a divergent line position.                           |
+| [`MultiDiffLine`](/packages/./api/types#multidiffline)                                     | interface | One line entry in a multi-way diff result.                                       |
+| [`MultiDiffStats`](/packages/./api/types#multidiffstats)                                   | interface | Aggregate statistics for a multi-way diff.                                       |
+| [`MultiDiffResult`](/packages/./api/types#multidiffresult)                                 | interface | Full result of a multi-way diff.                                                 |
+| [`CherryPickProvenance`](/packages/./api/types#cherrypickprovenance)                       | interface | A single provenance entry in the cherry-pick merged output.                      |
+| [`CherryPickStats`](/packages/./api/types#cherrypickstats)                                 | interface | Statistics for a cherry-pick merge operation.                                    |
+| [`CherryPickResult`](/packages/./api/types#cherrypickresult)                               | interface | Return value of a cherry-pick merge operation.                                   |
+| [`Conflict`](/packages/./api/types#conflict)                                               | interface | A single conflict region from a 3-way merge.                                     |
+| [`MergeStats`](/packages/./api/types#mergestats)                                           | interface | Statistics for a 3-way merge operation.                                          |
+| [`ThreeWayMergeResult`](/packages/./api/types#threewaymergeresult)                         | interface | Full result of a 3-way merge operation.                                          |
+| [`SectionAlignment`](/packages/./api/types#sectionalignment)                               | type      | How a section from version A maps to version B.                                  |
+| [`SectionSimilarity`](/packages/./api/types#sectionsimilarity)                             | interface | Per-section similarity record produced by semantic diff.                         |
+| [`SemanticChange`](/packages/./api/types#semanticchange)                                   | interface | A semantic change annotation for a matched/renamed section pair.                 |
+| [`SemanticDiffResult`](/packages/./api/types#semanticdiffresult)                           | interface | Full result of a semantic diff between two document versions.                    |
+| [`ReviewCluster`](/packages/./api/types#reviewcluster)                                     | interface | A cluster of reviewers whose embeddings are mutually similar.                    |
+| [`SemanticConsensusResult`](/packages/./api/types#semanticconsensusresult)                 | interface | Result of semantic consensus evaluation across a set of reviews.                 |
+| [`GraphNode`](/packages/./api/types#graphnode)                                             | interface | A node in the knowledge graph.                                                   |
+| [`GraphEdge`](/packages/./api/types#graphedge)                                             | interface | An edge in the knowledge graph.                                                  |
+| [`GraphStats`](/packages/./api/types#graphstats)                                           | interface | Statistics for a knowledge graph.                                                |
+| [`KnowledgeGraph`](/packages/./api/types#knowledgegraph)                                   | interface | A knowledge graph containing nodes, edges, and statistics.                       |
+| [`MessageInput`](/packages/./api/types#messageinput)                                       | interface | Input message for graph construction.                                            |
+| [`SimilarityRankResult`](/packages/./api/types#similarityrankresult)                       | interface | Result entry from rankBySimilarity.                                              |
+| [`AuditAction`](/packages/./api/types#auditaction)                                         | type      | Action type for audit logging. Represents the type of operation that occurred.   |
+| [`ApiVersionInfo`](/packages/./api/types#apiversioninfo)                                   | interface | Metadata for a specific API version.                                             |
+| [`LinkType`](/packages/./api/types#linktype)                                               | type      | Type for a cross-document link relationship.                                     |
+| [`ContentFormat`](/packages/./api/types#contentformat)                                     | type      | Supported content formats.                                                       |
+| [`DocumentMode`](/packages/./api/types#documentmode)                                       | type      | Lifecycle state for collaborative documents.                                     |
+| [`DocumentMeta`](/packages/./api/types#documentmeta)                                       | interface | Metadata for a stored document.                                                  |
+| [`VersionMeta`](/packages/./api/types#versionmeta)                                         | interface | Metadata for a single document version.                                          |
+| [`VersionSummary`](/packages/./api/types#versionsummary)                                   | interface | Summary of a version for listing (no content).                                   |
+| [`VersionDiff`](/packages/./api/types#versiondiff)                                         | interface | Result of comparing two versions.                                                |
+| [`LlmtxtRef`](/packages/./api/types#llmtxtref)                                             | interface | Reference to an llmtxt document shared in a message.                             |
+| [`AttachmentOptions`](/packages/./api/types#attachmentoptions)                             | interface | Options for creating an attachment via the bridge.                               |
+| [`AttachmentAccessMode`](/packages/./api/types#attachmentaccessmode)                       | type      | Attachment fetch mode supported by the bridge/API layer.                         |
+| [`AttachmentSharingMode`](/packages/./api/types#attachmentsharingmode)                     | type      | Share state persisted by the API layer for an attachment.                        |
+| [`AttachmentReshareOptions`](/packages/./api/types#attachmentreshareoptions)               | interface | Options for re-sharing an existing attachment.                                   |
+| [`AttachmentVersionOptions`](/packages/./api/types#attachmentversionoptions)               | interface | Options for appending a version to an existing attachment slug.                  |
+| [`Permission`](/packages/./api/types#permission)                                           | type      | Fine-grained permission on a document. Canonical definition; mirrors crates/l... |
+| [`DocumentRole`](/packages/./api/types#documentrole)                                       | type      | Role a user holds on a specific document. Canonical definition; mirrors crate... |
+| [`OrgRole`](/packages/./api/types#orgrole)                                                 | type      | Role a user holds within an organisation. Canonical definition; mirrors crate... |
+| [`DocumentEventType`](/packages/./api/types#documenteventtype)                             | type      | Discriminant for document lifecycle events emitted by the event bus.  Consume... |
+| [`DocumentEvent`](/packages/./api/types#documentevent)                                     | interface | Payload for a document lifecycle event.  Emitted by the in-process event bus...  |
+| [`LlmtxtClientConfig`](/packages/./api/types#llmtxtclientconfig)                           | interface |                                                                                  |
+| [`UploadResult`](/packages/./api/types#uploadresult)                                       | interface |                                                                                  |
+| [`FetchResult`](/packages/./api/types#fetchresult)                                         | interface |                                                                                  |
+| [`ReshareResult`](/packages/./api/types#reshareresult)                                     | interface |                                                                                  |
+| [`ResignResult`](/packages/./api/types#resignresult)                                       | type      | Backward-compatible alias. Prefer `ReshareResult`.                               |
+| [`AttachmentVersionResult`](/packages/./api/types#attachmentversionresult)                 | interface |                                                                                  |
+| [`SectionDelta`](/packages/./api/types#sectiondelta)                                       | interface | A delta event emitted when the CRDT state for a section changes.                 |
+| [`Unsubscribe`](/packages/./api/types#unsubscribe)                                         | type      | Function to call to unsubscribe and close the WebSocket connection.              |
+| [`SubscribeSectionOptions`](/packages/./api/types#subscribesectionoptions)                 | interface | Options for `subscribeSection`.                                                  |
+| [`EmbeddingProvider`](/packages/./api/types#embeddingprovider)                             | interface | Standard embedding provider interface — matches apps/backend/src/utils/embedd... |
+| [`SignatureHeaders`](/packages/./api/types#signatureheaders)                               | interface | HTTP headers produced by `AgentIdentity.buildSignatureHeaders` / `signRequest`.  |
+| [`CanonicalPayloadOptions`](/packages/./api/types#canonicalpayloadoptions)                 | interface | Options for `buildCanonicalPayload`.  All fields map directly to the Rust...     |
+| [`PredefinedSchemaName`](/packages/./api/types#predefinedschemaname)                       | type      | Union of all registered predefined schema name strings.                          |
+| [`JsonFormat`](/packages/./api/types#jsonformat)                                           | type      | Inferred TypeScript type for any valid JSON value (object, array, primitive).    |
+| [`TextFormat`](/packages/./api/types#textformat)                                           | type      | Inferred TypeScript type for plain text content.                                 |
+| [`MarkdownFormat`](/packages/./api/types#markdownformat)                                   | type      | Inferred TypeScript type for markdown content (string alias).                    |
+| [`PromptV1`](/packages/./api/types#promptv1)                                               | type      | Inferred TypeScript type for the standard LLM prompt format.                     |
+| [`PromptMessage`](/packages/./api/types#promptmessage)                                     | type      | Inferred TypeScript type for a single prompt message with role and content.      |
+| [`CompressRequest`](/packages/./api/types#compressrequest)                                 | type      | Inferred TypeScript type for content compression request payloads.               |
+| [`DecompressRequest`](/packages/./api/types#decompressrequest)                             | type      | Inferred TypeScript type for content decompression request payloads.             |
+| [`SearchRequest`](/packages/./api/types#searchrequest)                                     | type      | Inferred TypeScript type for content search request payloads.                    |
+| [`ValidationResult`](/packages/./api/types#validationresult)                               | interface | Outcome of a content validation operation.                                       |
+| [`ValidationError`](/packages/./api/types#validationerror)                                 | interface | A single validation error with location, message, and error code.                |
+| [`ValidateContentOptions`](/packages/./api/types#validatecontentoptions)                   | interface | Options for content validation.                                                  |
+| [`SignedUrlParams`](/packages/./api/types#signedurlparams)                                 | interface | Parameters that uniquely identify a signed URL access grant.                     |
+| [`SignedUrlConfig`](/packages/./api/types#signedurlconfig)                                 | interface | Configuration for generating and verifying signed URLs.                          |
+| [`VerifyResult`](/packages/./api/types#verifyresult)                                       | interface | Outcome of verifying a signed URL.                                               |
+| [`OrgSignedUrlParams`](/packages/./api/types#orgsignedurlparams)                           | interface | Parameters for org-scoped signed URLs (Phase 5 enterprise). Extends conversat... |
+| [`SnapshotMeta`](/packages/./api/types#snapshotmeta)                                       | interface |                                                                                  |
+| [`CompressedSnapshot`](/packages/./api/types#compressedsnapshot)                           | interface |                                                                                  |
+| [`SnapshotOptions`](/packages/./api/types#snapshotoptions)                                 | interface |                                                                                  |
+| [`DocumentEventLogEntry`](/packages/./api/types#documenteventlogentry)                     | interface | A single event row from the document event log.                                  |
+| [`WatchDocumentOptions`](/packages/./api/types#watchdocumentoptions)                       | interface |                                                                                  |
+| [`DocumentState`](/packages/./api/types#documentstate)                                     | type      | Lifecycle state of a collaborative document.                                     |
+| [`StateTransition`](/packages/./api/types#statetransition)                                 | interface | Record of a lifecycle state change.                                              |
+| [`TransitionResult`](/packages/./api/types#transitionresult)                               | interface | Result of attempting a state transition.                                         |
+| [`VersionEntry`](/packages/./api/types#versionentry)                                       | interface | A single version entry in a document's patch stack.                              |
+| [`ReconstructionResult`](/packages/./api/types#reconstructionresult)                       | interface | Result of reconstructing a document at a specific version.                       |
+| [`PatchValidationResult`](/packages/./api/types#patchvalidationresult)                     | interface | Result of validating whether a patch applies cleanly.                            |
+| [`VersionDiffSummary`](/packages/./api/types#versiondiffsummary)                           | interface | Summary of changes between two versions.                                         |
+| [`ApprovalStatus`](/packages/./api/types#approvalstatus)                                   | type      | Status of an individual review.                                                  |
+| [`Review`](/packages/./api/types#review)                                                   | interface | A single review from an agent.                                                   |
+| [`ApprovalPolicy`](/packages/./api/types#approvalpolicy)                                   | interface | Policy governing how approvals are evaluated.                                    |
+| [`ApprovalResult`](/packages/./api/types#approvalresult)                                   | interface | Result of evaluating reviews against a policy.                                   |
+| [`StorageType`](/packages/./api/types#storagetype)                                         | type      | How document content is stored.                                                  |
+| [`CompressionMethod`](/packages/./api/types#compressionmethod)                             | type      | Compression method used for stored content.                                      |
+| [`ContentRef`](/packages/./api/types#contentref)                                           | interface | Reference to where a document's compressed content lives.  Inline: content is... |
+| [`StorageMetadata`](/packages/./api/types#storagemetadata)                                 | interface | Metadata about a stored document blob.                                           |
+| [`StorageAdapter`](/packages/./api/types#storageadapter)                                   | interface | Storage adapter that platforms implement.                                        |
+| [`VersionAttribution`](/packages/./api/types#versionattribution)                           | interface | Attribution data for a single version.                                           |
+| [`ContributorSummary`](/packages/./api/types#contributorsummary)                           | interface | Aggregated contribution summary for a single agent.                              |
+| [`PlannedSection`](/packages/./api/types#plannedsection)                                   | interface | A section selected for retrieval.                                                |
+| [`RetrievalPlan`](/packages/./api/types#retrievalplan)                                     | interface | The output of retrieval planning.                                                |
+| [`RetrievalOptions`](/packages/./api/types#retrievaloptions)                               | interface | Options for retrieval planning.                                                  |
+| [`CreateVersionOptions`](/packages/./api/types#createversionoptions)                       | interface | Options for creating a new version.                                              |
+| [`LlmtxtDocumentOptions`](/packages/./api/types#llmtxtdocumentoptions)                     | interface | Options for constructing an LlmtxtDocument.                                      |
+| [`Lease`](/packages/./api/types#lease)                                                     | interface |                                                                                  |
+| [`LeaseOptions`](/packages/./api/types#leaseoptions)                                       | interface |                                                                                  |
+| [`SectionDelta`](/packages/./api/types#sectiondelta)                                       | interface | Section-level delta returned by fetchSectionDelta and included in diff-mode S... |
+| [`SectionDeltaResponse`](/packages/./api/types#sectiondeltaresponse)                       | interface |                                                                                  |
+| [`SubscribeOptions`](/packages/./api/types#subscribeoptions)                               | interface |                                                                                  |
+| [`SubscriptionEvent`](/packages/./api/types#subscriptionevent)                             | interface |                                                                                  |
+| [`Unsubscribe`](/packages/./api/types#unsubscribe)                                         | type      | Call to close the SSE subscription.                                              |
+| [`TopologyMode`](/packages/./api/types#topologymode)                                       | type      | The three supported deployment topologies.  - `standalone` — one agent, one l... |
+| [`StandaloneConfig`](/packages/./api/types#standaloneconfig)                               | interface | Config for standalone topology.  One agent, one local `.db` file, zero networ... |
+| [`HubSpokeConfig`](/packages/./api/types#hubspokeconfig)                                   | interface | Config for hub-and-spoke topology.  One hub (PostgresBackend or a designated...  |
+| [`MeshConfig`](/packages/./api/types#meshconfig)                                           | interface | Config for mesh topology.  N persistent peers, each with their own cr-sqlite...  |
+| [`TopologyConfig`](/packages/./api/types#topologyconfig)                                   | type      | Discriminated union of all topology configs, keyed on the `topology` field.      |
+| [`BackendConfig`](/packages/./api/types#backendconfig)                                     | interface | Configuration for a Backend instance.  BackendConfig is passed to the backend... |
+| [`Document`](/packages/./api/types#document)                                               | interface | A stored document record.                                                        |
+| [`CreateDocumentParams`](/packages/./api/types#createdocumentparams)                       | interface | Parameters for creating a document.                                              |
+| [`ListDocumentsParams`](/packages/./api/types#listdocumentsparams)                         | interface | Parameters for listing documents.                                                |
+| [`ListResult`](/packages/./api/types#listresult)                                           | interface | Paginated list result.                                                           |
+| [`PublishVersionParams`](/packages/./api/types#publishversionparams)                       | interface | Parameters for publishing a new version.                                         |
+| [`TransitionParams`](/packages/./api/types#transitionparams)                               | interface | Parameters for transitioning a document's lifecycle state.                       |
+| [`DocumentEvent`](/packages/./api/types#documentevent)                                     | interface | A single document event entry.                                                   |
+| [`AppendEventParams`](/packages/./api/types#appendeventparams)                             | interface | Parameters for appending an event.                                               |
+| [`QueryEventsParams`](/packages/./api/types#queryeventsparams)                             | interface | Parameters for querying events.                                                  |
+| [`CrdtUpdate`](/packages/./api/types#crdtupdate)                                           | interface | A CRDT update payload for a document section.                                    |
+| [`CrdtState`](/packages/./api/types#crdtstate)                                             | interface | Current CRDT state for a section.                                                |
+| [`Lease`](/packages/./api/types#lease)                                                     | interface | A distributed lock / lease record.                                               |
+| [`AcquireLeaseParams`](/packages/./api/types#acquireleaseparams)                           | interface | Parameters for acquiring a lease.                                                |
+| [`PresenceEntry`](/packages/./api/types#presenceentry)                                     | interface | A presence record for an agent viewing a document.                               |
+| [`ScratchpadMessage`](/packages/./api/types#scratchpadmessage)                             | interface | A scratchpad message entry.                                                      |
+| [`SendScratchpadParams`](/packages/./api/types#sendscratchpadparams)                       | interface | Parameters for sending a scratchpad message.                                     |
+| [`A2AMessage`](/packages/./api/types#a2amessage)                                           | interface | An A2A (Agent-to-Agent) inbox message.                                           |
+| [`SearchResult`](/packages/./api/types#searchresult)                                       | interface | A single semantic search result.                                                 |
+| [`SearchParams`](/packages/./api/types#searchparams)                                       | interface | Parameters for semantic search.                                                  |
+| [`AgentPubkeyRecord`](/packages/./api/types#agentpubkeyrecord)                             | interface | A registered agent public key record.                                            |
+| [`AttachBlobParams`](/packages/./api/types#attachblobparams)                               | interface | Parameters for attaching a blob to a document.                                   |
+| [`BlobAttachment`](/packages/./api/types#blobattachment)                                   | interface | A stored blob attachment record.                                                 |
+| [`BlobData`](/packages/./api/types#blobdata)                                               | interface | Result of fetching a blob.                                                       |
+| [`BlobRef`](/packages/./api/types#blobref)                                                 | interface | Changeset blob reference (bytes omitted — lazy pull).                            |
+| [`BlobOps`](/packages/./api/types#blobops)                                                 | interface | Blob storage and retrieval operations.                                           |
+| [`DocumentOps`](/packages/./api/types#documentops)                                         | interface | Document CRUD operations.                                                        |
+| [`VersionOps`](/packages/./api/types#versionops)                                           | interface | Version stack operations.                                                        |
+| [`ApprovalOps`](/packages/./api/types#approvalops)                                         | interface | BFT approval operations.                                                         |
+| [`EventOps`](/packages/./api/types#eventops)                                               | interface | Document event log operations.                                                   |
+| [`CrdtOps`](/packages/./api/types#crdtops)                                                 | interface | CRDT section operations.                                                         |
+| [`LeaseOps`](/packages/./api/types#leaseops)                                               | interface | Distributed lease operations.                                                    |
+| [`PresenceOps`](/packages/./api/types#presenceops)                                         | interface | Presence (real-time who-is-viewing) operations.                                  |
+| [`ScratchpadOps`](/packages/./api/types#scratchpadops)                                     | interface | Scratchpad ephemeral message operations.                                         |
+| [`A2AOps`](/packages/./api/types#a2aops)                                                   | interface | A2A (Agent-to-Agent) inbox operations.                                           |
+| [`SearchOps`](/packages/./api/types#searchops)                                             | interface | Semantic search operations.                                                      |
+| [`IdentityOps`](/packages/./api/types#identityops)                                         | interface | Agent identity and pubkey registry operations.                                   |
+| [`ContributorRecord`](/packages/./api/types#contributorrecord)                             | interface | A contributor record tracking per-agent token attribution.                       |
+| [`Collection`](/packages/./api/types#collection)                                           | interface | A named collection of documents.                                                 |
+| [`CreateCollectionParams`](/packages/./api/types#createcollectionparams)                   | interface | Parameters for creating a collection.                                            |
+| [`ListCollectionsParams`](/packages/./api/types#listcollectionsparams)                     | interface | Parameters for listing collections.                                              |
+| [`CollectionExport`](/packages/./api/types#collectionexport)                               | interface | Export format for a collection.                                                  |
+| [`DocumentLink`](/packages/./api/types#documentlink)                                       | interface | A directed link between two documents.                                           |
+| [`CreateDocLinkParams`](/packages/./api/types#createdoclinkparams)                         | interface | Parameters for creating a document link.                                         |
+| [`GraphResult`](/packages/./api/types#graphresult)                                         | interface | Global knowledge graph result.                                                   |
+| [`Webhook`](/packages/./api/types#webhook)                                                 | interface | A webhook registration.                                                          |
+| [`CreateWebhookParams`](/packages/./api/types#createwebhookparams)                         | interface | Parameters for creating a webhook.                                               |
+| [`WebhookTestResult`](/packages/./api/types#webhooktestresult)                             | interface | Result of a webhook test delivery.                                               |
+| [`SignedUrl`](/packages/./api/types#signedurl)                                             | interface | A time-limited signed access token for a document.                               |
+| [`CreateSignedUrlParams`](/packages/./api/types#createsignedurlparams)                     | interface | Parameters for creating a signed URL.                                            |
+| [`DocumentVisibility`](/packages/./api/types#documentvisibility)                           | type      | Document visibility level.                                                       |
+| [`RoleGrant`](/packages/./api/types#rolegrant)                                             | interface | A role grant entry.                                                              |
+| [`AccessControlList`](/packages/./api/types#accesscontrollist)                             | interface | The full access control list for a document.                                     |
+| [`GrantAccessParams`](/packages/./api/types#grantaccessparams)                             | interface | Parameters for granting access.                                                  |
+| [`Organization`](/packages/./api/types#organization)                                       | interface | An organization grouping users and documents.                                    |
+| [`CreateOrgParams`](/packages/./api/types#createorgparams)                                 | interface | Parameters for creating an organization.                                         |
+| [`ApiKey`](/packages/./api/types#apikey)                                                   | interface | An API key record (secret never returned after creation).                        |
+| [`CreateApiKeyParams`](/packages/./api/types#createapikeyparams)                           | interface | Parameters for creating an API key.                                              |
+| [`ApiKeyWithSecret`](/packages/./api/types#apikeywithsecret)                               | interface | Full API key including secret — only returned at creation time.                  |
+| [`ApprovalChainEntry`](/packages/./api/types#approvalchainentry)                           | interface | An entry in the tamper-evident approval chain.                                   |
+| [`ApprovalChainResult`](/packages/./api/types#approvalchainresult)                         | interface | Result of verifying the approval chain for a document.                           |
+| [`ContributorOps`](/packages/./api/types#contributorops)                                   | interface | Contributor attribution operations.                                              |
+| [`BftOps`](/packages/./api/types#bftops)                                                   | interface | BFT consensus chain operations.                                                  |
+| [`CollectionOps`](/packages/./api/types#collectionops)                                     | interface | Collection CRUD and membership operations.                                       |
+| [`CrossDocOps`](/packages/./api/types#crossdocops)                                         | interface | Cross-document link and graph operations.                                        |
+| [`WebhookOps`](/packages/./api/types#webhookops)                                           | interface | Webhook registration and delivery operations.                                    |
+| [`SignedUrlOps`](/packages/./api/types#signedurlops)                                       | interface | Signed URL (time-limited access token) operations.                               |
+| [`AccessControlOps`](/packages/./api/types#accesscontrolops)                               | interface | Document access control operations.                                              |
+| [`OrganizationOps`](/packages/./api/types#organizationops)                                 | interface | Organization management operations.                                              |
+| [`ApiKeyOps`](/packages/./api/types#apikeyops)                                             | interface | API key management operations.                                                   |
+| [`Backend`](/packages/./api/types#backend)                                                 | interface | Backend — the complete LLMtxt persistence and coordination interface.  Implem... |
+| [`ExportErrorCode`](/packages/./api/types#exporterrorcode)                                 | type      | Error codes for the document export subsystem.                                   |
+| [`ExportFormat`](/packages/./api/types#exportformat)                                       | type      | Supported document export formats.                                               |
+| [`ExportDocumentParams`](/packages/./api/types#exportdocumentparams)                       | interface | Parameters for exporting a single document.                                      |
+| [`ExportDocumentResult`](/packages/./api/types#exportdocumentresult)                       | interface | Result returned by exportDocument().                                             |
+| [`ExportAllParams`](/packages/./api/types#exportallparams)                                 | interface | Parameters for exporting all documents to a directory.                           |
+| [`ExportAllResult`](/packages/./api/types#exportallresult)                                 | interface | Result returned by exportAll().                                                  |
+| [`ImportDocumentParams`](/packages/./api/types#importdocumentparams)                       | interface | Parameters for importing a document from a file.                                 |
+| [`ImportDocumentResult`](/packages/./api/types#importdocumentresult)                       | interface | Result returned by importDocument().                                             |
+| [`ExportOps`](/packages/./api/types#exportops)                                             | interface | Document export operations.                                                      |
+| [`FrontmatterMeta`](/packages/./api/types#frontmattermeta)                                 | interface | Structured input for `canonicalFrontmatter`.  Mirrors `FrontmatterMeta` in...    |
+| [`DocumentExportState`](/packages/./api/types#documentexportstate)                         | interface | Self-contained document snapshot passed to all format serializers.  All field... |
+| [`ExportOpts`](/packages/./api/types#exportopts)                                           | interface | Options controlling format serializer behaviour.  All fields are optional. Fo... |
+| [`ParsedImport`](/packages/./api/types#parsedimport)                                       | interface |                                                                                  |
+| [`Document`](/packages/./api/types#document)                                               | type      |                                                                                  |
+| [`NewDocument`](/packages/./api/types#newdocument)                                         | type      |                                                                                  |
+| [`Version`](/packages/./api/types#version)                                                 | type      |                                                                                  |
+| [`NewVersion`](/packages/./api/types#newversion)                                           | type      |                                                                                  |
+| [`StateTransition`](/packages/./api/types#statetransition)                                 | type      |                                                                                  |
+| [`NewStateTransition`](/packages/./api/types#newstatetransition)                           | type      |                                                                                  |
+| [`Approval`](/packages/./api/types#approval)                                               | type      |                                                                                  |
+| [`NewApproval`](/packages/./api/types#newapproval)                                         | type      |                                                                                  |
+| [`SectionCrdtState`](/packages/./api/types#sectioncrdtstate)                               | type      |                                                                                  |
+| [`NewSectionCrdtState`](/packages/./api/types#newsectioncrdtstate)                         | type      |                                                                                  |
+| [`SectionCrdtUpdate`](/packages/./api/types#sectioncrdtupdate)                             | type      |                                                                                  |
+| [`NewSectionCrdtUpdate`](/packages/./api/types#newsectioncrdtupdate)                       | type      |                                                                                  |
+| [`DocumentEvent`](/packages/./api/types#documentevent)                                     | type      |                                                                                  |
+| [`NewDocumentEvent`](/packages/./api/types#newdocumentevent)                               | type      |                                                                                  |
+| [`AgentPubkey`](/packages/./api/types#agentpubkey)                                         | type      |                                                                                  |
+| [`NewAgentPubkey`](/packages/./api/types#newagentpubkey)                                   | type      |                                                                                  |
+| [`AgentSignatureNonce`](/packages/./api/types#agentsignaturenonce)                         | type      |                                                                                  |
+| [`NewAgentSignatureNonce`](/packages/./api/types#newagentsignaturenonce)                   | type      |                                                                                  |
+| [`SectionLease`](/packages/./api/types#sectionlease)                                       | type      |                                                                                  |
+| [`NewSectionLease`](/packages/./api/types#newsectionlease)                                 | type      |                                                                                  |
+| [`AgentInboxMessage`](/packages/./api/types#agentinboxmessage)                             | type      |                                                                                  |
+| [`NewAgentInboxMessage`](/packages/./api/types#newagentinboxmessage)                       | type      |                                                                                  |
+| [`ScratchpadEntry`](/packages/./api/types#scratchpadentry)                                 | type      |                                                                                  |
+| [`NewScratchpadEntry`](/packages/./api/types#newscratchpadentry)                           | type      |                                                                                  |
+| [`SectionEmbedding`](/packages/./api/types#sectionembedding)                               | type      |                                                                                  |
+| [`NewSectionEmbedding`](/packages/./api/types#newsectionembedding)                         | type      |                                                                                  |
+| [`BlobAttachment`](/packages/./api/types#blobattachment)                                   | type      |                                                                                  |
+| [`NewBlobAttachment`](/packages/./api/types#newblobattachment)                             | type      |                                                                                  |
+| [`InsertDocument`](/packages/./api/types#insertdocument)                                   | type      |                                                                                  |
+| [`SelectDocument`](/packages/./api/types#selectdocument)                                   | type      |                                                                                  |
+| [`PeerTransport`](/packages/./api/types#peertransport)                                     | interface | PeerTransport — transport abstraction for P2P mesh (P3 spec §4.1).  Implement... |
+| [`TransportIdentity`](/packages/./api/types#transportidentity)                             | interface | Local identity used by the transport layer for handshakes.                       |
+| [`PeerInfo`](/packages/./api/types#peerinfo)                                               | interface |                                                                                  |
+| [`PeerRegistry`](/packages/./api/types#peerregistry)                                       | interface |                                                                                  |
+| [`PeerSyncState`](/packages/./api/types#peersyncstate)                                     | interface | In-memory peer sync state. Persisted externally via llmtxt\_mesh\_state table.   |
+| [`SyncEngineOptions`](/packages/./api/types#syncengineoptions)                             | interface |                                                                                  |
+| [`A2AEnvelope`](/packages/./api/types#a2aenvelope)                                         | interface | A2A message envelope. Spec §7.1:    type, from, to, payload, sig, sentAt   si... |
+| [`MeshMessengerOptions`](/packages/./api/types#meshmessengeroptions)                       | interface |                                                                                  |
+| [`PostgresBackendConfig`](/packages/./api/types#postgresbackendconfig)                     | interface | Extended config for PostgresBackend.                                             |
+| [`PgBackendHandle`](/packages/./api/types#pgbackendhandle)                                 | interface |                                                                                  |
+| [`BlobChangeset`](/packages/./api/types#blobchangeset)                                     | interface | Extended changeset type carrying optional blob references.  This wraps the ex... |
+| [`ApplyBlobChangesetResult`](/packages/./api/types#applyblobchangesetresult)               | interface | Result of applying a BlobChangeset.                                              |
+| [`BlobRefWithDocSlug`](/packages/./api/types#blobrefwithdocslug)                           | interface | Extended BlobRef used internally in the sync layer. docSlug is required for m... |
+| [`PeerRegistration`](/packages/./api/types#peerregistration)                               | interface | Raw format of a `.peer` file written by a running agent (P3 spec §3.2).  All...  |
+| [`PeerInfo`](/packages/./api/types#peerinfo)                                               | interface | A validated peer — returned from `discover()` and `loadStaticConfig()`. All e... |
+| [`EventPublisher`](/packages/./api/types#eventpublisher)                                   | interface | An object that can publish typed events onto a named channel.  Implementation... |
+| [`EventSubscriber`](/packages/./api/types#eventsubscriber)                                 | interface | An object that can return an async iterable of typed events from a channel....   |
+| [`EventStream`](/packages/./api/types#eventstream)                                         | interface | A bidirectional event stream that can both publish and subscribe.                |
+| [`EmitterLike`](/packages/./api/types#emitterlike)                                         | interface | Minimal EventEmitter surface required by makeEventStream.                        |
+| [`DocumentEventBusLike`](/packages/./api/types#documenteventbuslike)                       | interface | Shape of the document event bus used by PostgresBackend (injected from apps/b... |
+| [`PresenceEntry`](/packages/./api/types#presenceentry)                                     | interface | Presence state broadcast by an agent to all connected peers. Matches the JSON... |
+| [`PresenceManagerOptions`](/packages/./api/types#presencemanageroptions)                   | interface |                                                                                  |
+| [`AgentSessionState`](/packages/./api/types#agentsessionstate)                             | type      | Session state machine: Idle - Open - Active - Closing - Closed  - Idle: Initi... |
+| [`ContributionReceipt`](/packages/./api/types#contributionreceipt)                         | interface | Contribution Receipt: auditable proof of work performed during a session.  RF... |
+| [`CloseStepError`](/packages/./api/types#closesteperror)                                   | interface | Error raised when one or more close() teardown steps fail while the session s... |
+| [`AgentSessionOptions`](/packages/./api/types#agentsessionoptions)                         | interface | AgentSessionOptions: constructor configuration.                                  |
+| [`PostgresRowChange`](/packages/./api/types#postgresrowchange)                             | interface | A single row-level change captured from Postgres.  In a full implementation t... |
+| [`PostgresChangeset`](/packages/./api/types#postgreschangeset)                             | interface | Wire format for a PostgresChangeset batch.  TODO: Align with the binary forma... |
+| [`PostgresChangesetAdapterOptions`](/packages/./api/types#postgreschangesetadapteroptions) | interface | Options for constructing a PostgresChangesetAdapter.                             |
+| [`MeshChangesetRouteOptions`](/packages/./api/types#meshchangesetrouteoptions)             | interface | Options for the POST /mesh/changeset route handler.                              |
+| [`MeshChangesetResult`](/packages/./api/types#meshchangesetresult)                         | interface | Generic POST /mesh/changeset handler result.  The route handler is framework-... |
+| [`A2AEnvelope`](/packages/./api/types#a2aenvelope)                                         | interface | Canonical A2A message envelope (matches crates/llmtxt-core/src/a2a.rs).          |
+| [`BuildA2AOptions`](/packages/./api/types#builda2aoptions)                                 | interface | Options for building an A2A message.                                             |
+| [`InboxDeliveryResponse`](/packages/./api/types#inboxdeliveryresponse)                     | interface | Response from POST /agents/:id/inbox.                                            |
+| [`InboxMessage`](/packages/./api/types#inboxmessage)                                       | interface | Message in agent inbox response.                                                 |
+| [`InboxPollResponse`](/packages/./api/types#inboxpollresponse)                             | interface | Response from GET /agents/:id/inbox.                                             |
+| [`BFTApprovalStatus`](/packages/./api/types#bftapprovalstatus)                             | type      | BFT approval status.                                                             |
+| [`SignedApprovalEnvelope`](/packages/./api/types#signedapprovalenvelope)                   | interface | Signed approval envelope ready to POST to /bft/approve.                          |
+| [`BFTApprovalResponse`](/packages/./api/types#bftapprovalresponse)                         | interface | Response from POST /documents/:slug/bft/approve.                                 |
+| [`BFTStatusResponse`](/packages/./api/types#bftstatusresponse)                             | interface | Response from GET /documents/:slug/bft/status.                                   |
+| [`ChainVerificationResponse`](/packages/./api/types#chainverificationresponse)             | interface | Response from GET /documents/:slug/chain.                                        |
+| [`ScratchpadMessage`](/packages/./api/types#scratchpadmessage)                             | interface | A scratchpad message as returned by the API.                                     |
+| [`SendScratchpadOptions`](/packages/./api/types#sendscratchpadoptions)                     | interface | Options for sending a scratchpad message.                                        |
+| [`ReadScratchpadOptions`](/packages/./api/types#readscratchpadoptions)                     | interface | Options for reading scratchpad messages.                                         |
 
 ## Other Exports
 
-| Symbol                                                                          | Kind     | Description                                                           |
-| ------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------- |
-| [`cache.ts`](/packages/./api/functions#cachets)                                 | file     |                                                                       |
-| [`wasm.ts`](/packages/./api/functions#wasmts)                                   | file     |                                                                       |
-| [`patch.ts`](/packages/./api/functions#patchts)                                 | file     |                                                                       |
-| [`types.ts`](/packages/./api/functions#typests)                                 | file     |                                                                       |
-| [`client.ts`](/packages/./api/functions#clientts)                               | file     |                                                                       |
-| [`compression.ts`](/packages/./api/functions#compressionts)                     | file     |                                                                       |
-| [`disclosure.ts`](/packages/./api/functions#disclosurets)                       | file     |                                                                       |
-| [`graph.ts`](/packages/./api/functions#graphts)                                 | file     |                                                                       |
-| [`jsonFormatSchema`](/packages/./api/functions#jsonformatschema)                | variable | Schema that accepts any valid JSON value.                             |
-| [`textFormatSchema`](/packages/./api/functions#textformatschema)                | variable | Schema that accepts any string value (plain text or markdown).        |
-| [`markdownFormatSchema`](/packages/./api/functions#markdownformatschema)        | variable | Schema for markdown content, stored as a plain string.                |
-| [`promptMessageSchema`](/packages/./api/functions#promptmessageschema)          | variable | Schema for a single message within an LLM prompt conversation.        |
-| [`promptV1Schema`](/packages/./api/functions#promptv1schema)                    | variable | Schema for the standard LLM prompt format (OpenAI / Anthropic style). |
-| [`predefinedSchemas`](/packages/./api/functions#predefinedschemas)              | variable | Registry of predefined content schemas keyed by name.                 |
-| [`compressRequestSchema`](/packages/./api/functions#compressrequestschema)      | variable | Schema for incoming content compression requests.                     |
-| [`decompressRequestSchema`](/packages/./api/functions#decompressrequestschema)  | variable | Schema for incoming content decompression requests.                   |
-| [`searchRequestSchema`](/packages/./api/functions#searchrequestschema)          | variable | Schema for incoming content search requests.                          |
-| [`schemas.ts`](/packages/./api/functions#schemasts)                             | file     |                                                                       |
-| [`DEFAULT_MAX_CONTENT_BYTES`](/packages/./api/functions#defaultmaxcontentbytes) | variable | Default maximum content size in bytes (5 MB).                         |
-| [`DEFAULT_MAX_LINE_BYTES`](/packages/./api/functions#defaultmaxlinebytes)       | variable | Default maximum line length in bytes (64 KB).                         |
-| [`validation.ts`](/packages/./api/functions#validationts)                       | file     |                                                                       |
-| [`signed-url.ts`](/packages/./api/functions#signed-urlts)                       | file     |                                                                       |
-| [`snapshot.ts`](/packages/./api/functions#snapshotts)                           | file     |                                                                       |
-| [`similarity.ts`](/packages/./api/functions#similarityts)                       | file     |                                                                       |
-| [`DOCUMENT_STATES`](/packages/./api/functions#documentstates)                   | variable | All valid document states in lifecycle order.                         |
-| [`lifecycle.ts`](/packages/./api/functions#lifecyclets)                         | file     |                                                                       |
-| [`versions.ts`](/packages/./api/functions#versionsts)                           | file     |                                                                       |
-| [`DEFAULT_APPROVAL_POLICY`](/packages/./api/functions#defaultapprovalpolicy)    | variable | Default approval policy: 1 approval, no timeout.                      |
-| [`consensus.ts`](/packages/./api/functions#consensusts)                         | file     |                                                                       |
-| [`storage.ts`](/packages/./api/functions#storagets)                             | file     |                                                                       |
-| [`storage-adapter.ts`](/packages/./api/functions#storage-adapterts)             | file     |                                                                       |
-| [`attribution.ts`](/packages/./api/functions#attributionts)                     | file     |                                                                       |
-| [`retrieval.ts`](/packages/./api/functions#retrievalts)                         | file     |                                                                       |
-| [`document.ts`](/packages/./api/functions#documentts)                           | file     |                                                                       |
-| [`index.ts`](/packages/./api/functions#indexts)                                 | file     |                                                                       |
-| [`index.ts`](/packages/./api/functions#indexts)                                 | file     |                                                                       |
+| Symbol                                                                                           | Kind     | Description                                                                       |
+| ------------------------------------------------------------------------------------------------ | -------- | --------------------------------------------------------------------------------- |
+| [`awareness.ts`](/packages/./api/functions#awarenessts)                                          | file     |                                                                                   |
+| [`cache.ts`](/packages/./api/functions#cachets)                                                  | file     |                                                                                   |
+| [`classify.ts`](/packages/./api/functions#classifyts)                                            | file     |                                                                                   |
+| [`disclosure.ts`](/packages/./api/functions#disclosurets)                                        | file     |                                                                                   |
+| [`wasm.ts`](/packages/./api/functions#wasmts)                                                    | file     |                                                                                   |
+| [`patch.ts`](/packages/./api/functions#patchts)                                                  | file     |                                                                                   |
+| [`STATE_CHANGING_METHODS`](/packages/./api/functions#statechangingmethods)                       | variable | HTTP methods that cause state changes and trigger audit logging.                  |
+| [`CONTENT_LIMITS`](/packages/./api/functions#contentlimits)                                      | variable | Hard content and resource limits enforced across the LLMtxt API. These limits...  |
+| [`API_VERSION_REGISTRY`](/packages/./api/functions#apiversionregistry)                           | variable | Registry of all supported API versions. Add an entry here when a new API vers...  |
+| [`CURRENT_API_VERSION`](/packages/./api/functions#currentapiversion)                             | variable | Current default API version served for unversioned requests.                      |
+| [`LATEST_API_VERSION`](/packages/./api/functions#latestapiversion)                               | variable | Latest supported API version (derived from registry).                             |
+| [`VALID_LINK_TYPES`](/packages/./api/functions#validlinktypes)                                   | variable | Valid types for cross-document links. Used when linking one document to anoth...  |
+| [`COLLECTION_EXPORT_SEPARATOR`](/packages/./api/functions#collectionexportseparator)             | variable | Separator string used when exporting multiple documents from a collection. Do...  |
+| [`API_KEY_PREFIX`](/packages/./api/functions#apikeyprefix)                                       | variable | Prefix for API keys generated by the system. Keys take the form: llmtxt\_43 ch... |
+| [`API_KEY_LENGTH`](/packages/./api/functions#apikeylength)                                       | variable | Total length of a valid API key including prefix. Calculated as: 7 (prefix) +...  |
+| [`API_KEY_DISPLAY_LENGTH`](/packages/./api/functions#apikeydisplaylength)                        | variable | Length of the display prefix for API keys. Shows the first 8 random character...  |
+| [`ROLE_PERMISSIONS`](/packages/./api/functions#rolepermissions)                                  | variable | Permission matrix for document roles. Mirrors the ROLE\_PERMISSIONS constant f... |
+| [`types.ts`](/packages/./api/functions#typests)                                                  | file     |                                                                                   |
+| [`client.ts`](/packages/./api/functions#clientts)                                                | file     |                                                                                   |
+| [`compression.ts`](/packages/./api/functions#compressionts)                                      | file     |                                                                                   |
+| [`crdt-primitives.ts`](/packages/./api/functions#crdt-primitivests)                              | file     |                                                                                   |
+| [`crdt.ts`](/packages/./api/functions#crdtts)                                                    | file     |                                                                                   |
+| [`crsqlite-loader.ts`](/packages/./api/functions#crsqlite-loaderts)                              | file     |                                                                                   |
+| [`MODEL_DIMS`](/packages/./api/functions#modeldims)                                              | variable | Output dimensionality of the bundled model.                                       |
+| [`PROVIDER_NAME`](/packages/./api/functions#providername)                                        | variable | Provider identifier used in database records.                                     |
+| [`MODEL_NAME`](/packages/./api/functions#modelname)                                              | variable | Model name stored in database records.                                            |
+| [`embeddings.ts`](/packages/./api/functions#embeddingsts)                                        | file     |                                                                                   |
+| [`graph.ts`](/packages/./api/functions#graphts)                                                  | file     |                                                                                   |
+| [`agent-identity.ts`](/packages/./api/functions#agent-identityts)                                | file     |                                                                                   |
+| [`identity.ts`](/packages/./api/functions#identityts)                                            | file     |                                                                                   |
+| [`jsonFormatSchema`](/packages/./api/functions#jsonformatschema)                                 | variable | Schema that accepts any valid JSON value.                                         |
+| [`textFormatSchema`](/packages/./api/functions#textformatschema)                                 | variable | Schema that accepts any string value (plain text or markdown).                    |
+| [`markdownFormatSchema`](/packages/./api/functions#markdownformatschema)                         | variable | Schema for markdown content, stored as a plain string.                            |
+| [`promptMessageSchema`](/packages/./api/functions#promptmessageschema)                           | variable | Schema for a single message within an LLM prompt conversation.                    |
+| [`promptV1Schema`](/packages/./api/functions#promptv1schema)                                     | variable | Schema for the standard LLM prompt format (OpenAI / Anthropic style).             |
+| [`predefinedSchemas`](/packages/./api/functions#predefinedschemas)                               | variable | Registry of predefined content schemas keyed by name.                             |
+| [`compressRequestSchema`](/packages/./api/functions#compressrequestschema)                       | variable | Schema for incoming content compression requests.                                 |
+| [`decompressRequestSchema`](/packages/./api/functions#decompressrequestschema)                   | variable | Schema for incoming content decompression requests.                               |
+| [`searchRequestSchema`](/packages/./api/functions#searchrequestschema)                           | variable | Schema for incoming content search requests.                                      |
+| [`schemas.ts`](/packages/./api/functions#schemasts)                                              | file     |                                                                                   |
+| [`DEFAULT_MAX_CONTENT_BYTES`](/packages/./api/functions#defaultmaxcontentbytes)                  | variable | Default maximum content size in bytes (5 MB).                                     |
+| [`DEFAULT_MAX_LINE_BYTES`](/packages/./api/functions#defaultmaxlinebytes)                        | variable | Default maximum line length in bytes (64 KB).                                     |
+| [`validation.ts`](/packages/./api/functions#validationts)                                        | file     |                                                                                   |
+| [`signed-url.ts`](/packages/./api/functions#signed-urlts)                                        | file     |                                                                                   |
+| [`snapshot.ts`](/packages/./api/functions#snapshotts)                                            | file     |                                                                                   |
+| [`similarity.ts`](/packages/./api/functions#similarityts)                                        | file     |                                                                                   |
+| [`watch.ts`](/packages/./api/functions#watchts)                                                  | file     |                                                                                   |
+| [`DOCUMENT_STATES`](/packages/./api/functions#documentstates)                                    | variable | All valid document states in lifecycle order.                                     |
+| [`lifecycle.ts`](/packages/./api/functions#lifecyclets)                                          | file     |                                                                                   |
+| [`versions.ts`](/packages/./api/functions#versionsts)                                            | file     |                                                                                   |
+| [`DEFAULT_APPROVAL_POLICY`](/packages/./api/functions#defaultapprovalpolicy)                     | variable | Default approval policy: 1 approval, no timeout.                                  |
+| [`consensus.ts`](/packages/./api/functions#consensusts)                                          | file     |                                                                                   |
+| [`storage.ts`](/packages/./api/functions#storagets)                                              | file     |                                                                                   |
+| [`storage-adapter.ts`](/packages/./api/functions#storage-adapterts)                              | file     |                                                                                   |
+| [`attribution.ts`](/packages/./api/functions#attributionts)                                      | file     |                                                                                   |
+| [`retrieval.ts`](/packages/./api/functions#retrievalts)                                          | file     |                                                                                   |
+| [`document.ts`](/packages/./api/functions#documentts)                                            | file     |                                                                                   |
+| [`leases.ts`](/packages/./api/functions#leasests)                                                | file     |                                                                                   |
+| [`subscriptions.ts`](/packages/./api/functions#subscriptionsts)                                  | file     |                                                                                   |
+| [`standaloneConfigSchema`](/packages/./api/functions#standaloneconfigschema)                     | variable | Zod schema for `StandaloneConfig`.                                                |
+| [`hubSpokeConfigSchema`](/packages/./api/functions#hubspokeconfigschema)                         | variable | Zod schema for `HubSpokeConfig`.                                                  |
+| [`meshConfigSchema`](/packages/./api/functions#meshconfigschema)                                 | variable | Zod schema for `MeshConfig`.                                                      |
+| [`topologyConfigSchema`](/packages/./api/functions#topologyconfigschema)                         | variable | Discriminated-union Zod schema for any `TopologyConfig`.                          |
+| [`topology.ts`](/packages/./api/functions#topologyts)                                            | file     |                                                                                   |
+| [`errors.ts`](/packages/./api/functions#errorsts)                                                | file     |                                                                                   |
+| [`backend.ts`](/packages/./api/functions#backendts)                                              | file     |                                                                                   |
+| [`canonical.ts`](/packages/./api/functions#canonicalts)                                          | file     |                                                                                   |
+| [`types.ts`](/packages/./api/functions#typests)                                                  | file     |                                                                                   |
+| [`markdown.ts`](/packages/./api/functions#markdownts)                                            | file     |                                                                                   |
+| [`json.ts`](/packages/./api/functions#jsonts)                                                    | file     |                                                                                   |
+| [`txt.ts`](/packages/./api/functions#txtts)                                                      | file     |                                                                                   |
+| [`llmtxt.ts`](/packages/./api/functions#llmtxtts)                                                | file     |                                                                                   |
+| [`FORMAT_EXT`](/packages/./api/functions#formatext)                                              | variable | Map from export format to file extension.                                         |
+| [`FORMAT_CONTENT_TYPE`](/packages/./api/functions#formatcontenttype)                             | variable | Map from export format to HTTP Content-Type.                                      |
+| [`backend-export.ts`](/packages/./api/functions#backend-exportts)                                | file     |                                                                                   |
+| [`import-parser.ts`](/packages/./api/functions#import-parserts)                                  | file     |                                                                                   |
+| [`documents`](/packages/./api/functions#documents)                                               | variable | Documents table. The primary entity for the LocalBackend. Each document has a...  |
+| [`versions`](/packages/./api/functions#versions)                                                 | variable | Versions table. Each row represents one version of a document. Incremental pa...  |
+| [`stateTransitions`](/packages/./api/functions#statetransitions)                                 | variable |                                                                                   |
+| [`approvals`](/packages/./api/functions#approvals)                                               | variable |                                                                                   |
+| [`sectionCrdtStates`](/packages/./api/functions#sectioncrdtstates)                               | variable |                                                                                   |
+| [`sectionCrdtUpdates`](/packages/./api/functions#sectioncrdtupdates)                             | variable |                                                                                   |
+| [`documentEvents`](/packages/./api/functions#documentevents)                                     | variable |                                                                                   |
+| [`agentPubkeys`](/packages/./api/functions#agentpubkeys)                                         | variable |                                                                                   |
+| [`agentSignatureNonces`](/packages/./api/functions#agentsignaturenonces)                         | variable |                                                                                   |
+| [`sectionLeases`](/packages/./api/functions#sectionleases)                                       | variable |                                                                                   |
+| [`agentInboxMessages`](/packages/./api/functions#agentinboxmessages)                             | variable |                                                                                   |
+| [`scratchpadEntries`](/packages/./api/functions#scratchpadentries)                               | variable |                                                                                   |
+| [`sectionEmbeddings`](/packages/./api/functions#sectionembeddings)                               | variable | Semantic embedding vectors for documents.  Unlike Postgres (which uses pgvect...  |
+| [`blobAttachments`](/packages/./api/functions#blobattachments)                                   | variable | Blob attachments table for LocalBackend.  Each row represents one attachment...   |
+| [`insertDocumentSchema`](/packages/./api/functions#insertdocumentschema)                         | variable |                                                                                   |
+| [`selectDocumentSchema`](/packages/./api/functions#selectdocumentschema)                         | variable |                                                                                   |
+| [`insertVersionSchema`](/packages/./api/functions#insertversionschema)                           | variable |                                                                                   |
+| [`selectVersionSchema`](/packages/./api/functions#selectversionschema)                           | variable |                                                                                   |
+| [`insertApprovalSchema`](/packages/./api/functions#insertapprovalschema)                         | variable |                                                                                   |
+| [`selectApprovalSchema`](/packages/./api/functions#selectapprovalschema)                         | variable |                                                                                   |
+| [`insertDocumentEventSchema`](/packages/./api/functions#insertdocumenteventschema)               | variable |                                                                                   |
+| [`selectDocumentEventSchema`](/packages/./api/functions#selectdocumenteventschema)               | variable |                                                                                   |
+| [`insertAgentPubkeySchema`](/packages/./api/functions#insertagentpubkeyschema)                   | variable |                                                                                   |
+| [`selectAgentPubkeySchema`](/packages/./api/functions#selectagentpubkeyschema)                   | variable |                                                                                   |
+| [`insertSectionLeaseSchema`](/packages/./api/functions#insertsectionleaseschema)                 | variable |                                                                                   |
+| [`selectSectionLeaseSchema`](/packages/./api/functions#selectsectionleaseschema)                 | variable |                                                                                   |
+| [`insertAgentInboxMessageSchema`](/packages/./api/functions#insertagentinboxmessageschema)       | variable |                                                                                   |
+| [`selectAgentInboxMessageSchema`](/packages/./api/functions#selectagentinboxmessageschema)       | variable |                                                                                   |
+| [`insertScratchpadEntrySchema`](/packages/./api/functions#insertscratchpadentryschema)           | variable |                                                                                   |
+| [`selectScratchpadEntrySchema`](/packages/./api/functions#selectscratchpadentryschema)           | variable |                                                                                   |
+| [`schema-local.ts`](/packages/./api/functions#schema-localts)                                    | file     |                                                                                   |
+| [`primitives.ts`](/packages/./api/functions#primitivests)                                        | file     |                                                                                   |
+| [`fs-adapter.ts`](/packages/./api/functions#fs-adapterts)                                        | file     |                                                                                   |
+| [`blob-fs-adapter.ts`](/packages/./api/functions#blob-fs-adapterts)                              | file     |                                                                                   |
+| [`local-backend.ts`](/packages/./api/functions#local-backendts)                                  | file     |                                                                                   |
+| [`index.ts`](/packages/./api/functions#indexts)                                                  | file     |                                                                                   |
+| [`remote-backend.ts`](/packages/./api/functions#remote-backendts)                                | file     |                                                                                   |
+| [`index.ts`](/packages/./api/functions#indexts)                                                  | file     |                                                                                   |
+| [`factory.ts`](/packages/./api/functions#factoryts)                                              | file     |                                                                                   |
+| [`index.ts`](/packages/./api/functions#indexts)                                                  | file     |                                                                                   |
+| [`index.ts`](/packages/./api/functions#indexts)                                                  | file     |                                                                                   |
+| [`index.ts`](/packages/./api/functions#indexts)                                                  | file     |                                                                                   |
+| [`merge.ts`](/packages/./api/functions#mergets)                                                  | file     |                                                                                   |
+| [`ALLOWED_URI_REGEXP`](/packages/./api/functions#alloweduriregexp)                               | variable | URI allowlist: only permit http:, https:, mailto:, and relative URIs. This bl...  |
+| [`ALLOWED_TAGS`](/packages/./api/functions#allowedtags)                                          | variable | Allowed HTML elements for markdown-rendered content. Deliberately excludes: s...  |
+| [`ALLOWED_ATTR`](/packages/./api/functions#allowedattr)                                          | variable | Allowed HTML attributes. Excludes all event handler attributes (on\*).            |
+| [`FORBIDDEN_ATTR`](/packages/./api/functions#forbiddenattr)                                      | variable | Forbidden event handler attributes (comprehensive list covering OWASP cheat s...  |
+| [`FORBIDDEN_CONTENTS`](/packages/./api/functions#forbiddencontents)                              | variable | Elements whose content must be stripped entirely (not just the tag). This pre...  |
+| [`sanitize.ts`](/packages/./api/functions#sanitizets)                                            | file     |                                                                                   |
+| [`MAX_CHANGESET_BYTES`](/packages/./api/functions#maxchangesetbytes)                             | variable | Maximum changeset size: 10 MB (P3 spec §10).                                      |
+| [`MAX_RETRIES`](/packages/./api/functions#maxretries)                                            | variable | Number of retry attempts before giving up.                                        |
+| [`RETRY_BASE_MS`](/packages/./api/functions#retrybasems)                                         | variable | Base backoff delay in milliseconds (doubles each retry).                          |
+| [`index.ts`](/packages/./api/functions#indexts)                                                  | file     |                                                                                   |
+| [`sync-engine.ts`](/packages/./api/functions#sync-enginets)                                      | file     |                                                                                   |
+| [`a2a.ts`](/packages/./api/functions#a2ats)                                                      | file     |                                                                                   |
+| [`a2a.test.ts`](/packages/./api/functions#a2atestts)                                             | file     |                                                                                   |
+| [`pg-backend.ts`](/packages/./api/functions#pg-backendts)                                        | file     |                                                                                   |
+| [`PG_AVAILABLE`](/packages/./api/functions#pgavailable)                                          | variable | True when DATABASE\_URL\_PG env var is set and the PG suite should run.           |
+| [`test-pg.ts`](/packages/./api/functions#test-pgts)                                              | file     |                                                                                   |
+| [`backend-contract.test.ts`](/packages/./api/functions#backend-contracttestts)                   | file     |                                                                                   |
+| [`backend-factory.test.ts`](/packages/./api/functions#backend-factorytestts)                     | file     |                                                                                   |
+| [`changeset.ts`](/packages/./api/functions#changesetts)                                          | file     |                                                                                   |
+| [`blob-changeset.ts`](/packages/./api/functions#blob-changesetts)                                | file     |                                                                                   |
+| [`blob-5-agent-hub-spoke.test.ts`](/packages/./api/functions#blob-5-agent-hub-spoketestts)       | file     |                                                                                   |
+| [`blob-backend.test.ts`](/packages/./api/functions#blob-backendtestts)                           | file     |                                                                                   |
+| [`blob-changeset.test.ts`](/packages/./api/functions#blob-changesettestts)                       | file     |                                                                                   |
+| [`blob-cli.test.ts`](/packages/./api/functions#blob-clitestts)                                   | file     |                                                                                   |
+| [`blob-fs-adapter.test.ts`](/packages/./api/functions#blob-fs-adaptertestts)                     | file     |                                                                                   |
+| [`classify.test.ts`](/packages/./api/functions#classifytestts)                                   | file     |                                                                                   |
+| [`compression-zstd.test.ts`](/packages/./api/functions#compression-zstdtestts)                   | file     |                                                                                   |
+| [`crdt-primitives.test.ts`](/packages/./api/functions#crdt-primitivestestts)                     | file     |                                                                                   |
+| [`crdt-sdk.test.ts`](/packages/./api/functions#crdt-sdktestts)                                   | file     |                                                                                   |
+| [`createversion-autoindex.test.ts`](/packages/./api/functions#createversion-autoindextestts)     | file     |                                                                                   |
+| [`crsqlite-loader.test.ts`](/packages/./api/functions#crsqlite-loadertestts)                     | file     |                                                                                   |
+| [`PEER_TTL_MS`](/packages/./api/functions#peerttlms)                                             | variable | Peer TTL in milliseconds. Peer files older than this and whose host is unreac...  |
+| [`discovery.ts`](/packages/./api/functions#discoveryts)                                          | file     |                                                                                   |
+| [`discovery.test.ts`](/packages/./api/functions#discoverytestts)                                 | file     |                                                                                   |
+| [`types.ts`](/packages/./api/functions#typests)                                                  | file     |                                                                                   |
+| [`stream.ts`](/packages/./api/functions#streamts)                                                | file     |                                                                                   |
+| [`bus.ts`](/packages/./api/functions#busts)                                                      | file     |                                                                                   |
+| [`index.ts`](/packages/./api/functions#indexts)                                                  | file     |                                                                                   |
+| [`events-contract.test.ts`](/packages/./api/functions#events-contracttestts)                     | file     |                                                                                   |
+| [`export-backend.test.ts`](/packages/./api/functions#export-backendtestts)                       | file     |                                                                                   |
+| [`export-determinism.test.ts`](/packages/./api/functions#export-determinismtestts)               | file     |                                                                                   |
+| [`export.test.ts`](/packages/./api/functions#exporttestts)                                       | file     |                                                                                   |
+| [`hub-spoke-topology.test.ts`](/packages/./api/functions#hub-spoke-topologytestts)               | file     |                                                                                   |
+| [`index.ts`](/packages/./api/functions#indexts)                                                  | file     |                                                                                   |
+| [`identity.contract.test.ts`](/packages/./api/functions#identitycontracttestts)                  | file     |                                                                                   |
+| [`local-backend-crr.test.ts`](/packages/./api/functions#local-backend-crrtestts)                 | file     |                                                                                   |
+| [`local-backend-sync.test.ts`](/packages/./api/functions#local-backend-synctestts)               | file     |                                                                                   |
+| [`local-multi-agent.test.ts`](/packages/./api/functions#local-multi-agenttestts)                 | file     |                                                                                   |
+| [`loro-crsqlite-integration.test.ts`](/packages/./api/functions#loro-crsqlite-integrationtestts) | file     |                                                                                   |
+| [`mesh-5-peer.test.ts`](/packages/./api/functions#mesh-5-peertestts)                             | file     |                                                                                   |
+| [`mesh-cli.test.ts`](/packages/./api/functions#mesh-clitestts)                                   | file     |                                                                                   |
+| [`multiwaydiff.test.ts`](/packages/./api/functions#multiwaydifftestts)                           | file     |                                                                                   |
+| [`presence.ts`](/packages/./api/functions#presencets)                                            | file     |                                                                                   |
+| [`presence.test.ts`](/packages/./api/functions#presencetestts)                                   | file     |                                                                                   |
+| [`security-primitives.test.ts`](/packages/./api/functions#security-primitivestestts)             | file     |                                                                                   |
+| [`AgentSessionState`](/packages/./api/functions#agentsessionstate)                               | variable |                                                                                   |
+| [`session.ts`](/packages/./api/functions#sessionts)                                              | file     |                                                                                   |
+| [`session-crash-recovery.test.ts`](/packages/./api/functions#session-crash-recoverytestts)       | file     |                                                                                   |
+| [`session-swarm.test.ts`](/packages/./api/functions#session-swarmtestts)                         | file     |                                                                                   |
+| [`session.test.ts`](/packages/./api/functions#sessiontestts)                                     | file     |                                                                                   |
+| [`standalone-topology.test.ts`](/packages/./api/functions#standalone-topologytestts)             | file     |                                                                                   |
+| [`sync-engine.test.ts`](/packages/./api/functions#sync-enginetestts)                             | file     |                                                                                   |
+| [`topology-failure.test.ts`](/packages/./api/functions#topology-failuretestts)                   | file     |                                                                                   |
+| [`topology.test.ts`](/packages/./api/functions#topologytestts)                                   | file     |                                                                                   |
+| [`transport-contract.test.ts`](/packages/./api/functions#transport-contracttestts)               | file     |                                                                                   |
+| [`transport.test.ts`](/packages/./api/functions#transporttestts)                                 | file     |                                                                                   |
+| [`index.ts`](/packages/./api/functions#indexts)                                                  | file     |                                                                                   |
+| [`contract.test.ts`](/packages/./api/functions#contracttestts)                                   | file     |                                                                                   |
+| [`index.ts`](/packages/./api/functions#indexts)                                                  | file     |                                                                                   |
+| [`llmtxt.ts`](/packages/./api/functions#llmtxtts)                                                | file     |                                                                                   |
+| [`crdt.contract.test.ts`](/packages/./api/functions#crdtcontracttestts)                          | file     |                                                                                   |
+| [`server-peer-adapter.ts`](/packages/./api/functions#server-peer-adapterts)                      | file     |                                                                                   |
+| [`index.ts`](/packages/./api/functions#indexts)                                                  | file     |                                                                                   |
+| [`a2a.ts`](/packages/./api/functions#a2ats)                                                      | file     |                                                                                   |
+| [`bft.ts`](/packages/./api/functions#bftts)                                                      | file     |                                                                                   |
+| [`scratchpad.ts`](/packages/./api/functions#scratchpadts)                                        | file     |                                                                                   |
+| [`index.ts`](/packages/./api/functions#indexts)                                                  | file     |                                                                                   |
+| [`sdk.contract.test.ts`](/packages/./api/functions#sdkcontracttestts)                            | file     |                                                                                   |
+| [`similarity.contract.test.ts`](/packages/./api/functions#similaritycontracttestts)              | file     |                                                                                   |

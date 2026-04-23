@@ -4,6 +4,60 @@ title: ''
 
 Functions and classes exported by this package.
 
+## setLocalAwarenessState(conn, state)
+
+Set the local agent's awareness state on a WebSocket connection. Encodes the state and sends it to the server (which relays to peers).
+
+**Signature**
+
+```typescript
+(conn: WebSocket | { send(data: Uint8Array | Buffer): void; }, state: AwarenessState) => void
+```
+
+**Parameters**
+
+| Name    | Type                                             | Description                       |
+| ------- | ------------------------------------------------ | --------------------------------- |
+| `conn`  | `WebSocket \| { send(data: Uint8Array \| Buffer` | Active WebSocket connection.      |
+| `state` | `AwarenessState`                                 | The awareness state to broadcast. |
+
+## onAwarenessChange(conn, fn)
+
+Subscribe to awareness state changes on a WebSocket connection. The callback is invoked with the full current state map whenever a peer's awareness changes.
+
+**Signature**
+
+```typescript
+(conn: WebSocket | { on?(event: string, handler: (data: Buffer | Uint8Array) => void): void; addEventListener?(type: string, handler: (event: { data: unknown; }) => void): void; }, fn: (states: Map<number, AwarenessState>) => void) => Unsubscribe
+```
+
+**Parameters**
+
+| Name   | Type                               | Description                                                |
+| ------ | ---------------------------------- | ---------------------------------------------------------- |
+| `conn` | `WebSocket \| { on?(event: string` | Active WebSocket connection.                               |
+| `fn`   | `(states: Map<number`              | Callback invoked with updated MapclientId, AwarenessState. |
+
+**Returns** — Unsubscribe function.
+
+## getAwarenessStates(conn)
+
+Get the current awareness states for all known clients on a connection.
+
+**Signature**
+
+```typescript
+(conn: WebSocket | object) => Map<number, AwarenessState>
+```
+
+**Parameters**
+
+| Name   | Type                  | Description                  |
+| ------ | --------------------- | ---------------------------- |
+| `conn` | `WebSocket \| object` | Active WebSocket connection. |
+
+**Returns** — MapclientId, AwarenessState.
+
 ## LRUCache
 
 Generic least-recently-used (LRU) cache with time-to-live support.
@@ -88,7 +142,57 @@ Reset the hit/miss counters to zero without clearing cached entries.
 () => void
 ```
 
+## classifyContent(input)
+
+Classify the content of `input` using a three-layer pipeline: magic-byte detection → text/binary gate → heuristic text analysis.  All classification logic runs in Rust WASM (SSoT: `crates/llmtxt-core/src/classify/`). This function is a thin adapter that normalises inputs and maps enum variants.
+
+**Signature**
+
+```typescript
+(input: string | Uint8Array | Buffer) => ClassificationResult
+```
+
+**Parameters**
+
+| Name    | Type                             | Description                                                                                                                                                                                     |
+| ------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `input` | `string \| Uint8Array \| Buffer` | Raw content as a `string`, `Uint8Array`, or `Buffer`.   - `string`: encoded to UTF-8 bytes before classification.   - `Uint8Array` / `Buffer`: passed directly (no copy if already Uint8Array). |
+
+**Returns** — A `ClassificationResult` describing the detected content type.
+
+**Throws**
+
+- Error if the WASM module returns a serialization error (should not occur   in practice — the Rust code catches all errors and returns a valid JSON string).
+
+**Example**
+
+```ts
+import { classifyContent } from 'llmtxt';
+
+const result = classifyContent('# Hello\n\nMarkdown content.');
+console.log(result.format);      // 'markdown'
+console.log(result.mimeType);    // 'text/markdown'
+console.log(result.confidence);  // 0.8
+
+const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]); // %PDF
+const pdfResult = classifyContent(pdfBytes);
+console.log(pdfResult.format);   // 'pdf'
+console.log(pdfResult.confidence); // 1.0
+```
+
+## detectFormatFromClassification()
+
+Map a `ClassificationResult` to the legacy four-value format string.  Used internally by the `detectDocumentFormat` back-compat reroute (T828). External callers should use `classifyContent` directly for new code.
+
+**Signature**
+
+```typescript
+(result: ClassificationResult) => "json" | "markdown" | "code" | "text"
+```
+
 ## compress()
+
+Compress a UTF-8 string using zstd (RFC 8478), level 3.  New writes use zstd. Existing zlib-compressed rows are still readable via `decompress`, which detects the codec by magic bytes.  Delegates to crates/llmtxt-core::compress (Rust WASM).
 
 **Signature**
 
@@ -98,11 +202,49 @@ Reset the hit/miss counters to zero without clearing cached entries.
 
 ## decompress()
 
+Decompress bytes back to a UTF-8 string.  Auto-detects codec by magic bytes: - `0xFD 0x2F 0xB5 0x28` → zstd (new writes) - `0x78 __` → zlib/deflate (legacy rows — backward compatible)  Delegates to crates/llmtxt-core::decompress (Rust WASM).
+
 **Signature**
 
 ```typescript
 (data: Buffer) => Promise<string>
 ```
+
+## zstdCompressBytes(data)
+
+Compress raw bytes using zstd, returning compressed bytes.  Use this for binary payloads (blobs, CRDT snapshots) where the input is not a UTF-8 string. Delegates to crates/llmtxt-core::zstd\_compress\_bytes.
+
+**Signature**
+
+```typescript
+(data: Uint8Array) => Uint8Array
+```
+
+**Parameters**
+
+| Name   | Type         | Description            |
+| ------ | ------------ | ---------------------- |
+| `data` | `Uint8Array` | Raw bytes to compress. |
+
+**Returns** — Compressed bytes with zstd magic header.
+
+## zstdDecompressBytes(data)
+
+Decompress raw zstd bytes back to raw bytes.  Delegates to crates/llmtxt-core::zstd\_decompress\_bytes.
+
+**Signature**
+
+```typescript
+(data: Uint8Array) => Uint8Array
+```
+
+**Parameters**
+
+| Name   | Type         | Description            |
+| ------ | ------------ | ---------------------- |
+| `data` | `Uint8Array` | zstd-compressed bytes. |
+
+**Returns** — Decompressed raw bytes.
 
 ## encodeBase62()
 
@@ -134,6 +276,16 @@ Reset the hit/miss counters to zero without clearing cached entries.
 
 ```typescript
 (data: string) => string
+```
+
+## hashBlob()
+
+Compute SHA-256 hash of raw binary data. Returns a lowercase hex string (64 characters).  Use this for blob content-addressing — mirrors crates/llmtxt-core::hash\_blob. Prefer this over node:crypto createHash (SSOT rule — see docs/SSOT.md).
+
+**Signature**
+
+```typescript
+(data: Uint8Array) => string
 ```
 
 ## calculateTokens()
@@ -266,22 +418,22 @@ Compute a structured line-level diff between two texts via the Rust LCS algorith
 (oldText: string, newText: string) => StructuredDiffResult
 ```
 
-## multiWayDiff(base, versionsJson)
+## multiWayDiff(base, versions)
 
-Compute a multi-way diff across a base version and up to 4 additional versions.
+Compute per-line diff variants across N versions of a document.
 
 **Signature**
 
 ```typescript
-(base: string, versionsJson: string) => MultiDiffResult
+(base: string, versions: string | string[]) => MultiDiffResult
 ```
 
 **Parameters**
 
-| Name           | Type     | Description                                        |
-| -------------- | -------- | -------------------------------------------------- |
-| `base`         | `string` | Base version content (typically v1).               |
-| `versionsJson` | `string` | JSON array of strings, one per additional version. |
+| Name       | Type                 | Description                                                                                                                    |
+| ---------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `base`     | `string`             | Base version content.                                                                                                          |
+| `versions` | `string \| string[]` | Either an array of version strings (preferred) OR a   JSON-encoded array of strings (legacy, still supported for back-compat). |
 
 **Returns** — Parsed MultiDiffResult.
 
@@ -313,177 +465,297 @@ Assemble document content from line ranges and sections across multiple versions
 
 - Error if the Rust core returns an error object.
 
-## createClient()
+## threeWayMerge(base, ours, theirs)
+
+Perform a 3-way merge of `base`, `ours`, and `theirs`.  Regions modified by only one side are auto-merged.  Regions modified by both sides produce conflict markers in the output:
 
 **Signature**
 
 ```typescript
-(config: LlmtxtClientConfig) => { upload(conversationId: string, content: string, options?: { format?: string; title?: string; expiresIn?: number; }): Promise<UploadResult>; fetch(signedUrl: string): Promise<FetchResult>; fetchFromConversation(slug: string, conversationId: string): Promise<FetchResult>; fetchOwned(slug: string): Promise<FetchResult>; reshare(slug: string, options?: AttachmentReshareOptions): Promise<ReshareResult>; resign(slug: string, options?: AttachmentReshareOptions): Promise<ResignResult>; createVersionPatch(original: string, updated: string): string; addVersion(slug: string, patchText: string, options?: AttachmentVersionOptions): Promise<AttachmentVersionResult>; addVersionFromContent(slug: string, original: string, updated: string, options?: AttachmentVersionOptions): Promise<AttachmentVersionResult>; isValid(signedUrl: string): boolean; }
+(base: string, ours: string, theirs: string) => ThreeWayMergeResult
 ```
 
-## getLineRange(content, start, end)
+**Parameters**
 
-Extract a range of lines from a document, returning content and token statistics.
+| Name     | Type     | Description                    |
+| -------- | -------- | ------------------------------ |
+| `base`   | `string` | Common ancestor content.       |
+| `ours`   | `string` | Our version of the document.   |
+| `theirs` | `string` | Their version of the document. |
+
+**Returns** — Parsed ThreeWayMergeResult.
+
+**Throws**
+
+- Error if the Rust core returns an error object.
+
+## l2Normalize(vecJson)
+
+L2-normalize a vector of numbers to unit length.  Delegates to crates/llmtxt-core::normalize::l2\_normalize via WASM.
 
 **Signature**
 
 ```typescript
-(content: string, start: number, end: number) => LineRangeResult
+(vecJson: string) => string
 ```
 
 **Parameters**
 
 | Name      | Type     | Description                                 |
 | --------- | -------- | ------------------------------------------- |
-| `content` | `string` | The full document content.                  |
-| `start`   | `number` | The 1-based starting line number.           |
-| `end`     | `number` | The 1-based ending line number (inclusive). |
+| `vecJson` | `string` | JSON array of numbers, e.g. `"[3.0, 4.0]"`. |
 
-**Returns** — A `LineRangeResult` with the extracted content and token savings.
+**Returns** — JSON array string of normalized values, or `"[]"` on parse error.
 
-**Example**
+## signWebhookPayload(secret, payload)
 
-```ts
-const range = getLineRange(doc, 10, 25);
-console.log(`Saved ${range.tokensSaved} tokens`);
-```
-
-## searchContent(content, query, contextLines, maxResults)
-
-Search document content for lines matching a query string or regex.
+Compute the HMAC-SHA256 webhook signature for a payload.  Returns `"sha256=<hex>"` — the canonical format for the `X-LLMtxt-Signature` request header.  Delegates to crates/llmtxt-core::crypto::sign\_webhook\_payload.
 
 **Signature**
 
 ```typescript
-(content: string, query: string, contextLines?: number, maxResults?: number) => SearchResult[]
+(secret: string, payload: string) => string
 ```
 
 **Parameters**
 
-| Name           | Type       | Description                                                       |
-| -------------- | ---------- | ----------------------------------------------------------------- |
-| `content`      | `string`   | The full document content to search.                              |
-| `query`        | `string`   | A plain-text substring or `/regex/flags` pattern.                 |
-| `contextLines` | `: number` | Number of context lines before and after each match (default: 2). |
-| `maxResults`   | `: number` | Maximum number of matches to return (default: 20).                |
+| Name      | Type     | Description                          |
+| --------- | -------- | ------------------------------------ |
+| `secret`  | `string` | The webhook signing secret.          |
+| `payload` | `string` | The raw request body string to sign. |
 
-**Returns** — An array of `SearchResult` objects for each matching line.
+**Returns** — `sha256=<hex HMAC-SHA256>` or empty string on HMAC error.
 
-**Example**
+## constantTimeEqHex(a, b)
 
-```ts
-const hits = searchContent(doc, 'TODO', 3, 10);
-```
-
-## detectDocumentFormat(content)
-
-Detect the structural format of a document using content heuristics.
+Compare two hex-encoded digest strings in constant time.  Use this whenever you need to compare API key hashes, HMAC signatures, or any other secret-derived values. JavaScript `===` on strings is NOT timing-safe and MUST NOT be used for secrets.  Delegates to `crates/llmtxt-core::crypto::constant_time_eq_hex` which uses the `subtle` crate for guaranteed constant-time byte comparison.
 
 **Signature**
 
 ```typescript
-(content: string) => "json" | "markdown" | "code" | "text"
+(a: string, b: string) => boolean
 ```
 
 **Parameters**
 
-| Name      | Type     | Description                       |
-| --------- | -------- | --------------------------------- |
-| `content` | `string` | The document content to classify. |
+| Name | Type     | Description                                   |
+| ---- | -------- | --------------------------------------------- |
+| `a`  | `string` | First hex digest string (e.g. a SHA-256 hash) |
+| `b`  | `string` | Second hex digest string                      |
 
-**Returns** — The detected format: `"json"`, `"markdown"`, `"code"`, or `"text"`.
+**Returns** — `true` if and only if `a === b` in constant time
 
-**Example**
+## verifyContentHash(content, expectedHash)
 
-```ts
-detectDocumentFormat('# Title\n- item'); // "markdown"
-```
-
-## generateOverview(content)
-
-Generate a structural overview of a document for progressive disclosure.
+Verify that `content` matches an expected SHA-256 hex hash.  T-02: Client-side content integrity helper for the SDK.  Computes the SHA-256 hash of the provided content using the Rust WASM primitive and then performs a constant-time comparison against the expected digest.  Typical usage: after downloading a document version, call this with the `content_hash` field from the server response to detect tampering in transit.
 
 **Signature**
 
 ```typescript
-(content: string) => DocumentOverview
+(content: string, expectedHash: string) => boolean
 ```
 
 **Parameters**
 
-| Name      | Type     | Description                           |
-| --------- | -------- | ------------------------------------- |
-| `content` | `string` | The full document content to analyze. |
+| Name           | Type     | Description                                     |
+| -------------- | -------- | ----------------------------------------------- |
+| `content`      | `string` | UTF-8 document content string                   |
+| `expectedHash` | `string` | Lowercase hex SHA-256 digest to compare against |
 
-**Returns** — A `DocumentOverview` with format, sections, and token counts.
+**Returns** — `true` when `sha256(content) === expectedHash` in constant time
 
-**Example**
+## cosineSimilarity(a, b)
 
-```ts
-const overview = generateOverview(markdownDoc);
-console.log(`${overview.sections.length} sections, ${overview.tokenCount} tokens`);
-```
-
-## queryJsonPath(content, path)
-
-Execute a JSONPath-style query against JSON content.
+Compute cosine similarity between two embedding vectors.  Delegates to crates/llmtxt-core::semantic::cosine\_similarity\_wasm.
 
 **Signature**
 
 ```typescript
-(content: string, path: string) => { result: unknown; tokenCount: number; path: string; }
+(aJson: string, bJson: string) => number
 ```
 
 **Parameters**
 
-| Name      | Type     | Description                                                |
-| --------- | -------- | ---------------------------------------------------------- |
-| `content` | `string` | A valid JSON string to query.                              |
-| `path`    | `string` | A JSONPath expression (e.g. `"$.key"`, `"items[0].name"`). |
+| Name | Type | Description                                                   |
+| ---- | ---- | ------------------------------------------------------------- |
+| `a`  | —    | Embedding vector as a JSON array string, e.g. `"[1.0, 0.0]"`. |
+| `b`  | —    | Embedding vector as a JSON array string.                      |
 
-**Returns** — An object containing the resolved `result`, its `tokenCount`, and the original `path`.
+**Returns** — Cosine similarity in `[-1.0, 1.0]`, or `0.0` on invalid input.
+
+## semanticDiff(sectionsAJson, sectionsBJson)
+
+Compute a semantic diff between two sets of pre-embedded document sections.
+
+**Signature**
+
+```typescript
+(sectionsAJson: string, sectionsBJson: string) => SemanticDiffResult
+```
+
+**Parameters**
+
+| Name            | Type     | Description                                                            |
+| --------------- | -------- | ---------------------------------------------------------------------- |
+| `sectionsAJson` | `string` | JSON array of `{ title, content, embedding: number[] }` for version A. |
+| `sectionsBJson` | `string` | JSON array of `{ title, content, embedding: number[] }` for version B. |
+
+**Returns** — Parsed SemanticDiffResult.
 
 **Throws**
 
-- Error if the JSON is invalid or the path cannot be resolved.
+- Error if the Rust core returns an error object.
 
-**Example**
+## rolePermissions(role)
 
-```ts
-const { result } = queryJsonPath('{"a":{"b":42}}', '$.a.b');
-// result === 42
-```
-
-## getSection(content, sectionName, depthAll)
-
-Extract a named section from a document by title.
+Return the permissions for a document role as a JSON array of strings.  Delegates to crates/llmtxt-core::rbac::role\_permissions via WASM.
 
 **Signature**
 
 ```typescript
-(content: string, sectionName: string, depthAll?: boolean) => { section: Section; content: string; tokenCount: number; totalTokens: number; tokensSaved: number; } | null
+(role: string) => string
 ```
 
 **Parameters**
 
-| Name          | Type        | Description                                                                        |
-| ------------- | ----------- | ---------------------------------------------------------------------------------- |
-| `content`     | `string`    | The full document content.                                                         |
-| `sectionName` | `string`    | The section title (or substring) to search for.                                    |
-| `depthAll`    | `: boolean` | When `true`, include all child sections nested under the match (default: `false`). |
+| Name   | Type     | Description                               |
+| ------ | -------- | ----------------------------------------- |
+| `role` | `string` | One of `"owner"`, `"editor"`, `"viewer"`. |
 
-**Returns** — An object with the matched section, extracted content, and token savings, or `null` if not found.
+**Returns** — JSON array string, e.g. `'["read","write","approve"]'`. Returns `"[]"` for unknown roles.
+
+## roleHasPermission(role, permission)
+
+Check whether a document role has a specific permission.  Delegates to crates/llmtxt-core::rbac::role\_has\_permission via WASM.
+
+**Signature**
+
+```typescript
+(role: string, permission: string) => boolean
+```
+
+**Parameters**
+
+| Name         | Type     | Description                                                      |
+| ------------ | -------- | ---------------------------------------------------------------- |
+| `role`       | `string` | One of `"owner"`, `"editor"`, `"viewer"`.                        |
+| `permission` | `string` | One of `"read"`, `"write"`, `"delete"`, `"manage"`, `"approve"`. |
+
+**Returns** — `true` when the role grants that permission.
+
+## slugify(name)
+
+Convert a collection or document name to a URL-safe slug.  Delegates to crates/llmtxt-core::slugify::slugify via WASM.
+
+**Signature**
+
+```typescript
+(name: string) => string
+```
+
+**Parameters**
+
+| Name   | Type     | Description              |
+| ------ | -------- | ------------------------ |
+| `name` | `string` | The raw name to slugify. |
+
+**Returns** — A lowercase, hyphen-separated slug (max 80 chars).
 
 **Example**
 
 ```ts
-const section = getSection(doc, 'Installation', true);
-if (section) console.log(section.content);
+slugify('Hello World'); // "hello-world"
+slugify('My Collection 2024'); // "my-collection-2024"
+```
+
+## semanticConsensus(reviewsJson, threshold)
+
+Evaluate semantic consensus across a set of pre-embedded reviews.
+
+**Signature**
+
+```typescript
+(reviewsJson: string, threshold: number) => SemanticConsensusResult
+```
+
+**Parameters**
+
+| Name          | Type     | Description                                                   |
+| ------------- | -------- | ------------------------------------------------------------- |
+| `reviewsJson` | `string` | JSON array of `{ reviewerId, content, embedding: number[] }`. |
+| `threshold`   | `number` | Cosine similarity threshold for clustering (e.g. 0.80).       |
+
+**Returns** — Parsed SemanticConsensusResult.
+
+**Throws**
+
+- Error if the Rust core returns an error object.
+
+**Example**
+
+```ts
+// Embed reviews first (e.g. with LocalEmbeddingProvider)
+const reviews = [
+  { reviewerId: 'agent-1', content: 'This API is well-designed.', embedding: [...] },
+  { reviewerId: 'agent-2', content: 'The API design is excellent.', embedding: [...] },
+];
+
+const result = semanticConsensus(JSON.stringify(reviews), 0.80);
+if (result.consensus) {
+  console.log('Agreement found:', result.agreementScore);
+}
+```
+
+## contentSimilarity(a, b)
+
+Compute similarity between two texts using word shingles.  Delegates to crates/llmtxt-core::similarity::content\_similarity\_wasm.
+
+**Signature**
+
+```typescript
+(a: string, b: string) => number
+```
+
+**Parameters**
+
+| Name | Type     | Description  |
+| ---- | -------- | ------------ |
+| `a`  | `string` | First text.  |
+| `b`  | `string` | Second text. |
+
+**Returns** — Jaccard similarity of word bigrams, 0.0 to 1.0.
+
+## detectFormat(content)
+
+Auto-detect whether a string is JSON, markdown, or plain text.  Delegates to crates/llmtxt-core::validation::detect\_format.
+
+**Signature**
+
+```typescript
+(content: string) => "json" | "markdown" | "text"
+```
+
+**Parameters**
+
+| Name      | Type     | Description            |
+| --------- | -------- | ---------------------- |
+| `content` | `string` | The string to inspect. |
+
+**Returns** — `"json"`, `"markdown"`, or `"text"`.
+
+## containsBinaryContent()
+
+Check for binary content (control chars 0x00–0x08) in the first 8 KB.  Delegates to crates/llmtxt-core::validation::contains\_binary\_content.
+
+**Signature**
+
+```typescript
+(content: string) => boolean
 ```
 
 ## extractMentions()
 
-Extract  from message content.
+Extract  from message content. Returns unique names (excluding all).  Delegates to crates/llmtxt-core::graph::extract\_mentions\_wasm.
 
 **Signature**
 
@@ -491,9 +763,30 @@ Extract  from message content.
 (content: string) => string[]
 ```
 
+**Returns** — JSON array string of mention strings.
+
+## extractNgrams(text, n)
+
+Extract character-level n-grams from text.  Delegates to crates/llmtxt-core::similarity::extract\_ngrams\_wasm.
+
+**Signature**
+
+```typescript
+(text: string, n?: number) => string[]
+```
+
+**Parameters**
+
+| Name   | Type       | Description              |
+| ------ | ---------- | ------------------------ |
+| `text` | `string`   | Input text.              |
+| `n`    | `: number` | N-gram size (default 3). |
+
+**Returns** — Sorted array of n-gram strings.
+
 ## extractTags()
 
-Extract #tags from message content.
+Extract #tags from message content. Returns unique tag names.  Delegates to crates/llmtxt-core::graph::extract\_tags\_wasm.
 
 **Signature**
 
@@ -503,7 +796,7 @@ Extract #tags from message content.
 
 ## extractDirectives()
 
-Extract /directives from message content.
+Extract /directives from message content. Returns unique directive keywords.  Delegates to crates/llmtxt-core::graph::extract\_directives\_wasm.
 
 **Signature**
 
@@ -511,9 +804,57 @@ Extract /directives from message content.
 (content: string) => string[]
 ```
 
-## buildGraph()
+## extractWordShingles(text, n)
 
-Build a knowledge graph from an array of messages.  Nodes: agents (from fromAgentId + mentions), topics (#tags), decisions (/decision messages) Edges: mentions (agent→agent), discusses (agent→topic), decides (agent→decision), participates (agent→agent in same conversation)
+Extract word-level n-gram shingles from text.  Delegates to crates/llmtxt-core::similarity::extract\_word\_shingles\_wasm.
+
+**Signature**
+
+```typescript
+(text: string, n?: number) => string[]
+```
+
+**Parameters**
+
+| Name   | Type       | Description               |
+| ------ | ---------- | ------------------------- |
+| `text` | `string`   | Input text.               |
+| `n`    | `: number` | Shingle size (default 2). |
+
+**Returns** — Sorted array of shingle strings.
+
+## findOverlongLine()
+
+Find the 1-based line number of the first line exceeding max\_chars. Returns 0 if no overlong line exists.  Delegates to crates/llmtxt-core::validation::find\_overlong\_line.
+
+**Signature**
+
+```typescript
+(content: string, maxChars: number) => number
+```
+
+## fingerprintSimilarity(a, b)
+
+Estimate similarity between two MinHash fingerprints.
+
+**Signature**
+
+```typescript
+(a: number[], b: number[]) => number
+```
+
+**Parameters**
+
+| Name | Type       | Description                                  |
+| ---- | ---------- | -------------------------------------------- |
+| `a`  | `number[]` | Fingerprint array (from minHashFingerprint). |
+| `b`  | `number[]` | Fingerprint array (from minHashFingerprint). |
+
+**Returns** — Approximate Jaccard similarity, 0.0 to 1.0.
+
+## buildGraph(messages)
+
+Build a knowledge graph from an array of messages.  Delegates to crates/llmtxt-core::graph::build\_graph\_wasm.
 
 **Signature**
 
@@ -521,9 +862,21 @@ Build a knowledge graph from an array of messages.  Nodes: agents (from fromAgen
 (messages: MessageInput[]) => KnowledgeGraph
 ```
 
-## topTopics()
+**Parameters**
 
-Find the most connected topics in the graph. Returns topics sorted by number of discussing agents.
+| Name       | Type             | Description                    |
+| ---------- | ---------------- | ------------------------------ |
+| `messages` | `MessageInput[]` | Array of MessageInput objects. |
+
+**Returns** — Parsed KnowledgeGraph.
+
+**Throws**
+
+- Error if the Rust core returns an error.
+
+## topTopics(graph, limit)
+
+Find the most connected topics in the graph.  Delegates to crates/llmtxt-core::graph::top\_topics\_wasm.
 
 **Signature**
 
@@ -531,15 +884,694 @@ Find the most connected topics in the graph. Returns topics sorted by number of 
 (graph: KnowledgeGraph, limit?: number) => Array<{ topic: string; agents: number; }>
 ```
 
-## topAgents()
+**Parameters**
 
-Find the most active agents in the graph. Returns agents sorted by total edge weight (mentions + discussions + decisions).
+| Name    | Type             | Description                              |
+| ------- | ---------------- | ---------------------------------------- |
+| `graph` | `KnowledgeGraph` | A KnowledgeGraph returned by buildGraph. |
+| `limit` | `: number`       | Maximum number of results (default 10).  |
+
+**Returns** — Array of `{ topic, agents }` sorted by agent count descending.
+
+## topAgents(graph, limit)
+
+Find the most active agents in the graph.  Delegates to crates/llmtxt-core::graph::top\_agents\_wasm.
 
 **Signature**
 
 ```typescript
 (graph: KnowledgeGraph, limit?: number) => Array<{ agent: string; activity: number; }>
 ```
+
+**Parameters**
+
+| Name    | Type             | Description                              |
+| ------- | ---------------- | ---------------------------------------- |
+| `graph` | `KnowledgeGraph` | A KnowledgeGraph returned by buildGraph. |
+| `limit` | `: number`       | Maximum number of results (default 10).  |
+
+**Returns** — Array of `{ agent, activity }` sorted by activity descending.
+
+## jaccardSimilarity(a, b)
+
+Compute Jaccard similarity between two texts using character n-grams.  Delegates to crates/llmtxt-core::similarity::jaccard\_similarity\_wasm.
+
+**Signature**
+
+```typescript
+(a: string, b: string) => number
+```
+
+**Parameters**
+
+| Name | Type     | Description  |
+| ---- | -------- | ------------ |
+| `a`  | `string` | First text.  |
+| `b`  | `string` | Second text. |
+
+**Returns** — Jaccard similarity with n=3, 0.0 to 1.0.
+
+## detectDocumentFormat()
+
+Detect the structural format of a document.  Returns `"json"`, `"markdown"`, `"code"`, or `"text"`. Extends crates/llmtxt-core::validation::detect\_format with "code" detection.  Delegates to crates/llmtxt-core::disclosure::detect\_document\_format\_wasm.
+
+**Signature**
+
+```typescript
+(content: string) => "json" | "markdown" | "code" | "text"
+```
+
+## generateOverview()
+
+Generate a structural overview of a document.  Delegates to crates/llmtxt-core::disclosure::generate\_overview\_wasm.
+
+**Signature**
+
+```typescript
+(content: string) => import("./disclosure.js").DocumentOverview
+```
+
+**Returns** — Parsed DocumentOverview.
+
+**Throws**
+
+- Error if the Rust core returns an error object.
+
+## getLineRange()
+
+Extract a line range from a document.  Delegates to crates/llmtxt-core::disclosure::get\_line\_range\_wasm.
+
+**Signature**
+
+```typescript
+(content: string, start: number, end: number) => import("./disclosure.js").LineRangeResult
+```
+
+**Returns** — Parsed LineRangeResult.
+
+**Throws**
+
+- Error if the Rust core returns an error object.
+
+## searchContent(contextLines, maxResults)
+
+Search document content for lines matching a query.  Delegates to crates/llmtxt-core::disclosure::search\_content\_wasm.
+
+**Signature**
+
+```typescript
+(content: string, query: string, contextLines?: number, maxResults?: number) => import("./disclosure.js").SearchResult[]
+```
+
+**Parameters**
+
+| Name           | Type       | Description                                       |
+| -------------- | ---------- | ------------------------------------------------- |
+| `contextLines` | `: number` | Number of surrounding context lines (default 2).  |
+| `maxResults`   | `: number` | Maximum number of results to return (default 20). |
+
+**Returns** — Array of SearchResult.
+
+**Throws**
+
+- Error if the Rust core returns an error object.
+
+## queryJsonPath()
+
+Execute a JSONPath-style query against JSON content.  Delegates to crates/llmtxt-core::disclosure::query\_json\_path\_wasm.
+
+**Signature**
+
+```typescript
+(content: string, path: string) => { result: unknown; tokenCount: number; path: string; }
+```
+
+**Returns** — `{ result, tokenCount, path }` object.
+
+**Throws**
+
+- Error if path resolution fails.
+
+## getSection(depthAll)
+
+Extract a named section from a document.  Delegates to crates/llmtxt-core::disclosure::get\_section\_wasm.
+
+**Signature**
+
+```typescript
+(content: string, sectionName: string, depthAll?: boolean) => { section: import("./disclosure.js").Section; content: string; tokenCount: number; totalTokens: number; tokensSaved: number; } | null
+```
+
+**Parameters**
+
+| Name       | Type        | Description                           |
+| ---------- | ----------- | ------------------------------------- |
+| `depthAll` | `: boolean` | If true, include nested sub-sections. |
+
+**Returns** — Section result or null if not found.
+
+## fnv1aHash(s)
+
+FNV-1a hash of a string (32-bit unsigned integer).  Identical to the TS `fnv1aHash()` function in embeddings.ts. Delegates to crates/llmtxt-core::tfidf::fnv1a\_hash\_wasm.
+
+**Signature**
+
+```typescript
+(s: string) => number
+```
+
+**Parameters**
+
+| Name | Type     | Description   |
+| ---- | -------- | ------------- |
+| `s`  | `string` | Input string. |
+
+**Returns** — 32-bit unsigned integer hash.
+
+## tfidfEmbed(text, dim)
+
+Embed a single text using TF-IDF into a float vector.  Delegates to crates/llmtxt-core::tfidf::tfidf\_embed\_wasm.
+
+**Signature**
+
+```typescript
+(text: string, dim?: number) => number[]
+```
+
+**Parameters**
+
+| Name   | Type       | Description                                                           |
+| ------ | ---------- | --------------------------------------------------------------------- |
+| `text` | `string`   | Input text.                                                           |
+| `dim`  | `: number` | Output dimensionality (default 256, matching LocalEmbeddingProvider). |
+
+**Returns** — Array of float32 values, L2-normalized.
+
+## tfidfEmbedBatch(texts, dim)
+
+Embed a batch of texts using TF-IDF with shared IDF weighting.  This matches the `LocalEmbeddingProvider.embed()` TypeScript implementation exactly — IDF is computed across the entire batch, not per-document.  Delegates to crates/llmtxt-core::tfidf::tfidf\_embed\_batch\_wasm.
+
+**Signature**
+
+```typescript
+(texts: string[], dim?: number) => number[][]
+```
+
+**Parameters**
+
+| Name    | Type       | Description                          |
+| ------- | ---------- | ------------------------------------ |
+| `texts` | `string[]` | Array of input strings.              |
+| `dim`   | `: number` | Output dimensionality (default 256). |
+
+**Returns** — Array of float32 arrays, each L2-normalized.
+
+## minHashFingerprint(text, numHashes, ngramSize)
+
+Generate a MinHash fingerprint for content.  Delegates to crates/llmtxt-core::similarity::min\_hash\_fingerprint\_wasm.
+
+**Signature**
+
+```typescript
+(text: string, numHashes?: number, ngramSize?: number) => number[]
+```
+
+**Parameters**
+
+| Name        | Type       | Description                            |
+| ----------- | ---------- | -------------------------------------- |
+| `text`      | `string`   | Input text.                            |
+| `numHashes` | `: number` | Number of hash functions (default 64). |
+| `ngramSize` | `: number` | N-gram size (default 3).               |
+
+**Returns** — Array of minimum hash values.
+
+## rankBySimilarity(query, candidates, options)
+
+Rank a list of texts by similarity to a query.  Delegates to crates/llmtxt-core::similarity::rank\_by\_similarity\_wasm.
+
+**Signature**
+
+```typescript
+(query: string, candidates: string[], options?: { method?: "ngram" | "shingle"; threshold?: number; }) => SimilarityRankResult[]
+```
+
+**Parameters**
+
+| Name         | Type                                                       | Description                                              |
+| ------------ | ---------------------------------------------------------- | -------------------------------------------------------- |
+| `query`      | `string`                                                   | Query string.                                            |
+| `candidates` | `string[]`                                                 | Array of candidate strings.                              |
+| `options`    | `: { method?: "ngram" \| "shingle"; threshold?: number; }` | `{ method?: "ngram" \| "shingle", threshold?: number }`. |
+
+**Returns** — Array of `{ index, score }` sorted by descending score.
+
+## createClient()
+
+**Signature**
+
+```typescript
+(config: LlmtxtClientConfig) => { upload(conversationId: string, content: string, options?: { format?: string; title?: string; expiresIn?: number; }): Promise<UploadResult>; fetch(signedUrl: string): Promise<FetchResult>; fetchFromConversation(slug: string, conversationId: string): Promise<FetchResult>; fetchOwned(slug: string): Promise<FetchResult>; reshare(slug: string, options?: AttachmentReshareOptions): Promise<ReshareResult>; resign(slug: string, options?: AttachmentReshareOptions): Promise<ResignResult>; createVersionPatch(original: string, updated: string): string; addVersion(slug: string, patchText: string, options?: AttachmentVersionOptions): Promise<AttachmentVersionResult>; addVersionFromContent(slug: string, original: string, updated: string, options?: AttachmentVersionOptions): Promise<AttachmentVersionResult>; isValid(signedUrl: string): boolean; }
+```
+
+## crdt\_new\_doc()
+
+Create an empty Loro Doc and return its initial snapshot bytes.  NOTE: Unlike the previous Yrs implementation, this returns a full Loro snapshot blob — NOT a Y.js state vector. The returned bytes are an opaque Loro state blob. Callers MUST treat the return value as a state blob and pass it to crdt\_state\_vector() to get the VersionVector bytes for SyncStep1.  The magic header bytes are 0x6c 0x6f 0x72 0x6f ("loro").
+
+**Signature**
+
+```typescript
+() => Buffer
+```
+
+## crdt\_encode\_state\_as\_update(state)
+
+Encode the full doc state as a Loro snapshot blob.  Used to bootstrap a new client: send them the full state so they can import it locally and arrive at the current document content.  In Loro, a snapshot serves as the bootstrap update — there is no separate "state-as-update" format; snapshot == full state transfer.
+
+**Signature**
+
+```typescript
+(state: Buffer) => Buffer
+```
+
+**Parameters**
+
+| Name    | Type     | Description                                                                                                                               |
+| ------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `state` | `Buffer` | bytes from section\_crdt\_states.crdt\_state (Loro snapshot).   May be empty for a new section; returns the canonical empty-doc snapshot. |
+
+## crdt\_apply\_update(state, update)
+
+Apply a Loro update or snapshot to a state snapshot, returning the new state.  Core persistence operation: called before writing to section\_crdt\_states. Loro import is idempotent — applying the same update twice yields the same result (CRDT property).
+
+**Signature**
+
+```typescript
+(state: Buffer, update: Buffer) => Buffer
+```
+
+**Parameters**
+
+| Name     | Type     | Description                                                                                          |
+| -------- | -------- | ---------------------------------------------------------------------------------------------------- |
+| `state`  | `Buffer` | current state bytes (may be empty for a new section).   Empty state is treated as an empty Loro Doc. |
+| `update` | `Buffer` | incoming Loro update or snapshot bytes from a client.                                                |
+
+**Returns** — New Loro snapshot bytes ready for section\_crdt\_states.crdt\_state.
+
+## crdt\_merge\_updates(updates)
+
+Merge multiple Loro update blobs into a single consolidated snapshot.  Used by the compaction job to fold section\_crdt\_updates into section\_crdt\_states. Convergence is guaranteed by CRDT invariants.  The WASM function expects a packed buffer: `[len1:u32le][bytes1][len2:u32le]...`
+
+**Signature**
+
+```typescript
+(updates: Buffer[]) => Buffer
+```
+
+**Parameters**
+
+| Name      | Type       | Description                                               |
+| --------- | ---------- | --------------------------------------------------------- |
+| `updates` | `Buffer[]` | array of Loro update Buffers from section\_crdt\_updates. |
+
+**Returns** — Single Loro snapshot encoding the merged state.
+
+## crdt\_state\_vector(state)
+
+Extract the Loro VersionVector from a state snapshot.  Sent as SyncStep1 (0x01 prefix) so the remote can compute the diff update.  IMPORTANT: The returned bytes are Loro VersionVector bytes encoded via VersionVector::encode() — they are NOT Y.js state vector bytes and are bitwise INCOMPATIBLE with lib0 v1 state vector encoding. Remote peers MUST call VersionVector::decode() (or the equivalent) on received SyncStep1 payloads — they MUST NOT pass these bytes to any Yrs / lib0 decoder.
+
+**Signature**
+
+```typescript
+(state: Buffer) => Buffer
+```
+
+**Parameters**
+
+| Name    | Type     | Description                                                                                                              |
+| ------- | -------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `state` | `Buffer` | bytes from section\_crdt\_states.crdt\_state (may be empty).   Empty state gives the VersionVector of an empty Loro Doc. |
+
+## crdt\_diff\_update(state, remoteSv)
+
+Compute the diff update between server state and a remote Loro VersionVector.  SyncStep2: returns only the Loro operations the remote is missing.
+
+**Signature**
+
+```typescript
+(state: Buffer, remoteSv: Buffer) => Buffer
+```
+
+**Parameters**
+
+| Name       | Type     | Description                                                                                                                                                                                                                                                                                |
+| ---------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `state`    | `Buffer` | server state bytes from section\_crdt\_states.crdt\_state.                                                                                                                                                                                                                                 |
+| `remoteSv` | `Buffer` | the client's Loro VersionVector bytes (from crdt\_state\_vector).   Empty remoteSv means "give me everything" (full snapshot).  NOTE: `remoteSv` MUST be Loro VersionVector bytes (from crdt\_state\_vector or sent via SyncStep1 0x01 framing). Do NOT pass Y.js state vector bytes here. |
+
+## crdt\_get\_text(state)
+
+Extract the plain text string from a Loro state snapshot.  Used by HTTP fallback endpoints and tests. Delegates to the loro-crdt npm package (crdt\_get\_text is not available in the WASM build — it is marked #\[cfg(not(target\_arch = "wasm32"))] in Rust).
+
+**Signature**
+
+```typescript
+(state: Buffer) => string
+```
+
+**Parameters**
+
+| Name    | Type     | Description                                                                |
+| ------- | -------- | -------------------------------------------------------------------------- |
+| `state` | `Buffer` | Loro snapshot bytes from section\_crdt\_states.crdt\_state (may be empty). |
+
+**Returns** — Plain text string from the "content" LoroText root.
+
+## crdt\_make\_state()
+
+Create a new Loro Doc, insert `content` into the "content" LoroText root, and return its full state as a Loro snapshot Buffer.  This helper exists so that test files can construct seed states without importing `loro-crdt` directly.
+
+**Signature**
+
+```typescript
+(content: string) => Buffer
+```
+
+## crdt\_make\_incremental\_update(state, content)
+
+Append `content` to an existing Loro Doc represented as a state Buffer, then return an incremental update Buffer (the delta only, not a full state).  Useful in tests to generate realistic incremental updates.
+
+**Signature**
+
+```typescript
+(state: Buffer, content: string) => Buffer
+```
+
+**Parameters**
+
+| Name      | Type     | Description                  |
+| --------- | -------- | ---------------------------- |
+| `state`   | `Buffer` | current Loro snapshot bytes. |
+| `content` | `string` | string to append.            |
+
+**Returns** — - incremental Loro update bytes (NOT full snapshot).
+
+## crdt\_apply\_to\_local\_doc(docState, update)
+
+Apply a Loro update directly to a local Loro Doc and return the resulting full state. Used by tests that need to simulate a client-side doc receiving a server diff.
+
+**Signature**
+
+```typescript
+(docState: Buffer, update: Buffer) => Buffer
+```
+
+**Parameters**
+
+| Name       | Type     | Description                                        |
+| ---------- | -------- | -------------------------------------------------- |
+| `docState` | `Buffer` | current full Loro snapshot bytes of the local doc. |
+| `update`   | `Buffer` | incoming Loro update bytes.                        |
+
+**Returns** — - new full Loro snapshot bytes after applying the update.
+
+## subscribeSection(slug, sectionId, callback, options)
+
+Subscribe to real-time CRDT delta events for a single section.  Opens a WebSocket connection using the `loro-sync-v1` subprotocol and performs the Loro sync protocol (SyncStep1 → SyncStep2 exchange). Subsequent updates from other agents are imported into the local Loro Doc and emitted as `SectionDelta` events to `callback`.  Wire protocol (spec P1 §3.2):  1. On open: encode local VersionVector → send as 0x01 SyncStep1.  2. On receive 0x02 (SyncStep2): import Loro update blob (full diff from server).  3. On receive 0x03 (Update): import incremental Loro update blob from peer.  4. On receive 0x04 (AwarenessRelay): pass to options.onAwareness if set.  5. Stray 0x00 frames (legacy Yjs SyncStep1) are dropped and never sent.
+
+**Signature**
+
+```typescript
+(slug: string, sectionId: string, callback: (delta: SectionDelta) => void, options?: SubscribeSectionOptions) => Unsubscribe
+```
+
+**Parameters**
+
+| Name        | Type                        | Description                          |
+| ----------- | --------------------------- | ------------------------------------ |
+| `slug`      | `string`                    | Document slug                        |
+| `sectionId` | `string`                    | Section identifier                   |
+| `callback`  | `(delta: SectionDelta`      | Called each time the section changes |
+| `options`   | `: SubscribeSectionOptions` | Auth and endpoint configuration      |
+
+**Returns** — - \`Unsubscribe\` function; call it to close the WS
+
+## getSectionText(slug, sectionId, options)
+
+Fetch the current plain-text content of a section via the HTTP fallback.  Does not require WebSocket support. Returns the text extracted from the consolidated Loro CRDT state. Returns null if the section has not been initialized (HTTP 503).  The server returns a base64-encoded Loro snapshot blob. This function:  1. Decodes the base64 → Loro binary bytes.  2. Creates a local Loro Doc and imports the bytes.  3. Reads the "content" LoroText root and returns its string value.  Wire-format note: the stateBase64 field contains Loro binary (magic header 0x6c 0x6f 0x72 0x6f "loro"). Do NOT pass these bytes to any Y.js / lib0 decoder — they are bitwise incompatible.
+
+**Signature**
+
+```typescript
+(slug: string, sectionId: string, options?: SubscribeSectionOptions) => Promise<string | null>
+```
+
+**Parameters**
+
+| Name        | Type                        | Description                     |
+| ----------- | --------------------------- | ------------------------------- |
+| `slug`      | `string`                    | Document slug                   |
+| `sectionId` | `string`                    | Section identifier              |
+| `options`   | `: SubscribeSectionOptions` | Auth and endpoint configuration |
+
+## CrSqliteNotLoadedError
+
+Typed error thrown by LocalBackend when cr-sqlite support is requested but the vlcn.io/crsqlite package is not installed.
+
+**Signature**
+
+```typescript
+typeof CrSqliteNotLoadedError
+```
+
+## loadCrSqliteExtensionPath()
+
+Attempts to dynamically import vlcn.io/crsqlite and resolve the native SQLite extension path.
+
+**Signature**
+
+```typescript
+() => Promise<string | null>
+```
+
+**Returns** — The absolute path to the crsqlite native extension (.so / .dylib /   .dll), or null if the package is not installed.
+
+## embed(text)
+
+Embed a single text string into a 384-dimensional Float32Array.  Model is loaded lazily on first call (\~1-2s cold start, instant thereafter). No external API calls are made — inference runs locally via onnxruntime-node.
+
+**Signature**
+
+```typescript
+(text: string) => Promise<Float32Array>
+```
+
+**Parameters**
+
+| Name   | Type     | Description          |
+| ------ | -------- | -------------------- |
+| `text` | `string` | Input text to embed. |
+
+**Returns** — L2-normalised 384-dim embedding vector.
+
+## embedBatch(texts)
+
+Embed a batch of texts in a single ONNX session run.  For large batches, texts are split into chunks of 32 to avoid OOM.
+
+**Signature**
+
+```typescript
+(texts: string[]) => Promise<Float32Array[]>
+```
+
+**Parameters**
+
+| Name    | Type       | Description              |
+| ------- | ---------- | ------------------------ |
+| `texts` | `string[]` | Array of texts to embed. |
+
+**Returns** — Array of L2-normalised 384-dim embedding vectors.
+
+## LocalOnnxEmbeddingProvider
+
+Local ONNX embedding provider — wraps `embedBatch` to conform to the `EmbeddingProvider` interface used by the backend routes.  Drop-in replacement for `LocalEmbeddingProvider` (TF-IDF):
+
+**Signature**
+
+```typescript
+typeof LocalOnnxEmbeddingProvider
+```
+
+**Methods**
+
+### embed()
+
+```typescript
+(texts: string[]) => Promise<number[][]>
+```
+
+## bodyHashHex()
+
+SHA-256 body hash returned as lowercase hex (64 chars).  Matches what the backend `computeBodyHash` function computes: `hashContent(body.toString('utf8'))` → SHA-256 of the UTF-8 string. This in turn matches the Rust `identity_body_hash_hex(body)` WASM export.
+
+**Signature**
+
+```typescript
+(body: Uint8Array | string) => Promise<string>
+```
+
+## buildCanonicalPayload()
+
+Build the canonical payload bytes (UTF-8 encoded).  Format (newline-separated, same as Rust `canonical_payload()`):
+
+**Signature**
+
+```typescript
+(opts: CanonicalPayloadOptions) => Uint8Array
+```
+
+## randomNonceHex()
+
+Generate 16 cryptographically-random bytes as lowercase hex (32 chars).
+
+**Signature**
+
+```typescript
+() => string
+```
+
+## AgentIdentity
+
+Ed25519 agent identity — keypair management, signing, and header generation.  ## Usage  ## Storage - Node.js: `~/.llmtxt/identity.key` (mode 0o600) - Browser: `localStorage['llmtxt_identity_sk']`  WARNING: The private key (`sk`) is security-sensitive. Never log or expose it.
+
+**Signature**
+
+```typescript
+typeof AgentIdentity
+```
+
+**Methods**
+
+### generate()
+
+Generate a fresh Ed25519 keypair and persist it.  Persists to `~/.llmtxt/identity.key` (Node, 0o600) or `localStorage['llmtxt_identity_sk']` (browser).
+
+```typescript
+() => Promise<AgentIdentity>
+```
+
+### load()
+
+Restore an identity from the persisted private key. Returns `null` if no persisted key exists.
+
+```typescript
+() => Promise<AgentIdentity | null>
+```
+
+### fromSeed()
+
+Construct from a 32-byte private key seed. Does NOT persist. Useful for tests and CLI scenarios where the seed is provided externally.
+
+```typescript
+(seed: Uint8Array) => Promise<AgentIdentity>
+```
+
+### sign()
+
+Sign arbitrary bytes with the private key. Returns the 64-byte raw Ed25519 signature.
+
+```typescript
+(message: Uint8Array) => Promise<Uint8Array>
+```
+
+### verify()
+
+Verify a signature against this identity's public key.
+
+```typescript
+(message: Uint8Array, signature: Uint8Array) => Promise<boolean>
+```
+
+### buildSignatureHeaders()
+
+Build the X-Agent-\* signature headers for a mutating HTTP request.
+
+```typescript
+(method: string, path: string, body: string | Uint8Array, agentId: string, nowMs?: number, nonce?: string) => Promise<SignatureHeaders>
+```
+
+## createIdentity()
+
+Generate a fresh `AgentIdentity` and persist it. Convenience wrapper around `AgentIdentity.generate()`.
+
+**Signature**
+
+```typescript
+() => Promise<AgentIdentity>
+```
+
+## loadIdentity()
+
+Load the persisted `AgentIdentity`. Returns `null` if no identity has been persisted yet. Convenience wrapper around `AgentIdentity.load()`.
+
+**Signature**
+
+```typescript
+() => Promise<AgentIdentity | null>
+```
+
+## identityFromSeed()
+
+Construct an `AgentIdentity` from a raw 32-byte seed. Does NOT persist. Useful for tests and CLI scenarios. Convenience wrapper around `AgentIdentity.fromSeed()`.
+
+**Signature**
+
+```typescript
+(seed: Uint8Array) => Promise<AgentIdentity>
+```
+
+## signRequest(identity, method, path, body, agentId, nowMs, nonce)
+
+Build X-Agent-\* signature headers for a mutating HTTP request.  Convenience function equivalent to `identity.buildSignatureHeaders(…)`.
+
+**Signature**
+
+```typescript
+(identity: AgentIdentity, method: string, path: string, body: string | Uint8Array, agentId: string, nowMs?: number, nonce?: string) => Promise<SignatureHeaders>
+```
+
+**Parameters**
+
+| Name       | Type                   | Description                                              |
+| ---------- | ---------------------- | -------------------------------------------------------- |
+| `identity` | `AgentIdentity`        | The caller's `AgentIdentity`                             |
+| `method`   | `string`               | HTTP method (e.g. `"PUT"`)                               |
+| `path`     | `string`               | Path and optional query (e.g. `"/api/v1/documents/abc"`) |
+| `body`     | `string \| Uint8Array` | Request body (string or bytes; use `""` for empty)       |
+| `agentId`  | `string`               | The `agent_id` registered on the server                  |
+| `nowMs`    | `: number`             | Timestamp override (default: `Date.now()`)               |
+| `nonce`    | `: string`             | Nonce override (default: 16 random bytes)                |
+
+## verifySignature(payload, sigHex, pubkeyHex)
+
+Verify an Ed25519 signature over the given canonical payload bytes.
+
+**Signature**
+
+```typescript
+(payload: Uint8Array, sigHex: string, pubkeyHex: string) => Promise<boolean>
+```
+
+**Parameters**
+
+| Name        | Type         | Description                                            |
+| ----------- | ------------ | ------------------------------------------------------ |
+| `payload`   | `Uint8Array` | Canonical payload bytes (from `buildCanonicalPayload`) |
+| `sigHex`    | `string`     | 128-char hex-encoded 64-byte signature                 |
+| `pubkeyHex` | `string`     | 64-char hex-encoded 32-byte Ed25519 public key         |
+
+**Returns** — `true` if the signature is valid; `false` for any mismatch
 
 ## isPredefinedSchema(name)
 
@@ -574,7 +1606,7 @@ Retrieve a predefined Zod schema by name.
 **Signature**
 
 ```typescript
-(name: string) => z.ZodSchema | undefined
+(name: string) => z.ZodType | undefined
 ```
 
 **Parameters**
@@ -880,85 +1912,23 @@ Generate a human-readable summary of a snapshot for handoff messages. Useful for
 (meta: SnapshotMeta) => string
 ```
 
-## extractNgrams()
+## watchDocument(baseUrl, slug, options)
 
-Extract character-level n-grams from text. Normalizes whitespace and lowercases before extraction.
-
-**Signature**
-
-```typescript
-(text: string, n?: number) => Set<string>
-```
-
-## extractWordShingles()
-
-Extract word-level n-grams (shingles) from text. Better for longer content where word order matters.
+Watch a document's event stream.
 
 **Signature**
 
 ```typescript
-(text: string, n?: number) => Set<string>
+(baseUrl: string, slug: string, options?: WatchDocumentOptions) => AsyncGenerator<DocumentEventLogEntry>
 ```
 
-## jaccardSimilarity()
+**Parameters**
 
-Jaccard similarity: |A ∩ B| / |A ∪ B|. Returns 0.0 (no overlap) to 1.0 (identical).
-
-**Signature**
-
-```typescript
-(a: Set<string>, b: Set<string>) => number
-```
-
-## textSimilarity()
-
-Compute similarity between two texts using character n-grams. Returns 0.0 to 1.0.
-
-**Signature**
-
-```typescript
-(a: string, b: string, ngramSize?: number) => number
-```
-
-## contentSimilarity()
-
-Compute similarity using word shingles. Better for comparing messages or documents where word choice matters more than character patterns.
-
-**Signature**
-
-```typescript
-(a: string, b: string, shingleSize?: number) => number
-```
-
-## minHashFingerprint()
-
-Generate a compact fingerprint for content using MinHash. The fingerprint is an array of hash values that can be compared for approximate similarity without storing the full n-gram set.  Two fingerprints with many matching values indicate similar content.
-
-**Signature**
-
-```typescript
-(text: string, numHashes?: number, ngramSize?: number) => number[]
-```
-
-## fingerprintSimilarity()
-
-Estimate similarity between two MinHash fingerprints. Returns approximate Jaccard similarity (0.0 to 1.0).
-
-**Signature**
-
-```typescript
-(a: number[], b: number[]) => number
-```
-
-## rankBySimilarity()
-
-Rank a list of texts by similarity to a query. Returns indices sorted by descending similarity, with scores.
-
-**Signature**
-
-```typescript
-(query: string, candidates: string[], options?: { method?: "ngram" | "shingle"; threshold?: number; }) => Array<{ index: number; score: number; }>
-```
+| Name      | Type                     | Description                                                      |
+| --------- | ------------------------ | ---------------------------------------------------------------- |
+| `baseUrl` | `string`                 | Base URL of the llmtxt API, e.g. `https://api.llmtxt.my`.        |
+| `slug`    | `string`                 | Document slug.                                                   |
+| `options` | `: WatchDocumentOptions` | Optional configuration (fromSeq, apiKey, maxReconnects, signal). |
 
 ## isValidTransition(from, to)
 
@@ -1473,3 +2443,4886 @@ Plan which sections to retrieve given a token budget.
 ```typescript
 (tokenBudget: number, query?: string, options?: RetrievalOptions) => Promise<RetrievalPlan>
 ```
+
+## LeaseConflictError
+
+Thrown by LeaseManager.acquire() when the section is already held.
+
+**Signature**
+
+```typescript
+typeof LeaseConflictError
+```
+
+## LeaseManager
+
+**Signature**
+
+```typescript
+typeof LeaseManager
+```
+
+**Methods**
+
+### leaseUrl()
+
+```typescript
+(slug: string, sectionId: string) => string
+```
+
+### headers()
+
+```typescript
+() => Record<string, string>
+```
+
+### acquire()
+
+Acquire an advisory lease on a section.
+
+```typescript
+(slug: string, sectionId: string, durationSeconds: number, reason?: string) => Promise<Lease>
+```
+
+### release()
+
+Release the currently held lease.
+
+```typescript
+() => Promise<void>
+```
+
+### renew()
+
+Renew the currently held lease.
+
+```typescript
+(durationSeconds: number) => Promise<Lease>
+```
+
+### startAutoRenew()
+
+Start an auto-renew loop. Renews the lease when time-to-expiry drops below thresholdSeconds.
+
+```typescript
+(thresholdSeconds?: number) => void
+```
+
+### stopAutoRenew()
+
+Stop the auto-renew loop.
+
+```typescript
+() => void
+```
+
+## subscribe(pathPattern, options, onEvent)
+
+Open a differential SSE subscription.  Compatible with both browser (EventSource) and Node.js (via the `eventsource` npm polyfill, automatically detected).
+
+**Signature**
+
+```typescript
+(pathPattern: string, options: SubscribeOptions, onEvent: (event: SubscriptionEvent) => void) => Unsubscribe
+```
+
+**Parameters**
+
+| Name          | Type                        | Description                                             |
+| ------------- | --------------------------- | ------------------------------------------------------- |
+| `pathPattern` | `string`                    | URL pattern to match (e.g. '/docs/:slug', '/docs/\*').  |
+| `options`     | `SubscribeOptions`          | Connection options including baseUrl, apiKey, and mode. |
+| `onEvent`     | `(event: SubscriptionEvent` | Callback invoked for each matching event.               |
+
+**Returns** — Unsubscribe function; call it to close the connection.
+
+## fetchSectionDelta(slug, name, since, options)
+
+Fetch a section delta since a given sequence number.  Calls GET /api/v1/documents/:slug/sections/:name?since= and returns a typed SectionDeltaResponse. Store currentSeq and pass it as `since` on the next poll to achieve incremental updates.
+
+**Signature**
+
+```typescript
+(slug: string, name: string, since: number, options: { baseUrl: string; apiKey: string; }) => Promise<SectionDeltaResponse>
+```
+
+**Parameters**
+
+| Name      | Type                                   | Description                                             |
+| --------- | -------------------------------------- | ------------------------------------------------------- |
+| `slug`    | `string`                               | Document slug.                                          |
+| `name`    | `string`                               | Section name.                                           |
+| `since`   | `number`                               | Last known sequence number (use 0 for the first fetch). |
+| `options` | `{ baseUrl: string; apiKey: string; }` | Connection options.                                     |
+
+## TopologyConfigError
+
+Thrown when a topology config fails validation.
+
+**Signature**
+
+```typescript
+typeof TopologyConfigError
+```
+
+## validateTopologyConfig(config)
+
+Validate an unknown value as a `TopologyConfig`.  Throws `TopologyConfigError` with exact messages from ARCH-T429 spec §3.3 on any validation failure.
+
+**Signature**
+
+```typescript
+(config: unknown) => TopologyConfig
+```
+
+**Parameters**
+
+| Name     | Type      | Description                    |
+| -------- | --------- | ------------------------------ |
+| `config` | `unknown` | The unknown input to validate. |
+
+**Returns** — The validated `TopologyConfig`.
+
+**Throws**
+
+- `TopologyConfigError`   - `INVALID_TOPOLOGY_MODE` — topology field is not a recognized value.   - `MISSING_HUB_URL` — hub-spoke topology missing `hubUrl`.   - `MISSING_STORAGE_PATH_PERSIST` — hub-spoke with persistLocally=true missing `storagePath`.   - `MISSING_STORAGE_PATH_MESH` — mesh topology missing `storagePath`.
+
+## BlobTooLargeError
+
+Thrown when blob size exceeds the configured maximum (default 100 MB).  MUST be thrown before any storage allocation occurs. The error message MUST include the configured limit in human-readable form.
+
+**Signature**
+
+```typescript
+typeof BlobTooLargeError
+```
+
+## BlobNameInvalidError
+
+Thrown when a blob attachment name fails validation.  Triggered by any of: path traversal sequences (".."), path separators ("/" or ""), null bytes ("0"), leading/trailing whitespace, empty name, or name exceeding 255 bytes (UTF-8).
+
+**Signature**
+
+```typescript
+typeof BlobNameInvalidError
+```
+
+## BlobCorruptError
+
+Thrown when SHA-256 hash verification fails on a read.  Indicates storage corruption or tampering. The implementation MUST NOT return the corrupt bytes to the caller. The corrupt file SHOULD be quarantined (renamed to ".corrupt") before throwing.
+
+**Signature**
+
+```typescript
+typeof BlobCorruptError
+```
+
+## BlobNotFoundError
+
+Thrown when a blob hash is not found in the store.  Used by the lazy sync pull path when fetchBlobByHash cannot resolve the requested hash from any known peer.
+
+**Signature**
+
+```typescript
+typeof BlobNotFoundError
+```
+
+## BlobAccessDeniedError
+
+Thrown when the caller lacks the required access to perform a blob operation.  Blob access inherits the document's access control policy:   - READ permission required for getBlob, listBlobs, fetchBlobByHash   - WRITE permission required for attachBlob, detachBlob
+
+**Signature**
+
+```typescript
+typeof BlobAccessDeniedError
+```
+
+## ExportError
+
+Typed error for the document export subsystem. Thrown by exportDocument() and exportAll() on failure.
+
+**Signature**
+
+```typescript
+typeof ExportError
+```
+
+## canonicalFrontmatter()
+
+Produce the canonical YAML frontmatter block for a document export.  Delegates to the WASM `canonicalFrontmatter` binding when available (post wasm-pack rebuild). Falls back to the pure-TS implementation that is byte-identical to the Rust function.  Output:
+
+**Signature**
+
+```typescript
+(meta: FrontmatterMeta) => string
+```
+
+## formatMarkdown(doc, opts)
+
+Serialize a document snapshot to the Markdown export format.
+
+**Signature**
+
+```typescript
+(doc: DocumentExportState, opts?: ExportOpts) => string
+```
+
+**Parameters**
+
+| Name   | Type                  | Description                                            |
+| ------ | --------------------- | ------------------------------------------------------ |
+| `doc`  | `DocumentExportState` | Self-contained document snapshot.                      |
+| `opts` | `: ExportOpts`        | Optional formatting flags (default: include metadata). |
+
+**Returns** — UTF-8 string with LF line endings and a single trailing newline.
+
+## formatJson(doc, \_opts)
+
+Serialize a document snapshot to the JSON export format.  The `opts` parameter is accepted for API consistency but is not used by this formatter — JSON export always includes all metadata fields.
+
+**Signature**
+
+```typescript
+(doc: DocumentExportState, _opts?: ExportOpts) => string
+```
+
+**Parameters**
+
+| Name    | Type                  | Description                           |
+| ------- | --------------------- | ------------------------------------- |
+| `doc`   | `DocumentExportState` | Self-contained document snapshot.     |
+| `_opts` | `: ExportOpts`        | Unused; accepted for API consistency. |
+
+**Returns** — UTF-8 JSON string with 2-space indent, LF line endings, single trailing newline.
+
+## formatTxt(doc)
+
+Serialize the body of a document snapshot to plain text.  This formatter intentionally ignores all metadata. The `opts` parameter is not accepted because plain-text format has no configurable behaviour.
+
+**Signature**
+
+```typescript
+(doc: DocumentExportState) => string
+```
+
+**Parameters**
+
+| Name  | Type                  | Description                       |
+| ----- | --------------------- | --------------------------------- |
+| `doc` | `DocumentExportState` | Self-contained document snapshot. |
+
+**Returns** — UTF-8 string with LF line endings and a single trailing newline.
+
+## formatLlmtxt(doc, opts)
+
+Serialize a document snapshot to the native `.llmtxt` format.
+
+**Signature**
+
+```typescript
+(doc: DocumentExportState, opts?: ExportOpts) => string
+```
+
+**Parameters**
+
+| Name   | Type                  | Description                                                                                                     |
+| ------ | --------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `doc`  | `DocumentExportState` | Self-contained document snapshot.               `doc.chainRef` may be `null` when no BFT approval chain exists. |
+| `opts` | `: ExportOpts`        | Optional formatting flags (default: include metadata).                                                          |
+
+**Returns** — UTF-8 string with LF line endings and a single trailing newline.
+
+## serializeDocument()
+
+Serialize a DocumentExportState to a string using the requested format.
+
+**Signature**
+
+```typescript
+(state: DocumentExportState, format: ExportFormat, opts: { includeMetadata?: boolean; }) => string
+```
+
+**Throws**
+
+- ExportError with code 'UNSUPPORTED\_FORMAT' for unknown formats.
+
+## sha256Hex()
+
+Compute SHA-256 hex of a UTF-8 string's bytes.
+
+**Signature**
+
+```typescript
+(content: Buffer) => string
+```
+
+## contentHashHex()
+
+Compute SHA-256 hex of the body content (used as content\_hash in frontmatter).
+
+**Signature**
+
+```typescript
+(body: string) => string
+```
+
+## writeExportFile(state, params, identityPath)
+
+Write a DocumentExportState to disk and return an ExportDocumentResult.  This is the canonical implementation shared by all Backend variants. Backends build the `state` from their storage layer, then call this.
+
+**Signature**
+
+```typescript
+(state: DocumentExportState, params: ExportDocumentParams, identityPath?: string) => Promise<ExportDocumentResult>
+```
+
+**Parameters**
+
+| Name           | Type                   | Description                                        |
+| -------------- | ---------------------- | -------------------------------------------------- |
+| `state`        | `DocumentExportState`  | Fully populated document snapshot.                 |
+| `params`       | `ExportDocumentParams` | ExportDocumentParams from the caller.              |
+| `identityPath` | `: string`             | Optional path to identity keypair (for sign=true). |
+
+**Returns** — Resolved ExportDocumentResult.
+
+**Throws**
+
+- ExportError on write or sign failure.
+
+## exportAllFilePath()
+
+Build the output file path for an exportAll() call.  File name is `<slug>.<ext>` inside `outputDir`.
+
+**Signature**
+
+```typescript
+(outputDir: string, slug: string, format: ExportFormat) => string
+```
+
+## parseImportFile()
+
+Parse an import file and return a ParsedImport.
+
+**Signature**
+
+```typescript
+(filePath: string) => ParsedImport
+```
+
+**Throws**
+
+- ExportError PARSE\_FAILED on I/O or parse errors.
+- ExportError HASH\_MISMATCH when frontmatter content\_hash does not   match the actual body SHA-256.
+
+## validateBlobName(name)
+
+Validate a blob attachment name using the Rust WASM primitive.  Throws `BlobNameInvalidError` when any of the following are true:   - name is empty or exceeds 255 bytes (UTF-8)   - name contains path traversal sequences (`..`)   - name contains path separators (`/` or `\`)   - name contains null bytes (`\0`)   - name has leading or trailing whitespace  Delegates to crates/llmtxt-core::blob\_name\_validate via WASM.
+
+**Signature**
+
+```typescript
+(name: string) => void
+```
+
+**Parameters**
+
+| Name   | Type     | Description                                          |
+| ------ | -------- | ---------------------------------------------------- |
+| `name` | `string` | The attachment name to validate (e.g. "diagram.png") |
+
+**Throws**
+
+- `BlobNameInvalidError` on violation
+
+## BlobFsAdapter
+
+Filesystem blob adapter.  Stores bytes at `<storagePath>/blobs/<hash>`. Uses atomic writes (tmp → rename) to prevent partial writes. Verifies SHA-256 hash on every `getBlob(includeData=true)` call.  This class is used by LocalBackend. It can also be instantiated directly in tests or custom local-storage scenarios.
+
+**Signature**
+
+```typescript
+typeof BlobFsAdapter
+```
+
+**Methods**
+
+### ensureBlobsDir()
+
+Ensure the blobs directory exists. Called lazily on first use.
+
+```typescript
+() => void
+```
+
+### blobPath()
+
+Full path to a blob file given its hash.
+
+```typescript
+(hash: string) => string
+```
+
+### attachBlob()
+
+Attach a binary blob to a document.  - Validates the blob name via WASM blobNameValidate. - Enforces maxBlobSizeBytes. - Computes SHA-256 hash via WASM hashBlob. - Writes bytes atomically to `<blobsDir>/<hash>` if not already present. - Applies LWW: soft-deletes any existing active record for (docSlug, blobName)   if it exists, then inserts the new record. - Returns the new BlobAttachment record.
+
+```typescript
+(params: AttachBlobParams) => BlobAttachment
+```
+
+### getBlob()
+
+Retrieve a blob attachment record, optionally with bytes.  Returns null if the blobName is not attached to docSlug. When includeData=true, reads bytes from disk and verifies the SHA-256 hash. Throws BlobCorruptError if hash mismatch detected.
+
+```typescript
+(docSlug: string, blobName: string, opts?: { includeData?: boolean; }) => BlobData | null
+```
+
+### listBlobs()
+
+List all active (non-deleted) blob attachments for a document. Returns metadata only — no bytes.
+
+```typescript
+(docSlug: string) => BlobAttachment[]
+```
+
+### detachBlob()
+
+Soft-delete a named blob attachment from a document.  Sets deleted\_at = now(). Does NOT delete bytes from disk (orphan GC is a deferred concern). Returns false if no active attachment exists.
+
+```typescript
+(docSlug: string, blobName: string, _detachedBy: string) => boolean
+```
+
+### fetchBlobByHash()
+
+Fetch blob bytes directly by hash (used by the lazy sync pull path).  Returns null if no file exists for this hash. Verifies hash on return.
+
+```typescript
+(hash: string) => Buffer | null
+```
+
+## LocalBackend
+
+**Signature**
+
+```typescript
+typeof LocalBackend
+```
+
+**Methods**
+
+### open()
+
+```typescript
+() => Promise<void>
+```
+
+### \_activateCRRTables()
+
+Activates CRR on all LocalBackend tables via crsql\_as\_crr().  Called from open() after successfully loading the cr-sqlite extension. crsql\_as\_crr() is idempotent: calling it on an already-CRR table is safe.  DR-P2-02: CRR activation happens at database initialisation time. DR-P2-04: section\_crdt\_states is registered as CRR here (safe), but the crdt\_state blob column MUST use application-level Loro merge in applyChanges() — LWW on this column is PROHIBITED.
+
+```typescript
+() => void
+```
+
+### close()
+
+```typescript
+() => Promise<void>
+```
+
+### \_assertOpen()
+
+```typescript
+() => void
+```
+
+### \_startReapers()
+
+```typescript
+() => void
+```
+
+### createDocument()
+
+```typescript
+(params: CreateDocumentParams) => Promise<Document>
+```
+
+### getDocument()
+
+```typescript
+(id: string) => Promise<Document | null>
+```
+
+### getDocumentBySlug()
+
+```typescript
+(slug: string) => Promise<Document | null>
+```
+
+### listDocuments()
+
+```typescript
+(params?: ListDocumentsParams) => Promise<ListResult<Document>>
+```
+
+### deleteDocument()
+
+```typescript
+(id: string) => Promise<boolean>
+```
+
+### \_rowToDocument()
+
+```typescript
+(row: typeof documents.$inferSelect) => Document
+```
+
+### publishVersion()
+
+```typescript
+(params: PublishVersionParams) => Promise<VersionEntry>
+```
+
+### getVersion()
+
+```typescript
+(documentId: string, versionNumber: number) => Promise<VersionEntry | null>
+```
+
+### listVersions()
+
+```typescript
+(documentId: string) => Promise<VersionEntry[]>
+```
+
+### transitionVersion()
+
+```typescript
+(params: TransitionParams) => Promise<{ success: boolean; error?: string; document?: Document; }>
+```
+
+### submitSignedApproval()
+
+```typescript
+(params: { documentId: string; versionNumber: number; reviewerId: string; status: "APPROVED" | "REJECTED"; reason?: string; signatureBase64: string; }) => Promise<{ success: boolean; error?: string; result?: ApprovalResult; }>
+```
+
+### getApprovalProgress()
+
+```typescript
+(documentId: string, versionNumber: number) => Promise<ApprovalResult>
+```
+
+### getApprovalPolicy()
+
+```typescript
+(documentId: string) => Promise<ApprovalPolicy>
+```
+
+### setApprovalPolicy()
+
+```typescript
+(documentId: string, policy: ApprovalPolicy) => Promise<void>
+```
+
+### appendEvent()
+
+```typescript
+(params: AppendEventParams) => Promise<DocumentEvent>
+```
+
+### queryEvents()
+
+```typescript
+(params: QueryEventsParams) => Promise<ListResult<DocumentEvent>>
+```
+
+### subscribeStream()
+
+```typescript
+(documentId: string) => AsyncIterable<DocumentEvent>
+```
+
+### applyCrdtUpdate()
+
+```typescript
+(params: { documentId: string; sectionKey: string; updateBase64: string; agentId: string; }) => Promise<CrdtState>
+```
+
+### getCrdtState()
+
+```typescript
+(documentId: string, sectionKey: string) => Promise<CrdtState | null>
+```
+
+### subscribeSection()
+
+```typescript
+(documentId: string, sectionKey: string) => AsyncIterable<CrdtUpdate>
+```
+
+### acquireLease()
+
+```typescript
+(params: AcquireLeaseParams) => Promise<Lease | null>
+```
+
+### renewLease()
+
+```typescript
+(resource: string, holder: string, ttlMs: number) => Promise<Lease | null>
+```
+
+### releaseLease()
+
+```typescript
+(resource: string, holder: string) => Promise<boolean>
+```
+
+### getLease()
+
+```typescript
+(resource: string) => Promise<Lease | null>
+```
+
+### joinPresence()
+
+```typescript
+(documentId: string, agentId: string, meta?: Record<string, unknown>) => Promise<PresenceEntry>
+```
+
+### leavePresence()
+
+```typescript
+(documentId: string, agentId: string) => Promise<void>
+```
+
+### listPresence()
+
+```typescript
+(documentId: string) => Promise<PresenceEntry[]>
+```
+
+### heartbeatPresence()
+
+```typescript
+(documentId: string, agentId: string) => Promise<void>
+```
+
+### sendScratchpad()
+
+```typescript
+(params: SendScratchpadParams) => Promise<ScratchpadMessage>
+```
+
+### pollScratchpad()
+
+```typescript
+(agentId: string, limit?: number) => Promise<ScratchpadMessage[]>
+```
+
+### deleteScratchpadMessage()
+
+```typescript
+(id: string, agentId: string) => Promise<boolean>
+```
+
+### sendA2AMessage()
+
+```typescript
+(params: { toAgentId: string; envelopeJson: string; ttlMs?: number; }) => Promise<{ success: boolean; error?: string; message?: A2AMessage; }>
+```
+
+### pollA2AInbox()
+
+```typescript
+(agentId: string, limit?: number, since?: number, order?: "asc" | "desc") => Promise<A2AMessage[]>
+```
+
+### deleteA2AMessage()
+
+```typescript
+(id: string, agentId: string) => Promise<boolean>
+```
+
+### indexDocument()
+
+```typescript
+(documentId: string, content: string) => Promise<void>
+```
+
+### search()
+
+```typescript
+(params: SearchParams) => Promise<SearchResult[]>
+```
+
+### registerAgentPubkey()
+
+```typescript
+(agentId: string, pubkeyHex: string, label?: string) => Promise<AgentPubkeyRecord>
+```
+
+### lookupAgentPubkey()
+
+```typescript
+(agentId: string) => Promise<AgentPubkeyRecord | null>
+```
+
+### revokeAgentPubkey()
+
+```typescript
+(agentId: string, _pubkeyHex: string) => Promise<boolean>
+```
+
+### recordSignatureNonce()
+
+```typescript
+(agentId: string, nonce: string, ttlMs?: number) => Promise<boolean>
+```
+
+### hasNonceBeenUsed()
+
+```typescript
+(agentId: string, nonce: string) => Promise<boolean>
+```
+
+### listAgentPubkeys()
+
+```typescript
+(_userId?: string) => Promise<import("./index.js").AgentPubkeyRecord[]>
+```
+
+### listContributors()
+
+```typescript
+(_documentId: string) => Promise<import("../core/backend.js").ContributorRecord[]>
+```
+
+### getApprovalChain()
+
+```typescript
+(_documentId: string) => Promise<import("../core/backend.js").ApprovalChainResult>
+```
+
+### createCollection()
+
+```typescript
+(_params: import("../core/backend.js").CreateCollectionParams) => Promise<import("../core/backend.js").Collection>
+```
+
+### getCollection()
+
+```typescript
+(_slug: string) => Promise<import("../core/backend.js").Collection | null>
+```
+
+### listCollections()
+
+```typescript
+(_params?: import("../core/backend.js").ListCollectionsParams) => Promise<import("../core/backend.js").ListResult<import("../core/backend.js").Collection>>
+```
+
+### addDocToCollection()
+
+```typescript
+(_collectionSlug: string, _documentSlug: string, _position?: number) => Promise<void>
+```
+
+### removeDocFromCollection()
+
+```typescript
+(_collectionSlug: string, _documentSlug: string) => Promise<boolean>
+```
+
+### reorderCollection()
+
+```typescript
+(_collectionSlug: string, _orderedSlugs: string[]) => Promise<void>
+```
+
+### exportCollection()
+
+```typescript
+(_collectionSlug: string) => Promise<import("../core/backend.js").CollectionExport>
+```
+
+### createDocumentLink()
+
+```typescript
+(_params: import("../core/backend.js").CreateDocLinkParams) => Promise<import("../core/backend.js").DocumentLink>
+```
+
+### getDocumentLinks()
+
+```typescript
+(_documentId: string) => Promise<import("../core/backend.js").DocumentLink[]>
+```
+
+### deleteDocumentLink()
+
+```typescript
+(_documentId: string, _linkId: string) => Promise<boolean>
+```
+
+### getGlobalGraph()
+
+```typescript
+(_params?: { maxNodes?: number; }) => Promise<import("../core/backend.js").GraphResult>
+```
+
+### createWebhook()
+
+```typescript
+(_params: import("../core/backend.js").CreateWebhookParams) => Promise<import("../core/backend.js").Webhook>
+```
+
+### listWebhooks()
+
+```typescript
+(_userId: string) => Promise<import("../core/backend.js").Webhook[]>
+```
+
+### deleteWebhook()
+
+```typescript
+(_id: string, _userId: string) => Promise<boolean>
+```
+
+### testWebhook()
+
+```typescript
+(_id: string) => Promise<import("../core/backend.js").WebhookTestResult>
+```
+
+### createSignedUrl()
+
+```typescript
+(_params: import("../core/backend.js").CreateSignedUrlParams) => Promise<import("../core/backend.js").SignedUrl>
+```
+
+### verifySignedUrl()
+
+```typescript
+(_token: string) => Promise<{ documentId: string; permission: "read" | "write"; } | null>
+```
+
+### getDocumentAccess()
+
+```typescript
+(_documentId: string) => Promise<import("../core/backend.js").AccessControlList>
+```
+
+### grantDocumentAccess()
+
+```typescript
+(_documentId: string, _params: import("../core/backend.js").GrantAccessParams) => Promise<void>
+```
+
+### revokeDocumentAccess()
+
+```typescript
+(_documentId: string, _userId: string) => Promise<boolean>
+```
+
+### setDocumentVisibility()
+
+```typescript
+(_documentId: string, _visibility: import("../core/backend.js").DocumentVisibility) => Promise<void>
+```
+
+### createOrganization()
+
+```typescript
+(_params: import("../core/backend.js").CreateOrgParams) => Promise<import("../core/backend.js").Organization>
+```
+
+### getOrganization()
+
+```typescript
+(_slug: string) => Promise<import("../core/backend.js").Organization | null>
+```
+
+### listOrganizations()
+
+```typescript
+(_userId: string) => Promise<import("../core/backend.js").Organization[]>
+```
+
+### addOrgMember()
+
+```typescript
+(_orgSlug: string, _userId: string, _role?: string) => Promise<void>
+```
+
+### removeOrgMember()
+
+```typescript
+(_orgSlug: string, _userId: string) => Promise<boolean>
+```
+
+### createApiKey()
+
+```typescript
+(_params: import("../core/backend.js").CreateApiKeyParams) => Promise<import("../core/backend.js").ApiKeyWithSecret>
+```
+
+### listApiKeys()
+
+```typescript
+(_userId: string) => Promise<import("../core/backend.js").ApiKey[]>
+```
+
+### deleteApiKey()
+
+```typescript
+(_id: string, _userId: string) => Promise<boolean>
+```
+
+### rotateApiKey()
+
+```typescript
+(_id: string, _userId: string) => Promise<import("../core/backend.js").ApiKeyWithSecret>
+```
+
+### getChangesSince()
+
+Returns all changes made to this database since `dbVersion`.  Wraps: SELECT \* FROM crsql\_changes WHERE db\_version  ?  The changeset is serialized as a compact binary format:   \[4-byte row count LE] \[per-row entries...]  Each row entry:   \[1-byte col count] \[table name: 1-byte len + bytes]   \[col values: per column — 1-byte type tag + payload]  Type tags: 0=null, 1=integer (8-byte LE), 2=real (8-byte IEEE 754),            3=text (4-byte len LE + UTF-8 bytes), 4=blob (4-byte len LE + bytes)  DR-P2-03: Binary wire format to minimize size. Callers needing HTTP transport MUST base64-encode the returned Uint8Array.  dbVersion=0 returns the full history. Returns empty Uint8Array (not null) when no changes exist.
+
+```typescript
+(dbVersion: bigint) => Promise<Uint8Array>
+```
+
+### applyChanges()
+
+Applies a changeset received from a peer.  Steps (all in a single better-sqlite3 transaction — synchronous):  1. Deserialize the changeset from Uint8Array wire format.  2. INSERT each row into crsql\_changes (cr-sqlite applies LWW for all     relational columns).  3. Post-process rows where the table is `section_crdt_states` and the     column is `crdt_state`: fetch local blob, merge via crdt\_merge\_updates,     write merged result back. (DR-P2-04 MANDATORY — not LWW.)  4. Recompute documents.version\_count for any document\_id seen in the     changeset (spec §6 of P2-crr-column-strategy.md).  5. Return SELECT crsql\_db\_version() as bigint.  Idempotent: cr-sqlite guarantees idempotency for relational columns; the Loro merge is also idempotent (CRDT property).  Invalid crdt\_state blob in the changeset: logs a warning and retains the local blob rather than corrupting the transaction.
+
+```typescript
+(changeset: Uint8Array) => Promise<bigint>
+```
+
+### attachBlob()
+
+```typescript
+(params: AttachBlobParams) => Promise<BlobAttachment>
+```
+
+### getBlob()
+
+```typescript
+(docSlug: string, blobName: string, opts?: { includeData?: boolean; }) => Promise<BlobData | null>
+```
+
+### listBlobs()
+
+```typescript
+(docSlug: string) => Promise<BlobAttachment[]>
+```
+
+### detachBlob()
+
+```typescript
+(docSlug: string, blobName: string, detachedBy: string) => Promise<boolean>
+```
+
+### fetchBlobByHash()
+
+```typescript
+(hash: string) => Promise<Buffer | null>
+```
+
+### exportDocument()
+
+Export a single document to a file on disk.  Content retrieval strategy (spec §11 — LocalBackend):  1. Call listVersions(doc.id) to get all version entries (ascending).  2. Take the last entry (highest versionNumber = latest).  3. Check if storageType=filesystem → read from blobs/.  4. Otherwise read inline from the compressedData column (raw UTF-8 bytes).
+
+```typescript
+(params: ExportDocumentParams) => Promise<ExportDocumentResult>
+```
+
+### exportAll()
+
+Export all documents to a directory.  Iterates via listDocuments (cursor-based pagination). Individual document failures are collected in skipped, not thrown.
+
+```typescript
+(params: ExportAllParams) => Promise<ExportAllResult>
+```
+
+### importDocument()
+
+Import a document from a file on disk.  Parsing strategy:  - .md / .llmtxt: parse YAML frontmatter; body follows closing fence.  - .json: parse JSON; use 'content' field as body.  - .txt: entire file is body; slug derived from filename stem.  Conflict strategy:  - 'create': throw ExportError('SLUG\_EXISTS') if slug is already in use.  - 'new\_version' (default): append a new version to the existing document.
+
+```typescript
+(params: ImportDocumentParams) => Promise<ImportDocumentResult>
+```
+
+## RemoteBackend
+
+**Signature**
+
+```typescript
+typeof RemoteBackend
+```
+
+**Methods**
+
+### open()
+
+```typescript
+() => Promise<void>
+```
+
+### close()
+
+```typescript
+() => Promise<void>
+```
+
+### \_assertOpen()
+
+```typescript
+() => void
+```
+
+### fetch()
+
+```typescript
+<T>(method: string, path: string, body?: unknown) => Promise<T>
+```
+
+### createDocument()
+
+```typescript
+(params: CreateDocumentParams) => Promise<Document>
+```
+
+### getDocument()
+
+```typescript
+(id: string) => Promise<Document | null>
+```
+
+### getDocumentBySlug()
+
+```typescript
+(slug: string) => Promise<Document | null>
+```
+
+### listDocuments()
+
+```typescript
+(params?: ListDocumentsParams) => Promise<ListResult<Document>>
+```
+
+### deleteDocument()
+
+```typescript
+(id: string) => Promise<boolean>
+```
+
+### publishVersion()
+
+```typescript
+(params: PublishVersionParams) => Promise<VersionEntry>
+```
+
+### getVersion()
+
+```typescript
+(documentId: string, versionNumber: number) => Promise<VersionEntry | null>
+```
+
+### listVersions()
+
+```typescript
+(documentId: string) => Promise<VersionEntry[]>
+```
+
+### transitionVersion()
+
+```typescript
+(params: TransitionParams) => Promise<{ success: boolean; error?: string; document?: Document; }>
+```
+
+### submitSignedApproval()
+
+```typescript
+(params: { documentId: string; versionNumber: number; reviewerId: string; status: "APPROVED" | "REJECTED"; reason?: string; signatureBase64: string; }) => Promise<{ success: boolean; error?: string; result?: ApprovalResult; }>
+```
+
+### getApprovalProgress()
+
+```typescript
+(documentId: string, versionNumber: number) => Promise<ApprovalResult>
+```
+
+### getApprovalPolicy()
+
+```typescript
+(documentId: string) => Promise<ApprovalPolicy>
+```
+
+### setApprovalPolicy()
+
+```typescript
+(documentId: string, policy: ApprovalPolicy) => Promise<void>
+```
+
+### appendEvent()
+
+```typescript
+(params: AppendEventParams) => Promise<DocumentEvent>
+```
+
+### queryEvents()
+
+```typescript
+(params: QueryEventsParams) => Promise<ListResult<DocumentEvent>>
+```
+
+### subscribeStream()
+
+```typescript
+(documentId: string) => AsyncIterable<DocumentEvent>
+```
+
+### applyCrdtUpdate()
+
+```typescript
+(params: { documentId: string; sectionKey: string; updateBase64: string; agentId: string; }) => Promise<CrdtState>
+```
+
+### getCrdtState()
+
+```typescript
+(documentId: string, sectionKey: string) => Promise<CrdtState | null>
+```
+
+### subscribeSection()
+
+```typescript
+(documentId: string, sectionKey: string) => AsyncIterable<CrdtUpdate>
+```
+
+### acquireLease()
+
+```typescript
+(params: AcquireLeaseParams) => Promise<Lease | null>
+```
+
+### renewLease()
+
+```typescript
+(resource: string, holder: string, ttlMs: number) => Promise<Lease | null>
+```
+
+### releaseLease()
+
+```typescript
+(resource: string, holder: string) => Promise<boolean>
+```
+
+### getLease()
+
+```typescript
+(resource: string) => Promise<Lease | null>
+```
+
+### joinPresence()
+
+```typescript
+(documentId: string, agentId: string, meta?: Record<string, unknown>) => Promise<PresenceEntry>
+```
+
+### leavePresence()
+
+```typescript
+(documentId: string, agentId: string) => Promise<void>
+```
+
+### listPresence()
+
+```typescript
+(documentId: string) => Promise<PresenceEntry[]>
+```
+
+### heartbeatPresence()
+
+```typescript
+(documentId: string, agentId: string) => Promise<void>
+```
+
+### sendScratchpad()
+
+```typescript
+(params: SendScratchpadParams) => Promise<ScratchpadMessage>
+```
+
+### pollScratchpad()
+
+```typescript
+(agentId: string, limit?: number) => Promise<ScratchpadMessage[]>
+```
+
+### deleteScratchpadMessage()
+
+```typescript
+(id: string, agentId: string) => Promise<boolean>
+```
+
+### sendA2AMessage()
+
+```typescript
+(params: { toAgentId: string; envelopeJson: string; ttlMs?: number; }) => Promise<{ success: boolean; error?: string; message?: A2AMessage; }>
+```
+
+### pollA2AInbox()
+
+```typescript
+(agentId: string, limit?: number, since?: number, order?: "asc" | "desc") => Promise<A2AMessage[]>
+```
+
+### deleteA2AMessage()
+
+```typescript
+(id: string, agentId: string) => Promise<boolean>
+```
+
+### indexDocument()
+
+```typescript
+(documentId: string, content: string) => Promise<void>
+```
+
+### search()
+
+```typescript
+(params: SearchParams) => Promise<SearchResult[]>
+```
+
+### registerAgentPubkey()
+
+```typescript
+(agentId: string, pubkeyHex: string, label?: string) => Promise<AgentPubkeyRecord>
+```
+
+### lookupAgentPubkey()
+
+```typescript
+(agentId: string) => Promise<AgentPubkeyRecord | null>
+```
+
+### revokeAgentPubkey()
+
+```typescript
+(agentId: string, pubkeyHex: string) => Promise<boolean>
+```
+
+### recordSignatureNonce()
+
+```typescript
+(agentId: string, nonce: string, ttlMs?: number) => Promise<boolean>
+```
+
+### hasNonceBeenUsed()
+
+```typescript
+(agentId: string, nonce: string) => Promise<boolean>
+```
+
+### listAgentPubkeys()
+
+```typescript
+(_userId?: string) => Promise<import("../core/backend.js").AgentPubkeyRecord[]>
+```
+
+### listContributors()
+
+```typescript
+(_documentId: string) => Promise<import("../core/backend.js").ContributorRecord[]>
+```
+
+### getApprovalChain()
+
+```typescript
+(_documentId: string) => Promise<import("../core/backend.js").ApprovalChainResult>
+```
+
+### createCollection()
+
+```typescript
+(_params: import("../core/backend.js").CreateCollectionParams) => Promise<import("../core/backend.js").Collection>
+```
+
+### getCollection()
+
+```typescript
+(_slug: string) => Promise<import("../core/backend.js").Collection | null>
+```
+
+### listCollections()
+
+```typescript
+(_params?: import("../core/backend.js").ListCollectionsParams) => Promise<import("../core/backend.js").ListResult<import("../core/backend.js").Collection>>
+```
+
+### addDocToCollection()
+
+```typescript
+(_collectionSlug: string, _documentSlug: string, _position?: number) => Promise<void>
+```
+
+### removeDocFromCollection()
+
+```typescript
+(_collectionSlug: string, _documentSlug: string) => Promise<boolean>
+```
+
+### reorderCollection()
+
+```typescript
+(_collectionSlug: string, _orderedSlugs: string[]) => Promise<void>
+```
+
+### exportCollection()
+
+```typescript
+(_collectionSlug: string) => Promise<import("../core/backend.js").CollectionExport>
+```
+
+### createDocumentLink()
+
+```typescript
+(_params: import("../core/backend.js").CreateDocLinkParams) => Promise<import("../core/backend.js").DocumentLink>
+```
+
+### getDocumentLinks()
+
+```typescript
+(_documentId: string) => Promise<import("../core/backend.js").DocumentLink[]>
+```
+
+### deleteDocumentLink()
+
+```typescript
+(_documentId: string, _linkId: string) => Promise<boolean>
+```
+
+### getGlobalGraph()
+
+```typescript
+(_params?: { maxNodes?: number; }) => Promise<import("../core/backend.js").GraphResult>
+```
+
+### createWebhook()
+
+```typescript
+(_params: import("../core/backend.js").CreateWebhookParams) => Promise<import("../core/backend.js").Webhook>
+```
+
+### listWebhooks()
+
+```typescript
+(_userId: string) => Promise<import("../core/backend.js").Webhook[]>
+```
+
+### deleteWebhook()
+
+```typescript
+(_id: string, _userId: string) => Promise<boolean>
+```
+
+### testWebhook()
+
+```typescript
+(_id: string) => Promise<import("../core/backend.js").WebhookTestResult>
+```
+
+### createSignedUrl()
+
+```typescript
+(_params: import("../core/backend.js").CreateSignedUrlParams) => Promise<import("../core/backend.js").SignedUrl>
+```
+
+### verifySignedUrl()
+
+```typescript
+(_token: string) => Promise<{ documentId: string; permission: "read" | "write"; } | null>
+```
+
+### getDocumentAccess()
+
+```typescript
+(_documentId: string) => Promise<import("../core/backend.js").AccessControlList>
+```
+
+### grantDocumentAccess()
+
+```typescript
+(_documentId: string, _params: import("../core/backend.js").GrantAccessParams) => Promise<void>
+```
+
+### revokeDocumentAccess()
+
+```typescript
+(_documentId: string, _userId: string) => Promise<boolean>
+```
+
+### setDocumentVisibility()
+
+```typescript
+(_documentId: string, _visibility: import("../core/backend.js").DocumentVisibility) => Promise<void>
+```
+
+### createOrganization()
+
+```typescript
+(_params: import("../core/backend.js").CreateOrgParams) => Promise<import("../core/backend.js").Organization>
+```
+
+### getOrganization()
+
+```typescript
+(_slug: string) => Promise<import("../core/backend.js").Organization | null>
+```
+
+### listOrganizations()
+
+```typescript
+(_userId: string) => Promise<import("../core/backend.js").Organization[]>
+```
+
+### addOrgMember()
+
+```typescript
+(_orgSlug: string, _userId: string, _role?: string) => Promise<void>
+```
+
+### removeOrgMember()
+
+```typescript
+(_orgSlug: string, _userId: string) => Promise<boolean>
+```
+
+### createApiKey()
+
+```typescript
+(_params: import("../core/backend.js").CreateApiKeyParams) => Promise<import("../core/backend.js").ApiKeyWithSecret>
+```
+
+### listApiKeys()
+
+```typescript
+(_userId: string) => Promise<import("../core/backend.js").ApiKey[]>
+```
+
+### deleteApiKey()
+
+```typescript
+(_id: string, _userId: string) => Promise<boolean>
+```
+
+### rotateApiKey()
+
+```typescript
+(_id: string, _userId: string) => Promise<import("../core/backend.js").ApiKeyWithSecret>
+```
+
+### attachBlob()
+
+```typescript
+(params: import("../core/backend.js").AttachBlobParams) => Promise<import("../core/backend.js").BlobAttachment>
+```
+
+### getBlob()
+
+```typescript
+(docSlug: string, blobName: string, opts?: { includeData?: boolean; }) => Promise<import("../core/backend.js").BlobData | null>
+```
+
+### listBlobs()
+
+```typescript
+(docSlug: string) => Promise<import("../core/backend.js").BlobAttachment[]>
+```
+
+### detachBlob()
+
+```typescript
+(docSlug: string, blobName: string, _detachedBy: string) => Promise<boolean>
+```
+
+### fetchBlobByHash()
+
+```typescript
+(hash: string) => Promise<Buffer | null>
+```
+
+### exportDocument()
+
+Export a document from the remote backend to a local file.  Content retrieval: calls `GET /v1/documents/:slug/versions/:n` and extracts the `content` field. Then serializes and writes locally using writeExportFile.
+
+```typescript
+(params: ExportDocumentParams) => Promise<ExportDocumentResult>
+```
+
+### exportAll()
+
+Export all documents from the remote backend to a directory.  Iterates via listDocuments (cursor-based pagination). Individual document failures are collected in skipped, not thrown.
+
+```typescript
+(params: ExportAllParams) => Promise<ExportAllResult>
+```
+
+### importDocument()
+
+Import a document from a file on disk into the remote backend.  Parses the file locally (same logic as LocalBackend), then uses the remote API to create or update the document.
+
+```typescript
+(params: ImportDocumentParams) => Promise<ImportDocumentResult>
+```
+
+### getChangesSince()
+
+Not supported by RemoteBackend — cr-sqlite sync is a LocalBackend feature. The remote api.llmtxt.my endpoint for changeset exchange is planned in P3.
+
+```typescript
+(_dbVersion: bigint) => Promise<Uint8Array>
+```
+
+### applyChanges()
+
+```typescript
+(_changeset: Uint8Array) => Promise<bigint>
+```
+
+## MeshNotImplementedError
+
+Thrown when a mesh-specific sync method is called on `MeshBackend` before the T386 P2P sync engine has been installed.  The MeshBackend stub delegates all standard Backend interface methods to its internal LocalBackend. Only the T386-specific mesh methods (peer negotiation, changeset exchange, etc.) throw this error, so agents that do not call those methods can use MeshBackend today without blocking on T386.  To resolve: implement T386 (P2P Mesh Sync Engine) and replace the stub with the real MeshBackend from packages/llmtxt/src/mesh/.
+
+**Signature**
+
+```typescript
+typeof MeshNotImplementedError
+```
+
+## HubUnreachableError
+
+Thrown when a hub-and-spoke spoke cannot reach the hub for a write operation.  Ephemeral spokes MUST fail fast with this error — writes are never silently dropped (ARCH-T429 §7.1). The `cause` property holds the underlying network error for diagnostics.
+
+**Signature**
+
+```typescript
+typeof HubUnreachableError
+```
+
+## HubWriteQueueFullError
+
+Thrown when a persistent spoke's write queue exceeds the 1000-entry limit (ARCH-T429 §7.1). The 1001st write while the hub is unreachable must be rejected with this error rather than silently dropped or discarded.
+
+**Signature**
+
+```typescript
+typeof HubWriteQueueFullError
+```
+
+## HubSpokeBackend
+
+Composite Backend for hub-and-spoke topology with `persistLocally=true`.  Routing semantics (ARCH-T429 §5.2 persistent spoke): - Reads (documents, versions, events, CRDT sections, presence) → LocalBackend (replica). - Writes (createDocument, publishVersion, A2A, scratchpad, leases) → RemoteBackend (hub). - CRDT applyCrdtUpdate → RemoteBackend (hub is authoritative); local replica is updated   on next background sync. - Signed URLs, webhooks, org/API-key ops → RemoteBackend (hub-owned resources).  TODO(T449): Implement write-queue persistence in local SQLite (`hub_write_queue` table) so queued writes survive agent restart. Current behaviour: writes fail fast when the hub is unreachable, matching ephemeral-spoke semantics. Track in T449.  TODO(T449): Implement background sync loop (poll hub for new events and replicate to local replica). Current behaviour: local replica is only updated when hub writes are acknowledged inline.
+
+**Signature**
+
+```typescript
+typeof HubSpokeBackend
+```
+
+**Methods**
+
+### \_hubWrite()
+
+Wrap a hub write operation so network failures surface as HubUnreachableError rather than raw fetch errors. This ensures writes are never silently dropped (ARCH-T429 §7.1).
+
+```typescript
+<T>(operation: string, fn: () => Promise<T>) => Promise<T>
+```
+
+### open()
+
+```typescript
+() => Promise<void>
+```
+
+### close()
+
+```typescript
+() => Promise<void>
+```
+
+### createDocument()
+
+```typescript
+(params: Parameters<Backend["createDocument"]>[0]) => Promise<import("../core/backend.js").Document>
+```
+
+### getDocument()
+
+```typescript
+(id: string) => Promise<import("../core/backend.js").Document | null>
+```
+
+### getDocumentBySlug()
+
+```typescript
+(slug: string) => Promise<import("../core/backend.js").Document | null>
+```
+
+### listDocuments()
+
+```typescript
+(params?: Parameters<Backend["listDocuments"]>[0]) => Promise<import("../core/backend.js").ListResult<import("../core/backend.js").Document>>
+```
+
+### deleteDocument()
+
+```typescript
+(id: string) => Promise<boolean>
+```
+
+### publishVersion()
+
+```typescript
+(params: Parameters<Backend["publishVersion"]>[0]) => Promise<import("../index.js").VersionEntry>
+```
+
+### getVersion()
+
+```typescript
+(documentId: string, versionNumber: number) => Promise<import("../index.js").VersionEntry | null>
+```
+
+### listVersions()
+
+```typescript
+(documentId: string) => Promise<import("../index.js").VersionEntry[]>
+```
+
+### transitionVersion()
+
+```typescript
+(params: Parameters<Backend["transitionVersion"]>[0]) => Promise<{ success: boolean; error?: string; document?: import("../core/backend.js").Document; }>
+```
+
+### submitSignedApproval()
+
+```typescript
+(params: Parameters<Backend["submitSignedApproval"]>[0]) => Promise<{ success: boolean; error?: string; result?: import("../index.js").ApprovalResult; }>
+```
+
+### getApprovalProgress()
+
+```typescript
+(documentId: string, versionNumber: number) => Promise<import("../index.js").ApprovalResult>
+```
+
+### getApprovalPolicy()
+
+```typescript
+(documentId: string) => Promise<import("../index.js").ApprovalPolicy>
+```
+
+### setApprovalPolicy()
+
+```typescript
+(documentId: string, policy: Parameters<Backend["setApprovalPolicy"]>[1]) => Promise<void>
+```
+
+### listContributors()
+
+```typescript
+(documentId: string) => Promise<import("../core/backend.js").ContributorRecord[]>
+```
+
+### getApprovalChain()
+
+```typescript
+(documentId: string) => Promise<import("../core/backend.js").ApprovalChainResult>
+```
+
+### appendEvent()
+
+```typescript
+(params: Parameters<Backend["appendEvent"]>[0]) => Promise<import("../core/backend.js").DocumentEvent>
+```
+
+### queryEvents()
+
+```typescript
+(params: Parameters<Backend["queryEvents"]>[0]) => Promise<import("../core/backend.js").ListResult<import("../core/backend.js").DocumentEvent>>
+```
+
+### subscribeStream()
+
+```typescript
+(documentId: string) => AsyncIterable<import("../core/backend.js").DocumentEvent>
+```
+
+### applyCrdtUpdate()
+
+```typescript
+(params: Parameters<Backend["applyCrdtUpdate"]>[0]) => Promise<import("../core/backend.js").CrdtState>
+```
+
+### getCrdtState()
+
+```typescript
+(documentId: string, sectionKey: string) => Promise<import("../core/backend.js").CrdtState | null>
+```
+
+### subscribeSection()
+
+```typescript
+(documentId: string, sectionKey: string) => AsyncIterable<import("../core/backend.js").CrdtUpdate>
+```
+
+### acquireLease()
+
+```typescript
+(params: Parameters<Backend["acquireLease"]>[0]) => Promise<import("../core/backend.js").Lease | null>
+```
+
+### renewLease()
+
+```typescript
+(resource: string, holder: string, ttlMs: number) => Promise<import("../core/backend.js").Lease | null>
+```
+
+### releaseLease()
+
+```typescript
+(resource: string, holder: string) => Promise<boolean>
+```
+
+### getLease()
+
+```typescript
+(resource: string) => Promise<import("../core/backend.js").Lease | null>
+```
+
+### joinPresence()
+
+```typescript
+(documentId: string, agentId: string, meta?: Record<string, unknown>) => Promise<import("../core/backend.js").PresenceEntry>
+```
+
+### leavePresence()
+
+```typescript
+(documentId: string, agentId: string) => Promise<void>
+```
+
+### listPresence()
+
+```typescript
+(documentId: string) => Promise<import("../core/backend.js").PresenceEntry[]>
+```
+
+### heartbeatPresence()
+
+```typescript
+(documentId: string, agentId: string) => Promise<void>
+```
+
+### sendScratchpad()
+
+```typescript
+(params: Parameters<Backend["sendScratchpad"]>[0]) => Promise<import("../core/backend.js").ScratchpadMessage>
+```
+
+### pollScratchpad()
+
+```typescript
+(agentId: string, limit?: number) => Promise<import("../core/backend.js").ScratchpadMessage[]>
+```
+
+### deleteScratchpadMessage()
+
+```typescript
+(id: string, agentId: string) => Promise<boolean>
+```
+
+### sendA2AMessage()
+
+```typescript
+(params: Parameters<Backend["sendA2AMessage"]>[0]) => Promise<{ success: boolean; error?: string; message?: import("../core/backend.js").A2AMessage; }>
+```
+
+### pollA2AInbox()
+
+```typescript
+(agentId: string, limit?: number, since?: number, order?: "asc" | "desc") => Promise<import("../core/backend.js").A2AMessage[]>
+```
+
+### deleteA2AMessage()
+
+```typescript
+(id: string, agentId: string) => Promise<boolean>
+```
+
+### indexDocument()
+
+```typescript
+(documentId: string, content: string) => Promise<void>
+```
+
+### search()
+
+```typescript
+(params: Parameters<Backend["search"]>[0]) => Promise<import("../core/backend.js").SearchResult[]>
+```
+
+### registerAgentPubkey()
+
+```typescript
+(agentId: string, pubkeyHex: string, label?: string) => Promise<import("../core/backend.js").AgentPubkeyRecord>
+```
+
+### lookupAgentPubkey()
+
+```typescript
+(agentId: string) => Promise<import("../core/backend.js").AgentPubkeyRecord | null>
+```
+
+### listAgentPubkeys()
+
+```typescript
+(userId?: string) => Promise<import("../core/backend.js").AgentPubkeyRecord[]>
+```
+
+### revokeAgentPubkey()
+
+```typescript
+(agentId: string, pubkeyHex: string) => Promise<boolean>
+```
+
+### recordSignatureNonce()
+
+```typescript
+(agentId: string, nonce: string, ttlMs?: number) => Promise<boolean>
+```
+
+### hasNonceBeenUsed()
+
+```typescript
+(agentId: string, nonce: string) => Promise<boolean>
+```
+
+### createCollection()
+
+```typescript
+(params: Parameters<Backend["createCollection"]>[0]) => Promise<import("../core/backend.js").Collection>
+```
+
+### getCollection()
+
+```typescript
+(slug: string) => Promise<import("../core/backend.js").Collection | null>
+```
+
+### listCollections()
+
+```typescript
+(params?: Parameters<Backend["listCollections"]>[0]) => Promise<import("../core/backend.js").ListResult<import("../core/backend.js").Collection>>
+```
+
+### addDocToCollection()
+
+```typescript
+(collectionSlug: string, documentSlug: string, position?: number) => Promise<void>
+```
+
+### removeDocFromCollection()
+
+```typescript
+(collectionSlug: string, documentSlug: string) => Promise<boolean>
+```
+
+### reorderCollection()
+
+```typescript
+(collectionSlug: string, orderedSlugs: string[]) => Promise<void>
+```
+
+### exportCollection()
+
+```typescript
+(collectionSlug: string) => Promise<import("../core/backend.js").CollectionExport>
+```
+
+### createDocumentLink()
+
+```typescript
+(params: Parameters<Backend["createDocumentLink"]>[0]) => Promise<import("../core/backend.js").DocumentLink>
+```
+
+### getDocumentLinks()
+
+```typescript
+(documentId: string) => Promise<import("../core/backend.js").DocumentLink[]>
+```
+
+### deleteDocumentLink()
+
+```typescript
+(documentId: string, linkId: string) => Promise<boolean>
+```
+
+### getGlobalGraph()
+
+```typescript
+(params?: Parameters<Backend["getGlobalGraph"]>[0]) => Promise<import("../core/backend.js").GraphResult>
+```
+
+### createWebhook()
+
+```typescript
+(params: Parameters<Backend["createWebhook"]>[0]) => Promise<import("../core/backend.js").Webhook>
+```
+
+### listWebhooks()
+
+```typescript
+(userId: string) => Promise<import("../core/backend.js").Webhook[]>
+```
+
+### deleteWebhook()
+
+```typescript
+(id: string, userId: string) => Promise<boolean>
+```
+
+### testWebhook()
+
+```typescript
+(id: string) => Promise<import("../core/backend.js").WebhookTestResult>
+```
+
+### createSignedUrl()
+
+```typescript
+(params: Parameters<Backend["createSignedUrl"]>[0]) => Promise<import("../core/backend.js").SignedUrl>
+```
+
+### verifySignedUrl()
+
+```typescript
+(token: string) => Promise<{ documentId: string; permission: "read" | "write"; } | null>
+```
+
+### getDocumentAccess()
+
+```typescript
+(documentId: string) => Promise<import("../core/backend.js").AccessControlList>
+```
+
+### grantDocumentAccess()
+
+```typescript
+(documentId: string, params: Parameters<Backend["grantDocumentAccess"]>[1]) => Promise<void>
+```
+
+### revokeDocumentAccess()
+
+```typescript
+(documentId: string, userId: string) => Promise<boolean>
+```
+
+### setDocumentVisibility()
+
+```typescript
+(documentId: string, visibility: Parameters<Backend["setDocumentVisibility"]>[1]) => Promise<void>
+```
+
+### createOrganization()
+
+```typescript
+(params: Parameters<Backend["createOrganization"]>[0]) => Promise<import("../core/backend.js").Organization>
+```
+
+### getOrganization()
+
+```typescript
+(slug: string) => Promise<import("../core/backend.js").Organization | null>
+```
+
+### listOrganizations()
+
+```typescript
+(userId: string) => Promise<import("../core/backend.js").Organization[]>
+```
+
+### addOrgMember()
+
+```typescript
+(orgSlug: string, userId: string, role?: string) => Promise<void>
+```
+
+### removeOrgMember()
+
+```typescript
+(orgSlug: string, userId: string) => Promise<boolean>
+```
+
+### createApiKey()
+
+```typescript
+(params: Parameters<Backend["createApiKey"]>[0]) => Promise<import("../core/backend.js").ApiKeyWithSecret>
+```
+
+### listApiKeys()
+
+```typescript
+(userId: string) => Promise<import("../core/backend.js").ApiKey[]>
+```
+
+### deleteApiKey()
+
+```typescript
+(id: string, userId: string) => Promise<boolean>
+```
+
+### rotateApiKey()
+
+```typescript
+(id: string, userId: string) => Promise<import("../core/backend.js").ApiKeyWithSecret>
+```
+
+### attachBlob()
+
+```typescript
+(params: Parameters<Backend["attachBlob"]>[0]) => Promise<import("../core/backend.js").BlobAttachment>
+```
+
+### getBlob()
+
+```typescript
+(docSlug: string, blobName: string, opts?: Parameters<Backend["getBlob"]>[2]) => Promise<import("../core/backend.js").BlobData | null>
+```
+
+### listBlobs()
+
+```typescript
+(docSlug: string) => Promise<import("../core/backend.js").BlobAttachment[]>
+```
+
+### detachBlob()
+
+```typescript
+(docSlug: string, blobName: string, detachedBy: string) => Promise<boolean>
+```
+
+### fetchBlobByHash()
+
+```typescript
+(hash: string) => Promise<Buffer<ArrayBufferLike> | null>
+```
+
+### exportDocument()
+
+```typescript
+(params: Parameters<Backend["exportDocument"]>[0]) => Promise<import("../core/backend.js").ExportDocumentResult>
+```
+
+### exportAll()
+
+```typescript
+(params: Parameters<Backend["exportAll"]>[0]) => Promise<import("../core/backend.js").ExportAllResult>
+```
+
+### importDocument()
+
+```typescript
+(params: Parameters<Backend["importDocument"]>[0]) => Promise<import("../core/backend.js").ImportDocumentResult>
+```
+
+### getChangesSince()
+
+```typescript
+(dbVersion: bigint) => Promise<Uint8Array>
+```
+
+### applyChanges()
+
+```typescript
+(changeset: Uint8Array) => Promise<bigint>
+```
+
+## MeshBackend
+
+Stub Backend for mesh topology.  All standard `Backend` interface methods delegate to an internal `LocalBackend`. This means a mesh-topology agent can do meaningful local work (create docs, publish versions, etc.) today, before T386 (P2P Mesh Sync Engine) is installed.  The P2P sync engine (peer discovery, cr-sqlite changeset exchange, Ed25519 mutual handshake) is provided by T386. Until T386 ships, this stub emits a warning on `open()` to signal that sync is not active. T386-specific mesh methods that are not part of the Backend interface throw `MeshNotImplementedError` with a clear follow-up pointer.
+
+**Signature**
+
+```typescript
+typeof MeshBackend
+```
+
+**Methods**
+
+### open()
+
+```typescript
+() => Promise<void>
+```
+
+### close()
+
+```typescript
+() => Promise<void>
+```
+
+### createDocument()
+
+```typescript
+(params: Parameters<Backend["createDocument"]>[0]) => Promise<import("../core/backend.js").Document>
+```
+
+### getDocument()
+
+```typescript
+(id: string) => Promise<import("../core/backend.js").Document | null>
+```
+
+### getDocumentBySlug()
+
+```typescript
+(slug: string) => Promise<import("../core/backend.js").Document | null>
+```
+
+### listDocuments()
+
+```typescript
+(params?: Parameters<Backend["listDocuments"]>[0]) => Promise<import("../core/backend.js").ListResult<import("../core/backend.js").Document>>
+```
+
+### deleteDocument()
+
+```typescript
+(id: string) => Promise<boolean>
+```
+
+### publishVersion()
+
+```typescript
+(params: Parameters<Backend["publishVersion"]>[0]) => Promise<import("../index.js").VersionEntry>
+```
+
+### getVersion()
+
+```typescript
+(documentId: string, versionNumber: number) => Promise<import("../index.js").VersionEntry | null>
+```
+
+### listVersions()
+
+```typescript
+(documentId: string) => Promise<import("../index.js").VersionEntry[]>
+```
+
+### transitionVersion()
+
+```typescript
+(params: Parameters<Backend["transitionVersion"]>[0]) => Promise<{ success: boolean; error?: string; document?: import("../core/backend.js").Document; }>
+```
+
+### submitSignedApproval()
+
+```typescript
+(params: Parameters<Backend["submitSignedApproval"]>[0]) => Promise<{ success: boolean; error?: string; result?: import("../index.js").ApprovalResult; }>
+```
+
+### getApprovalProgress()
+
+```typescript
+(documentId: string, versionNumber: number) => Promise<import("../index.js").ApprovalResult>
+```
+
+### getApprovalPolicy()
+
+```typescript
+(documentId: string) => Promise<import("../index.js").ApprovalPolicy>
+```
+
+### setApprovalPolicy()
+
+```typescript
+(documentId: string, policy: Parameters<Backend["setApprovalPolicy"]>[1]) => Promise<void>
+```
+
+### listContributors()
+
+```typescript
+(documentId: string) => Promise<import("../core/backend.js").ContributorRecord[]>
+```
+
+### getApprovalChain()
+
+```typescript
+(documentId: string) => Promise<import("../core/backend.js").ApprovalChainResult>
+```
+
+### appendEvent()
+
+```typescript
+(params: Parameters<Backend["appendEvent"]>[0]) => Promise<import("../core/backend.js").DocumentEvent>
+```
+
+### queryEvents()
+
+```typescript
+(params: Parameters<Backend["queryEvents"]>[0]) => Promise<import("../core/backend.js").ListResult<import("../core/backend.js").DocumentEvent>>
+```
+
+### subscribeStream()
+
+```typescript
+(documentId: string) => AsyncIterable<import("../core/backend.js").DocumentEvent>
+```
+
+### applyCrdtUpdate()
+
+```typescript
+(params: Parameters<Backend["applyCrdtUpdate"]>[0]) => Promise<import("../core/backend.js").CrdtState>
+```
+
+### getCrdtState()
+
+```typescript
+(documentId: string, sectionKey: string) => Promise<import("../core/backend.js").CrdtState | null>
+```
+
+### subscribeSection()
+
+```typescript
+(documentId: string, sectionKey: string) => AsyncIterable<import("../core/backend.js").CrdtUpdate>
+```
+
+### acquireLease()
+
+```typescript
+(params: Parameters<Backend["acquireLease"]>[0]) => Promise<import("../core/backend.js").Lease | null>
+```
+
+### renewLease()
+
+```typescript
+(resource: string, holder: string, ttlMs: number) => Promise<import("../core/backend.js").Lease | null>
+```
+
+### releaseLease()
+
+```typescript
+(resource: string, holder: string) => Promise<boolean>
+```
+
+### getLease()
+
+```typescript
+(resource: string) => Promise<import("../core/backend.js").Lease | null>
+```
+
+### joinPresence()
+
+```typescript
+(documentId: string, agentId: string, meta?: Record<string, unknown>) => Promise<import("../core/backend.js").PresenceEntry>
+```
+
+### leavePresence()
+
+```typescript
+(documentId: string, agentId: string) => Promise<void>
+```
+
+### listPresence()
+
+```typescript
+(documentId: string) => Promise<import("../core/backend.js").PresenceEntry[]>
+```
+
+### heartbeatPresence()
+
+```typescript
+(documentId: string, agentId: string) => Promise<void>
+```
+
+### sendScratchpad()
+
+```typescript
+(params: Parameters<Backend["sendScratchpad"]>[0]) => Promise<import("../core/backend.js").ScratchpadMessage>
+```
+
+### pollScratchpad()
+
+```typescript
+(agentId: string, limit?: number) => Promise<import("../core/backend.js").ScratchpadMessage[]>
+```
+
+### deleteScratchpadMessage()
+
+```typescript
+(id: string, agentId: string) => Promise<boolean>
+```
+
+### sendA2AMessage()
+
+```typescript
+(params: Parameters<Backend["sendA2AMessage"]>[0]) => Promise<{ success: boolean; error?: string; message?: import("../core/backend.js").A2AMessage; }>
+```
+
+### pollA2AInbox()
+
+```typescript
+(agentId: string, limit?: number, since?: number, order?: "asc" | "desc") => Promise<import("../core/backend.js").A2AMessage[]>
+```
+
+### deleteA2AMessage()
+
+```typescript
+(id: string, agentId: string) => Promise<boolean>
+```
+
+### indexDocument()
+
+```typescript
+(documentId: string, content: string) => Promise<void>
+```
+
+### search()
+
+```typescript
+(params: Parameters<Backend["search"]>[0]) => Promise<import("../core/backend.js").SearchResult[]>
+```
+
+### registerAgentPubkey()
+
+```typescript
+(agentId: string, pubkeyHex: string, label?: string) => Promise<import("../core/backend.js").AgentPubkeyRecord>
+```
+
+### lookupAgentPubkey()
+
+```typescript
+(agentId: string) => Promise<import("../core/backend.js").AgentPubkeyRecord | null>
+```
+
+### listAgentPubkeys()
+
+```typescript
+(userId?: string) => Promise<import("../core/backend.js").AgentPubkeyRecord[]>
+```
+
+### revokeAgentPubkey()
+
+```typescript
+(agentId: string, pubkeyHex: string) => Promise<boolean>
+```
+
+### recordSignatureNonce()
+
+```typescript
+(agentId: string, nonce: string, ttlMs?: number) => Promise<boolean>
+```
+
+### hasNonceBeenUsed()
+
+```typescript
+(agentId: string, nonce: string) => Promise<boolean>
+```
+
+### createCollection()
+
+```typescript
+(params: Parameters<Backend["createCollection"]>[0]) => Promise<import("../core/backend.js").Collection>
+```
+
+### getCollection()
+
+```typescript
+(slug: string) => Promise<import("../core/backend.js").Collection | null>
+```
+
+### listCollections()
+
+```typescript
+(params?: Parameters<Backend["listCollections"]>[0]) => Promise<import("../core/backend.js").ListResult<import("../core/backend.js").Collection>>
+```
+
+### addDocToCollection()
+
+```typescript
+(collectionSlug: string, documentSlug: string, position?: number) => Promise<void>
+```
+
+### removeDocFromCollection()
+
+```typescript
+(collectionSlug: string, documentSlug: string) => Promise<boolean>
+```
+
+### reorderCollection()
+
+```typescript
+(collectionSlug: string, orderedSlugs: string[]) => Promise<void>
+```
+
+### exportCollection()
+
+```typescript
+(collectionSlug: string) => Promise<import("../core/backend.js").CollectionExport>
+```
+
+### createDocumentLink()
+
+```typescript
+(params: Parameters<Backend["createDocumentLink"]>[0]) => Promise<import("../core/backend.js").DocumentLink>
+```
+
+### getDocumentLinks()
+
+```typescript
+(documentId: string) => Promise<import("../core/backend.js").DocumentLink[]>
+```
+
+### deleteDocumentLink()
+
+```typescript
+(documentId: string, linkId: string) => Promise<boolean>
+```
+
+### getGlobalGraph()
+
+```typescript
+(params?: Parameters<Backend["getGlobalGraph"]>[0]) => Promise<import("../core/backend.js").GraphResult>
+```
+
+### createWebhook()
+
+```typescript
+(params: Parameters<Backend["createWebhook"]>[0]) => Promise<import("../core/backend.js").Webhook>
+```
+
+### listWebhooks()
+
+```typescript
+(userId: string) => Promise<import("../core/backend.js").Webhook[]>
+```
+
+### deleteWebhook()
+
+```typescript
+(id: string, userId: string) => Promise<boolean>
+```
+
+### testWebhook()
+
+```typescript
+(id: string) => Promise<import("../core/backend.js").WebhookTestResult>
+```
+
+### createSignedUrl()
+
+```typescript
+(params: Parameters<Backend["createSignedUrl"]>[0]) => Promise<import("../core/backend.js").SignedUrl>
+```
+
+### verifySignedUrl()
+
+```typescript
+(token: string) => Promise<{ documentId: string; permission: "read" | "write"; } | null>
+```
+
+### getDocumentAccess()
+
+```typescript
+(documentId: string) => Promise<import("../core/backend.js").AccessControlList>
+```
+
+### grantDocumentAccess()
+
+```typescript
+(documentId: string, params: Parameters<Backend["grantDocumentAccess"]>[1]) => Promise<void>
+```
+
+### revokeDocumentAccess()
+
+```typescript
+(documentId: string, userId: string) => Promise<boolean>
+```
+
+### setDocumentVisibility()
+
+```typescript
+(documentId: string, visibility: Parameters<Backend["setDocumentVisibility"]>[1]) => Promise<void>
+```
+
+### createOrganization()
+
+```typescript
+(params: Parameters<Backend["createOrganization"]>[0]) => Promise<import("../core/backend.js").Organization>
+```
+
+### getOrganization()
+
+```typescript
+(slug: string) => Promise<import("../core/backend.js").Organization | null>
+```
+
+### listOrganizations()
+
+```typescript
+(userId: string) => Promise<import("../core/backend.js").Organization[]>
+```
+
+### addOrgMember()
+
+```typescript
+(orgSlug: string, userId: string, role?: string) => Promise<void>
+```
+
+### removeOrgMember()
+
+```typescript
+(orgSlug: string, userId: string) => Promise<boolean>
+```
+
+### createApiKey()
+
+```typescript
+(params: Parameters<Backend["createApiKey"]>[0]) => Promise<import("../core/backend.js").ApiKeyWithSecret>
+```
+
+### listApiKeys()
+
+```typescript
+(userId: string) => Promise<import("../core/backend.js").ApiKey[]>
+```
+
+### deleteApiKey()
+
+```typescript
+(id: string, userId: string) => Promise<boolean>
+```
+
+### rotateApiKey()
+
+```typescript
+(id: string, userId: string) => Promise<import("../core/backend.js").ApiKeyWithSecret>
+```
+
+### attachBlob()
+
+```typescript
+(params: Parameters<Backend["attachBlob"]>[0]) => Promise<import("../core/backend.js").BlobAttachment>
+```
+
+### getBlob()
+
+```typescript
+(docSlug: string, blobName: string, opts?: Parameters<Backend["getBlob"]>[2]) => Promise<import("../core/backend.js").BlobData | null>
+```
+
+### listBlobs()
+
+```typescript
+(docSlug: string) => Promise<import("../core/backend.js").BlobAttachment[]>
+```
+
+### detachBlob()
+
+```typescript
+(docSlug: string, blobName: string, detachedBy: string) => Promise<boolean>
+```
+
+### fetchBlobByHash()
+
+```typescript
+(hash: string) => Promise<Buffer<ArrayBufferLike> | null>
+```
+
+### exportDocument()
+
+```typescript
+(params: Parameters<Backend["exportDocument"]>[0]) => Promise<import("../core/backend.js").ExportDocumentResult>
+```
+
+### exportAll()
+
+```typescript
+(params: Parameters<Backend["exportAll"]>[0]) => Promise<import("../core/backend.js").ExportAllResult>
+```
+
+### importDocument()
+
+```typescript
+(params: Parameters<Backend["importDocument"]>[0]) => Promise<import("../core/backend.js").ImportDocumentResult>
+```
+
+### getChangesSince()
+
+```typescript
+(dbVersion: bigint) => Promise<Uint8Array>
+```
+
+### applyChanges()
+
+```typescript
+(changeset: Uint8Array) => Promise<bigint>
+```
+
+## createBackend(config)
+
+Create a Backend instance appropriate for the given topology config.  This is the primary entry point for all agent code that needs a Backend. Prefer this over constructing LocalBackend or RemoteBackend directly.  Validation (ARCH-T429 §3.3) runs before any backend is constructed: - `hub-spoke` without `hubUrl` → throws `TopologyConfigError` - `hub-spoke` with `persistLocally=true` without `storagePath` → throws `TopologyConfigError` - `mesh` without `storagePath` → throws `TopologyConfigError` - Unknown `topology` value → throws `TopologyConfigError`  The returned backend must have `open()` called before use.
+
+**Signature**
+
+```typescript
+(config: TopologyConfig) => Promise<Backend>
+```
+
+**Parameters**
+
+| Name     | Type             | Description                                                                                              |
+| -------- | ---------------- | -------------------------------------------------------------------------------------------------------- |
+| `config` | `TopologyConfig` | A validated `TopologyConfig`. Unknown shapes are   rejected by `validateTopologyConfig` before dispatch. |
+
+**Returns** — A `Backend` instance for the requested topology.
+
+**Throws**
+
+- `TopologyConfigError` when config is invalid.
+
+## sanitizeHtmlAsync(html)
+
+Sanitize an HTML string (async, works in both Node.js and browser).  Prefer `sanitizeHtmlSync` in browser contexts where DOMPurify is available on the global window. Use this async version in server-side (Node.js) contexts where JSDOM must be initialized.
+
+**Signature**
+
+```typescript
+(html: string) => Promise<string>
+```
+
+**Parameters**
+
+| Name   | Type     | Description                                      |
+| ------ | -------- | ------------------------------------------------ |
+| `html` | `string` | Raw HTML string (e.g. from a markdown renderer). |
+
+**Returns** — Safe HTML string with all XSS vectors removed.
+
+## sanitizeHtmlSync(html)
+
+Sanitize an HTML string synchronously (browser-only).  This function requires `window.DOMPurify` or a pre-loaded DOMPurify instance. In a browser it uses the native DOM parser. In Node.js, call `sanitizeHtmlAsync` instead.
+
+**Signature**
+
+```typescript
+(html: string) => string
+```
+
+**Parameters**
+
+| Name   | Type     | Description      |
+| ------ | -------- | ---------------- |
+| `html` | `string` | Raw HTML string. |
+
+**Returns** — Safe HTML string.
+
+## isSafeUri(uri)
+
+Check whether a URI is safe according to the platform allowlist.  Useful for validating href/src attributes before inserting them into the DOM without going through a full sanitization pass.
+
+**Signature**
+
+```typescript
+(uri: string) => boolean
+```
+
+**Parameters**
+
+| Name  | Type     | Description                 |
+| ----- | -------- | --------------------------- |
+| `uri` | `string` | The URI string to validate. |
+
+**Returns** — `true` if the URI matches the allowlist, `false` otherwise.
+
+## HandshakeFailedError
+
+Thrown when the Ed25519 mutual handshake fails.
+
+**Signature**
+
+```typescript
+typeof HandshakeFailedError
+```
+
+## PeerUnreachableError
+
+Thrown when a peer is unreachable after max retries.
+
+**Signature**
+
+```typescript
+typeof PeerUnreachableError
+```
+
+## ChangesetTooLargeError
+
+Thrown when a changeset exceeds the maximum size.
+
+**Signature**
+
+```typescript
+typeof ChangesetTooLargeError
+```
+
+## UnixSocketTransport
+
+UnixSocketTransport — primary transport for same-machine collaboration.  - Listens on a Unix domain socket. - Frames messages with 4-byte LE length prefix. - Completes Ed25519 mutual handshake before passing changesets to the sync engine. - Handles reconnection with 3-retry exponential backoff. - Emits `peerError` events for unreachable peers.  Spec: P3 spec §4.2, §4.3
+
+**Signature**
+
+```typescript
+typeof UnixSocketTransport
+```
+
+**Methods**
+
+### listen()
+
+Listen for incoming connections on the Unix socket. MUST NOT call onChangeset until the handshake completes.
+
+```typescript
+(onChangeset: (peerId: string, changeset: Uint8Array) => void) => Promise<void>
+```
+
+### handleIncomingConnection()
+
+Handle an incoming connection: run handshake as responder, then receive changesets.  Uses an async generator over framed messages so each async step (signature verify, sign) completes before the next message is processed — no race between async callbacks and socket close events.
+
+```typescript
+(socket: net.Socket, onChangeset: (peerId: string, changeset: Uint8Array) => void) => Promise<void>
+```
+
+### sendChangeset()
+
+Send a changeset to a peer. Runs the full handshake as the initiator, then sends the changeset. Retries up to MAX\_RETRIES times with exponential backoff.
+
+```typescript
+(peerId: string, peerAddress: string, changeset: Uint8Array) => Promise<void>
+```
+
+### sendOnce()
+
+One connection attempt: connect, handshake as initiator, send changeset.  Uses async generator for sequential message processing to avoid race conditions between async crypto operations and socket events.
+
+```typescript
+(_peerId: string, socketPath: string, changeset: Uint8Array) => Promise<void>
+```
+
+### close()
+
+Graceful shutdown: close the server and stop accepting connections.
+
+```typescript
+() => Promise<void>
+```
+
+## HttpTransport
+
+HttpTransport — secondary transport for cross-machine collaboration.  - Listens on a local HTTP port. - Changeset exchange: POST /mesh/changeset (binary body). - Ed25519 handshake: POST /mesh/handshake (JSON body). - Handles reconnection with 3-retry exponential backoff. - Emits `peerError` events for unreachable peers.  Spec: P3 spec §4.2, §4.3
+
+**Signature**
+
+```typescript
+typeof HttpTransport
+```
+
+**Methods**
+
+### listen()
+
+Start the HTTP server and listen for incoming handshake + changeset requests.
+
+```typescript
+(onChangeset: (peerId: string, changeset: Uint8Array) => void) => Promise<void>
+```
+
+### handleRequest()
+
+```typescript
+(req: http.IncomingMessage, res: http.ServerResponse, onChangeset: (peerId: string, changeset: Uint8Array) => void) => Promise<void>
+```
+
+### handleHandshakeRequest()
+
+POST /mesh/handshake — 3-message handshake over HTTP.  Phase 1 (client sends INIT JSON):    "phase": 1, "agentId": "...", "pubkey": "base64", "challenge": "base64"  Server responds:    "agentId": "...", "pubkey": "base64", "sig": "base64", "challenge": "base64"   Phase 2 (client sends FINAL JSON):    "phase": 2, "agentId": "...", "sig": "base64"  Server responds:    "ok": true
+
+```typescript
+(req: http.IncomingMessage, res: http.ServerResponse) => Promise<void>
+```
+
+### handleChangesetRequest()
+
+POST /mesh/changeset — receive a changeset from an authenticated peer.  MUST have a valid authenticated session (completed handshake). Request headers: `X-Agent-Id: <agentId>`. Body: raw binary changeset (application/octet-stream). Response: 200 OK with empty body (or delta body in future bidirectional sync).
+
+```typescript
+(req: http.IncomingMessage, res: http.ServerResponse, onChangeset: (peerId: string, changeset: Uint8Array) => void) => Promise<void>
+```
+
+### sendChangeset()
+
+Send a changeset to a peer via HTTP. Performs the 2-phase handshake first, then POST /mesh/changeset. Retries up to MAX\_RETRIES times.
+
+```typescript
+(peerId: string, peerAddress: string, changeset: Uint8Array) => Promise<void>
+```
+
+### sendOnce()
+
+```typescript
+(peerId: string, peerAddress: string, changeset: Uint8Array) => Promise<void>
+```
+
+### close()
+
+Graceful shutdown.
+
+```typescript
+() => Promise<void>
+```
+
+## SyncEngine
+
+SyncEngine — periodic + event-driven peer-to-peer changeset exchange.  Security guarantees (per spec §5.1, §5.2, §10):  - Unsigned changesets are rejected before applyChanges.  - SHA-256 hash mismatch → changeset rejected + peer failure recorded.  - Corrupted Loro blobs detected by applyChanges + hash mismatch on inbound.  - Oversized changesets (10 MB) rejected.  - One peer failure does not block sync with other peers.
+
+**Signature**
+
+```typescript
+typeof SyncEngine
+```
+
+**Methods**
+
+### start()
+
+Start the sync engine:  1. Begin listening for inbound changesets via transport.  2. Start periodic sync loop.  3. Load persisted peer versions from backend (if supported).
+
+```typescript
+() => Promise<void>
+```
+
+### stop()
+
+Stop the sync engine gracefully:  - Drain in-flight syncs.  - Shut down transport.
+
+```typescript
+() => Promise<void>
+```
+
+### syncNow()
+
+Trigger an immediate sync with all peers (or a specific peer).
+
+```typescript
+(peerId?: string) => Promise<void>
+```
+
+### \_syncAllPeers()
+
+```typescript
+() => Promise<void>
+```
+
+### \_syncPeer()
+
+```typescript
+(peer: PeerInfo) => Promise<void>
+```
+
+### \_handleInbound()
+
+```typescript
+(peerId: string, data: Uint8Array) => Promise<void>
+```
+
+### \_buildEnvelope()
+
+```typescript
+(changesetBytes: Uint8Array, sinceVersion: bigint) => Promise<ChangesetEnvelope>
+```
+
+### \_verifyEnvelopeSignature()
+
+```typescript
+(envelope: ChangesetEnvelope) => Promise<boolean>
+```
+
+### \_serializeEnvelope()
+
+```typescript
+(envelope: ChangesetEnvelope) => Uint8Array
+```
+
+### \_deserializeEnvelope()
+
+```typescript
+(data: Uint8Array) => ChangesetEnvelope
+```
+
+### \_getPeerState()
+
+```typescript
+(agentId: string) => PeerSyncState
+```
+
+### \_recordPeerFailure()
+
+```typescript
+(agentId: string, err: unknown) => void
+```
+
+### \_loadMeshState()
+
+Load lastSyncVersion per peer from the backend's llmtxt\_mesh\_state table. Falls back gracefully if the table/method does not exist.
+
+```typescript
+() => Promise<void>
+```
+
+### \_saveMeshState()
+
+```typescript
+() => Promise<void>
+```
+
+### getPeerStates()
+
+Return current peer sync states for monitoring.
+
+```typescript
+() => ReadonlyMap<string, PeerSyncState>
+```
+
+### sha256Hex()
+
+SHA-256 of arbitrary bytes — exposed for testing integrity verification.
+
+```typescript
+(data: Uint8Array) => string
+```
+
+### sha256Bytes()
+
+```typescript
+(data: Uint8Array) => Uint8Array
+```
+
+## MeshMessenger
+
+MeshMessenger — signed agent-to-agent routing over mesh transport.  Security guarantees (spec §7.1, §10):  - Outbound messages are Ed25519-signed before sending.  - Inbound messages are signature-verified against sender's known pubkey.  - Unsigned or invalid-signature messages are REJECTED silently (+ warn log).  - Payload 1 MB is rejected at send time.  - 1-hop relay for peers not directly connected.  - Local queue + retry on reconnect when no path exists.
+
+**Signature**
+
+```typescript
+typeof MeshMessenger
+```
+
+**Methods**
+
+### start()
+
+```typescript
+() => Promise<void>
+```
+
+### stop()
+
+```typescript
+() => Promise<void>
+```
+
+### send()
+
+Send an A2A message to `to` agent.  Security: Signs the envelope with own Ed25519 key before sending. Payload must be JSON-serialisable and 1 MB.  Routing:  1. If `to` is in the current peer list → direct send.  2. Else → relay via any connected peer that knows `to` (1 hop).  3. If no path after MAX\_RELAY\_ATTEMPTS → queue locally.
+
+```typescript
+(to: string, payload: Record<string, unknown>) => Promise<void>
+```
+
+### retryQueued()
+
+Retry queued messages for all known peers. Call after discovery refresh or reconnect event.
+
+```typescript
+() => Promise<void>
+```
+
+### \_relay()
+
+```typescript
+(envelope: A2AEnvelope, peers: PeerInfo[], attempt: number) => Promise<void>
+```
+
+### \_handleInbound()
+
+```typescript
+(peerId: string, data: Uint8Array) => Promise<void>
+```
+
+### \_handleRelay()
+
+```typescript
+(_fromPeerId: string, envelope: A2AEnvelope) => Promise<void>
+```
+
+### \_canonicalize()
+
+Build canonical JSON for signing (sorted keys, no whitespace).
+
+```typescript
+(envelope: Omit<A2AEnvelope, "sig">) => Uint8Array
+```
+
+### \_buildEnvelope()
+
+```typescript
+(to: string, payload: Record<string, unknown>) => Promise<A2AEnvelope>
+```
+
+### \_verifySignature()
+
+```typescript
+(envelope: A2AEnvelope) => Promise<boolean>
+```
+
+### \_enqueue()
+
+```typescript
+(envelope: A2AEnvelope) => void
+```
+
+### \_flushQueue()
+
+```typescript
+(targetId: string, peers: PeerInfo[]) => Promise<void>
+```
+
+### \_serialize()
+
+```typescript
+(envelope: A2AEnvelope) => Uint8Array
+```
+
+### \_serializeRelay()
+
+```typescript
+(frame: RelayFrame) => Uint8Array
+```
+
+### \_updateKnownPubkeys()
+
+```typescript
+(peers: PeerInfo[]) => void
+```
+
+### getQueueStatus()
+
+Returns number of queued messages per target.
+
+```typescript
+() => Record<string, number>
+```
+
+## PostgresBackend
+
+PostgresBackend — Backend implementation using drizzle-orm/postgres-js.  Registers as `fastify.backendCore` via apps/backend/src/plugins/postgres-backend-plugin.ts. All route handlers call `fastify.backendCore.*` instead of querying Drizzle directly.
+
+**Signature**
+
+```typescript
+typeof PostgresBackend
+```
+
+**Example**
+
+```ts
+import { PostgresBackend } from 'llmtxt/pg';
+
+const backend = new PostgresBackend({
+  connectionString: process.env.DATABASE_URL,
+});
+await backend.open();
+const doc = await backend.createDocument({ title: 'My Doc', createdBy: 'agent-1' });
+await backend.close();
+```
+
+**Methods**
+
+### open()
+
+Open the PostgreSQL connection pool. MUST be called before any other method. MUST be idempotent — calling open twice MUST NOT error.
+
+```typescript
+() => Promise<void>
+```
+
+### setSchema()
+
+```typescript
+(schema: SchemaCache) => void
+```
+
+### setWaveBDeps()
+
+Inject Wave B event-log and CRDT dependencies. Called by postgres-backend-plugin.ts after open().  These dependencies live in apps/backend and cannot be statically imported from this package (monorepo boundary). Injecting them at plugin registration time keeps this class free of cross-package imports.
+
+```typescript
+(deps: { appendDocumentEvent: AppendDocumentEventFn; persistCrdtUpdate: PersistCrdtUpdateFn; loadSectionState: LoadSectionStateFn; subscribeCrdtUpdates: SubscribeCrdtUpdatesFn; eventBus: DocumentEventBusLike; crdtStateVector: CrdtStateVectorFn; }) => void
+```
+
+### setBlobAdapter()
+
+```typescript
+(adapter: any) => void
+```
+
+### setWaveCDeps()
+
+Inject Wave C presence + scratchpad dependencies. Called by postgres-backend-plugin.ts after open().  Presence is in-memory only (no PG persistence) — we delegate to the shared presenceRegistry singleton. Scratchpad uses Redis Streams with an in-process EventEmitter fallback.
+
+```typescript
+(deps: { presenceRegistry: PresenceRegistryLike; scratchpadPublish: ScratchpadPublishFn; scratchpadRead: ScratchpadReadFn; scratchpadSubscribe: ScratchpadSubscribeFn; }) => void
+```
+
+### close()
+
+Close the PostgreSQL connection pool. MUST stop all active connections. MUST be safe to call multiple times.
+
+```typescript
+() => Promise<void>
+```
+
+### \_assertOpen()
+
+```typescript
+() => void
+```
+
+### createDocument()
+
+```typescript
+(params: CreateDocumentParams) => Promise<any>
+```
+
+### getDocument()
+
+```typescript
+(id: string) => Promise<any>
+```
+
+### getDocumentBySlug()
+
+```typescript
+(slug: string) => Promise<any>
+```
+
+### listDocuments()
+
+```typescript
+(params?: ListDocumentsParams) => Promise<ListResult<any>>
+```
+
+### deleteDocument()
+
+```typescript
+(_id: string) => Promise<boolean>
+```
+
+### publishVersion()
+
+```typescript
+(params: PublishVersionParams) => Promise<any>
+```
+
+### getVersion()
+
+```typescript
+(documentId: string, versionNumber: number) => Promise<any>
+```
+
+### listVersions()
+
+```typescript
+(documentId: string) => Promise<any[]>
+```
+
+### transitionVersion()
+
+```typescript
+(params: TransitionParams) => Promise<{ success: boolean; error?: string; allowedTargets?: string[]; document?: any; }>
+```
+
+### submitSignedApproval()
+
+submitSignedApproval — Wave A-2 implementation.  Transactionally inserts an approval record, evaluates consensus, and auto-locks the document when consensus is reached. Appends approval.submitted / approval.rejected event if appendDocumentEvent has been injected.  params: documentId (slug), versionNumber, reviewerId, status, reason?,         signatureBase64 — plus optional idempotencyKey (cast via Record).
+
+```typescript
+(params: { documentId: string; versionNumber: number; reviewerId: string; status: "APPROVED" | "REJECTED"; reason?: string; signatureBase64: string; }) => Promise<{ success: boolean; error?: string; result?: ApprovalResult; }>
+```
+
+### getApprovalProgress()
+
+```typescript
+(documentId: string, _versionNumber?: number) => Promise<any>
+```
+
+### getApprovalPolicy()
+
+```typescript
+(documentId: string) => Promise<any>
+```
+
+### setApprovalPolicy()
+
+```typescript
+(_documentId: string, _policy: ApprovalPolicy) => Promise<void>
+```
+
+### listContributors()
+
+```typescript
+(documentId: string) => Promise<any[]>
+```
+
+### getApprovalChain()
+
+```typescript
+(documentId: string) => Promise<ApprovalChainResult>
+```
+
+### appendEvent()
+
+```typescript
+(params: AppendEventParams) => Promise<DocumentEvent>
+```
+
+### queryEvents()
+
+```typescript
+(params: QueryEventsParams) => Promise<ListResult<DocumentEvent>>
+```
+
+### subscribeStream()
+
+```typescript
+(documentId: string) => AsyncIterable<DocumentEvent>
+```
+
+### applyCrdtUpdate()
+
+```typescript
+(params: { documentId: string; sectionKey: string; updateBase64: string; agentId: string; }) => Promise<CrdtState>
+```
+
+### getCrdtState()
+
+```typescript
+(documentId: string, sectionKey: string) => Promise<CrdtState | null>
+```
+
+### subscribeSection()
+
+```typescript
+(documentId: string, sectionKey: string) => AsyncIterable<CrdtUpdate>
+```
+
+### \_parseLeaseResource()
+
+Parse resource string "docSlug:sectionId" into docId, sectionId.
+
+```typescript
+(resource: string) => { docId: string; sectionId: string; }
+```
+
+### acquireLease()
+
+```typescript
+(params: AcquireLeaseParams) => Promise<Lease | null>
+```
+
+### renewLease()
+
+```typescript
+(resource: string, holder: string, ttlMs: number) => Promise<Lease | null>
+```
+
+### releaseLease()
+
+```typescript
+(resource: string, holder: string) => Promise<boolean>
+```
+
+### getLease()
+
+```typescript
+(resource: string) => Promise<Lease | null>
+```
+
+### \_assertPresenceRegistry()
+
+```typescript
+() => PresenceRegistryLike
+```
+
+### joinPresence()
+
+```typescript
+(documentId: string, agentId: string, meta?: Record<string, unknown>) => Promise<PresenceEntry>
+```
+
+### leavePresence()
+
+```typescript
+(documentId: string, agentId: string) => Promise<void>
+```
+
+### listPresence()
+
+```typescript
+(documentId: string) => Promise<PresenceEntry[]>
+```
+
+### heartbeatPresence()
+
+```typescript
+(documentId: string, agentId: string) => Promise<void>
+```
+
+### \_assertScratchpad()
+
+```typescript
+() => { publish: ScratchpadPublishFn; read: ScratchpadReadFn; }
+```
+
+### sendScratchpad()
+
+```typescript
+(params: SendScratchpadParams) => Promise<ScratchpadMessage>
+```
+
+### pollScratchpad()
+
+```typescript
+(agentId: string, limit?: number) => Promise<ScratchpadMessage[]>
+```
+
+### deleteScratchpadMessage()
+
+```typescript
+(_id: string, _agentId: string) => Promise<boolean>
+```
+
+### sendA2AMessage()
+
+```typescript
+(params: { toAgentId: string; envelopeJson: string; ttlMs?: number; }) => Promise<{ success: boolean; error?: string; message?: A2AMessage; }>
+```
+
+### pollA2AInbox()
+
+```typescript
+(agentId: string, limit?: number, since?: number, order?: "asc" | "desc") => Promise<A2AMessage[]>
+```
+
+### deleteA2AMessage()
+
+```typescript
+(id: string, agentId: string) => Promise<boolean>
+```
+
+### indexDocument()
+
+```typescript
+(_documentId: string, _content: string) => Promise<void>
+```
+
+### search()
+
+```typescript
+(params: SearchParams) => Promise<SearchResult[]>
+```
+
+### registerAgentPubkey()
+
+```typescript
+(agentId: string, pubkeyHex: string, _label?: string) => Promise<AgentPubkeyRecord>
+```
+
+### lookupAgentPubkey()
+
+```typescript
+(agentId: string) => Promise<AgentPubkeyRecord | null>
+```
+
+### listAgentPubkeys()
+
+```typescript
+(_userId?: string) => Promise<AgentPubkeyRecord[]>
+```
+
+### revokeAgentPubkey()
+
+```typescript
+(agentId: string, _pubkeyHex: string) => Promise<boolean>
+```
+
+### recordSignatureNonce()
+
+```typescript
+(agentId: string, nonce: string, _ttlMs?: number) => Promise<boolean>
+```
+
+### hasNonceBeenUsed()
+
+```typescript
+(agentId: string, nonce: string) => Promise<boolean>
+```
+
+### createCollection()
+
+```typescript
+(params: CreateCollectionParams) => Promise<any>
+```
+
+### getCollection()
+
+```typescript
+(slug: string) => Promise<any>
+```
+
+### listCollections()
+
+```typescript
+(params?: ListCollectionsParams) => Promise<ListResult<any>>
+```
+
+### addDocToCollection()
+
+```typescript
+(collectionSlug: string, documentSlug: string, position?: number) => Promise<void>
+```
+
+### removeDocFromCollection()
+
+```typescript
+(collectionSlug: string, documentSlug: string) => Promise<boolean>
+```
+
+### reorderCollection()
+
+```typescript
+(collectionSlug: string, orderedSlugs: string[]) => Promise<void>
+```
+
+### exportCollection()
+
+```typescript
+(collectionSlug: string) => Promise<any>
+```
+
+### createDocumentLink()
+
+```typescript
+(params: CreateDocLinkParams) => Promise<any>
+```
+
+### getDocumentLinks()
+
+```typescript
+(documentId: string) => Promise<any[]>
+```
+
+### deleteDocumentLink()
+
+```typescript
+(documentId: string, linkId: string) => Promise<boolean>
+```
+
+### getGlobalGraph()
+
+```typescript
+(params?: { maxNodes?: number; }) => Promise<GraphResult>
+```
+
+### createWebhook()
+
+```typescript
+(params: CreateWebhookParams) => Promise<any>
+```
+
+### listWebhooks()
+
+```typescript
+(userId: string) => Promise<any[]>
+```
+
+### deleteWebhook()
+
+```typescript
+(id: string, userId: string) => Promise<boolean>
+```
+
+### testWebhook()
+
+```typescript
+(id: string) => Promise<any>
+```
+
+### createSignedUrl()
+
+```typescript
+(params: CreateSignedUrlParams) => Promise<any>
+```
+
+### verifySignedUrl()
+
+```typescript
+(token: string) => Promise<{ documentId: string; permission: "read" | "write"; } | null>
+```
+
+### getDocumentAccess()
+
+```typescript
+(documentId: string) => Promise<any>
+```
+
+### grantDocumentAccess()
+
+```typescript
+(documentId: string, params: GrantAccessParams) => Promise<void>
+```
+
+### revokeDocumentAccess()
+
+```typescript
+(documentId: string, userId: string) => Promise<boolean>
+```
+
+### setDocumentVisibility()
+
+```typescript
+(documentId: string, visibility: DocumentVisibility) => Promise<void>
+```
+
+### createOrganization()
+
+```typescript
+(params: CreateOrgParams) => Promise<any>
+```
+
+### getOrganization()
+
+```typescript
+(slug: string) => Promise<any>
+```
+
+### listOrganizations()
+
+```typescript
+(userId: string) => Promise<any[]>
+```
+
+### addOrgMember()
+
+```typescript
+(orgSlug: string, userId: string, role?: string) => Promise<void>
+```
+
+### removeOrgMember()
+
+```typescript
+(orgSlug: string, userId: string) => Promise<boolean>
+```
+
+### createApiKey()
+
+```typescript
+(params: CreateApiKeyParams) => Promise<any>
+```
+
+### listApiKeys()
+
+```typescript
+(userId: string) => Promise<any[]>
+```
+
+### deleteApiKey()
+
+```typescript
+(id: string, userId: string) => Promise<boolean>
+```
+
+### rotateApiKey()
+
+```typescript
+(id: string, userId: string) => Promise<any>
+```
+
+### attachBlob()
+
+```typescript
+(params: import("../core/backend.js").AttachBlobParams) => Promise<import("../core/backend.js").BlobAttachment>
+```
+
+### getBlob()
+
+```typescript
+(docSlug: string, blobName: string, opts?: { includeData?: boolean; }) => Promise<import("../core/backend.js").BlobData | null>
+```
+
+### listBlobs()
+
+```typescript
+(docSlug: string) => Promise<import("../core/backend.js").BlobAttachment[]>
+```
+
+### detachBlob()
+
+```typescript
+(docSlug: string, blobName: string, detachedBy: string) => Promise<boolean>
+```
+
+### fetchBlobByHash()
+
+```typescript
+(hash: string) => Promise<Buffer | null>
+```
+
+### exportDocument()
+
+Export a single document from Postgres to a file on disk.  Content retrieval:  1. Resolve slug → document row.  2. listVersions() to find the latest version.  3. getVersion() to get the full row (including compressedData).  4. Decompress compressedData → string content via the SDK decompress().
+
+```typescript
+(params: ExportDocumentParams) => Promise<ExportDocumentResult>
+```
+
+### exportAll()
+
+Export all documents from the Postgres backend to a directory.
+
+```typescript
+(params: ExportAllParams) => Promise<ExportAllResult>
+```
+
+### importDocument()
+
+Import a document from a file on disk into the Postgres backend.
+
+```typescript
+(params: ImportDocumentParams) => Promise<ImportDocumentResult>
+```
+
+### getChangesSince()
+
+Not supported by PgBackend — cr-sqlite sync is a LocalBackend feature. PostgresBackend participates in P2P sync via a different protocol (P3).
+
+```typescript
+(_dbVersion: bigint) => Promise<Uint8Array>
+```
+
+### applyChanges()
+
+```typescript
+(_changeset: Uint8Array) => Promise<bigint>
+```
+
+## PgContractAdapter
+
+PgContractAdapter wraps PostgresBackend to satisfy the Backend interface expected by the contract test suite.  It caches title/createdBy per document id so assertions like `assert.equal(doc.title, 'Contract Test Doc')` pass even though the PG schema does not have a title column.
+
+**Signature**
+
+```typescript
+typeof PgContractAdapter
+```
+
+**Methods**
+
+### open()
+
+```typescript
+() => Promise<void>
+```
+
+### close()
+
+```typescript
+() => Promise<void>
+```
+
+### createDocument()
+
+```typescript
+(params: CreateDocumentParams) => Promise<Document>
+```
+
+### getDocument()
+
+```typescript
+(id: string) => Promise<Document | null>
+```
+
+### getDocumentBySlug()
+
+```typescript
+(slug: string) => Promise<Document | null>
+```
+
+### listDocuments()
+
+```typescript
+(params?: import("../../core/backend.js").ListDocumentsParams) => Promise<ListResult<Document>>
+```
+
+### deleteDocument()
+
+```typescript
+(id: string) => Promise<boolean>
+```
+
+### publishVersion()
+
+```typescript
+(params: import("../../core/backend.js").PublishVersionParams) => Promise<import("../../sdk/versions.js").VersionEntry>
+```
+
+### getVersion()
+
+```typescript
+(documentId: string, versionNumber: number) => Promise<import("../../sdk/versions.js").VersionEntry | null>
+```
+
+### listVersions()
+
+```typescript
+(documentId: string) => Promise<import("../../sdk/versions.js").VersionEntry[]>
+```
+
+### transitionVersion()
+
+```typescript
+(params: import("../../core/backend.js").TransitionParams) => Promise<{ success: boolean; error?: string; document?: Document; }>
+```
+
+### submitSignedApproval()
+
+```typescript
+(params: Parameters<Backend["submitSignedApproval"]>[0]) => ReturnType<Backend["submitSignedApproval"]>
+```
+
+### getApprovalProgress()
+
+```typescript
+(documentId: string, versionNumber: number) => ReturnType<Backend["getApprovalProgress"]>
+```
+
+### getApprovalPolicy()
+
+```typescript
+(documentId: string) => ReturnType<Backend["getApprovalPolicy"]>
+```
+
+### setApprovalPolicy()
+
+```typescript
+(documentId: string, policy: import("../../core/backend.js").ApprovalPolicy) => Promise<void>
+```
+
+### listContributors()
+
+```typescript
+(documentId: string) => ReturnType<Backend["listContributors"]>
+```
+
+### getApprovalChain()
+
+```typescript
+(documentId: string) => ReturnType<Backend["getApprovalChain"]>
+```
+
+### appendEvent()
+
+```typescript
+(params: import("../../core/backend.js").AppendEventParams) => ReturnType<Backend["appendEvent"]>
+```
+
+### queryEvents()
+
+```typescript
+(params: import("../../core/backend.js").QueryEventsParams) => ReturnType<Backend["queryEvents"]>
+```
+
+### subscribeStream()
+
+```typescript
+(documentId: string) => AsyncIterable<import("../../core/backend.js").DocumentEvent>
+```
+
+### applyCrdtUpdate()
+
+```typescript
+(params: Parameters<Backend["applyCrdtUpdate"]>[0]) => ReturnType<Backend["applyCrdtUpdate"]>
+```
+
+### getCrdtState()
+
+```typescript
+(documentId: string, sectionKey: string) => ReturnType<Backend["getCrdtState"]>
+```
+
+### subscribeSection()
+
+```typescript
+(documentId: string, sectionKey: string) => AsyncIterable<import("../../core/backend.js").CrdtUpdate>
+```
+
+### \_ensureLeaseDoc()
+
+```typescript
+(resource: string) => Promise<void>
+```
+
+### acquireLease()
+
+```typescript
+(params: import("../../core/backend.js").AcquireLeaseParams) => ReturnType<Backend["acquireLease"]>
+```
+
+### renewLease()
+
+```typescript
+(resource: string, holder: string, ttlMs: number) => ReturnType<Backend["renewLease"]>
+```
+
+### releaseLease()
+
+```typescript
+(resource: string, holder: string) => ReturnType<Backend["releaseLease"]>
+```
+
+### getLease()
+
+```typescript
+(resource: string) => ReturnType<Backend["getLease"]>
+```
+
+### joinPresence()
+
+```typescript
+(documentId: string, agentId: string, meta?: Record<string, unknown>) => ReturnType<Backend["joinPresence"]>
+```
+
+### leavePresence()
+
+```typescript
+(documentId: string, agentId: string) => ReturnType<Backend["leavePresence"]>
+```
+
+### listPresence()
+
+```typescript
+(documentId: string) => ReturnType<Backend["listPresence"]>
+```
+
+### heartbeatPresence()
+
+```typescript
+(documentId: string, agentId: string) => ReturnType<Backend["heartbeatPresence"]>
+```
+
+### sendScratchpad()
+
+```typescript
+(params: import("../../core/backend.js").SendScratchpadParams) => ReturnType<Backend["sendScratchpad"]>
+```
+
+### pollScratchpad()
+
+```typescript
+(agentId: string, limit?: number) => ReturnType<Backend["pollScratchpad"]>
+```
+
+### deleteScratchpadMessage()
+
+```typescript
+(id: string, _agentId: string) => ReturnType<Backend["deleteScratchpadMessage"]>
+```
+
+### sendA2AMessage()
+
+```typescript
+(params: Parameters<Backend["sendA2AMessage"]>[0]) => ReturnType<Backend["sendA2AMessage"]>
+```
+
+### pollA2AInbox()
+
+```typescript
+(agentId: string, limit?: number) => ReturnType<Backend["pollA2AInbox"]>
+```
+
+### deleteA2AMessage()
+
+```typescript
+(id: string, agentId: string) => ReturnType<Backend["deleteA2AMessage"]>
+```
+
+### indexDocument()
+
+```typescript
+(documentId: string, content: string) => ReturnType<Backend["indexDocument"]>
+```
+
+### search()
+
+```typescript
+(params: import("../../core/backend.js").SearchParams) => ReturnType<Backend["search"]>
+```
+
+### registerAgentPubkey()
+
+```typescript
+(agentId: string, pubkeyHex: string, label?: string) => ReturnType<Backend["registerAgentPubkey"]>
+```
+
+### lookupAgentPubkey()
+
+```typescript
+(agentId: string) => ReturnType<Backend["lookupAgentPubkey"]>
+```
+
+### listAgentPubkeys()
+
+```typescript
+(userId?: string) => ReturnType<Backend["listAgentPubkeys"]>
+```
+
+### revokeAgentPubkey()
+
+```typescript
+(agentId: string, pubkeyHex: string) => ReturnType<Backend["revokeAgentPubkey"]>
+```
+
+### recordSignatureNonce()
+
+```typescript
+(agentId: string, nonce: string, ttlMs?: number) => ReturnType<Backend["recordSignatureNonce"]>
+```
+
+### hasNonceBeenUsed()
+
+```typescript
+(agentId: string, nonce: string) => ReturnType<Backend["hasNonceBeenUsed"]>
+```
+
+### createCollection()
+
+```typescript
+(params: import("../../core/backend.js").CreateCollectionParams) => ReturnType<Backend["createCollection"]>
+```
+
+### getCollection()
+
+```typescript
+(slug: string) => ReturnType<Backend["getCollection"]>
+```
+
+### listCollections()
+
+```typescript
+(params?: import("../../core/backend.js").ListCollectionsParams) => ReturnType<Backend["listCollections"]>
+```
+
+### addDocToCollection()
+
+```typescript
+(collectionSlug: string, documentSlug: string, position?: number) => ReturnType<Backend["addDocToCollection"]>
+```
+
+### removeDocFromCollection()
+
+```typescript
+(collectionSlug: string, documentSlug: string) => ReturnType<Backend["removeDocFromCollection"]>
+```
+
+### reorderCollection()
+
+```typescript
+(collectionSlug: string, orderedSlugs: string[]) => ReturnType<Backend["reorderCollection"]>
+```
+
+### exportCollection()
+
+```typescript
+(collectionSlug: string) => ReturnType<Backend["exportCollection"]>
+```
+
+### createDocumentLink()
+
+```typescript
+(params: import("../../core/backend.js").CreateDocLinkParams) => ReturnType<Backend["createDocumentLink"]>
+```
+
+### getDocumentLinks()
+
+```typescript
+(documentId: string) => ReturnType<Backend["getDocumentLinks"]>
+```
+
+### deleteDocumentLink()
+
+```typescript
+(documentId: string, linkId: string) => ReturnType<Backend["deleteDocumentLink"]>
+```
+
+### getGlobalGraph()
+
+```typescript
+(params?: { maxNodes?: number; }) => ReturnType<Backend["getGlobalGraph"]>
+```
+
+### createWebhook()
+
+```typescript
+(params: import("../../core/backend.js").CreateWebhookParams) => ReturnType<Backend["createWebhook"]>
+```
+
+### listWebhooks()
+
+```typescript
+(userId: string) => ReturnType<Backend["listWebhooks"]>
+```
+
+### deleteWebhook()
+
+```typescript
+(id: string, userId: string) => ReturnType<Backend["deleteWebhook"]>
+```
+
+### testWebhook()
+
+```typescript
+(id: string) => ReturnType<Backend["testWebhook"]>
+```
+
+### createSignedUrl()
+
+```typescript
+(params: import("../../core/backend.js").CreateSignedUrlParams) => ReturnType<Backend["createSignedUrl"]>
+```
+
+### verifySignedUrl()
+
+```typescript
+(token: string) => ReturnType<Backend["verifySignedUrl"]>
+```
+
+### getDocumentAccess()
+
+```typescript
+(documentId: string) => ReturnType<Backend["getDocumentAccess"]>
+```
+
+### grantDocumentAccess()
+
+```typescript
+(documentId: string, params: import("../../core/backend.js").GrantAccessParams) => ReturnType<Backend["grantDocumentAccess"]>
+```
+
+### revokeDocumentAccess()
+
+```typescript
+(documentId: string, userId: string) => ReturnType<Backend["revokeDocumentAccess"]>
+```
+
+### setDocumentVisibility()
+
+```typescript
+(documentId: string, visibility: import("../../core/backend.js").DocumentVisibility) => ReturnType<Backend["setDocumentVisibility"]>
+```
+
+### createOrganization()
+
+```typescript
+(params: import("../../core/backend.js").CreateOrgParams) => ReturnType<Backend["createOrganization"]>
+```
+
+### getOrganization()
+
+```typescript
+(slug: string) => ReturnType<Backend["getOrganization"]>
+```
+
+### listOrganizations()
+
+```typescript
+(userId: string) => ReturnType<Backend["listOrganizations"]>
+```
+
+### addOrgMember()
+
+```typescript
+(orgSlug: string, userId: string, role?: string) => ReturnType<Backend["addOrgMember"]>
+```
+
+### removeOrgMember()
+
+```typescript
+(orgSlug: string, userId: string) => ReturnType<Backend["removeOrgMember"]>
+```
+
+### createApiKey()
+
+```typescript
+(params: import("../../core/backend.js").CreateApiKeyParams) => ReturnType<Backend["createApiKey"]>
+```
+
+### listApiKeys()
+
+```typescript
+(userId: string) => ReturnType<Backend["listApiKeys"]>
+```
+
+### deleteApiKey()
+
+```typescript
+(id: string, userId: string) => ReturnType<Backend["deleteApiKey"]>
+```
+
+### rotateApiKey()
+
+```typescript
+(id: string, userId: string) => ReturnType<Backend["rotateApiKey"]>
+```
+
+### attachBlob()
+
+```typescript
+(params: Parameters<Backend["attachBlob"]>[0]) => ReturnType<Backend["attachBlob"]>
+```
+
+### getBlob()
+
+```typescript
+(docSlug: string, blobName: string, opts?: Parameters<Backend["getBlob"]>[2]) => ReturnType<Backend["getBlob"]>
+```
+
+### listBlobs()
+
+```typescript
+(docSlug: string) => ReturnType<Backend["listBlobs"]>
+```
+
+### detachBlob()
+
+```typescript
+(docSlug: string, blobName: string, detachedBy: string) => ReturnType<Backend["detachBlob"]>
+```
+
+### fetchBlobByHash()
+
+```typescript
+(hash: string) => ReturnType<Backend["fetchBlobByHash"]>
+```
+
+### exportDocument()
+
+```typescript
+(params: Parameters<Backend["exportDocument"]>[0]) => ReturnType<Backend["exportDocument"]>
+```
+
+### exportAll()
+
+```typescript
+(params: Parameters<Backend["exportAll"]>[0]) => ReturnType<Backend["exportAll"]>
+```
+
+### importDocument()
+
+```typescript
+(params: import("../../core/backend.js").ImportDocumentParams) => Promise<import("../../core/backend.js").ImportDocumentResult>
+```
+
+### getChangesSince()
+
+```typescript
+(_dbVersion: bigint) => Promise<Uint8Array>
+```
+
+### applyChanges()
+
+```typescript
+(_changeset: Uint8Array) => Promise<bigint>
+```
+
+## createPgBackend()
+
+Create an isolated PostgresBackend instance backed by a temporary Postgres schema.  Applies all migrations (except pgvector), injects schema + stubs, and returns a cleanup callback to drop the schema after the test suite.  Throws if DATABASE\_URL\_PG is not set.
+
+**Signature**
+
+```typescript
+() => Promise<PgBackendHandle>
+```
+
+## buildBlobChangeset(db, crsqlBytes, docSlug, sinceMs)
+
+Collect BlobRef entries for all active blobs modified since `sinceMs`.  The sync layer calls this after `getChangesSince` to augment the binary changeset with blob manifest metadata. The caller passes the combined BlobChangeset to the receiving peer.  `sinceMs = 0` returns refs for all active blobs on the document.
+
+**Signature**
+
+```typescript
+(db: BetterSQLite3Database<Record<string, never>>, crsqlBytes: Uint8Array, docSlug?: string, sinceMs?: number) => BlobChangeset
+```
+
+**Parameters**
+
+| Name         | Type                                  | Description                                           |
+| ------------ | ------------------------------------- | ----------------------------------------------------- |
+| `db`         | `BetterSQLite3Database<Record<string` | The SQLite Drizzle instance                           |
+| `crsqlBytes` | `Uint8Array`                          | The binary cr-sqlite changeset to embed               |
+| `docSlug`    | `: string`                            | The document slug to scope blob refs to (optional)    |
+| `sinceMs`    | `: number`                            | Only include blobs with uploadedAt  sinceMs (0 = all) |
+
+## incomingWinsLWW()
+
+Returns true if `incoming` wins over `existing` under the LWW rule.  LWW rule per ARCH-T428 §3.4:   - newer uploadedAt wins   - tie-break: higher uploadedBy lexicographically (deterministic)   - same (uploadedAt, uploadedBy) = same record, no-op
+
+**Signature**
+
+```typescript
+(incoming: BlobRef, existing: { uploadedAt: number; uploadedBy: string; }) => boolean
+```
+
+## applyBlobChangeset(db, blobFs, refs, pendingFetches, scheduleFetch)
+
+Apply incoming BlobRef entries from a received changeset.  For each ref:   1. Query the local manifest for (docSlug, blobName).   2. Apply LWW: incoming wins if uploadedAt is newer or tie-breaks higher.   3. If incoming wins: soft-delete local record (if any), insert new record.   4. If the winner's hash is NOT on disk, schedule a lazy fetch.
+
+**Signature**
+
+```typescript
+(db: BetterSQLite3Database<Record<string, never>>, blobFs: BlobFsAdapter, refs: BlobRef[], pendingFetches: Set<string>, scheduleFetch?: (docSlug: string, hash: string) => void) => ApplyBlobChangesetResult
+```
+
+**Parameters**
+
+| Name             | Type                                  | Description                                                                                                            |
+| ---------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `db`             | `BetterSQLite3Database<Record<string` | Drizzle SQLite instance                                                                                                |
+| `blobFs`         | `BlobFsAdapter`                       | The BlobFsAdapter for hash-presence check + fetch                                                                      |
+| `refs`           | `BlobRef[]`                           | BlobRef array from the incoming changeset                                                                              |
+| `pendingFetches` | `Set<string>`                         | Mutable Set used to track in-flight pulls (dedup)                                                                      |
+| `scheduleFetch`  | `: (docSlug: string`                  | Optional callback invoked for each hash that needs                         a background pull; receives (docSlug, hash) |
+
+## PeerRegistry
+
+PeerRegistry manages peer discovery for the P2P mesh.  ## Usage
+
+**Signature**
+
+```typescript
+typeof PeerRegistry
+```
+
+**Methods**
+
+### register()
+
+Write this agent's `.peer` file to `$LLMTXT_MESH_DIR/<agentId>.peer`.  Also registers a `beforeExit` / `SIGTERM` handler to call `deregister()` on clean shutdown (P3 spec §3.2).
+
+```typescript
+(info: PeerRegistration) => Promise<void>
+```
+
+### deregister()
+
+Delete this agent's `.peer` file (clean shutdown). No-op if the file does not exist.
+
+```typescript
+() => Promise<void>
+```
+
+### discover()
+
+Discover all peers by reading `*.peer` files from `$LLMTXT_MESH_DIR`.  Security: peer advertisements missing a valid `pubkey` or whose `pubkey` is inconsistent with their `agentId` are REJECTED and never returned. Stale peers (startedAt older than PEER\_TTL\_MS) are returned with `active: false`.
+
+```typescript
+() => Promise<PeerInfo[]>
+```
+
+### loadStaticConfig()
+
+Load a static peer list from a JSON config file.  The file must contain an array of `PeerRegistration` objects. Entries missing a valid `pubkey` are rejected.
+
+```typescript
+(configPath?: string) => Promise<PeerInfo[]>
+```
+
+### peerFilePath()
+
+```typescript
+(agentId: string) => string
+```
+
+## makeEventStream(emitter, channel)
+
+Create an `AsyncIterable<T>` backed by `emitter` channel `channel`.
+
+**Signature**
+
+```typescript
+<T>(emitter: EmitterLike, channel: string) => AsyncIterable<T>
+```
+
+**Parameters**
+
+| Name      | Type          | Description                             |
+| --------- | ------------- | --------------------------------------- |
+| `emitter` | `EmitterLike` | Any object implementing `on` / `off`.   |
+| `channel` | `string`      | The event channel name to subscribe on. |
+
+**Returns** — An `AsyncIterable<T>` that yields every event emitted on                 `channel` after the iterable is opened.
+
+## EventBus
+
+In-process EventBus.  Implements `EventStream<unknown>` but callers typically use the typed helpers `publishTyped<T>` / `subscribeTyped<T>` for type safety.
+
+**Signature**
+
+```typescript
+typeof EventBus
+```
+
+**Methods**
+
+### publish()
+
+Emit `event` on `channel`. All subscribers receive it synchronously.
+
+```typescript
+(channel: string, event: unknown) => void
+```
+
+### subscribe()
+
+Return an `AsyncIterable` that yields every event published on `channel` after the iterator is opened.
+
+```typescript
+(channel: string) => AsyncIterable<unknown>
+```
+
+### publishTyped()
+
+Typed publish helper — no runtime cost, pure TS convenience.
+
+```typescript
+<T>(channel: string, event: T) => void
+```
+
+### subscribeTyped()
+
+Typed subscribe helper — no runtime cost, pure TS convenience.
+
+```typescript
+<T>(channel: string) => AsyncIterable<T>
+```
+
+## ExternalBusAdapter
+
+Adapts a `DocumentEventBusLike` (single `'document'` channel, slug-filtered) into an `EventSubscriber` that filters by `documentId` slug.  `ExternalBusAdapter` does NOT implement `EventPublisher` — publishing on the external bus is owned by the backend service layer (apps/backend), not by the SDK.  Usage in PostgresBackend:
+
+**Signature**
+
+```typescript
+typeof ExternalBusAdapter
+```
+
+**Methods**
+
+### subscribeBySlug()
+
+Subscribe to all `'document'` events and filter by `slug`.  Transforms the raw `BusDocumentEvent` shape into the SDK `DocumentEvent` shape.
+
+```typescript
+<T extends { slug?: string; }>(slug: string) => AsyncIterable<T>
+```
+
+### subscribe()
+
+```typescript
+(channel: string) => AsyncIterable<unknown>
+```
+
+## PresenceManager
+
+PresenceManager — in-memory, TTL-based presence state across mesh peers.  Thread-safety: Node.js is single-threaded; no locks required.  Security: Rate-limits inbound presence to max 1/peer/5s (spec §10, presence flood).
+
+**Signature**
+
+```typescript
+typeof PresenceManager
+```
+
+**Methods**
+
+### start()
+
+```typescript
+() => Promise<void>
+```
+
+### stop()
+
+```typescript
+() => Promise<void>
+```
+
+### setPresence()
+
+Update own presence state (document/section being edited). Triggers an immediate broadcast.
+
+```typescript
+(documentId: string | null, sectionId?: string | null) => void
+```
+
+### getPresence()
+
+Returns all active (non-expired) agents currently in a document.
+
+```typescript
+(documentId?: string) => PresenceEntry[]
+```
+
+### getAll()
+
+Returns ALL active presence entries across all documents.
+
+```typescript
+() => PresenceEntry[]
+```
+
+### \_handleInbound()
+
+Called by the transport listener for every incoming byte frame. Only processes messages with type byte 0x02 (presence).
+
+```typescript
+(peerId: string, data: Uint8Array) => void
+```
+
+### \_broadcastPresence()
+
+```typescript
+() => Promise<void>
+```
+
+### \_serializePresence()
+
+```typescript
+(entry: Omit<PresenceEntry, "receivedAt">) => Uint8Array
+```
+
+### \_isExpired()
+
+```typescript
+(entry: PresenceEntry, nowMs: number) => boolean
+```
+
+### \_evictExpired()
+
+```typescript
+() => void
+```
+
+## AgentSessionError
+
+AgentSessionError: custom error for session lifecycle violations.  Code taxonomy: - SESSION\_NOT\_FOUND: No session found (e.g., during recovery) - SESSION\_ALREADY\_OPEN: open() called when not in Idle state - SESSION\_NOT\_ACTIVE: contribute() called when not in Active state - INVALID\_STATE: Invalid state transition attempt - BACKEND\_ERROR: Backend rejected the operation (wrapped original error) - SESSION\_CLOSE\_PARTIAL: close() completed with failures; see attached errors
+
+**Signature**
+
+```typescript
+typeof AgentSessionError
+```
+
+## AgentSession
+
+AgentSession: explicit, auditable lifecycle for ephemeral and persistent agents.  Usage:    const session = new AgentSession(     backend: remoteBackend,     agentId: 'agent-12345',   );    await session.open();   const result = await session.contribute((backend) =      return backend.createDocument( title: 'My Doc', createdBy: 'agent-12345' );   );   const receipt = await session.close();  State machine is mutex-protected to prevent concurrent close() calls.  Backend interface note (T461 follow-up):   The current Backend interface has no registerSession / unregisterSession /   flushPendingWrites / releaseAllLeases methods. open() uses joinPresence()   on a sentinel document ID derived from the sessionId to signal activity.   T461 will add dedicated session primitives to the Backend interface.  Receipt persistence note (T461 follow-up):   When documents were touched, close() calls backend.appendEvent() to persist   the receipt as a 'session.closed' event on the first touched document.   A dedicated backend.persistContributionReceipt() is deferred to T461.
+
+**Signature**
+
+```typescript
+typeof AgentSession
+```
+
+**Methods**
+
+### getState()
+
+Get the current session state.
+
+```typescript
+() => AgentSessionState
+```
+
+### getSessionId()
+
+Get the session ID.
+
+```typescript
+() => string
+```
+
+### getAgentId()
+
+Get the agent ID.
+
+```typescript
+() => string
+```
+
+### getDocumentIds()
+
+Get tracked document IDs.
+
+```typescript
+() => string[]
+```
+
+### getEventCount()
+
+Get event count.
+
+```typescript
+() => number
+```
+
+### open()
+
+open(): Transition Idle - Open - Active.  Initialization steps (spec §3.2): 1. Guard: throw SESSION\_ALREADY\_OPEN if state !== Idle (not re-entrant) 2. Transition to Open 3. Record openedAt timestamp 4. Register presence via backend.joinPresence() (SHOULD per spec §3.2.4)    — uses a session sentinel doc ID since Backend has no registerSession().    T461 will add dedicated session primitives to Backend interface. 5. Transition to Active  Throws AgentSessionError: - SESSION\_ALREADY\_OPEN if state is not Idle - BACKEND\_ERROR if backend rejects synchronously (async rejections are tolerated)
+
+```typescript
+() => Promise<void>
+```
+
+### contribute()
+
+contribute(fn): Wrap and track a unit of work.  Requires state === Active. Wraps the caller's function and (spec §3.3): 1. Guard: throw SESSION\_NOT\_ACTIVE if state !== Active 2. Pass the session's backend instance to fn 3. On success:    a. Extract documentId / documentIds from the result (if object-shaped)    b. Increment eventCount 4. On error: propagate WITHOUT modifying eventCount or documentIds  Document ID tracking strategy:   The spec offers two options — proxy interception or caller-returned IDs.   We use the caller-returned approach: if fn returns an object with   `documentId` (string) or `documentIds` (string\[]) fields, those are   extracted. This is zero-overhead and does not require Proxy.  Throws: - AgentSessionError(SESSION\_NOT\_ACTIVE) if state is not Active - Re-throws any error raised by fn (after leaving state as Active)
+
+```typescript
+<T>(fn: (backend: Backend) => Promise<T>) => Promise<T>
+```
+
+### close()
+
+close(): Transition Active - Closing - Closed.  Teardown steps (spec §3.4 — all attempted even if earlier steps fail): 1. Flush pending writes via backend.flushPendingWrites() if available 2. Drain A2A inbox: backend.pollA2AInbox(agentId) until empty 3. Release all leases (none tracked at session level — T461 will add    per-resource lease tracking; skipped with T461 note) 4. For LocalBackend: temp .db cleanup is deferred to T461 (backend owns paths) 5. Deregister presence: backend.leavePresence() 6. Build ContributionReceipt (documentIds sorted for determinism) 7. Persist receipt via backend.appendEvent() on first touched document 8. Return receipt  All teardown steps MUST be attempted even if earlier steps fail. Failures are collected and surfaced as SESSION\_CLOSE\_PARTIAL with the partial receipt and a list of CloseStepError. The receipt is always returned (or rethrown attached to the error).  Idempotency: calling close() on an already-closed session returns the cached receipt immediately without re-executing teardown steps.  Throws AgentSessionError: - INVALID\_STATE if state is not Active or Closed (i.e., Idle, Open, Closing) - SESSION\_CLOSE\_PARTIAL if teardown completed with step failures  Note on leases: Per spec §3.4 step 3, leases should be released here. The current Backend interface tracks leases by resource key, not by session. AgentSession does not intercept acquireLease calls (it wraps via contribute()), so it cannot enumerate what the agent acquired. T461 will add a backend.releaseSessionLeases(sessionId) primitive. Until then, caller-acquired leases expire via TTL per the crash recovery contract (spec §5).
+
+```typescript
+() => Promise<ContributionReceipt>
+```
+
+## PostgresChangesetAdapter
+
+PostgresChangesetAdapter — bridges PostgresBackend and the cr-sqlite mesh.  This adapter translates between:   - cr-sqlite binary changesets (used by LocalBackend for P2P sync), and   - Postgres row operations (used by PostgresBackend for persistence).  It is used by the optional POST /mesh/changeset route in apps/backend to allow api.llmtxt.my to participate as a mesh peer.  ## Usage (when fully implemented)
+
+**Signature**
+
+```typescript
+typeof PostgresChangesetAdapter
+```
+
+**Methods**
+
+### applyChangeset()
+
+Apply a cr-sqlite binary changeset received from a LocalBackend mesh peer.  Steps (full implementation):   1. Deserialize the changeset using the cr-sqlite wire format.   2. For each row change, translate to a Postgres INSERT/UPDATE/DELETE.   3. Apply with LWW (Last-Write-Wins) conflict resolution using the      `crdt_state_hash` column for CRDT blob columns.   4. Return the new Postgres LSN/txid as the "applied db\_version".
+
+```typescript
+(_changesetBytes: Uint8Array) => Promise<number>
+```
+
+### \_applyRowChange()
+
+Apply a single row change to Postgres.  For INSERT/UPDATE: use ON CONFLICT DO UPDATE (upsert) for idempotency. For DELETE: soft-delete via a `deleted_at` timestamp if the schema supports it; hard-delete otherwise.  TODO: Implement per-table upsert logic.
+
+```typescript
+(_change: PostgresRowChange) => Promise<void>
+```
+
+### getChangesSince()
+
+Serialize Postgres row changes since `sinceXid` into a cr-sqlite-compatible changeset binary for delivery to LocalBackend mesh peers.  Steps (full implementation):   1. Query all changed rows with txid  sinceXid from a Postgres audit/CDC table      (or use Postgres logical replication + pg\_logical\_emit\_message).   2. Translate each Postgres row to a cr-sqlite changeset row entry.   3. Serialize to binary cr-sqlite changeset format.   4. Sign the changeset bytes (for SyncEngine signature verification).
+
+```typescript
+(_sinceXid: number) => Promise<Uint8Array>
+```
+
+### isReady()
+
+Returns true if the adapter has been configured with a valid Postgres connection and is ready to accept inbound changesets.  In the stub implementation, always returns false (adapter not functional). Full implementation should ping the database.
+
+```typescript
+() => boolean
+```
+
+## createMeshChangesetHandler(options)
+
+Create a framework-agnostic handler for the POST /mesh/changeset endpoint.  Intended usage in apps/backend (Hono):
+
+**Signature**
+
+```typescript
+(options: MeshChangesetRouteOptions) => (changesetBytes: Uint8Array, peerSinceXid: number) => Promise<MeshChangesetResult>
+```
+
+**Parameters**
+
+| Name      | Type                        | Description            |
+| --------- | --------------------------- | ---------------------- |
+| `options` | `MeshChangesetRouteOptions` | Route handler options. |
+
+**Returns** — An async handler function `(changesetBytes, peerSinceXid) => MeshChangesetResult`.  TODO: Wire into apps/backend/src/routes/ once adapter is fully implemented.
+
+## A2AMessage
+
+Signed A2A message envelope with builder API.  Construct via `buildA2AMessage` factory.
+
+**Signature**
+
+```typescript
+typeof A2AMessage
+```
+
+**Methods**
+
+### verify()
+
+Verify this message's signature against a public key (32-byte hex or Uint8Array).
+
+```typescript
+(pubkeyHexOrBytes: string | Uint8Array) => Promise<boolean>
+```
+
+### toJSON()
+
+Serialize to JSON string.
+
+```typescript
+() => string
+```
+
+## buildA2AMessage()
+
+Build and sign an A2A message.  The payload is JSON-serialized and base64-encoded. The signature covers the canonical bytes (matches Rust A2AMessage::canonical\_bytes()).
+
+**Signature**
+
+```typescript
+(opts: BuildA2AOptions) => Promise<A2AMessage>
+```
+
+## sendToInbox(baseUrl, toAgentId, msg, headers)
+
+Send an A2A message to an agent's HTTP inbox.
+
+**Signature**
+
+```typescript
+(baseUrl: string, toAgentId: string, msg: A2AMessage, headers?: Record<string, string>) => Promise<InboxDeliveryResponse>
+```
+
+**Parameters**
+
+| Name        | Type              | Description                                          |
+| ----------- | ----------------- | ---------------------------------------------------- |
+| `baseUrl`   | `string`          | API base URL (e.g. "<https://api.llmtxt.my/api/v1>") |
+| `toAgentId` | `string`          | Recipient agent identifier                           |
+| `msg`       | `A2AMessage`      | Signed A2A message                                   |
+| `headers`   | `: Record<string` | Optional extra headers (e.g. Authorization)          |
+
+## pollInbox(baseUrl, agentId, opts, headers)
+
+Poll an agent's inbox for messages.
+
+**Signature**
+
+```typescript
+(baseUrl: string, agentId: string, opts?: { since?: number; limit?: number; unreadOnly?: boolean; }, headers?: Record<string, string>) => Promise<InboxPollResponse>
+```
+
+**Parameters**
+
+| Name      | Type                                                          | Description                |
+| --------- | ------------------------------------------------------------- | -------------------------- |
+| `baseUrl` | `string`                                                      | API base URL               |
+| `agentId` | `string`                                                      | Recipient agent identifier |
+| `opts`    | `: { since?: number; limit?: number; unreadOnly?: boolean; }` | Poll options               |
+| `headers` | `: Record<string`                                             | Auth headers required      |
+
+## onDirectMessage()
+
+Subscribe to direct messages via polling loop.  Polls every `pollIntervalMs` milliseconds (default 5000ms). Returns a `stop()` function.
+
+**Signature**
+
+```typescript
+(baseUrl: string, agentId: string, onMessage: (msg: InboxMessage) => void, headers?: Record<string, string>, pollIntervalMs?: number) => () => void
+```
+
+## bftQuorum()
+
+Compute BFT quorum for given fault tolerance f. Formula: 2f + 1.
+
+**Signature**
+
+```typescript
+(f: number) => number
+```
+
+## buildApprovalCanonicalPayload()
+
+Build the canonical approval payload string (to be signed).  Format: `documentSlug\nreviewerId\nstatus\natVersion\ntimestamp`
+
+**Signature**
+
+```typescript
+(documentSlug: string, reviewerId: string, status: BFTApprovalStatus, atVersion: number, timestamp: number) => string
+```
+
+## signApproval(identity, slug, agentId, status, atVersion, comment, nowMs)
+
+Sign an approval with the given AgentIdentity.  Returns a `SignedApprovalEnvelope` ready for POST to /bft/approve.
+
+**Signature**
+
+```typescript
+(identity: AgentIdentity, slug: string, agentId: string, status: BFTApprovalStatus, atVersion: number, comment?: string, nowMs?: number) => Promise<SignedApprovalEnvelope>
+```
+
+**Parameters**
+
+| Name        | Type                | Description                                         |
+| ----------- | ------------------- | --------------------------------------------------- |
+| `identity`  | `AgentIdentity`     | Agent's Ed25519 identity                            |
+| `slug`      | `string`            | Document slug                                       |
+| `agentId`   | `string`            | Agent identifier (must match the registered pubkey) |
+| `status`    | `BFTApprovalStatus` | APPROVED or REJECTED                                |
+| `atVersion` | `number`            | Document version being approved                     |
+| `comment`   | `: string`          | Optional human-readable comment                     |
+| `nowMs`     | `: number`          | Override for timestamp (default: Date.now())        |
+
+## submitSignedApproval(baseUrl, slug, envelope, headers)
+
+Submit a signed approval to the backend.
+
+**Signature**
+
+```typescript
+(baseUrl: string, slug: string, envelope: SignedApprovalEnvelope, headers?: Record<string, string>) => Promise<BFTApprovalResponse>
+```
+
+**Parameters**
+
+| Name       | Type                     | Description                                          |
+| ---------- | ------------------------ | ---------------------------------------------------- |
+| `baseUrl`  | `string`                 | API base URL (e.g. "<https://api.llmtxt.my/api/v1>") |
+| `slug`     | `string`                 | Document slug                                        |
+| `envelope` | `SignedApprovalEnvelope` | From `signApproval`                                  |
+| `headers`  | `: Record<string`        | Optional extra headers (e.g. Authorization)          |
+
+## getBFTStatus()
+
+Get current BFT quorum status for a document.
+
+**Signature**
+
+```typescript
+(baseUrl: string, slug: string, headers?: Record<string, string>) => Promise<BFTStatusResponse>
+```
+
+## verifyApprovalChain()
+
+Verify the tamper-evident approval chain for a document.
+
+**Signature**
+
+```typescript
+(baseUrl: string, slug: string, headers?: Record<string, string>) => Promise<ChainVerificationResponse>
+```
+
+## sendScratchpad(baseUrl, slug, opts, headers)
+
+Publish a message to a document's scratchpad.  If `identity` and `agentId` are provided, the message will be signed with Ed25519 using the canonical format.
+
+**Signature**
+
+```typescript
+(baseUrl: string, slug: string, opts: SendScratchpadOptions, headers?: Record<string, string>) => Promise<ScratchpadMessage>
+```
+
+**Parameters**
+
+| Name      | Type                    | Description                                          |
+| --------- | ----------------------- | ---------------------------------------------------- |
+| `baseUrl` | `string`                | API base URL (e.g. "<https://api.llmtxt.my/api/v1>") |
+| `slug`    | `string`                | Document slug                                        |
+| `opts`    | `SendScratchpadOptions` | Message options                                      |
+| `headers` | `: Record<string`       | Optional extra headers (e.g. Authorization)          |
+
+## readScratchpad(baseUrl, slug, opts, headers)
+
+Read scratchpad messages (poll).
+
+**Signature**
+
+```typescript
+(baseUrl: string, slug: string, opts?: ReadScratchpadOptions, headers?: Record<string, string>) => Promise<ScratchpadMessage[]>
+```
+
+**Parameters**
+
+| Name      | Type                      | Description            |
+| --------- | ------------------------- | ---------------------- |
+| `baseUrl` | `string`                  | API base URL           |
+| `slug`    | `string`                  | Document slug          |
+| `opts`    | `: ReadScratchpadOptions` | Read options           |
+| `headers` | `: Record<string`         | Optional extra headers |
+
+## onScratchpadMessage(baseUrl, slug, onMessage, opts, authHeaders)
+
+Subscribe to live scratchpad messages via Server-Sent Events.  Returns a `stop()` function to close the SSE connection.
+
+**Signature**
+
+```typescript
+(baseUrl: string, slug: string, onMessage: (msg: ScratchpadMessage) => void, opts?: { threadId?: string; lastId?: string; }, _authHeaders?: Record<string, string>) => () => void
+```
+
+**Parameters**
+
+| Name          | Type                                        | Description                                                               |
+| ------------- | ------------------------------------------- | ------------------------------------------------------------------------- |
+| `baseUrl`     | `string`                                    | API base URL                                                              |
+| `slug`        | `string`                                    | Document slug                                                             |
+| `onMessage`   | `(msg: ScratchpadMessage`                   | Callback invoked on each new message                                      |
+| `opts`        | `: { threadId?: string; lastId?: string; }` | Subscribe options (threadId, lastId)                                      |
+| `authHeaders` | —                                           | Optional auth headers (added to query params since SSE can't set headers) |

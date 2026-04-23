@@ -10,12 +10,24 @@ How to handle errors thrown by the library, including error types and recovery p
 
 ## Error Types
 
-### `multiWayDiff()`
+### `classifyContent()`
 
-Compute a multi-way diff across a base version and up to 4 additional versions.
+Classify the content of `input` using a three-layer pipeline: magic-byte detection → text/binary gate → heuristic text analysis.  All classification logic runs in Rust WASM (SSoT: `crates/llmtxt-core/src/classify/`). This function is a thin adapter that normalises inputs and maps enum variants.
 
 ```typescript
-(base: string, versionsJson: string) => MultiDiffResult
+(input: string | Uint8Array | Buffer) => ClassificationResult
+```
+
+**Throws**
+
+- Error if the WASM module returns a serialization error (should not occur   in practice — the Rust code catches all errors and returns a valid JSON string).
+
+### `multiWayDiff()`
+
+Compute per-line diff variants across N versions of a document.
+
+```typescript
+(base: string, versions: string | string[]) => MultiDiffResult
 ```
 
 **Throws**
@@ -34,9 +46,93 @@ Assemble document content from line ranges and sections across multiple versions
 
 - Error if the Rust core returns an error object.
 
+### `threeWayMerge()`
+
+Perform a 3-way merge of `base`, `ours`, and `theirs`.  Regions modified by only one side are auto-merged.  Regions modified by both sides produce conflict markers in the output:
+
+```typescript
+(base: string, ours: string, theirs: string) => ThreeWayMergeResult
+```
+
+**Throws**
+
+- Error if the Rust core returns an error object.
+
+### `semanticDiff()`
+
+Compute a semantic diff between two sets of pre-embedded document sections.
+
+```typescript
+(sectionsAJson: string, sectionsBJson: string) => SemanticDiffResult
+```
+
+**Throws**
+
+- Error if the Rust core returns an error object.
+
+### `semanticConsensus()`
+
+Evaluate semantic consensus across a set of pre-embedded reviews.
+
+```typescript
+(reviewsJson: string, threshold: number) => SemanticConsensusResult
+```
+
+**Throws**
+
+- Error if the Rust core returns an error object.
+
+### `buildGraph()`
+
+Build a knowledge graph from an array of messages.  Delegates to crates/llmtxt-core::graph::build\_graph\_wasm.
+
+```typescript
+(messages: MessageInput[]) => KnowledgeGraph
+```
+
+**Throws**
+
+- Error if the Rust core returns an error.
+
+### `generateOverview()`
+
+Generate a structural overview of a document.  Delegates to crates/llmtxt-core::disclosure::generate\_overview\_wasm.
+
+```typescript
+(content: string) => import("./disclosure.js").DocumentOverview
+```
+
+**Throws**
+
+- Error if the Rust core returns an error object.
+
+### `getLineRange()`
+
+Extract a line range from a document.  Delegates to crates/llmtxt-core::disclosure::get\_line\_range\_wasm.
+
+```typescript
+(content: string, start: number, end: number) => import("./disclosure.js").LineRangeResult
+```
+
+**Throws**
+
+- Error if the Rust core returns an error object.
+
+### `searchContent()`
+
+Search document content for lines matching a query.  Delegates to crates/llmtxt-core::disclosure::search\_content\_wasm.
+
+```typescript
+(content: string, query: string, contextLines?: number, maxResults?: number) => import("./disclosure.js").SearchResult[]
+```
+
+**Throws**
+
+- Error if the Rust core returns an error object.
+
 ### `queryJsonPath()`
 
-Execute a JSONPath-style query against JSON content.
+Execute a JSONPath-style query against JSON content.  Delegates to crates/llmtxt-core::disclosure::query\_json\_path\_wasm.
 
 ```typescript
 (content: string, path: string) => { result: unknown; tokenCount: number; path: string; }
@@ -44,7 +140,15 @@ Execute a JSONPath-style query against JSON content.
 
 **Throws**
 
-- Error if the JSON is invalid or the path cannot be resolved.
+- Error if path resolution fails.
+
+### `CrSqliteNotLoadedError`
+
+Typed error thrown by LocalBackend when cr-sqlite support is requested but the vlcn.io/crsqlite package is not installed.
+
+```typescript
+typeof CrSqliteNotLoadedError
+```
 
 ### `reconstructVersion()`
 
@@ -57,5 +161,198 @@ Reconstruct a document at a specific version by applying patches sequentially fr
 **Throws**
 
 - If a patch in the sequence fails to apply.
+
+### `LeaseConflictError`
+
+Thrown by LeaseManager.acquire() when the section is already held.
+
+```typescript
+typeof LeaseConflictError
+```
+
+### `TopologyConfigError`
+
+Thrown when a topology config fails validation.
+
+```typescript
+typeof TopologyConfigError
+```
+
+### `validateTopologyConfig()`
+
+Validate an unknown value as a `TopologyConfig`.  Throws `TopologyConfigError` with exact messages from ARCH-T429 spec §3.3 on any validation failure.
+
+```typescript
+(config: unknown) => TopologyConfig
+```
+
+**Throws**
+
+- `TopologyConfigError`   - `INVALID_TOPOLOGY_MODE` — topology field is not a recognized value.   - `MISSING_HUB_URL` — hub-spoke topology missing `hubUrl`.   - `MISSING_STORAGE_PATH_PERSIST` — hub-spoke with persistLocally=true missing `storagePath`.   - `MISSING_STORAGE_PATH_MESH` — mesh topology missing `storagePath`.
+
+### `BlobTooLargeError`
+
+Thrown when blob size exceeds the configured maximum (default 100 MB).  MUST be thrown before any storage allocation occurs. The error message MUST include the configured limit in human-readable form.
+
+```typescript
+typeof BlobTooLargeError
+```
+
+### `BlobNameInvalidError`
+
+Thrown when a blob attachment name fails validation.  Triggered by any of: path traversal sequences (".."), path separators ("/" or ""), null bytes ("0"), leading/trailing whitespace, empty name, or name exceeding 255 bytes (UTF-8).
+
+```typescript
+typeof BlobNameInvalidError
+```
+
+### `BlobCorruptError`
+
+Thrown when SHA-256 hash verification fails on a read.  Indicates storage corruption or tampering. The implementation MUST NOT return the corrupt bytes to the caller. The corrupt file SHOULD be quarantined (renamed to ".corrupt") before throwing.
+
+```typescript
+typeof BlobCorruptError
+```
+
+### `BlobNotFoundError`
+
+Thrown when a blob hash is not found in the store.  Used by the lazy sync pull path when fetchBlobByHash cannot resolve the requested hash from any known peer.
+
+```typescript
+typeof BlobNotFoundError
+```
+
+### `BlobAccessDeniedError`
+
+Thrown when the caller lacks the required access to perform a blob operation.  Blob access inherits the document's access control policy:   - READ permission required for getBlob, listBlobs, fetchBlobByHash   - WRITE permission required for attachBlob, detachBlob
+
+```typescript
+typeof BlobAccessDeniedError
+```
+
+### `ExportError`
+
+Typed error for the document export subsystem. Thrown by exportDocument() and exportAll() on failure.
+
+```typescript
+typeof ExportError
+```
+
+### `serializeDocument()`
+
+Serialize a DocumentExportState to a string using the requested format.
+
+```typescript
+(state: DocumentExportState, format: ExportFormat, opts: { includeMetadata?: boolean; }) => string
+```
+
+**Throws**
+
+- ExportError with code 'UNSUPPORTED\_FORMAT' for unknown formats.
+
+### `writeExportFile()`
+
+Write a DocumentExportState to disk and return an ExportDocumentResult.  This is the canonical implementation shared by all Backend variants. Backends build the `state` from their storage layer, then call this.
+
+```typescript
+(state: DocumentExportState, params: ExportDocumentParams, identityPath?: string) => Promise<ExportDocumentResult>
+```
+
+**Throws**
+
+- ExportError on write or sign failure.
+
+### `parseImportFile()`
+
+Parse an import file and return a ParsedImport.
+
+```typescript
+(filePath: string) => ParsedImport
+```
+
+**Throws**
+
+- ExportError PARSE\_FAILED on I/O or parse errors.
+- ExportError HASH\_MISMATCH when frontmatter content\_hash does not   match the actual body SHA-256.
+
+### `validateBlobName()`
+
+Validate a blob attachment name using the Rust WASM primitive.  Throws `BlobNameInvalidError` when any of the following are true:   - name is empty or exceeds 255 bytes (UTF-8)   - name contains path traversal sequences (`..`)   - name contains path separators (`/` or `\`)   - name contains null bytes (`\0`)   - name has leading or trailing whitespace  Delegates to crates/llmtxt-core::blob\_name\_validate via WASM.
+
+```typescript
+(name: string) => void
+```
+
+**Throws**
+
+- `BlobNameInvalidError` on violation
+
+### `MeshNotImplementedError`
+
+Thrown when a mesh-specific sync method is called on `MeshBackend` before the T386 P2P sync engine has been installed.  The MeshBackend stub delegates all standard Backend interface methods to its internal LocalBackend. Only the T386-specific mesh methods (peer negotiation, changeset exchange, etc.) throw this error, so agents that do not call those methods can use MeshBackend today without blocking on T386.  To resolve: implement T386 (P2P Mesh Sync Engine) and replace the stub with the real MeshBackend from packages/llmtxt/src/mesh/.
+
+```typescript
+typeof MeshNotImplementedError
+```
+
+### `HubUnreachableError`
+
+Thrown when a hub-and-spoke spoke cannot reach the hub for a write operation.  Ephemeral spokes MUST fail fast with this error — writes are never silently dropped (ARCH-T429 §7.1). The `cause` property holds the underlying network error for diagnostics.
+
+```typescript
+typeof HubUnreachableError
+```
+
+### `HubWriteQueueFullError`
+
+Thrown when a persistent spoke's write queue exceeds the 1000-entry limit (ARCH-T429 §7.1). The 1001st write while the hub is unreachable must be rejected with this error rather than silently dropped or discarded.
+
+```typescript
+typeof HubWriteQueueFullError
+```
+
+### `createBackend()`
+
+Create a Backend instance appropriate for the given topology config.  This is the primary entry point for all agent code that needs a Backend. Prefer this over constructing LocalBackend or RemoteBackend directly.  Validation (ARCH-T429 §3.3) runs before any backend is constructed: - `hub-spoke` without `hubUrl` → throws `TopologyConfigError` - `hub-spoke` with `persistLocally=true` without `storagePath` → throws `TopologyConfigError` - `mesh` without `storagePath` → throws `TopologyConfigError` - Unknown `topology` value → throws `TopologyConfigError`  The returned backend must have `open()` called before use.
+
+```typescript
+(config: TopologyConfig) => Promise<Backend>
+```
+
+**Throws**
+
+- `TopologyConfigError` when config is invalid.
+
+### `HandshakeFailedError`
+
+Thrown when the Ed25519 mutual handshake fails.
+
+```typescript
+typeof HandshakeFailedError
+```
+
+### `PeerUnreachableError`
+
+Thrown when a peer is unreachable after max retries.
+
+```typescript
+typeof PeerUnreachableError
+```
+
+### `ChangesetTooLargeError`
+
+Thrown when a changeset exceeds the maximum size.
+
+```typescript
+typeof ChangesetTooLargeError
+```
+
+### `AgentSessionError`
+
+AgentSessionError: custom error for session lifecycle violations.  Code taxonomy: - SESSION\_NOT\_FOUND: No session found (e.g., during recovery) - SESSION\_ALREADY\_OPEN: open() called when not in Idle state - SESSION\_NOT\_ACTIVE: contribute() called when not in Active state - INVALID\_STATE: Invalid state transition attempt - BACKEND\_ERROR: Backend rejected the operation (wrapped original error) - SESSION\_CLOSE\_PARTIAL: close() completed with failures; see attached errors
+
+```typescript
+typeof AgentSessionError
+```
 
 {/* FORGE:AUTO-END guide-error-handling */}

@@ -56,8 +56,17 @@ npx forge-ts build
 Your code examples become live documentation:
 
 ```ts
-const range = getLineRange(doc, 10, 25);
-console.log(`Saved ${range.tokensSaved} tokens`);
+import { classifyContent } from 'llmtxt';
+
+const result = classifyContent('# Hello\n\nMarkdown content.');
+console.log(result.format);      // 'markdown'
+console.log(result.mimeType);    // 'text/markdown'
+console.log(result.confidence);  // 0.8
+
+const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]); // %PDF
+const pdfResult = classifyContent(pdfBytes);
+console.log(pdfResult.format);   // 'pdf'
+console.log(pdfResult.confidence); // 1.0
 ```
 
 ## What's Next?

@@ -1,1488 +1,2452 @@
 {
-  "$schema": "https://ckm.dev/schemas/v2.json",
-  "version": "2.0.0",
-  "meta": {
-    "project": "llmtxt",
-    "language": "typescript",
-    "generator": "forge-ts@2026.4.2",
-    "generated": "2026-04-13T14:56:47.789Z"
-  },
+  "$schema": "https://forge-ts.dev/schemas/ckm/v1.json",
+  "version": "1.0.0",
+  "project": "llmtxt",
+  "generated": "2026-04-23T22:06:28.361Z",
   "concepts": [
+    {
+      "id": "concept-AwarenessState",
+      "name": "AwarenessState",
+      "what": "Presence state for a single agent.",
+      "properties": [
+        {
+          "name": "agentId",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "section",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "cursorOffset",
+          "type": "number | undefined",
+          "description": ""
+        },
+        {
+          "name": "lastSeen",
+          "type": "number",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-AwarenessEventType",
+      "name": "AwarenessEventType",
+      "what": "Events emitted when awareness state changes."
+    },
+    {
+      "id": "concept-AwarenessEvent",
+      "name": "AwarenessEvent",
+      "what": "",
+      "properties": [
+        {
+          "name": "type",
+          "type": "AwarenessEventType",
+          "description": ""
+        },
+        {
+          "name": "clientId",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "state",
+          "type": "AwarenessState | null",
+          "description": ""
+        }
+      ]
+    },
     {
       "id": "concept-LRUCacheOptions",
       "name": "LRUCacheOptions",
-      "slug": "lrucache",
       "what": "Configuration options for constructing an `LRUCache` instance.",
-      "tags": [
-        "options"
-      ],
       "properties": [
         {
           "name": "maxSize",
-          "type": {
-            "canonical": "string",
-            "original": "number | undefined"
-          },
-          "description": "Maximum number of entries before the least-recently-used entry is evicted (default: 1000).",
-          "required": true,
-          "default": null
+          "type": "number | undefined",
+          "description": "Maximum number of entries before the least-recently-used entry is evicted (default: 1000)."
         },
         {
           "name": "ttl",
-          "type": {
-            "canonical": "string",
-            "original": "number | undefined"
-          },
-          "description": "Default time-to-live in milliseconds for new entries (default: 24 hours).",
-          "required": true,
-          "default": null
+          "type": "number | undefined",
+          "description": "Default time-to-live in milliseconds for new entries (default: 24 hours)."
         }
       ]
     },
     {
-      "id": "concept-DiffResult",
-      "name": "DiffResult",
-      "slug": "diff",
-      "what": "",
-      "tags": [
-        "result"
-      ],
+      "id": "concept-ClassificationResult",
+      "name": "ClassificationResult",
+      "what": "Result of `classifyContent`.  Mirrors `ClassificationResult` from `crates/llmtxt-core/src/classify/types.rs`.",
       "properties": [
         {
-          "name": "addedLines",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "",
-          "required": true,
-          "default": null
+          "name": "mimeType",
+          "type": "string",
+          "description": "IANA MIME type, e.g. `\"application/pdf\"`, `\"text/markdown\"`, `\"image/png\"`."
         },
         {
-          "name": "removedLines",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "addedTokens",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "removedTokens",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        }
-      ]
-    },
-    {
-      "id": "concept-StructuredDiffResult",
-      "name": "StructuredDiffResult",
-      "slug": "structureddiff",
-      "what": "Full structured diff result with interleaved lines and summary counts.",
-      "tags": [
-        "result"
-      ],
-      "properties": [
-        {
-          "name": "lines",
-          "type": {
-            "canonical": "array",
-            "original": "StructuredDiffLine[]"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "addedLineCount",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "removedLineCount",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "addedTokens",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "removedTokens",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        }
-      ]
-    },
-    {
-      "id": "concept-MultiDiffResult",
-      "name": "MultiDiffResult",
-      "slug": "multidiff",
-      "what": "Full result of a multi-way diff.",
-      "tags": [
-        "result"
-      ],
-      "properties": [
-        {
-          "name": "baseVersion",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "versionCount",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "lines",
-          "type": {
-            "canonical": "array",
-            "original": "MultiDiffLine[]"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "stats",
-          "type": {
-            "canonical": "object",
-            "original": "MultiDiffStats"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        }
-      ]
-    },
-    {
-      "id": "concept-CherryPickResult",
-      "name": "CherryPickResult",
-      "slug": "cherrypick",
-      "what": "Return value of a cherry-pick merge operation.",
-      "tags": [
-        "result"
-      ],
-      "properties": [
-        {
-          "name": "content",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "provenance",
-          "type": {
-            "canonical": "array",
-            "original": "CherryPickProvenance[]"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "stats",
-          "type": {
-            "canonical": "object",
-            "original": "CherryPickStats"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        }
-      ]
-    },
-    {
-      "id": "concept-AttachmentOptions",
-      "name": "AttachmentOptions",
-      "slug": "attachment",
-      "what": "Options for creating an attachment via the bridge.",
-      "tags": [
-        "options"
-      ],
-      "properties": [
-        {
-          "name": "content",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "",
-          "required": true,
-          "default": null
+          "name": "category",
+          "type": "\"binary\" | \"text\" | \"structured\" | \"unknown\"",
+          "description": "Coarse content category."
         },
         {
           "name": "format",
-          "type": {
-            "canonical": "string",
-            "original": "ContentFormat | undefined"
-          },
-          "description": "",
-          "required": true,
-          "default": null
+          "type": "\"unknown\" | \"pdf\" | \"png\" | \"jpeg\" | \"gif\" | \"webp\" | \"avif\" | \"svg\" | \"mp4\" | \"webm\" | \"mp3\" | \"wav\" | \"ogg\" | \"zip\" | \"markdown\" | \"json\" | \"javascript\" | \"typescript\" | \"python\" | \"rust\" | \"go\" | \"plainText\"",
+          "description": "Specific content format.  Binary: `'pdf'` | `'png'` | `'jpeg'` | `'gif'` | `'webp'` | `'avif'` | `'svg'` |         `'mp4'` | `'webm'` | `'mp3'` | `'wav'` | `'ogg'` | `'zip'`  Text:   `'markdown'` | `'json'` | `'javascript'` | `'typescript'` | `'python'` |         `'rust'` | `'go'` | `'plainText'`  Fallback: `'unknown'`"
         },
         {
-          "name": "conversationId",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "",
-          "required": true,
-          "default": null
+          "name": "confidence",
+          "type": "number",
+          "description": "Classification confidence in `[0.0, 1.0]`. See Rust spec for semantics."
         },
         {
-          "name": "fromAgentId",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "expiresInMs",
-          "type": {
-            "canonical": "string",
-            "original": "number | undefined"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        }
-      ]
-    },
-    {
-      "id": "concept-AttachmentReshareOptions",
-      "name": "AttachmentReshareOptions",
-      "slug": "attachmentreshare",
-      "what": "Options for re-sharing an existing attachment.",
-      "tags": [
-        "options"
-      ],
-      "properties": [
-        {
-          "name": "expiresIn",
-          "type": {
-            "canonical": "string",
-            "original": "number | undefined"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "mode",
-          "type": {
-            "canonical": "string",
-            "original": "AttachmentSharingMode | undefined"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        }
-      ]
-    },
-    {
-      "id": "concept-AttachmentVersionOptions",
-      "name": "AttachmentVersionOptions",
-      "slug": "attachmentversion",
-      "what": "Options for appending a version to an existing attachment slug.",
-      "tags": [
-        "options"
-      ],
-      "properties": [
-        {
-          "name": "baseVersion",
-          "type": {
-            "canonical": "string",
-            "original": "number | undefined"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "changelog",
-          "type": {
-            "canonical": "string",
-            "original": "string | undefined"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        }
-      ]
-    },
-    {
-      "id": "concept-LlmtxtClientConfig",
-      "name": "LlmtxtClientConfig",
-      "slug": "llmtxtclient",
-      "what": "",
-      "tags": [
-        "config"
-      ],
-      "properties": [
-        {
-          "name": "apiBase",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "apiKey",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "agentId",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        }
-      ]
-    },
-    {
-      "id": "concept-UploadResult",
-      "name": "UploadResult",
-      "slug": "upload",
-      "what": "",
-      "tags": [
-        "result"
-      ],
-      "properties": [
-        {
-          "name": "slug",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "contentHash",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "originalSize",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "compressedSize",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "compressionRatio",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "tokens",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "signedUrl",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "expiresAt",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        }
-      ]
-    },
-    {
-      "id": "concept-FetchResult",
-      "name": "FetchResult",
-      "slug": "fetch",
-      "what": "",
-      "tags": [
-        "result"
-      ],
-      "properties": [
-        {
-          "name": "slug",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "content",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "format",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "title",
-          "type": {
-            "canonical": "string",
-            "original": "string | undefined"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "contentHash",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "originalSize",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "tokens",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        }
-      ]
-    },
-    {
-      "id": "concept-ReshareResult",
-      "name": "ReshareResult",
-      "slug": "reshare",
-      "what": "",
-      "tags": [
-        "result"
-      ],
-      "properties": [
-        {
-          "name": "slug",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "mode",
-          "type": {
-            "canonical": "object",
-            "original": "AttachmentSharingMode"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "signedUrl",
-          "type": {
-            "canonical": "string",
-            "original": "string | undefined"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "expiresAt",
-          "type": {
-            "canonical": "string",
-            "original": "number | null | undefined"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        }
-      ]
-    },
-    {
-      "id": "concept-ResignResult",
-      "name": "ResignResult",
-      "slug": "resign",
-      "what": "Backward-compatible alias. Prefer `ReshareResult`.",
-      "tags": [
-        "result"
-      ]
-    },
-    {
-      "id": "concept-AttachmentVersionResult",
-      "name": "AttachmentVersionResult",
-      "slug": "attachmentversion",
-      "what": "",
-      "tags": [
-        "result"
-      ],
-      "properties": [
-        {
-          "name": "slug",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "versionNumber",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "patchText",
-          "type": {
-            "canonical": "string",
-            "original": "string | undefined"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "contentHash",
-          "type": {
-            "canonical": "string",
-            "original": "string | undefined"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "createdAt",
-          "type": {
-            "canonical": "string",
-            "original": "string | undefined"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "createdBy",
-          "type": {
-            "canonical": "string",
-            "original": "string | undefined"
-          },
-          "description": "",
-          "required": true,
-          "default": null
-        },
-        {
-          "name": "changelog",
-          "type": {
-            "canonical": "string",
-            "original": "string | undefined"
-          },
-          "description": "",
-          "required": true,
-          "default": null
+          "name": "isExtractable",
+          "type": "boolean",
+          "description": "Whether useful text content can be extracted from this format. `true` for text formats and PDF; `false` for images, audio, video, zip."
         }
       ]
     },
     {
       "id": "concept-SearchResult",
       "name": "SearchResult",
-      "slug": "search",
       "what": "A single match returned by `searchContent`.",
-      "tags": [
-        "result"
-      ],
       "properties": [
         {
           "name": "line",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "1-based line number of the matching line.",
-          "required": true,
-          "default": null
+          "type": "number",
+          "description": "1-based line number of the matching line."
         },
         {
           "name": "content",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "The full text of the matching line.",
-          "required": true,
-          "default": null
+          "type": "string",
+          "description": "The full text of the matching line."
         },
         {
           "name": "contextBefore",
-          "type": {
-            "canonical": "array",
-            "original": "string[]"
-          },
-          "description": "Lines immediately preceding the match (up to `contextLines`).",
-          "required": true,
-          "default": null
+          "type": "string[]",
+          "description": "Lines immediately preceding the match (up to `contextLines`)."
         },
         {
           "name": "contextAfter",
-          "type": {
-            "canonical": "array",
-            "original": "string[]"
-          },
-          "description": "Lines immediately following the match (up to `contextLines`).",
-          "required": true,
-          "default": null
+          "type": "string[]",
+          "description": "Lines immediately following the match (up to `contextLines`)."
         }
       ]
     },
     {
       "id": "concept-LineRangeResult",
       "name": "LineRangeResult",
-      "slug": "linerange",
       "what": "Result of extracting a line range from a document via `getLineRange`.",
-      "tags": [
-        "result"
-      ],
       "properties": [
         {
           "name": "startLine",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "1-based line number where the extracted range begins.",
-          "required": true,
-          "default": null
+          "type": "number",
+          "description": "1-based line number where the extracted range begins."
         },
         {
           "name": "endLine",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "1-based line number where the extracted range ends (inclusive).",
-          "required": true,
-          "default": null
+          "type": "number",
+          "description": "1-based line number where the extracted range ends (inclusive)."
         },
         {
           "name": "content",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "The extracted text content for the requested line range.",
-          "required": true,
-          "default": null
+          "type": "string",
+          "description": "The extracted text content for the requested line range."
         },
         {
           "name": "tokenCount",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "Estimated token count for the extracted content.",
-          "required": true,
-          "default": null
+          "type": "number",
+          "description": "Estimated token count for the extracted content."
         },
         {
           "name": "totalLines",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "Total number of lines in the full document.",
-          "required": true,
-          "default": null
+          "type": "number",
+          "description": "Total number of lines in the full document."
         },
         {
           "name": "totalTokens",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "Estimated total token count for the full document.",
-          "required": true,
-          "default": null
+          "type": "number",
+          "description": "Estimated total token count for the full document."
         },
         {
           "name": "tokensSaved",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "Number of tokens saved by extracting only this range.",
-          "required": true,
-          "default": null
+          "type": "number",
+          "description": "Number of tokens saved by extracting only this range."
+        }
+      ]
+    },
+    {
+      "id": "concept-DiffResult",
+      "name": "DiffResult",
+      "what": "",
+      "properties": [
+        {
+          "name": "addedLines",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "removedLines",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "addedTokens",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "removedTokens",
+          "type": "number",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-StructuredDiffResult",
+      "name": "StructuredDiffResult",
+      "what": "Full structured diff result with interleaved lines and summary counts.",
+      "properties": [
+        {
+          "name": "lines",
+          "type": "StructuredDiffLine[]",
+          "description": ""
+        },
+        {
+          "name": "addedLineCount",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "removedLineCount",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "addedTokens",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "removedTokens",
+          "type": "number",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-MultiDiffResult",
+      "name": "MultiDiffResult",
+      "what": "Full result of a multi-way diff.",
+      "properties": [
+        {
+          "name": "baseVersion",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "versionCount",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "lines",
+          "type": "MultiDiffLine[]",
+          "description": ""
+        },
+        {
+          "name": "stats",
+          "type": "MultiDiffStats",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-CherryPickResult",
+      "name": "CherryPickResult",
+      "what": "Return value of a cherry-pick merge operation.",
+      "properties": [
+        {
+          "name": "content",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "provenance",
+          "type": "CherryPickProvenance[]",
+          "description": ""
+        },
+        {
+          "name": "stats",
+          "type": "CherryPickStats",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-ThreeWayMergeResult",
+      "name": "ThreeWayMergeResult",
+      "what": "Full result of a 3-way merge operation.",
+      "properties": [
+        {
+          "name": "merged",
+          "type": "string",
+          "description": "The merged document content, with conflict markers where applicable."
+        },
+        {
+          "name": "hasConflicts",
+          "type": "boolean",
+          "description": "`true` when at least one conflict could not be auto-merged."
+        },
+        {
+          "name": "conflicts",
+          "type": "Conflict[]",
+          "description": "Details of each conflict region."
+        },
+        {
+          "name": "stats",
+          "type": "MergeStats",
+          "description": "Summary statistics for the merge."
+        }
+      ]
+    },
+    {
+      "id": "concept-SemanticDiffResult",
+      "name": "SemanticDiffResult",
+      "what": "Full result of a semantic diff between two document versions.",
+      "properties": [
+        {
+          "name": "overallSimilarity",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "sectionSimilarities",
+          "type": "SectionSimilarity[]",
+          "description": ""
+        },
+        {
+          "name": "semanticChanges",
+          "type": "SemanticChange[]",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-SemanticConsensusResult",
+      "name": "SemanticConsensusResult",
+      "what": "Result of semantic consensus evaluation across a set of reviews.",
+      "properties": [
+        {
+          "name": "consensus",
+          "type": "boolean",
+          "description": ""
+        },
+        {
+          "name": "agreementScore",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "clusters",
+          "type": "ReviewCluster[]",
+          "description": ""
+        },
+        {
+          "name": "outliers",
+          "type": "string[]",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-SimilarityRankResult",
+      "name": "SimilarityRankResult",
+      "what": "Result entry from rankBySimilarity.",
+      "properties": [
+        {
+          "name": "index",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "score",
+          "type": "number",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-AttachmentOptions",
+      "name": "AttachmentOptions",
+      "what": "Options for creating an attachment via the bridge.",
+      "properties": [
+        {
+          "name": "content",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "format",
+          "type": "ContentFormat | undefined",
+          "description": ""
+        },
+        {
+          "name": "conversationId",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "fromAgentId",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "expiresInMs",
+          "type": "number | undefined",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-AttachmentReshareOptions",
+      "name": "AttachmentReshareOptions",
+      "what": "Options for re-sharing an existing attachment.",
+      "properties": [
+        {
+          "name": "expiresIn",
+          "type": "number | undefined",
+          "description": ""
+        },
+        {
+          "name": "mode",
+          "type": "AttachmentSharingMode | undefined",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-AttachmentVersionOptions",
+      "name": "AttachmentVersionOptions",
+      "what": "Options for appending a version to an existing attachment slug.",
+      "properties": [
+        {
+          "name": "baseVersion",
+          "type": "number | undefined",
+          "description": ""
+        },
+        {
+          "name": "changelog",
+          "type": "string | undefined",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-DocumentEventType",
+      "name": "DocumentEventType",
+      "what": "Discriminant for document lifecycle events emitted by the event bus.  Consumers should use this type when subscribing to the bus or when filtering events in webhook handlers."
+    },
+    {
+      "id": "concept-DocumentEvent",
+      "name": "DocumentEvent",
+      "what": "Payload for a document lifecycle event.  Emitted by the in-process event bus after a successful database write. Consumers include WebSocket/SSE streams and webhook delivery workers.",
+      "properties": [
+        {
+          "name": "type",
+          "type": "DocumentEventType",
+          "description": "Discriminant — consumers can switch on this."
+        },
+        {
+          "name": "slug",
+          "type": "string",
+          "description": "Short URL slug of the affected document."
+        },
+        {
+          "name": "documentId",
+          "type": "string",
+          "description": "Opaque document primary key."
+        },
+        {
+          "name": "timestamp",
+          "type": "number",
+          "description": "Unix timestamp in milliseconds."
+        },
+        {
+          "name": "actor",
+          "type": "string",
+          "description": "userId or agentId that triggered the event. 'system' for auto-actions."
+        },
+        {
+          "name": "data",
+          "type": "Record<string, unknown>",
+          "description": "Event-specific supplemental data."
+        }
+      ]
+    },
+    {
+      "id": "concept-LlmtxtClientConfig",
+      "name": "LlmtxtClientConfig",
+      "what": "",
+      "properties": [
+        {
+          "name": "apiBase",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "apiKey",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "agentId",
+          "type": "string",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-UploadResult",
+      "name": "UploadResult",
+      "what": "",
+      "properties": [
+        {
+          "name": "slug",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "contentHash",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "originalSize",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "compressedSize",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "compressionRatio",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "tokens",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "signedUrl",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "expiresAt",
+          "type": "number",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-FetchResult",
+      "name": "FetchResult",
+      "what": "",
+      "properties": [
+        {
+          "name": "slug",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "content",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "format",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "title",
+          "type": "string | undefined",
+          "description": ""
+        },
+        {
+          "name": "contentHash",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "originalSize",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "tokens",
+          "type": "number",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-ReshareResult",
+      "name": "ReshareResult",
+      "what": "",
+      "properties": [
+        {
+          "name": "slug",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "mode",
+          "type": "AttachmentSharingMode",
+          "description": ""
+        },
+        {
+          "name": "signedUrl",
+          "type": "string | undefined",
+          "description": ""
+        },
+        {
+          "name": "expiresAt",
+          "type": "number | null | undefined",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-ResignResult",
+      "name": "ResignResult",
+      "what": "Backward-compatible alias. Prefer `ReshareResult`."
+    },
+    {
+      "id": "concept-AttachmentVersionResult",
+      "name": "AttachmentVersionResult",
+      "what": "",
+      "properties": [
+        {
+          "name": "slug",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "versionNumber",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "patchText",
+          "type": "string | undefined",
+          "description": ""
+        },
+        {
+          "name": "contentHash",
+          "type": "string | undefined",
+          "description": ""
+        },
+        {
+          "name": "createdAt",
+          "type": "string | undefined",
+          "description": ""
+        },
+        {
+          "name": "createdBy",
+          "type": "string | undefined",
+          "description": ""
+        },
+        {
+          "name": "changelog",
+          "type": "string | undefined",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-SubscribeSectionOptions",
+      "name": "SubscribeSectionOptions",
+      "what": "Options for `subscribeSection`.",
+      "properties": [
+        {
+          "name": "baseUrl",
+          "type": "string | undefined",
+          "description": "Base URL of the llmtxt API. Defaults to `https://api.llmtxt.my`."
+        },
+        {
+          "name": "token",
+          "type": "string | undefined",
+          "description": "Bearer token for authentication. Pass your API key here (llmtxt_... format)."
+        },
+        {
+          "name": "onError",
+          "type": "((err: Event) => void) | undefined",
+          "description": "Called when the WebSocket encounters an error."
+        },
+        {
+          "name": "onAwareness",
+          "type": "((payload: Uint8Array) => void) | undefined",
+          "description": "Called when an AwarenessRelay (0x04) message is received. The payload is the raw awareness bytes relayed from a peer."
+        }
+      ]
+    },
+    {
+      "id": "concept-CanonicalPayloadOptions",
+      "name": "CanonicalPayloadOptions",
+      "what": "Options for `buildCanonicalPayload`.  All fields map directly to the Rust `canonical_payload()` parameters in `crates/llmtxt-core/src/identity.rs`.",
+      "properties": [
+        {
+          "name": "method",
+          "type": "string",
+          "description": "HTTP method, uppercase (e.g. \"PUT\")."
+        },
+        {
+          "name": "path",
+          "type": "string",
+          "description": "Path and query string (e.g. \"/api/v1/documents/abc\")."
+        },
+        {
+          "name": "timestampMs",
+          "type": "number",
+          "description": "Milliseconds since epoch."
+        },
+        {
+          "name": "agentId",
+          "type": "string",
+          "description": "Agent identifier registered on the server."
+        },
+        {
+          "name": "nonceHex",
+          "type": "string",
+          "description": "Hex-encoded nonce (≥ 16 bytes = ≥ 32 hex chars)."
+        },
+        {
+          "name": "bodyHashHex",
+          "type": "string",
+          "description": "Lowercase hex SHA-256 of the request body bytes (64 chars)."
         }
       ]
     },
     {
       "id": "concept-ValidationResult",
       "name": "ValidationResult",
-      "slug": "validation",
       "what": "Outcome of a content validation operation.",
-      "tags": [
-        "result"
-      ],
       "properties": [
         {
           "name": "success",
-          "type": {
-            "canonical": "boolean"
-          },
-          "description": "Whether the validation passed without errors.",
-          "required": true,
-          "default": null
+          "type": "boolean",
+          "description": "Whether the validation passed without errors."
         },
         {
           "name": "data",
-          "type": {
-            "canonical": "string",
-            "original": "T | undefined"
-          },
-          "description": "The parsed/validated data, present only when `success` is `true`.",
-          "required": true,
-          "default": null
+          "type": "T | undefined",
+          "description": "The parsed/validated data, present only when `success` is `true`."
         },
         {
           "name": "errors",
-          "type": {
-            "canonical": "array",
-            "original": "ValidationError[] | undefined"
-          },
-          "description": "List of validation errors, present only when `success` is `false`.",
-          "required": true,
-          "default": null
+          "type": "ValidationError[] | undefined",
+          "description": "List of validation errors, present only when `success` is `false`."
         },
         {
           "name": "format",
-          "type": {
-            "canonical": "string",
-            "original": "\"json\" | \"text\" | \"markdown\" | undefined"
-          },
-          "description": "The detected or requested content format, when determinable.",
-          "required": true,
-          "default": null
+          "type": "\"text\" | \"markdown\" | \"json\" | undefined",
+          "description": "The detected or requested content format, when determinable."
         }
       ]
     },
     {
       "id": "concept-ValidateContentOptions",
       "name": "ValidateContentOptions",
-      "slug": "validatecontent",
       "what": "Options for content validation.",
-      "tags": [
-        "options"
-      ],
       "properties": [
         {
           "name": "schemaName",
-          "type": {
-            "canonical": "string",
-            "original": "string | undefined"
-          },
-          "description": "Optional predefined schema name for JSON validation.",
-          "required": true,
-          "default": null
+          "type": "string | undefined",
+          "description": "Optional predefined schema name for JSON validation."
         },
         {
           "name": "maxBytes",
-          "type": {
-            "canonical": "string",
-            "original": "number | undefined"
-          },
-          "description": "Maximum content size in bytes. Set to 0 to disable. Default: 5 MB.",
-          "required": true,
-          "default": null
+          "type": "number | undefined",
+          "description": "Maximum content size in bytes. Set to 0 to disable. Default: 5 MB."
         },
         {
           "name": "maxLineBytes",
-          "type": {
-            "canonical": "string",
-            "original": "number | undefined"
-          },
-          "description": "Maximum line length in bytes. Set to 0 to disable. Default: 64 KB.",
-          "required": true,
-          "default": null
+          "type": "number | undefined",
+          "description": "Maximum line length in bytes. Set to 0 to disable. Default: 64 KB."
         },
         {
           "name": "rejectBinary",
-          "type": {
-            "canonical": "string",
-            "original": "boolean | undefined"
-          },
-          "description": "Reject content with binary control characters (0x00-0x08). Default: true.",
-          "required": true,
-          "default": null
+          "type": "boolean | undefined",
+          "description": "Reject content with binary control characters (0x00-0x08). Default: true."
         }
       ]
     },
     {
       "id": "concept-SignedUrlConfig",
       "name": "SignedUrlConfig",
-      "slug": "signedurl",
       "what": "Configuration for generating and verifying signed URLs.",
-      "tags": [
-        "config"
-      ],
       "properties": [
         {
           "name": "secret",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "",
-          "required": true,
-          "default": null
+          "type": "string",
+          "description": ""
         },
         {
           "name": "baseUrl",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "",
-          "required": true,
-          "default": null
+          "type": "string",
+          "description": ""
         },
         {
           "name": "pathPrefix",
-          "type": {
-            "canonical": "string",
-            "original": "string | undefined"
-          },
-          "description": "Optional path prefix like `/attachments`. Default: root path.",
-          "required": true,
-          "default": null
+          "type": "string | undefined",
+          "description": "Optional path prefix like `/attachments`. Default: root path."
         },
         {
           "name": "signatureLength",
-          "type": {
-            "canonical": "string",
-            "original": "number | undefined"
-          },
-          "description": "Signature length in hex chars. Default: 16.",
-          "required": true,
-          "default": null
+          "type": "number | undefined",
+          "description": "Signature length in hex chars. Default: 16."
         }
       ]
     },
     {
       "id": "concept-VerifyResult",
       "name": "VerifyResult",
-      "slug": "verify",
       "what": "Outcome of verifying a signed URL.",
-      "tags": [
-        "result"
-      ],
       "properties": [
         {
           "name": "valid",
-          "type": {
-            "canonical": "boolean"
-          },
-          "description": "",
-          "required": true,
-          "default": null
+          "type": "boolean",
+          "description": ""
         },
         {
           "name": "reason",
-          "type": {
-            "canonical": "string",
-            "original": "\"missing_params\" | \"expired\" | \"invalid_signature\" | undefined"
-          },
-          "description": "",
-          "required": true,
-          "default": null
+          "type": "\"missing_params\" | \"expired\" | \"invalid_signature\" | undefined",
+          "description": ""
         },
         {
           "name": "params",
-          "type": {
-            "canonical": "string",
-            "original": "SignedUrlParams | undefined"
-          },
-          "description": "",
-          "required": true,
-          "default": null
+          "type": "SignedUrlParams | undefined",
+          "description": ""
         }
       ]
     },
     {
       "id": "concept-SnapshotOptions",
       "name": "SnapshotOptions",
-      "slug": "snapshot",
       "what": "",
-      "tags": [
-        "options"
-      ],
       "properties": [
         {
           "name": "includeDecisions",
-          "type": {
-            "canonical": "string",
-            "original": "boolean | undefined"
-          },
-          "description": "Include full decision log (default: true)",
-          "required": true,
-          "default": null
+          "type": "boolean | undefined",
+          "description": "Include full decision log (default: true)"
         },
         {
           "name": "includeObservations",
-          "type": {
-            "canonical": "string",
-            "original": "boolean | undefined"
-          },
-          "description": "Include brain observations (default: true)",
-          "required": true,
-          "default": null
+          "type": "boolean | undefined",
+          "description": "Include brain observations (default: true)"
         },
         {
           "name": "maxSize",
-          "type": {
-            "canonical": "string",
-            "original": "number | undefined"
-          },
-          "description": "Max content size before compression in bytes (default: 5MB)",
-          "required": true,
-          "default": null
+          "type": "number | undefined",
+          "description": "Max content size before compression in bytes (default: 5MB)"
+        }
+      ]
+    },
+    {
+      "id": "concept-DocumentEventLogEntry",
+      "name": "DocumentEventLogEntry",
+      "what": "A single event row from the document event log.",
+      "properties": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "seq",
+          "type": "string",
+          "description": "Monotonically increasing per-document sequence number (as string — bigint-safe)."
+        },
+        {
+          "name": "event_type",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "actor_id",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "payload",
+          "type": "Record<string, unknown>",
+          "description": ""
+        },
+        {
+          "name": "created_at",
+          "type": "string",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-WatchDocumentOptions",
+      "name": "WatchDocumentOptions",
+      "what": "",
+      "properties": [
+        {
+          "name": "fromSeq",
+          "type": "string | number | undefined",
+          "description": "Resume from this sequence number (exclusive). If unset, starts from the beginning."
+        },
+        {
+          "name": "apiKey",
+          "type": "string | undefined",
+          "description": "Bearer token or API key for authenticated requests. Passed as `Authorization: Bearer <apiKey>` header."
+        },
+        {
+          "name": "maxReconnects",
+          "type": "number | undefined",
+          "description": "Maximum reconnect attempts within the circuit-breaker window (60s). Defaults to 5."
+        },
+        {
+          "name": "signal",
+          "type": "AbortSignal | undefined",
+          "description": "AbortSignal to cancel the stream externally."
         }
       ]
     },
     {
       "id": "concept-DocumentState",
       "name": "DocumentState",
-      "slug": "documentstate",
-      "what": "Lifecycle state of a collaborative document.",
-      "tags": [
-        "state"
-      ]
+      "what": "Lifecycle state of a collaborative document."
     },
     {
       "id": "concept-StateTransition",
       "name": "StateTransition",
-      "slug": "statetransition",
       "what": "Record of a lifecycle state change.",
-      "tags": [
-        "domain"
-      ],
       "properties": [
         {
           "name": "from",
-          "type": {
-            "canonical": "object",
-            "original": "DocumentState"
-          },
-          "description": "State before the transition.",
-          "required": true,
-          "default": null
+          "type": "DocumentState",
+          "description": "State before the transition."
         },
         {
           "name": "to",
-          "type": {
-            "canonical": "object",
-            "original": "DocumentState"
-          },
-          "description": "State after the transition.",
-          "required": true,
-          "default": null
+          "type": "DocumentState",
+          "description": "State after the transition."
         },
         {
           "name": "changedBy",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "Agent that initiated the transition.",
-          "required": true,
-          "default": null
+          "type": "string",
+          "description": "Agent that initiated the transition."
         },
         {
           "name": "changedAt",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "Timestamp of the transition (ms since epoch).",
-          "required": true,
-          "default": null
+          "type": "number",
+          "description": "Timestamp of the transition (ms since epoch)."
         },
         {
           "name": "reason",
-          "type": {
-            "canonical": "string",
-            "original": "string | undefined"
-          },
-          "description": "Human-readable reason for the transition.",
-          "required": true,
-          "default": null
+          "type": "string | undefined",
+          "description": "Human-readable reason for the transition."
         },
         {
           "name": "atVersion",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "Document version number at the time of transition.",
-          "required": true,
-          "default": null
+          "type": "number",
+          "description": "Document version number at the time of transition."
         }
       ]
     },
     {
       "id": "concept-TransitionResult",
       "name": "TransitionResult",
-      "slug": "transition",
       "what": "Result of attempting a state transition.",
-      "tags": [
-        "result"
-      ],
       "properties": [
         {
           "name": "valid",
-          "type": {
-            "canonical": "boolean"
-          },
-          "description": "Whether the transition is allowed.",
-          "required": true,
-          "default": null
+          "type": "boolean",
+          "description": "Whether the transition is allowed."
         },
         {
           "name": "reason",
-          "type": {
-            "canonical": "string",
-            "original": "string | undefined"
-          },
-          "description": "Human-readable explanation when invalid.",
-          "required": true,
-          "default": null
+          "type": "string | undefined",
+          "description": "Human-readable explanation when invalid."
         },
         {
           "name": "allowedTargets",
-          "type": {
-            "canonical": "array",
-            "original": "readonly DocumentState[]"
-          },
-          "description": "The allowed targets from the current state (for error context).",
-          "required": true,
-          "default": null
+          "type": "readonly DocumentState[]",
+          "description": "The allowed targets from the current state (for error context)."
         }
       ]
     },
     {
       "id": "concept-VersionEntry",
       "name": "VersionEntry",
-      "slug": "versionentry",
       "what": "A single version entry in a document's patch stack.",
-      "tags": [
-        "data"
-      ],
       "properties": [
         {
           "name": "versionNumber",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "Sequential version number (1-based).",
-          "required": true,
-          "default": null
+          "type": "number",
+          "description": "Sequential version number (1-based)."
         },
         {
           "name": "patchText",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "Unified diff patch text.",
-          "required": true,
-          "default": null
+          "type": "string",
+          "description": "Unified diff patch text."
         },
         {
           "name": "createdBy",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "Agent that authored this version.",
-          "required": true,
-          "default": null
+          "type": "string",
+          "description": "Agent that authored this version."
         },
         {
           "name": "changelog",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "One-line description of the change.",
-          "required": true,
-          "default": null
+          "type": "string",
+          "description": "One-line description of the change."
         },
         {
           "name": "contentHash",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "SHA-256 hash of the resulting content after applying this patch.",
-          "required": true,
-          "default": null
+          "type": "string",
+          "description": "SHA-256 hash of the resulting content after applying this patch."
         },
         {
           "name": "createdAt",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "Timestamp of creation (ms since epoch).",
-          "required": true,
-          "default": null
+          "type": "number",
+          "description": "Timestamp of creation (ms since epoch)."
         }
       ]
     },
     {
       "id": "concept-ReconstructionResult",
       "name": "ReconstructionResult",
-      "slug": "reconstruction",
       "what": "Result of reconstructing a document at a specific version.",
-      "tags": [
-        "result"
-      ],
       "properties": [
         {
           "name": "content",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "The document content at the requested version.",
-          "required": true,
-          "default": null
+          "type": "string",
+          "description": "The document content at the requested version."
         },
         {
           "name": "version",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "The version number that was reconstructed.",
-          "required": true,
-          "default": null
+          "type": "number",
+          "description": "The version number that was reconstructed."
         },
         {
           "name": "patchesApplied",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "Number of patches applied to reach this version.",
-          "required": true,
-          "default": null
+          "type": "number",
+          "description": "Number of patches applied to reach this version."
         },
         {
           "name": "contentHash",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "SHA-256 hash of the reconstructed content.",
-          "required": true,
-          "default": null
+          "type": "string",
+          "description": "SHA-256 hash of the reconstructed content."
         },
         {
           "name": "tokenCount",
-          "type": {
-            "canonical": "number"
-          },
-          "description": "Token count of the reconstructed content.",
-          "required": true,
-          "default": null
+          "type": "number",
+          "description": "Token count of the reconstructed content."
         }
       ]
     },
     {
       "id": "concept-PatchValidationResult",
       "name": "PatchValidationResult",
-      "slug": "patchvalidation",
       "what": "Result of validating whether a patch applies cleanly.",
-      "tags": [
-        "result"
-      ],
       "properties": [
         {
           "name": "applies",
-          "type": {
-            "canonical": "boolean"
-          },
-          "description": "Whether the patch can be applied without conflicts.",
-          "required": true,
-          "default": null
+          "type": "boolean",
+          "description": "Whether the patch can be applied without conflicts."
         },
         {
           "name": "error",
-          "type": {
-            "canonical": "string",
-            "original": "string | undefined"
-          },
-          "description": "Error message if the patch does not apply.",
-          "required": true,
-          "default": null
+          "type": "string | undefined",
+          "description": "Error message if the patch does not apply."
         },
         {
           "name": "resultContent",
-          "type": {
-            "canonical": "string",
-            "original": "string | undefined"
-          },
-          "description": "The content that would result if the patch applies.",
-          "required": true,
-          "default": null
+          "type": "string | undefined",
+          "description": "The content that would result if the patch applies."
         }
       ]
     },
     {
       "id": "concept-ApprovalStatus",
       "name": "ApprovalStatus",
-      "slug": "approvalstatus",
-      "what": "Status of an individual review.",
-      "tags": [
-        "state"
-      ]
+      "what": "Status of an individual review."
     },
     {
       "id": "concept-ApprovalResult",
       "name": "ApprovalResult",
-      "slug": "approval",
       "what": "Result of evaluating reviews against a policy.",
-      "tags": [
-        "result"
-      ],
       "properties": [
         {
           "name": "approved",
-          "type": {
-            "canonical": "boolean"
-          },
-          "description": "Whether the approval threshold is met.",
-          "required": true,
-          "default": null
+          "type": "boolean",
+          "description": "Whether the approval threshold is met."
         },
         {
           "name": "approvedBy",
-          "type": {
-            "canonical": "array",
-            "original": "string[]"
-          },
-          "description": "Reviewers that have approved.",
-          "required": true,
-          "default": null
+          "type": "string[]",
+          "description": "Reviewers that have approved."
         },
         {
           "name": "rejectedBy",
-          "type": {
-            "canonical": "array",
-            "original": "string[]"
-          },
-          "description": "Reviewers that have rejected.",
-          "required": true,
-          "default": null
+          "type": "string[]",
+          "description": "Reviewers that have rejected."
         },
         {
           "name": "pendingFrom",
-          "type": {
-            "canonical": "array",
-            "original": "string[]"
-          },
-          "description": "Reviewers that are still pending.",
-          "required": true,
-          "default": null
+          "type": "string[]",
+          "description": "Reviewers that are still pending."
         },
         {
           "name": "staleFrom",
-          "type": {
-            "canonical": "array",
-            "original": "string[]"
-          },
-          "description": "Reviewers whose reviews are stale (document changed since).",
-          "required": true,
-          "default": null
+          "type": "string[]",
+          "description": "Reviewers whose reviews are stale (document changed since)."
         },
         {
           "name": "reason",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "Human-readable summary of the evaluation.",
-          "required": true,
-          "default": null
+          "type": "string",
+          "description": "Human-readable summary of the evaluation."
         }
       ]
     },
     {
       "id": "concept-RetrievalOptions",
       "name": "RetrievalOptions",
-      "slug": "retrieval",
       "what": "Options for retrieval planning.",
-      "tags": [
-        "options"
-      ],
       "properties": [
         {
           "name": "minScore",
-          "type": {
-            "canonical": "string",
-            "original": "number | undefined"
-          },
-          "description": "Minimum similarity score to include a section (0-1). Default: 0.1",
-          "required": true,
-          "default": null
+          "type": "number | undefined",
+          "description": "Minimum similarity score to include a section (0-1). Default: 0.1"
         },
         {
           "name": "includeIntro",
-          "type": {
-            "canonical": "string",
-            "original": "boolean | undefined"
-          },
-          "description": "Always include the first section (typically title/intro). Default: true",
-          "required": true,
-          "default": null
+          "type": "boolean | undefined",
+          "description": "Always include the first section (typically title/intro). Default: true"
         }
       ]
     },
     {
       "id": "concept-CreateVersionOptions",
       "name": "CreateVersionOptions",
-      "slug": "createversion",
       "what": "Options for creating a new version.",
-      "tags": [
-        "options"
-      ],
       "properties": [
         {
           "name": "agentId",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "Agent creating this version.",
-          "required": true,
-          "default": null
+          "type": "string",
+          "description": "Agent creating this version."
         },
         {
           "name": "changelog",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "One-line change description.",
-          "required": true,
-          "default": null
+          "type": "string",
+          "description": "One-line change description."
         }
       ]
     },
     {
       "id": "concept-LlmtxtDocumentOptions",
       "name": "LlmtxtDocumentOptions",
-      "slug": "llmtxtdocument",
       "what": "Options for constructing an LlmtxtDocument.",
-      "tags": [
-        "options"
-      ],
       "properties": [
         {
           "name": "slug",
-          "type": {
-            "canonical": "string"
-          },
-          "description": "Document slug.",
-          "required": true,
-          "default": null
+          "type": "string",
+          "description": "Document slug."
         },
         {
           "name": "storage",
-          "type": {
-            "canonical": "object",
-            "original": "StorageAdapter"
-          },
-          "description": "Storage adapter for persistence.",
-          "required": true,
-          "default": null
+          "type": "StorageAdapter",
+          "description": "Storage adapter for persistence."
+        }
+      ]
+    },
+    {
+      "id": "concept-LeaseOptions",
+      "name": "LeaseOptions",
+      "what": "",
+      "properties": [
+        {
+          "name": "baseUrl",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "apiKey",
+          "type": "string",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-SubscribeOptions",
+      "name": "SubscribeOptions",
+      "what": "",
+      "properties": [
+        {
+          "name": "since",
+          "type": "number | undefined",
+          "description": "Resume from a specific sequence number (sent as Last-Event-ID)."
+        },
+        {
+          "name": "mode",
+          "type": "\"events\" | \"diff\" | undefined",
+          "description": "'events' = raw event payloads; 'diff' = payloads include computed content diffs."
+        },
+        {
+          "name": "baseUrl",
+          "type": "string",
+          "description": "Base URL of the API (no trailing slash)."
+        },
+        {
+          "name": "apiKey",
+          "type": "string",
+          "description": "Bearer API key."
+        }
+      ]
+    },
+    {
+      "id": "concept-SubscriptionEvent",
+      "name": "SubscriptionEvent",
+      "what": "",
+      "properties": [
+        {
+          "name": "seq",
+          "type": "number",
+          "description": "Monotonic sequence number (from Last-Event-ID)."
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "description": "Event type string (e.g. 'version.published', 'SECTION_LEASED')."
+        },
+        {
+          "name": "path",
+          "type": "string",
+          "description": "The path pattern the subscription was opened with."
+        },
+        {
+          "name": "payload",
+          "type": "unknown",
+          "description": "Raw event payload."
+        },
+        {
+          "name": "delta",
+          "type": "SectionDelta | undefined",
+          "description": "Section-level delta, present when mode='diff' and the server computed one."
+        }
+      ]
+    },
+    {
+      "id": "concept-StandaloneConfig",
+      "name": "StandaloneConfig",
+      "what": "Config for standalone topology.  One agent, one local `.db` file, zero network dependency. Use for single developer or single agent, offline-first operation, local testing.",
+      "properties": [
+        {
+          "name": "topology",
+          "type": "\"standalone\"",
+          "description": ""
+        },
+        {
+          "name": "storagePath",
+          "type": "string | undefined",
+          "description": "Path for the local .db file. Defaults to '.llmtxt'."
+        },
+        {
+          "name": "identityPath",
+          "type": "string | undefined",
+          "description": "Optional path to agent identity keypair."
+        },
+        {
+          "name": "crsqlite",
+          "type": "boolean | undefined",
+          "description": "Set true to enable cr-sqlite (T385). Default: false."
+        },
+        {
+          "name": "crsqliteExtPath",
+          "type": "string | undefined",
+          "description": "Path to crsqlite extension (optional, see P2-cr-sqlite.md)."
+        }
+      ]
+    },
+    {
+      "id": "concept-HubSpokeConfig",
+      "name": "HubSpokeConfig",
+      "what": "Config for hub-and-spoke topology.  One hub (PostgresBackend or a designated LocalBackend) is the Single Source of Truth. N spokes are RemoteBackend clients that write to and read from the hub. Ephemeral swarm workers are spokes with no local `.db` file.",
+      "properties": [
+        {
+          "name": "topology",
+          "type": "\"hub-spoke\"",
+          "description": ""
+        },
+        {
+          "name": "hubUrl",
+          "type": "string",
+          "description": "URL of the hub API instance (e.g. 'https://api.llmtxt.my'). REQUIRED — validation MUST fail fast if absent."
+        },
+        {
+          "name": "apiKey",
+          "type": "string | undefined",
+          "description": "API key for authenticating with the hub. MUST be present for write operations."
+        },
+        {
+          "name": "identityPath",
+          "type": "string | undefined",
+          "description": "Ed25519 private key hex for signing writes (alternative to apiKey). If both are supplied, Ed25519 signed writes take precedence."
+        },
+        {
+          "name": "persistLocally",
+          "type": "boolean | undefined",
+          "description": "When true, this spoke maintains a local cr-sqlite replica. Requires T385 (cr-sqlite) to be installed. Default: false (ephemeral swarm worker mode — no .db file)."
+        },
+        {
+          "name": "storagePath",
+          "type": "string | undefined",
+          "description": "Required when persistLocally=true. Path to local .db file."
+        }
+      ]
+    },
+    {
+      "id": "concept-MeshConfig",
+      "name": "MeshConfig",
+      "what": "Config for mesh topology.  N persistent peers, each with their own cr-sqlite LocalBackend. No central hub is required. Peers sync directly with each other via the P2P transport defined in T386. Use for offline-first P2P collaboration, air-gapped environments, or small teams of persistent agents (≤10 peers).",
+      "properties": [
+        {
+          "name": "topology",
+          "type": "\"mesh\"",
+          "description": ""
+        },
+        {
+          "name": "storagePath",
+          "type": "string",
+          "description": "Path for the local cr-sqlite .db file. REQUIRED for mesh."
+        },
+        {
+          "name": "identityPath",
+          "type": "string | undefined",
+          "description": "Optional path to agent identity keypair. Defaults to storagePath/identity.json."
+        },
+        {
+          "name": "peers",
+          "type": "string[] | undefined",
+          "description": "Known peers at startup. Each entry is a transport address. Format: 'unix:/path/to/sock' | 'http://host:port'"
+        },
+        {
+          "name": "meshDir",
+          "type": "string | undefined",
+          "description": "Directory where peer advertisement files are written and read. Defaults to $LLMTXT_MESH_DIR or '/tmp/llmtxt-mesh'."
+        },
+        {
+          "name": "transport",
+          "type": "\"unix\" | \"http\" | undefined",
+          "description": "Transport to listen on. Default: 'unix'."
+        },
+        {
+          "name": "port",
+          "type": "number | undefined",
+          "description": "Port for http transport. Default: 7642."
+        }
+      ]
+    },
+    {
+      "id": "concept-TopologyConfig",
+      "name": "TopologyConfig",
+      "what": "Discriminated union of all topology configs, keyed on the `topology` field."
+    },
+    {
+      "id": "concept-BackendConfig",
+      "name": "BackendConfig",
+      "what": "Configuration for a Backend instance.  BackendConfig is passed to the backend constructor. LocalBackend uses storagePath + identityPath; RemoteBackend uses baseUrl + apiKey.",
+      "properties": [
+        {
+          "name": "storagePath",
+          "type": "string | undefined",
+          "description": "Directory where the backend stores its data. For LocalBackend: SQLite DB and large content blobs live here. Defaults to '.llmtxt' relative to the working directory."
+        },
+        {
+          "name": "identityPath",
+          "type": "string | undefined",
+          "description": "Path to the agent identity keypair JSON file. Defaults to /identity.json."
+        },
+        {
+          "name": "baseUrl",
+          "type": "string | undefined",
+          "description": "Base URL of a remote LLMtxt API instance. Required for RemoteBackend. MUST include scheme (https://)."
+        },
+        {
+          "name": "apiKey",
+          "type": "string | undefined",
+          "description": "API key for authenticating with the remote instance. Used by RemoteBackend in the Authorization header."
+        },
+        {
+          "name": "wal",
+          "type": "boolean | undefined",
+          "description": "SQLite WAL mode. Defaults to true. Only relevant for LocalBackend."
+        },
+        {
+          "name": "leaseReaperIntervalMs",
+          "type": "number | undefined",
+          "description": "Lease reaper interval in milliseconds. Defaults to 10_000. Only relevant for LocalBackend."
+        },
+        {
+          "name": "presenceTtlMs",
+          "type": "number | undefined",
+          "description": "Presence TTL in milliseconds. Defaults to 30_000. Only relevant for LocalBackend."
+        },
+        {
+          "name": "crsqliteExtPath",
+          "type": "string | undefined",
+          "description": "Absolute path to a pre-downloaded crsqlite native extension (.so / .dylib / .dll). When supplied, LocalBackend uses this path instead of resolving the extension via vlcn.io/crsqlite. Useful in air-gapped or bundled environments where the install-time binary download is not possible.  DR-P2-01: If absent, LocalBackend attempts to resolve the path from the vlcn.io/crsqlite optional peer dependency. If neither is available, LocalBackend opens without cr-sqlite (hasCRR = false, no crash)."
+        },
+        {
+          "name": "maxBlobSizeBytes",
+          "type": "number | undefined",
+          "description": "Maximum blob size in bytes. Defaults to 100 * 1024 * 1024 (100 MB)."
+        },
+        {
+          "name": "blobStorageMode",
+          "type": "\"s3\" | \"pg-lo\" | undefined",
+          "description": "Blob storage mode for PostgresBackend. 's3' uses S3/R2 object storage (default). 'pg-lo' uses PostgreSQL large objects."
+        },
+        {
+          "name": "s3Endpoint",
+          "type": "string | undefined",
+          "description": "S3/R2 endpoint URL (e.g. \"https://s3.us-east-1.amazonaws.com\")."
+        },
+        {
+          "name": "s3Bucket",
+          "type": "string | undefined",
+          "description": "S3/R2 bucket name. Required when blobStorageMode = 's3'."
+        },
+        {
+          "name": "s3Region",
+          "type": "string | undefined",
+          "description": "S3/R2 region (e.g. \"us-east-1\")."
+        },
+        {
+          "name": "s3AccessKeyId",
+          "type": "string | undefined",
+          "description": "S3/R2 access key ID."
+        },
+        {
+          "name": "s3SecretAccessKey",
+          "type": "string | undefined",
+          "description": "S3/R2 secret access key."
+        }
+      ]
+    },
+    {
+      "id": "concept-ListResult",
+      "name": "ListResult",
+      "what": "Paginated list result.",
+      "properties": [
+        {
+          "name": "items",
+          "type": "T[]",
+          "description": ""
+        },
+        {
+          "name": "nextCursor",
+          "type": "string | null",
+          "description": "Cursor to pass for the next page, or null if no more results."
+        }
+      ]
+    },
+    {
+      "id": "concept-AppendEventParams",
+      "name": "AppendEventParams",
+      "what": "Parameters for appending an event.",
+      "properties": [
+        {
+          "name": "documentId",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "agentId",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "payload",
+          "type": "Record<string, unknown> | undefined",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-QueryEventsParams",
+      "name": "QueryEventsParams",
+      "what": "Parameters for querying events.",
+      "properties": [
+        {
+          "name": "documentId",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "type",
+          "type": "string | undefined",
+          "description": "Filter by event type."
+        },
+        {
+          "name": "since",
+          "type": "string | undefined",
+          "description": "Return events after this cursor (event id)."
+        },
+        {
+          "name": "limit",
+          "type": "number | undefined",
+          "description": "Maximum results. Defaults to 50."
+        }
+      ]
+    },
+    {
+      "id": "concept-CrdtState",
+      "name": "CrdtState",
+      "what": "Current CRDT state for a section.",
+      "properties": [
+        {
+          "name": "documentId",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "sectionKey",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "stateVectorBase64",
+          "type": "string",
+          "description": "Serialized Yjs state vector as base64."
+        },
+        {
+          "name": "snapshotBase64",
+          "type": "string",
+          "description": "Current merged document state as base64."
+        },
+        {
+          "name": "updatedAt",
+          "type": "number",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-PresenceEntry",
+      "name": "PresenceEntry",
+      "what": "A presence record for an agent viewing a document.",
+      "properties": [
+        {
+          "name": "agentId",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "documentId",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "meta",
+          "type": "Record<string, unknown> | undefined",
+          "description": "Agent metadata (cursor position, color, etc.)."
+        },
+        {
+          "name": "lastSeen",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "expiresAt",
+          "type": "number",
+          "description": "Expiry timestamp (ms since epoch)."
+        }
+      ]
+    },
+    {
+      "id": "concept-AgentPubkeyRecord",
+      "name": "AgentPubkeyRecord",
+      "what": "A registered agent public key record.",
+      "properties": [
+        {
+          "name": "agentId",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "pubkeyHex",
+          "type": "string",
+          "description": "Hex-encoded Ed25519 public key."
+        },
+        {
+          "name": "label",
+          "type": "string | undefined",
+          "description": ""
+        },
+        {
+          "name": "createdAt",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "revokedAt",
+          "type": "number | undefined",
+          "description": "If set, this key has been revoked."
+        }
+      ]
+    },
+    {
+      "id": "concept-EventOps",
+      "name": "EventOps",
+      "what": "Document event log operations.",
+      "properties": [
+        {
+          "name": "appendEvent",
+          "type": "(params: AppendEventParams) => Promise<DocumentEvent>",
+          "description": "Append an event to a document's event log. MUST emit the event on the local bus for subscribeStream consumers."
+        },
+        {
+          "name": "queryEvents",
+          "type": "(params: QueryEventsParams) => Promise<ListResult<DocumentEvent>>",
+          "description": "Query the event log for a document with optional filtering."
+        },
+        {
+          "name": "subscribeStream",
+          "type": "(documentId: string) => AsyncIterable<DocumentEvent>",
+          "description": "Subscribe to the event stream for a document. MUST return an AsyncIterable that yields events as they are appended. MUST clean up listeners when the consumer calls .return() or the iterator is GC'd. LocalBackend uses in-process EventEmitter; RemoteBackend uses SSE."
+        }
+      ]
+    },
+    {
+      "id": "concept-ContributorRecord",
+      "name": "ContributorRecord",
+      "what": "A contributor record tracking per-agent token attribution.",
+      "properties": [
+        {
+          "name": "documentId",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "agentId",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "netTokens",
+          "type": "number",
+          "description": "Net token contribution (positive = added, negative = removed)."
+        },
+        {
+          "name": "versionCount",
+          "type": "number",
+          "description": "Number of versions this agent has contributed."
+        },
+        {
+          "name": "lastContributedAt",
+          "type": "number",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-GraphResult",
+      "name": "GraphResult",
+      "what": "Global knowledge graph result.",
+      "properties": [
+        {
+          "name": "nodes",
+          "type": "{ id: string; slug: string; title: string; state: string; }[]",
+          "description": ""
+        },
+        {
+          "name": "edges",
+          "type": "{ source: string; target: string; label?: string; }[]",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-WebhookTestResult",
+      "name": "WebhookTestResult",
+      "what": "Result of a webhook test delivery.",
+      "properties": [
+        {
+          "name": "webhookId",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "delivered",
+          "type": "boolean",
+          "description": ""
+        },
+        {
+          "name": "statusCode",
+          "type": "number | undefined",
+          "description": ""
+        },
+        {
+          "name": "responseBody",
+          "type": "string | undefined",
+          "description": ""
+        },
+        {
+          "name": "durationMs",
+          "type": "number",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-ApprovalChainEntry",
+      "name": "ApprovalChainEntry",
+      "what": "An entry in the tamper-evident approval chain.",
+      "properties": [
+        {
+          "name": "approvalId",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "reviewerId",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "status",
+          "type": "\"APPROVED\" | \"REJECTED\"",
+          "description": ""
+        },
+        {
+          "name": "atVersion",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "timestamp",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "chainHash",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "prevChainHash",
+          "type": "string | null",
+          "description": ""
+        },
+        {
+          "name": "sigHex",
+          "type": "string | undefined",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-ApprovalChainResult",
+      "name": "ApprovalChainResult",
+      "what": "Result of verifying the approval chain for a document.",
+      "properties": [
+        {
+          "name": "valid",
+          "type": "boolean",
+          "description": ""
+        },
+        {
+          "name": "length",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "firstInvalidAt",
+          "type": "number | null",
+          "description": ""
+        },
+        {
+          "name": "entries",
+          "type": "ApprovalChainEntry[]",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-ExportDocumentResult",
+      "name": "ExportDocumentResult",
+      "what": "Result returned by exportDocument().",
+      "properties": [
+        {
+          "name": "filePath",
+          "type": "string",
+          "description": "Absolute path of the written file."
+        },
+        {
+          "name": "slug",
+          "type": "string",
+          "description": "Slug of the exported document."
+        },
+        {
+          "name": "version",
+          "type": "number",
+          "description": "Version number exported."
+        },
+        {
+          "name": "fileHash",
+          "type": "string",
+          "description": "SHA-256 hex of the written file bytes."
+        },
+        {
+          "name": "byteCount",
+          "type": "number",
+          "description": "Number of bytes written."
+        },
+        {
+          "name": "exportedAt",
+          "type": "string",
+          "description": "ISO 8601 UTC timestamp of export."
+        },
+        {
+          "name": "signatureHex",
+          "type": "string | null",
+          "description": "Ed25519 signature hex over fileHash, if sign=true. Null otherwise."
+        }
+      ],
+      "relatedTo": [
+        "docs/specs/ARCH-T427-document-export-ssot.md §5.2"
+      ]
+    },
+    {
+      "id": "concept-ExportAllResult",
+      "name": "ExportAllResult",
+      "what": "Result returned by exportAll().",
+      "properties": [
+        {
+          "name": "exported",
+          "type": "ExportDocumentResult[]",
+          "description": ""
+        },
+        {
+          "name": "skipped",
+          "type": "{ slug: string; reason: string; }[]",
+          "description": ""
+        },
+        {
+          "name": "totalCount",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "failedCount",
+          "type": "number",
+          "description": ""
+        }
+      ],
+      "relatedTo": [
+        "docs/specs/ARCH-T427-document-export-ssot.md §5.4"
+      ]
+    },
+    {
+      "id": "concept-ImportDocumentResult",
+      "name": "ImportDocumentResult",
+      "what": "Result returned by importDocument().",
+      "properties": [
+        {
+          "name": "action",
+          "type": "\"created\" | \"version_appended\"",
+          "description": "Whether a new document was created or a version was appended."
+        },
+        {
+          "name": "slug",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "documentId",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "versionNumber",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "contentHash",
+          "type": "string",
+          "description": ""
+        }
+      ],
+      "relatedTo": [
+        "docs/specs/ARCH-T427-document-export-ssot.md §5.7"
+      ]
+    },
+    {
+      "id": "concept-DocumentExportState",
+      "name": "DocumentExportState",
+      "what": "Self-contained document snapshot passed to all format serializers.  All fields required by the canonical frontmatter schema are present at the top level; additional fields feed the JSON format.",
+      "properties": [
+        {
+          "name": "title",
+          "type": "string",
+          "description": "Human-readable document title."
+        },
+        {
+          "name": "slug",
+          "type": "string",
+          "description": "URL-safe slug."
+        },
+        {
+          "name": "version",
+          "type": "number",
+          "description": "Version number of the exported state (integer, 1-based)."
+        },
+        {
+          "name": "state",
+          "type": "string",
+          "description": "Lifecycle state string (DRAFT | REVIEW | LOCKED | ARCHIVED)."
+        },
+        {
+          "name": "contributors",
+          "type": "string[]",
+          "description": "Agent IDs that have contributed to this document. Formatters MUST sort these lexicographically before serialization."
+        },
+        {
+          "name": "contentHash",
+          "type": "string",
+          "description": "SHA-256 hex of the body content (64 lowercase hex chars). Callers compute this; formatters embed it verbatim."
+        },
+        {
+          "name": "exportedAt",
+          "type": "string",
+          "description": "ISO 8601 UTC timestamp with millisecond precision. Injected by the caller so that determinism is achievable across repeated calls."
+        },
+        {
+          "name": "content",
+          "type": "string",
+          "description": "Full body content of the exported version."
+        },
+        {
+          "name": "labels",
+          "type": "string[] | null | undefined",
+          "description": "Arbitrary metadata labels. Present if available; omitted or null otherwise."
+        },
+        {
+          "name": "createdBy",
+          "type": "string | null | undefined",
+          "description": "Agent that created the document."
+        },
+        {
+          "name": "createdAt",
+          "type": "number | null | undefined",
+          "description": "Creation timestamp (Unix milliseconds)."
+        },
+        {
+          "name": "updatedAt",
+          "type": "number | null | undefined",
+          "description": "Last-modified timestamp (Unix milliseconds)."
+        },
+        {
+          "name": "versionCount",
+          "type": "number | null | undefined",
+          "description": "Total number of versions for this document."
+        },
+        {
+          "name": "chainRef",
+          "type": "string | null | undefined",
+          "description": "BFT approval chain hash from `getApprovalChain`. Null when no approvals exist or when CRDT state is unavailable (T451 stub)."
+        }
+      ]
+    },
+    {
+      "id": "concept-NewStateTransition",
+      "name": "NewStateTransition",
+      "what": ""
+    },
+    {
+      "id": "concept-SectionCrdtState",
+      "name": "SectionCrdtState",
+      "what": ""
+    },
+    {
+      "id": "concept-NewSectionCrdtState",
+      "name": "NewSectionCrdtState",
+      "what": ""
+    },
+    {
+      "id": "concept-NewDocumentEvent",
+      "name": "NewDocumentEvent",
+      "what": ""
+    },
+    {
+      "id": "concept-ScratchpadEntry",
+      "name": "ScratchpadEntry",
+      "what": ""
+    },
+    {
+      "id": "concept-NewScratchpadEntry",
+      "name": "NewScratchpadEntry",
+      "what": ""
+    },
+    {
+      "id": "concept-PeerSyncState",
+      "name": "PeerSyncState",
+      "what": "In-memory peer sync state. Persisted externally via llmtxt_mesh_state table.",
+      "properties": [
+        {
+          "name": "lastSyncVersion",
+          "type": "bigint",
+          "description": ""
+        },
+        {
+          "name": "failureCount",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "lastFailureAt",
+          "type": "number | undefined",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-SyncEngineOptions",
+      "name": "SyncEngineOptions",
+      "what": "",
+      "properties": [
+        {
+          "name": "backend",
+          "type": "Backend",
+          "description": ""
+        },
+        {
+          "name": "transport",
+          "type": "PeerTransport",
+          "description": ""
+        },
+        {
+          "name": "discovery",
+          "type": "PeerRegistry",
+          "description": ""
+        },
+        {
+          "name": "identity",
+          "type": "AgentIdentity",
+          "description": ""
+        },
+        {
+          "name": "syncIntervalMs",
+          "type": "number | undefined",
+          "description": ""
+        },
+        {
+          "name": "maxPeerFailures",
+          "type": "number | undefined",
+          "description": "Maximum consecutive failures before a peer is marked inactive."
+        }
+      ]
+    },
+    {
+      "id": "concept-MeshMessengerOptions",
+      "name": "MeshMessengerOptions",
+      "what": "",
+      "properties": [
+        {
+          "name": "identity",
+          "type": "AgentIdentity",
+          "description": ""
+        },
+        {
+          "name": "transport",
+          "type": "PeerTransport",
+          "description": ""
+        },
+        {
+          "name": "discovery",
+          "type": "PeerRegistry",
+          "description": ""
+        },
+        {
+          "name": "onMessage",
+          "type": "((envelope: A2AEnvelope) => void) | undefined",
+          "description": "Handler called when a valid, verified A2A message arrives for THIS agent."
+        }
+      ]
+    },
+    {
+      "id": "concept-PostgresBackendConfig",
+      "name": "PostgresBackendConfig",
+      "what": "Extended config for PostgresBackend.",
+      "properties": [
+        {
+          "name": "connectionString",
+          "type": "string | undefined",
+          "description": "PostgreSQL connection string. MUST be in the format: postgresql://user:passhost:5432/dbname Defaults to DATABASE_URL environment variable."
+        },
+        {
+          "name": "maxConnections",
+          "type": "number | undefined",
+          "description": "Maximum number of connections in the pool. Defaults to 10."
+        }
+      ]
+    },
+    {
+      "id": "concept-ApplyBlobChangesetResult",
+      "name": "ApplyBlobChangesetResult",
+      "what": "Result of applying a BlobChangeset.",
+      "properties": [
+        {
+          "name": "applied",
+          "type": "number",
+          "description": "Number of blob refs successfully applied (winners inserted)."
+        },
+        {
+          "name": "discarded",
+          "type": "number",
+          "description": "Number of blob refs that lost LWW and were discarded."
+        },
+        {
+          "name": "pendingFetches",
+          "type": "string[]",
+          "description": "Hashes scheduled for lazy background pull."
+        }
+      ]
+    },
+    {
+      "id": "concept-EventPublisher",
+      "name": "EventPublisher",
+      "what": "An object that can publish typed events onto a named channel.  Implementations MUST be synchronous-safe — callers do not await publish().",
+      "properties": [
+        {
+          "name": "publish",
+          "type": "(channel: string, event: T) => void",
+          "description": "Emit `event` on `channel`.  All active subscribers on `channel` MUST receive the event in FIFO order. Delivery to a slow subscriber MUST NOT block other subscribers."
+        }
+      ]
+    },
+    {
+      "id": "concept-EventSubscriber",
+      "name": "EventSubscriber",
+      "what": "An object that can return an async iterable of typed events from a channel.  The iterable MUST yield events in the order they were published. Calling `return()` on the iterator MUST unsubscribe from the channel.",
+      "properties": [
+        {
+          "name": "subscribe",
+          "type": "(channel: string) => AsyncIterable<T>",
+          "description": "Return an `AsyncIterable<T>` that yields every event published on `channel` after the subscription is opened.  Past events (before the subscription was opened) MUST NOT be replayed unless the implementation explicitly supports seek/cursor semantics."
+        }
+      ]
+    },
+    {
+      "id": "concept-EventStream",
+      "name": "EventStream",
+      "what": "A bidirectional event stream that can both publish and subscribe."
+    },
+    {
+      "id": "concept-DocumentEventBusLike",
+      "name": "DocumentEventBusLike",
+      "what": "Shape of the document event bus used by PostgresBackend (injected from apps/backend realtime layer).  Uses a single `'document'` channel and emits objects shaped as `{ type, slug, documentId, timestamp, actor, data }`.",
+      "properties": [
+        {
+          "name": "on",
+          "type": "(event: \"document\", listener: (payload: unknown) => void) => void",
+          "description": ""
+        },
+        {
+          "name": "off",
+          "type": "(event: \"document\", listener: (payload: unknown) => void) => void",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-PresenceManagerOptions",
+      "name": "PresenceManagerOptions",
+      "what": "",
+      "properties": [
+        {
+          "name": "agentId",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "transport",
+          "type": "PeerTransport",
+          "description": ""
+        },
+        {
+          "name": "discovery",
+          "type": "PeerRegistry",
+          "description": ""
+        },
+        {
+          "name": "ttlSeconds",
+          "type": "number | undefined",
+          "description": "Default TTL in seconds (spec default: 30)."
+        },
+        {
+          "name": "broadcastIntervalMs",
+          "type": "number | undefined",
+          "description": "Broadcast interval in ms (spec: 10 s)."
+        },
+        {
+          "name": "rateLimitWindowMs",
+          "type": "number | undefined",
+          "description": "Rate limit window in ms — max 1 message per peer per window (spec: 5 s)."
+        },
+        {
+          "name": "initialDocumentId",
+          "type": "string | null | undefined",
+          "description": "Current document/section the agent is editing (updated via setPresence)."
+        },
+        {
+          "name": "initialSectionId",
+          "type": "string | null | undefined",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-AgentSessionState",
+      "name": "AgentSessionState",
+      "what": "Session state machine: Idle - Open - Active - Closing - Closed  - Idle: Initial state, waiting for open() - Open: Backend initialization in progress (transient; transitions to Active) - Active: Ready for contributions via contribute() - Closing: Teardown in progress (mutex-protected) - Closed: Teardown complete, receipt emitted"
+    },
+    {
+      "id": "concept-AgentSessionOptions",
+      "name": "AgentSessionOptions",
+      "what": "AgentSessionOptions: constructor configuration.",
+      "properties": [
+        {
+          "name": "backend",
+          "type": "Backend",
+          "description": "Backend to operate through (LocalBackend or RemoteBackend). Typed as Backend to enable proper method calls; consumers pass concrete implementations (LocalBackend or RemoteBackend)."
+        },
+        {
+          "name": "agentId",
+          "type": "string",
+          "description": "Agent identity. MUST match the authenticated identity registered in the backend's identity primitives."
+        },
+        {
+          "name": "sessionId",
+          "type": "string | undefined",
+          "description": "Cryptographically random session ID (128-bit entropy minimum). If omitted, AgentSession generates one using crypto.randomUUID(). MUST be unguessable; predictable IDs allow session hijacking."
+        },
+        {
+          "name": "label",
+          "type": "string | undefined",
+          "description": "Human-readable label for this session. Used in receipts. Defaults to agentId + timestamp ISO string."
+        }
+      ]
+    },
+    {
+      "id": "concept-PostgresChangesetAdapterOptions",
+      "name": "PostgresChangesetAdapterOptions",
+      "what": "Options for constructing a PostgresChangesetAdapter.",
+      "properties": [
+        {
+          "name": "db",
+          "type": "unknown",
+          "description": "Postgres client or connection pool used for querying row changes.  TODO: Replace `unknown` with the concrete postgres.js client type once the full implementation is written."
+        },
+        {
+          "name": "sinceXid",
+          "type": "number | undefined",
+          "description": "The last synced Postgres transaction ID (xid) for a given peer. Rows with txid  sinceXid will be included in the next changeset. Defaults to 0 (full snapshot)."
+        }
+      ]
+    },
+    {
+      "id": "concept-MeshChangesetRouteOptions",
+      "name": "MeshChangesetRouteOptions",
+      "what": "Options for the POST /mesh/changeset route handler.",
+      "properties": [
+        {
+          "name": "adapter",
+          "type": "PostgresChangesetAdapter",
+          "description": "PostgresChangesetAdapter instance wired to the PostgresBackend."
+        },
+        {
+          "name": "maxChangesetBytes",
+          "type": "number | undefined",
+          "description": "Maximum changeset size in bytes (default: 10 MB per P3 spec §10)."
+        }
+      ]
+    },
+    {
+      "id": "concept-MeshChangesetResult",
+      "name": "MeshChangesetResult",
+      "what": "Generic POST /mesh/changeset handler result.  The route handler is framework-agnostic: the caller (Hono/Express/etc.) provides the request body and receives a structured result to render.",
+      "properties": [
+        {
+          "name": "status",
+          "type": "number",
+          "description": "HTTP status code to return."
+        },
+        {
+          "name": "body",
+          "type": "Record<string, unknown>",
+          "description": "Response body as an object (caller serializes to JSON)."
+        },
+        {
+          "name": "delta",
+          "type": "Uint8Array<ArrayBufferLike> | undefined",
+          "description": "Delta changeset bytes to return in the response body (bidirectional sync)."
+        }
+      ]
+    },
+    {
+      "id": "concept-BuildA2AOptions",
+      "name": "BuildA2AOptions",
+      "what": "Options for building an A2A message.",
+      "properties": [
+        {
+          "name": "from",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "to",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "payload",
+          "type": "unknown",
+          "description": ""
+        },
+        {
+          "name": "contentType",
+          "type": "string | undefined",
+          "description": ""
+        },
+        {
+          "name": "identity",
+          "type": "AgentIdentity",
+          "description": ""
+        },
+        {
+          "name": "nowMs",
+          "type": "number | undefined",
+          "description": ""
+        },
+        {
+          "name": "nonce",
+          "type": "string | undefined",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-BFTApprovalStatus",
+      "name": "BFTApprovalStatus",
+      "what": "BFT approval status."
+    },
+    {
+      "id": "concept-BFTStatusResponse",
+      "name": "BFTStatusResponse",
+      "what": "Response from GET /documents/:slug/bft/status.",
+      "properties": [
+        {
+          "name": "slug",
+          "type": "string",
+          "description": ""
+        },
+        {
+          "name": "bftF",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "quorum",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "currentApprovals",
+          "type": "number",
+          "description": ""
+        },
+        {
+          "name": "quorumReached",
+          "type": "boolean",
+          "description": ""
+        },
+        {
+          "name": "approvers",
+          "type": "string[]",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "concept-SendScratchpadOptions",
+      "name": "SendScratchpadOptions",
+      "what": "Options for sending a scratchpad message.",
+      "properties": [
+        {
+          "name": "content",
+          "type": "string",
+          "description": "Message content body."
+        },
+        {
+          "name": "contentType",
+          "type": "string | undefined",
+          "description": "MIME content type (default: \"text/plain\")."
+        },
+        {
+          "name": "threadId",
+          "type": "string | undefined",
+          "description": "Optional thread identifier for reply chains."
+        },
+        {
+          "name": "identity",
+          "type": "AgentIdentity | undefined",
+          "description": "Agent identity for signing (optional — unsigned if omitted)."
+        },
+        {
+          "name": "agentId",
+          "type": "string | undefined",
+          "description": "Agent ID to include in the request (required if identity provided)."
+        }
+      ]
+    },
+    {
+      "id": "concept-ReadScratchpadOptions",
+      "name": "ReadScratchpadOptions",
+      "what": "Options for reading scratchpad messages.",
+      "properties": [
+        {
+          "name": "lastId",
+          "type": "string | undefined",
+          "description": "Return messages after this stream ID."
+        },
+        {
+          "name": "threadId",
+          "type": "string | undefined",
+          "description": "Filter by thread."
+        },
+        {
+          "name": "limit",
+          "type": "number | undefined",
+          "description": "Maximum number of messages to return. Default 100."
         }
       ]
     }
@@ -1492,599 +2456,1060 @@
       "id": "op-generateId",
       "name": "generateId",
       "what": "",
-      "tags": [],
       "inputs": []
     },
     {
       "id": "op-createPatch",
       "name": "createPatch",
       "what": "",
-      "tags": [],
       "inputs": []
+    },
+    {
+      "id": "op-buildGraph",
+      "name": "buildGraph",
+      "what": "Build a knowledge graph from an array of messages.  Delegates to crates/llmtxt-core::graph::build_graph_wasm.",
+      "inputs": [
+        {
+          "name": "messages",
+          "type": "unknown",
+          "required": true,
+          "description": "Array of MessageInput objects."
+        }
+      ],
+      "preconditions": [
+        "Error if the Rust core returns an error."
+      ],
+      "outputs": {
+        "text": "Parsed KnowledgeGraph."
+      }
+    },
+    {
+      "id": "op-generateOverview",
+      "name": "generateOverview",
+      "what": "Generate a structural overview of a document.  Delegates to crates/llmtxt-core::disclosure::generate_overview_wasm.",
+      "inputs": [],
+      "preconditions": [
+        "Error if the Rust core returns an error object."
+      ],
+      "outputs": {
+        "text": "Parsed DocumentOverview."
+      }
     },
     {
       "id": "op-createClient",
       "name": "createClient",
       "what": "",
-      "tags": [],
       "inputs": []
     },
     {
-      "id": "op-generateOverview",
-      "name": "generateOverview",
-      "what": "Generate a structural overview of a document for progressive disclosure.",
-      "tags": [],
-      "inputs": [
-        {
-          "name": "content",
-          "type": {
-            "canonical": "any",
-            "original": "unknown"
-          },
-          "required": true,
-          "description": "The full document content to analyze."
-        }
-      ],
-      "outputs": {
-        "type": {
-          "canonical": "object",
-          "original": "A `DocumentOverview` with format, sections, and token counts."
-        },
-        "description": "A `DocumentOverview` with format, sections, and token counts."
-      }
+      "id": "op-buildCanonicalPayload",
+      "name": "buildCanonicalPayload",
+      "what": "Build the canonical payload bytes (UTF-8 encoded).  Format (newline-separated, same as Rust `canonical_payload()`):",
+      "inputs": []
     },
     {
-      "id": "op-buildGraph",
-      "name": "buildGraph",
-      "what": "Build a knowledge graph from an array of messages.  Nodes: agents (from fromAgentId + mentions), topics (#tags), decisions (/decision messages) Edges: mentions (agent→agent), discusses (agent→topic), decides (agent→decision), participates (agent→agent in same conversation)",
-      "tags": [],
+      "id": "op-createIdentity",
+      "name": "createIdentity",
+      "what": "Generate a fresh `AgentIdentity` and persist it. Convenience wrapper around `AgentIdentity.generate()`.",
       "inputs": []
     },
     {
       "id": "op-validateJson",
       "name": "validateJson",
       "what": "Validate content as JSON, optionally against a predefined schema.",
-      "tags": [],
       "inputs": [
         {
           "name": "content",
-          "type": {
-            "canonical": "any",
-            "original": "unknown"
-          },
+          "type": "unknown",
           "required": true,
           "description": "The raw content to validate (string or pre-parsed value)."
         },
         {
           "name": "schemaName",
-          "type": {
-            "canonical": "any",
-            "original": "unknown"
-          },
+          "type": "unknown",
           "required": true,
           "description": "Optional name of a predefined schema to enforce."
         }
       ],
       "outputs": {
-        "type": {
-          "canonical": "object",
-          "original": "A `ValidationResult` indicating success or listing errors."
-        },
-        "description": "A `ValidationResult` indicating success or listing errors."
+        "text": "A `ValidationResult` indicating success or listing errors."
       }
     },
     {
       "id": "op-validateText",
       "name": "validateText",
       "what": "Validate content as plain text or markdown.",
-      "tags": [],
       "inputs": [
         {
           "name": "content",
-          "type": {
-            "canonical": "any",
-            "original": "unknown"
-          },
+          "type": "unknown",
           "required": true,
           "description": "The value to validate as text."
         }
       ],
       "outputs": {
-        "type": {
-          "canonical": "object",
-          "original": "A `ValidationResult` with `format` set to `\"text\"` on success."
-        },
-        "description": "A `ValidationResult` with `format` set to `\"text\"` on success."
+        "text": "A `ValidationResult` with `format` set to `\"text\"` on success."
       }
     },
     {
       "id": "op-validateContent",
       "name": "validateContent",
       "what": "Validate content for a given format, with optional schema enforcement and content size limits.",
-      "tags": [
-        "validatecontent"
-      ],
       "inputs": [
         {
           "name": "content",
-          "type": {
-            "canonical": "any",
-            "original": "unknown"
-          },
+          "type": "unknown",
           "required": true,
           "description": "The raw content to validate."
         },
         {
           "name": "format",
-          "type": {
-            "canonical": "any",
-            "original": "unknown"
-          },
+          "type": "unknown",
           "required": true,
           "description": "The expected content format."
         },
         {
           "name": "schemaNameOrOptions",
-          "type": {
-            "canonical": "any",
-            "original": "unknown"
-          },
+          "type": "unknown",
           "required": true,
           "description": "A schema name string (backward compat) or options object."
         }
       ],
       "outputs": {
-        "type": {
-          "canonical": "object",
-          "original": "A `ValidationResult` indicating success or listing errors."
-        },
-        "description": "A `ValidationResult` indicating success or listing errors."
+        "text": "A `ValidationResult` indicating success or listing errors."
       }
     },
     {
       "id": "op-generateSignedUrl",
       "name": "generateSignedUrl",
       "what": "Generate a signed URL for accessing a document.",
-      "tags": [
-        "signedurl"
-      ],
       "inputs": []
     },
     {
       "id": "op-generateOrgSignedUrl",
       "name": "generateOrgSignedUrl",
       "what": "Generate an org-scoped signed URL for accessing a document. The URL includes the org parameter for organization-level access verification.",
-      "tags": [
-        "signedurl"
-      ],
       "inputs": []
     },
     {
       "id": "op-generateTimedUrl",
       "name": "generateTimedUrl",
       "what": "Generate a signed URL that expires after the given duration.",
-      "tags": [],
       "inputs": []
     },
     {
       "id": "op-validateTransition",
       "name": "validateTransition",
       "what": "Validate a proposed state transition with a detailed result.",
-      "tags": [
-        "transition"
-      ],
       "inputs": [
         {
           "name": "from",
-          "type": {
-            "canonical": "any",
-            "original": "unknown"
-          },
+          "type": "unknown",
           "required": true,
           "description": "Current document state."
         },
         {
           "name": "to",
-          "type": {
-            "canonical": "any",
-            "original": "unknown"
-          },
+          "type": "unknown",
           "required": true,
           "description": "Target document state."
         }
       ],
       "outputs": {
-        "type": {
-          "canonical": "object",
-          "original": "A result object indicating validity and allowed alternatives."
-        },
-        "description": "A result object indicating validity and allowed alternatives."
+        "text": "A result object indicating validity and allowed alternatives."
       }
     },
     {
       "id": "op-validatePatchApplies",
       "name": "validatePatchApplies",
       "what": "Check whether a patch applies cleanly to the given content.",
-      "tags": [],
       "inputs": [
         {
           "name": "content",
-          "type": {
-            "canonical": "any",
-            "original": "unknown"
-          },
+          "type": "unknown",
           "required": true,
           "description": "The current document content."
         },
         {
           "name": "patchText",
-          "type": {
-            "canonical": "any",
-            "original": "unknown"
-          },
+          "type": "unknown",
           "required": true,
           "description": "The unified diff to test."
         }
       ],
       "outputs": {
-        "type": {
-          "canonical": "object",
-          "original": "Whether the patch applies and the resulting content."
-        },
-        "description": "Whether the patch applies and the resulting content."
+        "text": "Whether the patch applies and the resulting content."
       }
     },
     {
       "id": "op-buildContributorSummary",
       "name": "buildContributorSummary",
       "what": "Build aggregated contributor summaries from version attributions.",
-      "tags": [],
       "inputs": [
         {
           "name": "attributions",
-          "type": {
-            "canonical": "any",
-            "original": "unknown"
-          },
+          "type": "unknown",
           "required": true,
           "description": "Array of per-version attribution data."
         }
       ],
       "outputs": {
-        "type": {
-          "canonical": "object",
-          "original": "Contributor summaries sorted by total versions authored (descending)."
-        },
-        "description": "Contributor summaries sorted by total versions authored (descending)."
+        "text": "Contributor summaries sorted by total versions authored (descending)."
       }
+    },
+    {
+      "id": "op-validateTopologyConfig",
+      "name": "validateTopologyConfig",
+      "what": "Validate an unknown value as a `TopologyConfig`.  Throws `TopologyConfigError` with exact messages from ARCH-T429 spec §3.3 on any validation failure.",
+      "inputs": [
+        {
+          "name": "config",
+          "type": "unknown",
+          "required": true,
+          "description": "The unknown input to validate."
+        }
+      ],
+      "preconditions": [
+        "`TopologyConfigError`   - `INVALID_TOPOLOGY_MODE` — topology field is not a recognized value.   - `MISSING_HUB_URL` — hub-spoke topology missing `hubUrl`.   - `MISSING_STORAGE_PATH_PERSIST` — hub-spoke with persistLocally=true missing `storagePath`.   - `MISSING_STORAGE_PATH_MESH` — mesh topology missing `storagePath`."
+      ],
+      "outputs": {
+        "text": "The validated `TopologyConfig`."
+      }
+    },
+    {
+      "id": "op-validateBlobName",
+      "name": "validateBlobName",
+      "what": "Validate a blob attachment name using the Rust WASM primitive.  Throws `BlobNameInvalidError` when any of the following are true:   - name is empty or exceeds 255 bytes (UTF-8)   - name contains path traversal sequences (`..`)   - name contains path separators (`/` or `\\`)   - name contains null bytes (`\\0`)   - name has leading or trailing whitespace  Delegates to crates/llmtxt-core::blob_name_validate via WASM.",
+      "inputs": [
+        {
+          "name": "name",
+          "type": "unknown",
+          "required": true,
+          "description": "The attachment name to validate (e.g. \"diagram.png\")"
+        }
+      ],
+      "preconditions": [
+        "`BlobNameInvalidError` on violation"
+      ]
+    },
+    {
+      "id": "op-createBackend",
+      "name": "createBackend",
+      "what": "Create a Backend instance appropriate for the given topology config.  This is the primary entry point for all agent code that needs a Backend. Prefer this over constructing LocalBackend or RemoteBackend directly.  Validation (ARCH-T429 §3.3) runs before any backend is constructed: - `hub-spoke` without `hubUrl` → throws `TopologyConfigError` - `hub-spoke` with `persistLocally=true` without `storagePath` → throws `TopologyConfigError` - `mesh` without `storagePath` → throws `TopologyConfigError` - Unknown `topology` value → throws `TopologyConfigError`  The returned backend must have `open()` called before use.",
+      "inputs": [
+        {
+          "name": "config",
+          "type": "unknown",
+          "required": true,
+          "description": "A validated `TopologyConfig`. Unknown shapes are   rejected by `validateTopologyConfig` before dispatch."
+        }
+      ],
+      "preconditions": [
+        "`TopologyConfigError` when config is invalid."
+      ],
+      "outputs": {
+        "text": "A `Backend` instance for the requested topology."
+      }
+    },
+    {
+      "id": "op-createPgBackend",
+      "name": "createPgBackend",
+      "what": "Create an isolated PostgresBackend instance backed by a temporary Postgres schema.  Applies all migrations (except pgvector), injects schema + stubs, and returns a cleanup callback to drop the schema after the test suite.  Throws if DATABASE_URL_PG is not set.",
+      "inputs": []
+    },
+    {
+      "id": "op-buildBlobChangeset",
+      "name": "buildBlobChangeset",
+      "what": "Collect BlobRef entries for all active blobs modified since `sinceMs`.  The sync layer calls this after `getChangesSince` to augment the binary changeset with blob manifest metadata. The caller passes the combined BlobChangeset to the receiving peer.  `sinceMs = 0` returns refs for all active blobs on the document.",
+      "inputs": [
+        {
+          "name": "db",
+          "type": "unknown",
+          "required": true,
+          "description": "The SQLite Drizzle instance"
+        },
+        {
+          "name": "crsqlBytes",
+          "type": "unknown",
+          "required": true,
+          "description": "The binary cr-sqlite changeset to embed"
+        },
+        {
+          "name": "docSlug",
+          "type": "unknown",
+          "required": true,
+          "description": "The document slug to scope blob refs to (optional)"
+        },
+        {
+          "name": "sinceMs",
+          "type": "unknown",
+          "required": true,
+          "description": "Only include blobs with uploadedAt  sinceMs (0 = all)"
+        }
+      ]
+    },
+    {
+      "id": "op-createMeshChangesetHandler",
+      "name": "createMeshChangesetHandler",
+      "what": "Create a framework-agnostic handler for the POST /mesh/changeset endpoint.  Intended usage in apps/backend (Hono):",
+      "inputs": [
+        {
+          "name": "options",
+          "type": "unknown",
+          "required": true,
+          "description": "Route handler options."
+        }
+      ],
+      "outputs": {
+        "text": "An async handler function `(changesetBytes, peerSinceXid) => MeshChangesetResult`.  TODO: Wire into apps/backend/src/routes/ once adapter is fully implemented."
+      }
+    },
+    {
+      "id": "op-buildA2AMessage",
+      "name": "buildA2AMessage",
+      "what": "Build and sign an A2A message.  The payload is JSON-serialized and base64-encoded. The signature covers the canonical bytes (matches Rust A2AMessage::canonical_bytes()).",
+      "inputs": []
+    },
+    {
+      "id": "op-buildApprovalCanonicalPayload",
+      "name": "buildApprovalCanonicalPayload",
+      "what": "Build the canonical approval payload string (to be signed).  Format: `documentSlug\\nreviewerId\\nstatus\\natVersion\\ntimestamp`",
+      "inputs": []
     }
   ],
   "constraints": [
     {
+      "id": "constraint-classifyContent-Error-if-the-WASM-module-retur",
+      "rule": "Error if the WASM module returns a serialization error (should not occur   in practice — the Rust code catches all errors and returns a valid JSON string).",
+      "enforcedBy": "classifyContent"
+    },
+    {
       "id": "constraint-multiWayDiff-Error-if-the-Rust-core-returns",
       "rule": "Error if the Rust core returns an error object.",
-      "enforcedBy": "multiWayDiff",
-      "severity": "error"
+      "enforcedBy": "multiWayDiff"
     },
     {
       "id": "constraint-cherryPickMerge-Error-if-the-Rust-core-returns",
       "rule": "Error if the Rust core returns an error object.",
-      "enforcedBy": "cherryPickMerge",
-      "severity": "error"
+      "enforcedBy": "cherryPickMerge"
     },
     {
-      "id": "constraint-queryJsonPath-Error-if-the-JSON-is-invalid-o",
-      "rule": "Error if the JSON is invalid or the path cannot be resolved.",
-      "enforcedBy": "queryJsonPath",
-      "severity": "error"
+      "id": "constraint-threeWayMerge-Error-if-the-Rust-core-returns",
+      "rule": "Error if the Rust core returns an error object.",
+      "enforcedBy": "threeWayMerge"
+    },
+    {
+      "id": "constraint-semanticDiff-Error-if-the-Rust-core-returns",
+      "rule": "Error if the Rust core returns an error object.",
+      "enforcedBy": "semanticDiff"
+    },
+    {
+      "id": "constraint-semanticConsensus-Error-if-the-Rust-core-returns",
+      "rule": "Error if the Rust core returns an error object.",
+      "enforcedBy": "semanticConsensus"
+    },
+    {
+      "id": "constraint-buildGraph-Error-if-the-Rust-core-returns",
+      "rule": "Error if the Rust core returns an error.",
+      "enforcedBy": "buildGraph"
+    },
+    {
+      "id": "constraint-generateOverview-Error-if-the-Rust-core-returns",
+      "rule": "Error if the Rust core returns an error object.",
+      "enforcedBy": "generateOverview"
+    },
+    {
+      "id": "constraint-getLineRange-Error-if-the-Rust-core-returns",
+      "rule": "Error if the Rust core returns an error object.",
+      "enforcedBy": "getLineRange"
+    },
+    {
+      "id": "constraint-searchContent-Error-if-the-Rust-core-returns",
+      "rule": "Error if the Rust core returns an error object.",
+      "enforcedBy": "searchContent"
+    },
+    {
+      "id": "constraint-queryJsonPath-Error-if-path-resolution-fails",
+      "rule": "Error if path resolution fails.",
+      "enforcedBy": "queryJsonPath"
     },
     {
       "id": "constraint-reconstructVersion-If-a-patch-in-the-sequence-fai",
       "rule": "If a patch in the sequence fails to apply.",
-      "enforcedBy": "reconstructVersion",
-      "severity": "error"
+      "enforcedBy": "reconstructVersion"
+    },
+    {
+      "id": "constraint-validateTopologyConfig--TopologyConfigError-------INV",
+      "rule": "`TopologyConfigError`   - `INVALID_TOPOLOGY_MODE` — topology field is not a recognized value.   - `MISSING_HUB_URL` — hub-spoke topology missing `hubUrl`.   - `MISSING_STORAGE_PATH_PERSIST` — hub-spoke with persistLocally=true missing `storagePath`.   - `MISSING_STORAGE_PATH_MESH` — mesh topology missing `storagePath`.",
+      "enforcedBy": "validateTopologyConfig"
+    },
+    {
+      "id": "constraint-serializeDocument-ExportError-with-code--UNSUPPO",
+      "rule": "ExportError with code 'UNSUPPORTED_FORMAT' for unknown formats.",
+      "enforcedBy": "serializeDocument"
+    },
+    {
+      "id": "constraint-writeExportFile-ExportError-on-write-or-sign-f",
+      "rule": "ExportError on write or sign failure.",
+      "enforcedBy": "writeExportFile"
+    },
+    {
+      "id": "constraint-parseImportFile-ExportError-PARSE-FAILED-on-I-",
+      "rule": "ExportError PARSE_FAILED on I/O or parse errors.",
+      "enforcedBy": "parseImportFile"
+    },
+    {
+      "id": "constraint-parseImportFile-ExportError-HASH-MISMATCH-when",
+      "rule": "ExportError HASH_MISMATCH when frontmatter content_hash does not   match the actual body SHA-256.",
+      "enforcedBy": "parseImportFile"
+    },
+    {
+      "id": "constraint-validateBlobName--BlobNameInvalidError--on-viol",
+      "rule": "`BlobNameInvalidError` on violation",
+      "enforcedBy": "validateBlobName"
+    },
+    {
+      "id": "constraint-createBackend--TopologyConfigError--when-con",
+      "rule": "`TopologyConfigError` when config is invalid.",
+      "enforcedBy": "createBackend"
     }
   ],
   "workflows": [],
   "configSchema": [
     {
-      "key": "lrucache.maxSize",
-      "type": {
-        "canonical": "string",
-        "original": "number | undefined"
-      },
-      "description": "Maximum number of entries before the least-recently-used entry is evicted (default: 1000).",
-      "required": true,
-      "default": null
+      "key": "LRUCacheOptions.maxSize",
+      "type": "number | undefined",
+      "description": "Maximum number of entries before the least-recently-used entry is evicted (default: 1000)."
     },
     {
-      "key": "lrucache.ttl",
-      "type": {
-        "canonical": "string",
-        "original": "number | undefined"
-      },
-      "description": "Default time-to-live in milliseconds for new entries (default: 24 hours).",
-      "required": true,
-      "default": null
+      "key": "LRUCacheOptions.ttl",
+      "type": "number | undefined",
+      "description": "Default time-to-live in milliseconds for new entries (default: 24 hours)."
     },
     {
-      "key": "attachment.content",
-      "type": {
-        "canonical": "string"
-      },
-      "description": "",
-      "required": true,
-      "default": null
+      "key": "AttachmentOptions.content",
+      "type": "string",
+      "description": ""
     },
     {
-      "key": "attachment.format",
-      "type": {
-        "canonical": "string",
-        "original": "ContentFormat | undefined"
-      },
-      "description": "",
-      "required": true,
-      "default": null
+      "key": "AttachmentOptions.format",
+      "type": "ContentFormat | undefined",
+      "description": ""
     },
     {
-      "key": "attachment.conversationId",
-      "type": {
-        "canonical": "string"
-      },
-      "description": "",
-      "required": true,
-      "default": null
+      "key": "AttachmentOptions.conversationId",
+      "type": "string",
+      "description": ""
     },
     {
-      "key": "attachment.fromAgentId",
-      "type": {
-        "canonical": "string"
-      },
-      "description": "",
-      "required": true,
-      "default": null
+      "key": "AttachmentOptions.fromAgentId",
+      "type": "string",
+      "description": ""
     },
     {
-      "key": "attachment.expiresInMs",
-      "type": {
-        "canonical": "string",
-        "original": "number | undefined"
-      },
-      "description": "",
-      "required": true,
-      "default": null
+      "key": "AttachmentOptions.expiresInMs",
+      "type": "number | undefined",
+      "description": ""
     },
     {
-      "key": "attachmentreshare.expiresIn",
-      "type": {
-        "canonical": "string",
-        "original": "number | undefined"
-      },
-      "description": "",
-      "required": true,
-      "default": null
+      "key": "AttachmentReshareOptions.expiresIn",
+      "type": "number | undefined",
+      "description": ""
     },
     {
-      "key": "attachmentreshare.mode",
-      "type": {
-        "canonical": "string",
-        "original": "AttachmentSharingMode | undefined"
-      },
-      "description": "",
-      "required": true,
-      "default": null
+      "key": "AttachmentReshareOptions.mode",
+      "type": "AttachmentSharingMode | undefined",
+      "description": ""
     },
     {
-      "key": "attachmentversion.baseVersion",
-      "type": {
-        "canonical": "string",
-        "original": "number | undefined"
-      },
-      "description": "",
-      "required": true,
-      "default": null
+      "key": "AttachmentVersionOptions.baseVersion",
+      "type": "number | undefined",
+      "description": ""
     },
     {
-      "key": "attachmentversion.changelog",
-      "type": {
-        "canonical": "string",
-        "original": "string | undefined"
-      },
-      "description": "",
-      "required": true,
-      "default": null
+      "key": "AttachmentVersionOptions.changelog",
+      "type": "string | undefined",
+      "description": ""
     },
     {
-      "key": "llmtxtclient.apiBase",
-      "type": {
-        "canonical": "string"
-      },
-      "description": "",
-      "required": true,
-      "default": null
+      "key": "LlmtxtClientConfig.apiBase",
+      "type": "string",
+      "description": ""
     },
     {
-      "key": "llmtxtclient.apiKey",
-      "type": {
-        "canonical": "string"
-      },
-      "description": "",
-      "required": true,
-      "default": null
+      "key": "LlmtxtClientConfig.apiKey",
+      "type": "string",
+      "description": ""
     },
     {
-      "key": "llmtxtclient.agentId",
-      "type": {
-        "canonical": "string"
-      },
-      "description": "",
-      "required": true,
-      "default": null
+      "key": "LlmtxtClientConfig.agentId",
+      "type": "string",
+      "description": ""
     },
     {
-      "key": "validatecontent.schemaName",
-      "type": {
-        "canonical": "string",
-        "original": "string | undefined"
-      },
-      "description": "Optional predefined schema name for JSON validation.",
-      "required": true,
-      "default": null
+      "key": "SubscribeSectionOptions.baseUrl",
+      "type": "string | undefined",
+      "description": "Base URL of the llmtxt API. Defaults to `https://api.llmtxt.my`."
     },
     {
-      "key": "validatecontent.maxBytes",
-      "type": {
-        "canonical": "string",
-        "original": "number | undefined"
-      },
-      "description": "Maximum content size in bytes. Set to 0 to disable. Default: 5 MB.",
-      "required": true,
-      "default": null
+      "key": "SubscribeSectionOptions.token",
+      "type": "string | undefined",
+      "description": "Bearer token for authentication. Pass your API key here (llmtxt_... format)."
     },
     {
-      "key": "validatecontent.maxLineBytes",
-      "type": {
-        "canonical": "string",
-        "original": "number | undefined"
-      },
-      "description": "Maximum line length in bytes. Set to 0 to disable. Default: 64 KB.",
-      "required": true,
-      "default": null
+      "key": "SubscribeSectionOptions.onError",
+      "type": "((err: Event) => void) | undefined",
+      "description": "Called when the WebSocket encounters an error."
     },
     {
-      "key": "validatecontent.rejectBinary",
-      "type": {
-        "canonical": "string",
-        "original": "boolean | undefined"
-      },
-      "description": "Reject content with binary control characters (0x00-0x08). Default: true.",
-      "required": true,
-      "default": null
+      "key": "SubscribeSectionOptions.onAwareness",
+      "type": "((payload: Uint8Array) => void) | undefined",
+      "description": "Called when an AwarenessRelay (0x04) message is received. The payload is the raw awareness bytes relayed from a peer."
     },
     {
-      "key": "signedurl.secret",
-      "type": {
-        "canonical": "string"
-      },
-      "description": "",
-      "required": true,
-      "default": null
+      "key": "CanonicalPayloadOptions.method",
+      "type": "string",
+      "description": "HTTP method, uppercase (e.g. \"PUT\")."
     },
     {
-      "key": "signedurl.baseUrl",
-      "type": {
-        "canonical": "string"
-      },
-      "description": "",
-      "required": true,
-      "default": null
+      "key": "CanonicalPayloadOptions.path",
+      "type": "string",
+      "description": "Path and query string (e.g. \"/api/v1/documents/abc\")."
     },
     {
-      "key": "signedurl.pathPrefix",
-      "type": {
-        "canonical": "string",
-        "original": "string | undefined"
-      },
-      "description": "Optional path prefix like `/attachments`. Default: root path.",
-      "required": true,
-      "default": null
+      "key": "CanonicalPayloadOptions.timestampMs",
+      "type": "number",
+      "description": "Milliseconds since epoch."
     },
     {
-      "key": "signedurl.signatureLength",
-      "type": {
-        "canonical": "string",
-        "original": "number | undefined"
-      },
-      "description": "Signature length in hex chars. Default: 16.",
-      "required": true,
-      "default": null
+      "key": "CanonicalPayloadOptions.agentId",
+      "type": "string",
+      "description": "Agent identifier registered on the server."
     },
     {
-      "key": "snapshot.includeDecisions",
-      "type": {
-        "canonical": "string",
-        "original": "boolean | undefined"
-      },
-      "description": "Include full decision log (default: true)",
-      "required": true,
-      "default": null
+      "key": "CanonicalPayloadOptions.nonceHex",
+      "type": "string",
+      "description": "Hex-encoded nonce (≥ 16 bytes = ≥ 32 hex chars)."
     },
     {
-      "key": "snapshot.includeObservations",
-      "type": {
-        "canonical": "string",
-        "original": "boolean | undefined"
-      },
-      "description": "Include brain observations (default: true)",
-      "required": true,
-      "default": null
+      "key": "CanonicalPayloadOptions.bodyHashHex",
+      "type": "string",
+      "description": "Lowercase hex SHA-256 of the request body bytes (64 chars)."
     },
     {
-      "key": "snapshot.maxSize",
-      "type": {
-        "canonical": "string",
-        "original": "number | undefined"
-      },
-      "description": "Max content size before compression in bytes (default: 5MB)",
-      "required": true,
-      "default": null
+      "key": "ValidateContentOptions.schemaName",
+      "type": "string | undefined",
+      "description": "Optional predefined schema name for JSON validation."
     },
     {
-      "key": "retrieval.minScore",
-      "type": {
-        "canonical": "string",
-        "original": "number | undefined"
-      },
-      "description": "Minimum similarity score to include a section (0-1). Default: 0.1",
-      "required": true,
-      "default": null
+      "key": "ValidateContentOptions.maxBytes",
+      "type": "number | undefined",
+      "description": "Maximum content size in bytes. Set to 0 to disable. Default: 5 MB."
     },
     {
-      "key": "retrieval.includeIntro",
-      "type": {
-        "canonical": "string",
-        "original": "boolean | undefined"
-      },
-      "description": "Always include the first section (typically title/intro). Default: true",
-      "required": true,
-      "default": null
+      "key": "ValidateContentOptions.maxLineBytes",
+      "type": "number | undefined",
+      "description": "Maximum line length in bytes. Set to 0 to disable. Default: 64 KB."
     },
     {
-      "key": "createversion.agentId",
-      "type": {
-        "canonical": "string"
-      },
-      "description": "Agent creating this version.",
-      "required": true,
-      "default": null
+      "key": "ValidateContentOptions.rejectBinary",
+      "type": "boolean | undefined",
+      "description": "Reject content with binary control characters (0x00-0x08). Default: true."
     },
     {
-      "key": "createversion.changelog",
-      "type": {
-        "canonical": "string"
-      },
-      "description": "One-line change description.",
-      "required": true,
-      "default": null
+      "key": "SignedUrlConfig.secret",
+      "type": "string",
+      "description": ""
     },
     {
-      "key": "llmtxtdocument.slug",
-      "type": {
-        "canonical": "string"
-      },
-      "description": "Document slug.",
-      "required": true,
-      "default": null
+      "key": "SignedUrlConfig.baseUrl",
+      "type": "string",
+      "description": ""
     },
     {
-      "key": "llmtxtdocument.storage",
-      "type": {
-        "canonical": "object",
-        "original": "StorageAdapter"
-      },
-      "description": "Storage adapter for persistence.",
-      "required": true,
-      "default": null
+      "key": "SignedUrlConfig.pathPrefix",
+      "type": "string | undefined",
+      "description": "Optional path prefix like `/attachments`. Default: root path."
+    },
+    {
+      "key": "SignedUrlConfig.signatureLength",
+      "type": "number | undefined",
+      "description": "Signature length in hex chars. Default: 16."
+    },
+    {
+      "key": "SnapshotOptions.includeDecisions",
+      "type": "boolean | undefined",
+      "description": "Include full decision log (default: true)"
+    },
+    {
+      "key": "SnapshotOptions.includeObservations",
+      "type": "boolean | undefined",
+      "description": "Include brain observations (default: true)"
+    },
+    {
+      "key": "SnapshotOptions.maxSize",
+      "type": "number | undefined",
+      "description": "Max content size before compression in bytes (default: 5MB)"
+    },
+    {
+      "key": "WatchDocumentOptions.fromSeq",
+      "type": "string | number | undefined",
+      "description": "Resume from this sequence number (exclusive). If unset, starts from the beginning."
+    },
+    {
+      "key": "WatchDocumentOptions.apiKey",
+      "type": "string | undefined",
+      "description": "Bearer token or API key for authenticated requests. Passed as `Authorization: Bearer <apiKey>` header."
+    },
+    {
+      "key": "WatchDocumentOptions.maxReconnects",
+      "type": "number | undefined",
+      "description": "Maximum reconnect attempts within the circuit-breaker window (60s). Defaults to 5."
+    },
+    {
+      "key": "WatchDocumentOptions.signal",
+      "type": "AbortSignal | undefined",
+      "description": "AbortSignal to cancel the stream externally."
+    },
+    {
+      "key": "RetrievalOptions.minScore",
+      "type": "number | undefined",
+      "description": "Minimum similarity score to include a section (0-1). Default: 0.1"
+    },
+    {
+      "key": "RetrievalOptions.includeIntro",
+      "type": "boolean | undefined",
+      "description": "Always include the first section (typically title/intro). Default: true"
+    },
+    {
+      "key": "CreateVersionOptions.agentId",
+      "type": "string",
+      "description": "Agent creating this version."
+    },
+    {
+      "key": "CreateVersionOptions.changelog",
+      "type": "string",
+      "description": "One-line change description."
+    },
+    {
+      "key": "LlmtxtDocumentOptions.slug",
+      "type": "string",
+      "description": "Document slug."
+    },
+    {
+      "key": "LlmtxtDocumentOptions.storage",
+      "type": "StorageAdapter",
+      "description": "Storage adapter for persistence."
+    },
+    {
+      "key": "LeaseOptions.baseUrl",
+      "type": "string",
+      "description": ""
+    },
+    {
+      "key": "LeaseOptions.apiKey",
+      "type": "string",
+      "description": ""
+    },
+    {
+      "key": "SubscribeOptions.since",
+      "type": "number | undefined",
+      "description": "Resume from a specific sequence number (sent as Last-Event-ID)."
+    },
+    {
+      "key": "SubscribeOptions.mode",
+      "type": "\"events\" | \"diff\" | undefined",
+      "description": "'events' = raw event payloads; 'diff' = payloads include computed content diffs."
+    },
+    {
+      "key": "SubscribeOptions.baseUrl",
+      "type": "string",
+      "description": "Base URL of the API (no trailing slash)."
+    },
+    {
+      "key": "SubscribeOptions.apiKey",
+      "type": "string",
+      "description": "Bearer API key."
+    },
+    {
+      "key": "StandaloneConfig.topology",
+      "type": "\"standalone\"",
+      "description": ""
+    },
+    {
+      "key": "StandaloneConfig.storagePath",
+      "type": "string | undefined",
+      "description": "Path for the local .db file. Defaults to '.llmtxt'."
+    },
+    {
+      "key": "StandaloneConfig.identityPath",
+      "type": "string | undefined",
+      "description": "Optional path to agent identity keypair."
+    },
+    {
+      "key": "StandaloneConfig.crsqlite",
+      "type": "boolean | undefined",
+      "description": "Set true to enable cr-sqlite (T385). Default: false."
+    },
+    {
+      "key": "StandaloneConfig.crsqliteExtPath",
+      "type": "string | undefined",
+      "description": "Path to crsqlite extension (optional, see P2-cr-sqlite.md)."
+    },
+    {
+      "key": "HubSpokeConfig.topology",
+      "type": "\"hub-spoke\"",
+      "description": ""
+    },
+    {
+      "key": "HubSpokeConfig.hubUrl",
+      "type": "string",
+      "description": "URL of the hub API instance (e.g. 'https://api.llmtxt.my'). REQUIRED — validation MUST fail fast if absent."
+    },
+    {
+      "key": "HubSpokeConfig.apiKey",
+      "type": "string | undefined",
+      "description": "API key for authenticating with the hub. MUST be present for write operations."
+    },
+    {
+      "key": "HubSpokeConfig.identityPath",
+      "type": "string | undefined",
+      "description": "Ed25519 private key hex for signing writes (alternative to apiKey). If both are supplied, Ed25519 signed writes take precedence."
+    },
+    {
+      "key": "HubSpokeConfig.persistLocally",
+      "type": "boolean | undefined",
+      "description": "When true, this spoke maintains a local cr-sqlite replica. Requires T385 (cr-sqlite) to be installed. Default: false (ephemeral swarm worker mode — no .db file)."
+    },
+    {
+      "key": "HubSpokeConfig.storagePath",
+      "type": "string | undefined",
+      "description": "Required when persistLocally=true. Path to local .db file."
+    },
+    {
+      "key": "MeshConfig.topology",
+      "type": "\"mesh\"",
+      "description": ""
+    },
+    {
+      "key": "MeshConfig.storagePath",
+      "type": "string",
+      "description": "Path for the local cr-sqlite .db file. REQUIRED for mesh."
+    },
+    {
+      "key": "MeshConfig.identityPath",
+      "type": "string | undefined",
+      "description": "Optional path to agent identity keypair. Defaults to storagePath/identity.json."
+    },
+    {
+      "key": "MeshConfig.peers",
+      "type": "string[] | undefined",
+      "description": "Known peers at startup. Each entry is a transport address. Format: 'unix:/path/to/sock' | 'http://host:port'"
+    },
+    {
+      "key": "MeshConfig.meshDir",
+      "type": "string | undefined",
+      "description": "Directory where peer advertisement files are written and read. Defaults to $LLMTXT_MESH_DIR or '/tmp/llmtxt-mesh'."
+    },
+    {
+      "key": "MeshConfig.transport",
+      "type": "\"unix\" | \"http\" | undefined",
+      "description": "Transport to listen on. Default: 'unix'."
+    },
+    {
+      "key": "MeshConfig.port",
+      "type": "number | undefined",
+      "description": "Port for http transport. Default: 7642."
+    },
+    {
+      "key": "BackendConfig.storagePath",
+      "type": "string | undefined",
+      "description": "Directory where the backend stores its data. For LocalBackend: SQLite DB and large content blobs live here. Defaults to '.llmtxt' relative to the working directory."
+    },
+    {
+      "key": "BackendConfig.identityPath",
+      "type": "string | undefined",
+      "description": "Path to the agent identity keypair JSON file. Defaults to /identity.json."
+    },
+    {
+      "key": "BackendConfig.baseUrl",
+      "type": "string | undefined",
+      "description": "Base URL of a remote LLMtxt API instance. Required for RemoteBackend. MUST include scheme (https://)."
+    },
+    {
+      "key": "BackendConfig.apiKey",
+      "type": "string | undefined",
+      "description": "API key for authenticating with the remote instance. Used by RemoteBackend in the Authorization header."
+    },
+    {
+      "key": "BackendConfig.wal",
+      "type": "boolean | undefined",
+      "description": "SQLite WAL mode. Defaults to true. Only relevant for LocalBackend."
+    },
+    {
+      "key": "BackendConfig.leaseReaperIntervalMs",
+      "type": "number | undefined",
+      "description": "Lease reaper interval in milliseconds. Defaults to 10_000. Only relevant for LocalBackend."
+    },
+    {
+      "key": "BackendConfig.presenceTtlMs",
+      "type": "number | undefined",
+      "description": "Presence TTL in milliseconds. Defaults to 30_000. Only relevant for LocalBackend."
+    },
+    {
+      "key": "BackendConfig.crsqliteExtPath",
+      "type": "string | undefined",
+      "description": "Absolute path to a pre-downloaded crsqlite native extension (.so / .dylib / .dll). When supplied, LocalBackend uses this path instead of resolving the extension via vlcn.io/crsqlite. Useful in air-gapped or bundled environments where the install-time binary download is not possible.  DR-P2-01: If absent, LocalBackend attempts to resolve the path from the vlcn.io/crsqlite optional peer dependency. If neither is available, LocalBackend opens without cr-sqlite (hasCRR = false, no crash)."
+    },
+    {
+      "key": "BackendConfig.maxBlobSizeBytes",
+      "type": "number | undefined",
+      "description": "Maximum blob size in bytes. Defaults to 100 * 1024 * 1024 (100 MB)."
+    },
+    {
+      "key": "BackendConfig.blobStorageMode",
+      "type": "\"s3\" | \"pg-lo\" | undefined",
+      "description": "Blob storage mode for PostgresBackend. 's3' uses S3/R2 object storage (default). 'pg-lo' uses PostgreSQL large objects."
+    },
+    {
+      "key": "BackendConfig.s3Endpoint",
+      "type": "string | undefined",
+      "description": "S3/R2 endpoint URL (e.g. \"https://s3.us-east-1.amazonaws.com\")."
+    },
+    {
+      "key": "BackendConfig.s3Bucket",
+      "type": "string | undefined",
+      "description": "S3/R2 bucket name. Required when blobStorageMode = 's3'."
+    },
+    {
+      "key": "BackendConfig.s3Region",
+      "type": "string | undefined",
+      "description": "S3/R2 region (e.g. \"us-east-1\")."
+    },
+    {
+      "key": "BackendConfig.s3AccessKeyId",
+      "type": "string | undefined",
+      "description": "S3/R2 access key ID."
+    },
+    {
+      "key": "BackendConfig.s3SecretAccessKey",
+      "type": "string | undefined",
+      "description": "S3/R2 secret access key."
+    },
+    {
+      "key": "SyncEngineOptions.backend",
+      "type": "Backend",
+      "description": ""
+    },
+    {
+      "key": "SyncEngineOptions.transport",
+      "type": "PeerTransport",
+      "description": ""
+    },
+    {
+      "key": "SyncEngineOptions.discovery",
+      "type": "PeerRegistry",
+      "description": ""
+    },
+    {
+      "key": "SyncEngineOptions.identity",
+      "type": "AgentIdentity",
+      "description": ""
+    },
+    {
+      "key": "SyncEngineOptions.syncIntervalMs",
+      "type": "number | undefined",
+      "description": ""
+    },
+    {
+      "key": "SyncEngineOptions.maxPeerFailures",
+      "type": "number | undefined",
+      "description": "Maximum consecutive failures before a peer is marked inactive."
+    },
+    {
+      "key": "MeshMessengerOptions.identity",
+      "type": "AgentIdentity",
+      "description": ""
+    },
+    {
+      "key": "MeshMessengerOptions.transport",
+      "type": "PeerTransport",
+      "description": ""
+    },
+    {
+      "key": "MeshMessengerOptions.discovery",
+      "type": "PeerRegistry",
+      "description": ""
+    },
+    {
+      "key": "MeshMessengerOptions.onMessage",
+      "type": "((envelope: A2AEnvelope) => void) | undefined",
+      "description": "Handler called when a valid, verified A2A message arrives for THIS agent."
+    },
+    {
+      "key": "PostgresBackendConfig.connectionString",
+      "type": "string | undefined",
+      "description": "PostgreSQL connection string. MUST be in the format: postgresql://user:passhost:5432/dbname Defaults to DATABASE_URL environment variable."
+    },
+    {
+      "key": "PostgresBackendConfig.maxConnections",
+      "type": "number | undefined",
+      "description": "Maximum number of connections in the pool. Defaults to 10."
+    },
+    {
+      "key": "PresenceManagerOptions.agentId",
+      "type": "string",
+      "description": ""
+    },
+    {
+      "key": "PresenceManagerOptions.transport",
+      "type": "PeerTransport",
+      "description": ""
+    },
+    {
+      "key": "PresenceManagerOptions.discovery",
+      "type": "PeerRegistry",
+      "description": ""
+    },
+    {
+      "key": "PresenceManagerOptions.ttlSeconds",
+      "type": "number | undefined",
+      "description": "Default TTL in seconds (spec default: 30)."
+    },
+    {
+      "key": "PresenceManagerOptions.broadcastIntervalMs",
+      "type": "number | undefined",
+      "description": "Broadcast interval in ms (spec: 10 s)."
+    },
+    {
+      "key": "PresenceManagerOptions.rateLimitWindowMs",
+      "type": "number | undefined",
+      "description": "Rate limit window in ms — max 1 message per peer per window (spec: 5 s)."
+    },
+    {
+      "key": "PresenceManagerOptions.initialDocumentId",
+      "type": "string | null | undefined",
+      "description": "Current document/section the agent is editing (updated via setPresence)."
+    },
+    {
+      "key": "PresenceManagerOptions.initialSectionId",
+      "type": "string | null | undefined",
+      "description": ""
+    },
+    {
+      "key": "AgentSessionOptions.backend",
+      "type": "Backend",
+      "description": "Backend to operate through (LocalBackend or RemoteBackend). Typed as Backend to enable proper method calls; consumers pass concrete implementations (LocalBackend or RemoteBackend)."
+    },
+    {
+      "key": "AgentSessionOptions.agentId",
+      "type": "string",
+      "description": "Agent identity. MUST match the authenticated identity registered in the backend's identity primitives."
+    },
+    {
+      "key": "AgentSessionOptions.sessionId",
+      "type": "string | undefined",
+      "description": "Cryptographically random session ID (128-bit entropy minimum). If omitted, AgentSession generates one using crypto.randomUUID(). MUST be unguessable; predictable IDs allow session hijacking."
+    },
+    {
+      "key": "AgentSessionOptions.label",
+      "type": "string | undefined",
+      "description": "Human-readable label for this session. Used in receipts. Defaults to agentId + timestamp ISO string."
+    },
+    {
+      "key": "PostgresChangesetAdapterOptions.db",
+      "type": "unknown",
+      "description": "Postgres client or connection pool used for querying row changes.  TODO: Replace `unknown` with the concrete postgres.js client type once the full implementation is written."
+    },
+    {
+      "key": "PostgresChangesetAdapterOptions.sinceXid",
+      "type": "number | undefined",
+      "description": "The last synced Postgres transaction ID (xid) for a given peer. Rows with txid  sinceXid will be included in the next changeset. Defaults to 0 (full snapshot)."
+    },
+    {
+      "key": "MeshChangesetRouteOptions.adapter",
+      "type": "PostgresChangesetAdapter",
+      "description": "PostgresChangesetAdapter instance wired to the PostgresBackend."
+    },
+    {
+      "key": "MeshChangesetRouteOptions.maxChangesetBytes",
+      "type": "number | undefined",
+      "description": "Maximum changeset size in bytes (default: 10 MB per P3 spec §10)."
+    },
+    {
+      "key": "BuildA2AOptions.from",
+      "type": "string",
+      "description": ""
+    },
+    {
+      "key": "BuildA2AOptions.to",
+      "type": "string",
+      "description": ""
+    },
+    {
+      "key": "BuildA2AOptions.payload",
+      "type": "unknown",
+      "description": ""
+    },
+    {
+      "key": "BuildA2AOptions.contentType",
+      "type": "string | undefined",
+      "description": ""
+    },
+    {
+      "key": "BuildA2AOptions.identity",
+      "type": "AgentIdentity",
+      "description": ""
+    },
+    {
+      "key": "BuildA2AOptions.nowMs",
+      "type": "number | undefined",
+      "description": ""
+    },
+    {
+      "key": "BuildA2AOptions.nonce",
+      "type": "string | undefined",
+      "description": ""
+    },
+    {
+      "key": "SendScratchpadOptions.content",
+      "type": "string",
+      "description": "Message content body."
+    },
+    {
+      "key": "SendScratchpadOptions.contentType",
+      "type": "string | undefined",
+      "description": "MIME content type (default: \"text/plain\")."
+    },
+    {
+      "key": "SendScratchpadOptions.threadId",
+      "type": "string | undefined",
+      "description": "Optional thread identifier for reply chains."
+    },
+    {
+      "key": "SendScratchpadOptions.identity",
+      "type": "AgentIdentity | undefined",
+      "description": "Agent identity for signing (optional — unsigned if omitted)."
+    },
+    {
+      "key": "SendScratchpadOptions.agentId",
+      "type": "string | undefined",
+      "description": "Agent ID to include in the request (required if identity provided)."
+    },
+    {
+      "key": "ReadScratchpadOptions.lastId",
+      "type": "string | undefined",
+      "description": "Return messages after this stream ID."
+    },
+    {
+      "key": "ReadScratchpadOptions.threadId",
+      "type": "string | undefined",
+      "description": "Filter by thread."
+    },
+    {
+      "key": "ReadScratchpadOptions.limit",
+      "type": "number | undefined",
+      "description": "Maximum number of messages to return. Default 100."
     }
   ]
 }
